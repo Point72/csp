@@ -1,0 +1,35 @@
+name: Setup Python
+description: 'Ensure python is installed, and setup pypi caching'
+
+inputs:
+  version:
+    type: choice
+    description: "Version to install"
+    options:
+      - '3.8'
+      - '3.9'
+      - '3.10'
+      - '3.11'
+    default: '3.9'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup pip cache
+      uses: actions/cache@v4
+      with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+              ${{ runner.os }}-pip-
+
+    - name: Set up Python ${{ inputs.version }}
+      uses: actions/setup-python@v5
+      with:
+          python-version: ${{ inputs.version }}
+          cache: "pip"
+          cache-dependency-path: 'pyproject.toml'
+
+    - name: Install cibuildwheel
+      shell: bash
+      run: pip install cibuildwheel==2.11.2

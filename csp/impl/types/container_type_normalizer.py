@@ -1,0 +1,67 @@
+import numpy
+import typing
+
+import csp.typing
+from csp.impl.types.typing_utils import CspTypingUtils
+
+
+class ContainerTypeNormalizer:
+    """A utility class that helps switcing between generic container type specifications and actual types
+    Example use cases:
+        - convert [int] to typing.List[int],
+        - convert typing.List[int] to list
+    """
+
+    _NORMALIZED_TYPE_MAPPING = {
+        typing.Dict: dict,
+        typing.Set: set,
+        typing.List: list,
+        typing.Tuple: tuple,
+        csp.typing.Numpy1DArray: numpy.ndarray,
+        csp.typing.NumpyNDArray: numpy.ndarray,
+    }
+
+    @classmethod
+    def _convert_containers_to_typing_generic_meta(cls, typ, is_within_container):
+        if CspTypingUtils.is_generic_container(typ):
+            return typ
+            # cls._deep_convert_generic_meta_to_typing_generic_meta(typ, is_within_container)
+        elif isinstance(typ, dict):
+            if type(typ) is not dict or len(typ) != 1:  # noqa: E721
+                raise TypeError(f"Invalid type decorator: '{typ}'")
+            t1, t2 = typ.items().__iter__().__next__()
+            return typing.Dict[
+                cls._convert_containers_to_typing_generic_meta(t1, True),
+                cls._convert_containers_to_typing_generic_meta(t2, True),
+            ]
+        elif isinstance(typ, set):
+            if type(typ) is not set or len(typ) != 1:  # noqa: E721
+                raise TypeError(f"Invalid type decorator: '{typ}'")
+            t = typ.__iter__().__next__()
+            return typing.Set[cls._convert_containers_to_typing_generic_meta(t, True)]
+        elif isinstance(typ, list):
+            if type(typ) is not list or len(typ) != 1:  # noqa: E721
+                raise TypeError(f"Invalid type decorator: '{typ}'")
+            t = typ.__iter__().__next__()
+            return typing.List[cls._convert_containers_to_typing_generic_meta(t, True)]
+        elif isinstance(typ, str) and is_within_container:
+            return typing.TypeVar(typ)
+        elif typ is numpy.ndarray:
+            return csp.typing.NumpyNDArray[float]
+        else:
+            # Note we don't handle any other container here, i.e for example deque or numpy arrays will be handled as regular non
+            # container objects
+            return typ
+
+    @classmethod
+    def normalized_type_to_actual_python_type(cls, typ, level=0):
+        if CspTypingUtils.is_generic_container(typ):
+            if CspTypingUtils.get_origin(typ) is typing.List and level == 0:
+                return [cls.normalized_type_to_actual_python_type(typ.__args__[0], level + 1)]
+            return cls._NORMALIZED_TYPE_MAPPING.get(CspTypingUtils.get_origin(typ), typ)
+        else:
+            return typ
+
+    @classmethod
+    def normalize_type(cls, typ):
+        return cls._convert_containers_to_typing_generic_meta(typ, False)

@@ -1,0 +1,517 @@
+name: Build Status
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - tkp/gh
+      - tkp/internal
+    tags:
+      - v*
+    paths-ignore:
+      - LICENSE
+      - README.md
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - LICENSE
+      - README.md
+  workflow_dispatch:
+    ci-full:
+        description: "Run Full CI"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+    ####################################
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #~~~~~~~~~~/##########\~~~~~~~~~~~~#
+    #~~~~~~~~~|#|~~~~~~~|#|~~~~~~~~~~~~#
+    #~~~~~~~~~|#|~~~~~~~|#|~~~~~~~~~~~~#
+    #~~~~~~~~~|#|~~~~~~~|#|~~~~~~~~~~~~#
+    #~~~~~~~~~|#|~~~~~~~|#|~~~~~~~~~~~~#
+    #~~~~~~~~~|#|~~~~~~~|#|~~~~~~~~~~~~#
+    #~~~~~~~~~\##########/~~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # Stage One - Initialize the build #
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # This is so we can inspect the latest commit message from
+    # both push and pull_request events (there is no
+    # github.event.head_commit.message otherwise on pull
+    # requests)
+    initialize:
+      runs-on: ubuntu-20.04
+
+      outputs:
+        COMMIT_MESSAGE: ${{ steps.setup.outputs.COMMIT_MSG }}
+        FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN }}
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            # for pull_request so we can do HEAD^2
+            fetch-depth: 2
+
+        - name: Get Commit Message
+          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD | tr '\n' ' ')" >> $GITHUB_ENV
+          if: ${{ github.event_name == 'push' }}
+
+        - name: Get Commit Message
+          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD^2 | tr '\n' ' ')" >> $GITHUB_ENV
+          if: ${{ github.event_name == 'pull_request' }}
+
+        - name: Display and Setup Build Args (Push)
+          id: setuppush
+          run: |
+            echo "Commit Message: $COMMIT_MSG"
+            echo "Full Run: $FULL_RUN"
+            echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
+            echo "FULL_RUN=$FULL_RUN" >> $GITHUB_OUTPUT
+          env:
+            FULL_RUN: ${{ startsWith(github.ref_name, 'v') || contains(github.event.head_commit.message, '[ci-full]') }}
+          if: ${{ github.event_name == 'push' }}
+
+        - name: Display and Setup Build Args (PR)
+          id: setuppr
+          run: |
+            echo "Commit Message: $COMMIT_MSG"
+            echo "Full Run: $FULL_RUN"
+            echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
+            echo "FULL_RUN=$FULL_RUN" >> $GITHUB_OUTPUT
+          env:
+            FULL_RUN: ${{ contains(github.event.pull_request.title, '[ci-full]') || contains(env.COMMIT_MSG, '[ci-full]') }}
+          if: ${{ github.event_name == 'pull_request' }}
+
+        - name: Display and Setup Build Args (Manual)
+          id: setupmanual
+          run: |
+            echo "Commit Message: $COMMIT_MSG"
+            echo "Full Run: $FULL_RUN"
+            echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
+            echo "FULL_RUN=$FULL_RUN" >> $GITHUB_OUTPUT
+          env:
+            FULL_RUN: ${{ github.event.inputs.ci-full }}
+          if: ${{ github.event_name == 'workflow_dispatch' }}
+
+    ###################################
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #~~~~~~~~~~~/#######|~~~~~~~~~~~~~#
+    #~~~~~~~~~~/########|~~~~~~~~~~~~~#
+    #~~~~~~~~~/###/~|###|~~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~~|###|~~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~~|###|~~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~~|###|~~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~~|###|~~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # Stage One - Lint Python / C++   #
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    lint:
+      needs:
+        - initialize
+
+      strategy:
+        matrix:
+          os:
+            - ubuntu-20.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
+          python-version:
+            - 3.9
+
+      runs-on: ${{ matrix.os }}
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            submodules: recursive
+
+        - name: Set up Python ${{ matrix.python-version }}
+          uses: ./.github/actions/setup-python
+          with:
+            version: '${{ matrix.python-version }}'
+
+        - name: Install python dependencies
+          run: make requirements
+
+        - name: Python Lint Steps (Linux)
+          run: make lint
+
+    ############################
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #~~~~~~~~~/########\~~~~~~~#
+    #~~~~~~~|###|~~~\###\~~~~~~#
+    #~~~~~~~~~~~~~~/###/~~~~~~~#
+    #~~~~~~~~~~~~/###/~~~~~~~~~#
+    #~~~~~~~~~~/###/~~~~~~~~~~~#
+    #~~~~~~~~/###/~~~~~~~~~~~~~#
+    #~~~~~~|#############|~~~~~#
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # Stage Two - Build Python #
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    build:
+      needs:
+        - initialize
+
+      strategy:
+        matrix:
+          os:
+            - ubuntu-20.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
+            - macos-11 # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
+            # - windows-2022 # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+            # arm64 image
+            # - macos-13-xlarge # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
+          python-version:
+            - "3.8"
+            - "3.9"
+            - "3.10"
+            - "3.11"
+          cibuildwheel:
+            - "cp38"
+            - "cp39"
+            - "cp310"
+            - "cp311"
+          is-full-run:
+            - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
+          exclude:
+            ############################
+            # Things to always exclude #
+            ############################
+            # Skip when cibuildwheel != python version
+            # to avoid duplication
+            - python-version: "3.8"
+              cibuildwheel: "cp39"
+            - python-version: "3.8"
+              cibuildwheel: "cp310"
+            - python-version: "3.8"
+              cibuildwheel: "cp311"
+            - python-version: "3.9"
+              cibuildwheel: "cp38"
+            - python-version: "3.9"
+              cibuildwheel: "cp310"
+            - python-version: "3.9"
+              cibuildwheel: "cp311"
+            - python-version: "3.10"
+              cibuildwheel: "cp38"
+            - python-version: "3.10"
+              cibuildwheel: "cp39"
+            - python-version: "3.10"
+              cibuildwheel: "cp311"
+            - python-version: "3.11"
+              cibuildwheel: "cp38"
+            - python-version: "3.11"
+              cibuildwheel: "cp39"
+            - python-version: "3.11"
+              cibuildwheel: "cp310"
+
+            ##############################################
+            # Things to exclude if not a full matrix run #
+            ##############################################
+            # windows is slow, so dont build unless its a full run
+            - is-full-run: false
+              os: windows-2022
+            # avoid unnecessary use of mac resources
+            - is-full-run: false
+              os: macos-11
+              python-version: "3.8"
+            - is-full-run: false
+              os: macos-11
+              python-version: "3.9"
+            - is-full-run: false
+              os: macos-11
+              python-version: "3.10"
+
+      runs-on: ${{ matrix.os }}
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            submodules: recursive
+            fetch-depth: 0
+
+        - name: Set up Python ${{ matrix.python-version }}
+          uses: ./.github/actions/setup-python
+          with:
+            version: '${{ matrix.python-version }}'
+
+        - name: Set up Caches
+          uses: ./.github/actions/setup-caches
+          with:
+            cibuildwheel: '${{ matrix.cibuildwheel }}'
+
+        - name: Set up dependencies
+          uses: ./.github/actions/setup-dependencies
+          with:
+            cibuildwheel: '${{ matrix.cibuildwheel }}'
+
+        ########
+        # Linux
+        - name: Python Wheel Steps (Linux - cibuildwheel)
+          run: make dist-py-cibw
+          env:
+            CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
+            CIBW_ENVIRONMENT_LINUX: CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host/home/runner/vcpkg_cache" VCPKG_DOWNLOADS="/host/home/runner/vcpkg_download_cache"
+          if: ${{ runner.os == 'Linux' }}
+
+        ########
+        # Macos
+        - name: Python Build Steps (Macos)
+          run: make dist-py-cibw
+          env:
+            CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
+            CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/Users/runner/vcpkg_cache" VCPKG_DOWNLOADS="/Users/runner/vcpkg_download_cache" CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13"
+          if: ${{ runner.os == 'macOS' }}
+
+        ##########
+        # Windows
+        - name: Python Build Steps (Windows vc14.3)
+          run: make dist-py-cibw
+          env:
+            CIBW_BUILD: "${{ matrix.cibuildwheel }}-win_amd64"
+            CMAKE_GENERATOR: Visual Studio 17 2022
+            CIBW_ENVIRONMENT_WINDOWS: TODO="todo"
+          if: ${{ matrix.os == 'windows-2022' }}
+
+        # Upload artifacts
+        - name: Upload Wheel
+          uses: actions/upload-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ matrix.python-version }}
+            path: wheelhouse/*.whl
+
+    #############################
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #~~~~~~~~~~/########\~~~~~~~#
+    #~~~~~~~~~|##|~~~~|##|~~~~~~#
+    #~~~~~~~~~~~~~~~~~|##|~~~~~~#
+    #~~~~~~~~~~~~~|######|~~~~~~#
+    #~~~~~~~~~~~~~~~~~|##|~~~~~~#
+    #~~~~~~~~~|##|~~~~|##|~~~~~~#
+    #~~~~~~~~~\#########/~~~~~~~#
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # Stage Three - Build SDist #
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    build_sdist:
+      needs:
+        - initialize
+
+      strategy:
+        matrix:
+          os:
+            - ubuntu-20.04
+          python-version:
+            - 3.9
+
+      runs-on: ${{ matrix.os }}
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            submodules: recursive
+
+        - name: Set up Python ${{ matrix.python-version }}
+          uses: ./.github/actions/setup-python
+          with:
+            version: '${{ matrix.python-version }}'
+
+        - name: Install python dependencies
+          run: make requirements
+
+        # Build SDist
+        - name: Python SDist Steps
+          run: make dist-py-sdist
+
+        # Upload artifacts
+        - name: Upload SDist
+          uses: actions/upload-artifact@v4
+          with:
+              name: csp-sdist
+              path: dist/*.tar.gz
+
+    #############################
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #~~~~~~~|##|~~~~|##|~~~~~~~~#
+    #~~~~~~~|##|~~~~|##|~~~~~~~~#
+    #~~~~~~~|##|~~~~|##|~~~~~~~~#
+    #~~~~~~~|##########|~~~~~~~~#
+    #~~~~~~~~~~~~~~~|##|~~~~~~~~#
+    #~~~~~~~~~~~~~~~|##|~~~~~~~~#
+    #~~~~~~~~~~~~~~~|##|~~~~~~~~#
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # Stage Four - Test Python  #
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    test:
+      needs:
+        - initialize
+        - build
+
+      strategy:
+        matrix:
+          os:
+            - ubuntu-20.04
+            - macos-11
+            # - windows-2022
+            # - macos-13-xlarge # arm64 image
+          python-version:
+            - 3.8
+            - 3.9
+            - "3.10"
+            - 3.11
+          is-full-run:
+            - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
+          exclude:
+            ##############################################
+            # Things to exclude if not a full matrix run #
+            ##############################################
+            # Exclude windows builds
+            - is-full-run: false
+              os: windows-2022
+
+            # Exclude macOS builds for now
+            - is-full-run: false
+              os: macos-11
+
+            # Exclude Python 3.8, 3.10, 3.11 builds
+            - is-full-run: false
+              python-version: 3.8
+
+            - is-full-run: false
+              python-version: 3.9
+
+            - is-full-run: false
+              python-version: "3.10"
+
+
+      runs-on: ${{ matrix.os }}
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+              submodules: recursive
+
+        - name: Set up Python ${{ matrix.python-version }}
+          uses: ./.github/actions/setup-python
+          with:
+            version: '${{ matrix.python-version }}'
+
+        - name: Install python dependencies
+          run: make requirements
+
+        - name: Install test dependencies (Linux)
+          shell: bash
+          run: sudo apt-get install graphviz
+          if: ${{ runner.os == 'Linux' }}
+
+        - name: Install test dependencies (Mac)
+          shell: bash
+          run: brew install graphviz
+          if: ${{ runner.os == 'macOS' }}
+
+        # Download artifact
+        - name: Download wheel
+          uses: actions/download-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ matrix.python-version }}
+
+        - name: Install wheel (Linux)
+          run: python -m pip install -U *manylinux2014*.whl --target .
+          if: ${{ runner.os == 'Linux' }}
+
+        # Note, on mac we must install the x86 wheel, the arm64 wheel
+        # would need an arm machine to test
+        - name: Install wheel (OSX)
+          run: python -m pip install -U *x86*.whl --target .
+          if: ${{ runner.os == 'macOS' && matrix.python-version != '3.11' }}
+
+        - name: Install wheel (OSX 3.11+)
+          run: python -m pip install -U *universal*.whl --target .
+          if: ${{ runner.os == 'macOS' && matrix.python-version == '3.11' }}
+
+        - name: Install wheel (windows)
+          run: python -m pip install -U (Get-ChildItem .\*.whl | Select-Object -Expand FullName) --target .
+          if: ${{ runner.os == 'Windows' }}
+
+        # Run tests
+        - name: Python Test Steps
+          run: make test
+
+    ########################################
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~|##########|~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~|##|~~~~~~~~~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~|##|~~~~~~~~~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~|##########|~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~~~~~~~~~|##|~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~|##|~~~~|##|~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~|##########|~~~~~~~~~~~~#
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # Stage Four - Build / test the SDist  #
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # test_sdist:
+    #   needs:
+    #     - initialize
+    #     - build_sdist
+
+    #   strategy:
+    #     matrix:
+    #       os:
+    #         - ubuntu-20.04
+    #       python-version:
+    #         - 3.9
+
+    #   runs-on: ${{ matrix.os }}
+
+    #   # if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
+
+    #   steps:
+    #     - name: Checkout
+    #       uses: actions/checkout@v4
+    #       with:
+    #         submodules: recursive
+
+    #     - name: Set up Python ${{ matrix.python-version }}
+    #       uses: ./.github/actions/setup-python
+    #       with:
+    #         version: '${{ matrix.python-version }}'
+
+    #     - name: Set up Caches
+    #       uses: ./.github/actions/setup-caches
+    #       with:
+    #         cibuildwheel: 'cp39'
+
+    #     # Python
+    #     - name: Install python dependencies
+    #       run: make requirements
+
+    #     # Download sdist
+    #     - uses: actions/download-artifact@v4
+    #       with:
+    #         name: csp-sdist
+    #         path: dist/
+
+    #     # Install sdist
+    #     - name: Install sdist
+    #       run: python -m pip install -U dist/csp*.tar.gz --target .
+    #       env:
+    #         CCACHE_DIR: /host/home/runner/work/csp/csp/.ccache
+    #         VCPKG_DEFAULT_BINARY_CACHE: /host/home/runner/vcpkg_cache
+
+    #     # Test sdist
+    #     - name: Run tests against from-scratch sdist build
+    #       run: make test
+
+    ##########################################################################################################################

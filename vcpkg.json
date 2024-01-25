@@ -1,0 +1,22 @@
+{
+    "name": "main",
+    "version-string": "latest",
+    "dependencies": [
+      "abseil",
+      "arrow",
+      "brotli",
+      "exprtk",
+      "gtest",
+      "librdkafka",
+      "lz4",
+      "parquet",
+      "protobuf",
+      "rapidjson",
+      "thrift",
+      "utf8proc"
+    ],
+    "overrides": [
+      { "name": "arrow", "version": "7.0.0"}
+    ],
+    "builtin-baseline": "288e8bebf4ca67c1f8ebd49366b03650cfd9eb7d"
+  }

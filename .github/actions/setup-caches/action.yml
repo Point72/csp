@@ -1,0 +1,59 @@
+name: Setup Caches
+description: 'Ensure various caches are setup like homebrew, vcpkg, ccache, etc'
+
+inputs:
+  cibuildwheel:
+    type: choice
+    description: "cibuildwheel run"
+    options:
+      - 'cp38'
+      - 'cp39'
+      - 'cp310'
+      - 'cp311'
+    default: 'cp39'
+
+runs:
+  using: 'composite'
+  steps:
+    # Setup CCache
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2.12
+
+    - name: Setup ccache in shell
+      shell: bash
+      run: echo 'PATH=/usr/lib/ccache:'"$PATH" >> $GITHUB_ENV
+      if: ${{ runner.os != 'Windows' }}
+      # TODO windows
+
+    ################
+    # Homebrew Cache
+    - name: Setup homebrew cache
+      uses: actions/cache@v4
+      with:
+          path: |
+              ~/Library/Caches/Homebrew/boost--*
+              ~/Library/Caches/Homebrew/downloads/*--boost-*
+          key: brew-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: brew-
+      if: ${{ runner.os == 'macOS' }}
+
+    ################
+    # vcpkg Cache
+    - name: Setup vcpkg cache in shell
+      shell: bash
+      run: |
+        mkdir -p ~/vcpkg_cache
+        mkdir -p ~/vcpkg_download_cache
+        echo "VCPKG_DEFAULT_BINARY_CACHE=$HOME/vcpkg_cache" >> $GITHUB_ENV
+        echo "VCPKG_DOWNLOADS=$HOME/vcpkg_download_cache" >> $GITHUB_ENV
+      if: ${{ runner.os != 'Windows' }}
+
+    - name: Setup vcpkg cache (Linux)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/vcpkg_cache
+          ~/vcpkg_download_cache
+        key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+        restore-keys: vcpkg-${{ runner.os }}
+      if: ${{ runner.os != 'Windows' }}

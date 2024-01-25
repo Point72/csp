@@ -1,0 +1,10 @@
+#cmakedefine CSP_VERSION_MAJOR
+#cmakedefine CSP_VERSION_MINOR
+#cmakedefine CSP_VERSION_PATCH
+#define CSP_VERSION ((CSP_VERSION_MAJOR * 1000) + CSP_VERSION_MINOR) * 1000 + CSP_VERSION_PATCH
+
+// in case we need this in plugins
+#define CSP_ABI_VERSION CSP_VERSION_MAJOR
+
+#cmakedefine CSP_BUILD_TYPE
+

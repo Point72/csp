@@ -1,0 +1,378 @@
+###################################################################################################################################################
+# Project Configuration #
+#########################
+cmake_minimum_required(VERSION 3.20.0)
+project(csp VERSION "0.1.0")
+set(CMAKE_CXX_STANDARD 17)
+
+###################################################################################################################################################
+# CMake Dependencies #
+######################
+include(CheckCCompilerFlag)
+include(CheckLinkerFlag)
+
+###################################################################################################################################################
+# CMake Policies #
+##################
+
+# option() should use new make behavior wrt variable clobbering
+cmake_policy (SET CMP0077 NEW)
+
+# Allow dep roots from env vars
+cmake_policy (SET CMP0074 NEW)
+
+# Set CMP0094 to NEW - find the first version that matches constraints,
+# instead of the latest version installed
+cmake_policy(SET CMP0094 NEW)
+
+###################################################################################################################################################
+# Environment #
+###############
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    set(WIN32 ON)
+    set(MACOS OFF)
+    set(LINUX OFF)
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(WIN32 OFF)
+    set(MACOS ON)
+    set(LINUX OFF)
+else()
+    set(WIN32 OFF)
+    set(MACOS OFF)
+    set(LINUX ON)
+endif()
+
+
+###################################################################################################################################################
+# Paths #
+#########
+# Custom CMake modules
+if(NOT DEFINED CSP_CMAKE_MODULE_PATH)
+    set(CSP_CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cpp/cmake/modules")
+endif()
+list(PREPEND CMAKE_MODULE_PATH "${CSP_CMAKE_MODULE_PATH}")
+
+###################################################################################################################################################
+# Build Configuration #
+#######################
+find_package(Color)
+
+# Build options
+option(CMAKE_BUILD_TYPE "Release/Debug build" RELEASE)
+option(CSP_BUILD_NO_CXX_ABI "Do not use CXX11 ABI" OFF)
+option(CSP_BUILD_TESTS "Build tests" OFF)
+option(CSP_BUILD_COVERAGE "Hook into gcov for coverage testing" OFF)
+option(CSP_BUILD_GPROF "Hook into gprof for profiling" OFF)
+option(CSP_MANYLINUX "Build for python's manylinux setup" OFF)
+option(CSP_USE_VCPKG "Build with vcpkg dependencies" ON)
+option(CSP_USE_CCACHE "Build with ccache caching" OFF)
+
+# Extension options
+option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" ON)
+option(CSP_BUILD_PARQUET_ADAPTER "Build parquet adapter" ON)
+
+# Normalize build type for downstream comparisons
+string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
+
+# Python library config
+set(BUILD_SHARED_LIBS TRUE)
+set(CMAKE_MACOSX_RPATH TRUE)
+set(CMAKE_SKIP_RPATH FALSE)
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_NAME_DIR "@rpath")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Normalize flags
+string(REGEX REPLACE "[ ]*-O[^ ]+[ ]*" " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(REGEX REPLACE "[ ]*-Wl,-O2 -Wl,[^ ]+[ ]*" " " CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+string(REGEX REPLACE "[ ]*-Wl,-O2 -Wl,[^ ]+[ ]*" " " CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+
+# CCache setup
+if(CSP_USE_CCACHE)
+    set(CMAKE_C_COMPILE_LAUNCHER ccache)
+    set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+endif()
+
+if(NOT DEFINED CSP_PYTHON_VERSION)
+    set(CSP_PYTHON_VERSION 3.11)
+endif()
+
+# Path to python folder for autogen
+if(NOT DEFINED CSP_PYTHON_FOLDER)
+    set(CSP_PYTHON_FOLDER ${CMAKE_SOURCE_DIR}/csp)
+    get_filename_component(CSP_PYTHON_FOLDER ${CSP_PYTHON_FOLDER} REALPATH BASE_DIR ${CMAKE_BINARY_DIR})
+endif()
+
+if(MACOS)
+    # fix for threads on osx
+    # assume built-in pthreads on MacOS
+    set(CMAKE_THREAD_LIBS_INIT "-lpthread")
+    set(CMAKE_HAVE_THREADS_LIBRARY 1)
+    set(CMAKE_USE_WIN32_THREADS_INIT 0)
+    set(CMAKE_USE_PTHREADS_INIT 1)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+    # for exception unwinding on macOS
+    check_linker_flag(CXX "-Wl,-ld_classic" HAS_LD_CLASSIC_MAC)
+    if(HAS_LD_CLASSIC_MAC)
+      set(CMAKE_EXE_LINKER_FLAGS "-Wl,-ld_classic")
+      set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-ld_classic")
+    endif()
+
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
+
+    # don't link against build python
+    # https://blog.tim-smith.us/2015/09/python-extension-modules-os-x/
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
+
+    # Support cross build
+    check_c_compiler_flag("-arch x86_64" x86_64Supported)
+    check_c_compiler_flag("-arch arm64" arm64Supported)
+
+    if(x86_64Supported AND arm64Supported)
+        set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Build universal architecture for OSX" FORCE)
+    elseif(x86_64Supported)
+        set(CMAKE_REQUIRED_LINK_OPTIONS "-arch;x86_64")
+        set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "Build universal architecture for OSX" FORCE)
+    elseif(arm64Supported)
+        set(CMAKE_REQUIRED_LINK_OPTIONS "-arch;arm64")
+        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build universal architecture for OSX" FORCE)
+    endif()
+endif()
+
+
+###################################################################################################################################################
+# Version Information #
+#######################
+# Set version from cmake and extract latest hash if available
+set(CSP_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CSP_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CSP_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+  # Get latest commit
+  execute_process(COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE CSP_VERSION_COMMIT_SHA)
+  # strip newline
+  string(REGEX REPLACE "\n$" "" CSP_VERSION_COMMIT_SHA "${CSP_VERSION_COMMIT_SHA}")
+else()
+  set(CSP_VERSION_COMMIT_SHA "release")
+endif()
+
+
+###################################################################################################################################################
+# RPath #
+#########
+if(MACOS)
+    set(CMAKE_INSTALL_RPATH "@loader_path/:@loader_path/../lib")
+elseif(LINUX)
+    set(CMAKE_INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../lib")
+endif()
+
+###################################################################################################################################################
+# Flags #
+#########
+# Compiler version flags
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+endif()
+
+
+# Optimization Flags
+if(WIN32)
+    if(CMAKE_BUILD_TYPE_LOWER STREQUAL debug)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+            /DEBUG \
+            /Z7 \
+            /Zi \
+            ")
+        add_definitions(-DCSP_DEBUG)
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+            /NDEBUG \
+            /O2 \
+            ")
+        add_definitions(-DNDEBUG)
+    endif()
+else()
+    if(CSP_BUILD_NO_CXX_ABI)
+        # TODO windows
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+    endif()
+    if (COVERAGE)
+        # TODO windows
+        add_compile_options(--coverage)
+        set(CMAKE_CXX_FLAGS "-O0 ${CMAKE_CXX_FLAGS}")
+        link_libraries(gcov)
+    endif ()
+    if (GPROF_BUILD)
+        # TODO windows
+        set(CMAKE_CXX_FLAGS "-pg ${CMAKE_CXX_FLAGS}")
+        set(CMAKE_EXE_LINKER_FLAGS "-pg ${CMAKE_EXE_LINKER_FLAGS}")
+        set(CMAKE_SHARED_LINKER_FLAGS "-pg ${CMAKE_SHARED_LINKER_FLAGS}")
+    endif ()
+    if(CMAKE_BUILD_TYPE_LOWER STREQUAL debug)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+        -O0 \
+        -g3 \
+        ")
+        add_definitions(-DCSP_DEBUG)
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+        -O3 \
+        -g0 \
+        -Wall \
+        -Wno-deprecated-declarations \
+        -Wno-deprecated \
+        -Wno-maybe-uninitialized \
+        ")
+        add_definitions(-DNDEBUG)
+    endif()
+endif()
+
+# Other Flags
+if(WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /MP /bigobj")
+    foreach(warning 4244 4251 4267 4275 4290 4786 4305 4996)
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd${warning}")
+    endforeach(warning)
+    add_compile_definitions(WIN32 _WIN32)
+endif()
+
+###################################################################################################################################################
+# Messages #
+############
+message("\n${Green}Building CSP version v${CSP_VERSION_MAJOR}.${CSP_VERSION_MINOR}.${CSP_VERSION_PATCH} [${CSP_VERSION_COMMIT_SHA}]")
+message("\n${Green}Building C++ binding${ColorReset}")
+message("\n${Green}Building Python ${Red}${CSP_PYTHON_VERSION}${Green} binding${ColorReset}")
+if(CMAKE_BUILD_TYPE_LOWER STREQUAL debug)
+    message("\n${Red}Building DEBUG${ColorReset}")
+else()
+    message("\n${Green}Building RELEASE${ColorReset}")
+endif()
+message("\n${Green}CMake Search Path: ${CMAKE_MODULE_PATH}${ColorReset}")
+
+###################################################################################################################################################
+# Helpers #
+###########
+function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OUTVAR)
+    string( REPLACE "." "\/" MODULE_FILENAME ${MODULE_NAME} )
+    string( JOIN "." MODULE_FILENAME ${MODULE_FILENAME} "py" )
+
+    add_custom_target( mkdir_autogen_${MODULE_NAME} ALL COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen" )
+
+    # VARARGS done by position
+    if(ARGV4)
+        set(CSP_AUTOGEN_EXTRA_ARGS "${ARGV4}")
+    else()
+        set(CSP_AUTOGEN_EXTRA_ARGS "")
+    endif()
+
+    add_custom_command(OUTPUT  "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.cpp" "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.h"
+        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${PROJECT_BINARY_DIR}/lib:${CMAKE_SOURCE_DIR}:$$PYTHONPATH" "LD_LIBRARY_PATH=${PROJECT_BINARY_DIR}/lib:$$LD_LIBRARY_PATH}" ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/csp/build/csp_autogen.py -m ${MODULE_NAME} -d ${CMAKE_CURRENT_BINARY_DIR}/csp_autogen -o ${DEST_FILENAME} ${CSP_AUTOGEN_EXTRA_ARGS}
+            COMMENT "generating csp c++ types from module ${MODULE_NAME} ${PROJECT_BINARY_DIR} ${CMAKE_SOURCE_DIR}/csp/build/csp_autogen.py"
+            DEPENDS mkdir_autogen_${MODULE_NAME}
+                    ${CMAKE_SOURCE_DIR}/csp/build/csp_autogen.py
+                    ${CMAKE_SOURCE_DIR}/${MODULE_FILENAME}
+                    csptypesimpl )
+
+    set(${SOURCE_NAME_OUTVAR} "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.cpp" PARENT_SCOPE )
+    set(${HEADER_NAME_OUTVAR} "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.h" PARENT_SCOPE )
+endfunction()
+
+
+###################################################################################################################################################
+# Dependencies #
+################
+find_package(DepsBase REQUIRED)
+
+# Adapter dependencies
+if(CSP_BUILD_KAFKA_ADAPTER)
+    find_package(DepsKafkaAdapter REQUIRED)
+endif()
+
+if(CSP_BUILD_PARQUET_ADAPTER)
+    find_package(DepsParquetAdapter REQUIRED)
+endif()
+
+
+# PYTHON
+if(CSP_MANYLINUX)
+    # Manylinux docker images have no shared libraries
+    # The instead use a statically built python.
+    # Cmake's default FindPython can't find the python headers
+    # without also finding (or failing to find) the python libraries
+    # so we use a custom FindPythonHeaders that is the same as the
+    # default, but ignores when the python libraries can't be found.
+    message("${Red}Manylinux build has no python shared libraries${ColorReset}")
+    find_package(Python ${CSP_PYTHON_VERSION} EXACT REQUIRED COMPONENTS Interpreter)
+    find_package(PythonHeaders ${CSP_PYTHON_VERSION} EXACT REQUIRED)
+
+    # Run with exact version so its cached for pybind
+    find_package(PythonInterp ${CSP_PYTHON_VERSION} EXACT REQUIRED)
+else()
+    message("${Cyan}Use python shared libraries${ColorReset}")
+    find_package(Python ${CSP_PYTHON_VERSION} EXACT REQUIRED COMPONENTS Interpreter Development)
+
+    # Run with exact version so its cached for pybind
+    find_package(PythonInterp ${CSP_PYTHON_VERSION} EXACT REQUIRED)
+    find_package(PythonLibs ${CSP_PYTHON_VERSION} EXACT REQUIRED)
+
+    link_directories(${Python_LIBRARY_DIRS})
+endif()
+
+
+message("${Cyan}Using Python ${Python_VERSION}\nPython_INCLUDE_DIRS: ${Python_INCLUDE_DIRS}\nPython_LIBRARIES: ${Python_LIBRARIES}\nPython_EXECUTABLE: ${Python_EXECUTABLE} ${ColorReset}")
+include_directories(${Python_INCLUDE_DIRS})
+
+# NUMPY
+find_package(Numpy)
+if(NOT NUMPY_FOUND)
+    message(FATAL_ERROR "${Red}Numpy could not be located${ColorReset}")
+else()
+    message("${Cyan}Numpy found: ${NUMPY_INCLUDE_DIR}${ColorReset}")
+    include_directories(${NUMPY_INCLUDE_DIR})
+endif()
+#####################
+
+###################################################################################################################################################
+# Asset names #
+################
+# prefix is _ by default
+set(CMAKE_SHARED_LIBRARY_PREFIX _)
+
+if(NOT WIN32)
+    # shared suffix is .so for both linux and mac
+    set(CMAKE_SHARED_LIBRARY_SUFFIX .so)
+
+    # static suffix is _static.a # TODO decide if we want this
+    set(CMAKE_STATIC_LIBRARY_SUFFIX _static.a)
+endif()
+
+
+###################################################################################################################################################
+# Build assets #
+################
+include_directories("${CMAKE_SOURCE_DIR}/cpp")
+# for autogen
+include_directories("${CMAKE_BINARY_DIR}/cpp")
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+add_subdirectory(cpp/csp/adapters)
+add_subdirectory(cpp/csp/core)
+add_subdirectory(cpp/csp/cppnodes)
+add_subdirectory(cpp/csp/engine)
+add_subdirectory(cpp/csp/python)
+add_subdirectory(cpp/csp/python/adapters)
+
+###################################################################################################################################################
+# Tests #
+#########
+if(CSP_BUILD_TESTS)
+    add_subdirectory(cpp/tests)
+endif()

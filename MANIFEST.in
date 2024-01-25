@@ -1,0 +1,38 @@
+# Text files
+include LICENSE
+include README.md
+include CONTRIBUTING.md
+
+# Python files
+graft csp
+include pyproject.toml
+include setup.py
+
+# C++ files
+graft cpp
+include CMakeLists.txt
+prune _skbuild
+
+# Dependency management
+include vcpkg.json
+prune vcpkg
+
+# IDE / VCS files
+prune .git
+prune .github
+prune .vscode
+exclude .clang-format
+exclude .gitattributes
+exclude .gitignore
+exclude .gitmodules
+
+# Patterns to exclude from any directory
+global-exclude *~
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude *.pyo
+global-exclude .ipynb_checkpoints
+global-exclude .DS_Store
+global-exclude *.so
+global-exclude *.dll
+global-exclude *.dylib

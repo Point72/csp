@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package fxspotstream;
+import "google/protobuf/timestamp.proto";
+
+option java_package = "cubist.fxspotstream";
+option java_outer_classname = "Feed";
+
+enum BidAsk {
+  INVALID = 0;
+  B       = 1;
+  S       = 2;
+}
+
+message Snapshot {
+  google.protobuf.Timestamp t_entry = 1;
+  google.protobuf.Timestamp t_local = 2;
+  string  pair  = 3;
+  string  lp    = 4;
+  BidAsk  side  = 5;
+  double  tier  = 6;
+  double  px    = 7;
+}

@@ -2,10 +2,12 @@ function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OU
     string( REPLACE "." "\/" MODULE_FILENAME ${MODULE_NAME} )
     string( JOIN "." MODULE_FILENAME ${MODULE_FILENAME} "py" )
 
-    add_custom_target( mkdir_autogen_${MODULE_NAME} ALL COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen" )
+    add_custom_target( mkdir_autogen_${MODULE_NAME}
+        ALL COMMAND ${CMAKE_COMMAND} -E make_directory
+        "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen" )
 
     # VARARGS done by position
-    if(ARGV4) 
+    if(ARGV4)
         set(CSP_AUTOGEN_EXTRA_ARGS "${ARGV4}")
     else()
         set(CSP_AUTOGEN_EXTRA_ARGS "")
@@ -19,8 +21,3 @@ function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OU
     set(${SOURCE_NAME_OUTVAR} "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.cpp" PARENT_SCOPE )
     set(${HEADER_NAME_OUTVAR} "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.h" PARENT_SCOPE )
 endfunction()
-
-# find_package(CSP REQUIRED)
-# message("${Cyan}Found CSP:\n\tincludes in: ${CSP_INCLUDE_DIR}\n\tlibraries in: ${CSP_LIBS_DIR}${ColorReset}")
-# include_directories(${CSP_INCLUDE_DIR})
-

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20.0)
-project(csp-example-piglatin VERSION "0.0.1")
+project(csp-example-struct VERSION "0.0.1")
 set(CMAKE_CXX_STANDARD 17)
 
 include(CheckCCompilerFlag)
@@ -100,7 +100,11 @@ find_package(CSP REQUIRED)
 message("${Cyan}Found CSP:\n\tincludes in: ${CSP_INCLUDE_DIR}\n\tlibraries in: ${CSP_LIBS_DIR}${ColorReset}")
 include_directories(${CSP_INCLUDE_DIR})
 
-add_library(piglatin SHARED piglatin.cpp)
-target_link_libraries(piglatin ${CSP_LIBRARY})
+csp_autogen(mystruct.struct mystruct STRUCT_AUTOGEN_HEADER STRUCT_AUTOGEN_SOURCE)
 
-install(TARGETS piglatin LIBRARY DESTINATION piglatin)
+add_library(mystruct SHARED struct.cpp ${STRUCT_AUTOGEN_SOURCE})
+target_link_libraries(mystruct ${CSP_LIBRARY})
+target_include_directories(mystruct PRIVATE "${CMAKE_BINARY_DIR}/csp_autogen")
+set_target_properties(mystruct PROPERTIES PUBLIC_HEADER "${STRUCT_AUTOGEN_HEADER}")
+
+install(TARGETS mystruct LIBRARY DESTINATION mystruct PUBLIC_HEADER DESTINATION mystruct/include)

@@ -10,6 +10,7 @@ set(CORE_PUBLIC_HEADERS
       Hash.h
       Likely.h
       QueueWaiter.h
+      Platform.h
       SRMWLockFreeQueue.h
       System.h
       TaggedPointerUnion.h

@@ -12,9 +12,9 @@ if "CXX" in os.environ:
 
 print(f"CMake Args: {cmake_args}")
 setup(
-    name="csp-example-piglatin",
+    name="csp-example-struct",
     version="0.0.1",
-    packages=["piglatin"],
+    packages=["mystruct"],
     cmake_install_dir=".",
     cmake_args=cmake_args,
     # cmake_with_sdist=True,

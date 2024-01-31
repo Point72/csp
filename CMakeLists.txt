@@ -117,8 +117,8 @@ if(MACOS)
     # for exception unwinding on macOS
     check_linker_flag(CXX "-Wl,-ld_classic" HAS_LD_CLASSIC_MAC)
     if(HAS_LD_CLASSIC_MAC)
-      set(CMAKE_EXE_LINKER_FLAGS "-Wl,-ld_classic")
-      set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-ld_classic")
+      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-ld_classic")
+      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-ld_classic")
     endif()
 
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
@@ -257,11 +257,14 @@ message("\n${Green}CMake Search Path: ${CMAKE_MODULE_PATH}${ColorReset}")
 ###################################################################################################################################################
 # Helpers #
 ###########
+# FIXME: consolidate this function with Findcsp_autogen.cmake
 function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OUTVAR)
     string( REPLACE "." "\/" MODULE_FILENAME ${MODULE_NAME} )
     string( JOIN "." MODULE_FILENAME ${MODULE_FILENAME} "py" )
 
-    add_custom_target( mkdir_autogen_${MODULE_NAME} ALL COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen" )
+    add_custom_target( mkdir_autogen_${MODULE_NAME}
+        ALL COMMAND ${CMAKE_COMMAND} -E make_directory
+        "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen" )
 
     # VARARGS done by position
     if(ARGV4)

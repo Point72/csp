@@ -3,7 +3,7 @@ requires = ["cmake", "csp", "scikit-build"]
 build-backend="setuptools.build_meta"
 
 [project]
-name = "csp-example-piglatin"
+name = "csp-example-struct"
 authors = [{name = "the csp authors", email = "t.paine154@gmail.com"}]
 description="CSP stream processing library"
 readme = "README.md"

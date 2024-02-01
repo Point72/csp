@@ -63,5 +63,11 @@ make requirements
 make build
 ```
 
+**Note** Currently we require GNU toolchain to build. On `macOS`, `clang` is usually aliased to `gcc`, so you will need to run a command like:
+
+```bash
+CXX=/opt/homebrew/bin/g++-13 make build
+```
+
 ## License
 This software is licensed under the Apache 2.0 license. See the [LICENSE](LICENSE) file for details.

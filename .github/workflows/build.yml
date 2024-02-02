@@ -260,6 +260,7 @@ jobs:
         - name: Python Build Steps (Macos)
           run: make dist-py-cibw
           env:
+            CIBW_BEFORE_ALL: make dependencies-mac # Skip dependenies-vcpkg on CI
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
             CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/Users/runner/vcpkg_cache" VCPKG_DOWNLOADS="/Users/runner/vcpkg_download_cache" CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13"
           if: ${{ runner.os == 'macOS' }}

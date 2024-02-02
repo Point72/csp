@@ -33,7 +33,7 @@ runs:
           path: |
               ~/Library/Caches/Homebrew/boost--*
               ~/Library/Caches/Homebrew/downloads/*--boost-*
-          key: brew-${{ hashFiles('CMakeLists.txt') }}
+          key: brew-
           restore-keys: brew-
       if: ${{ runner.os == 'macOS' }}
 

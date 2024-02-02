@@ -53,15 +53,10 @@ if __name__ == '__main__':
 
 
 ## Getting Started
-See [our wiki!](https://github.com/Point72/csp/wiki).
+See [our wiki!](https://github.com/Point72/csp/wiki)
 
 ## Development
-```bash
-git clone https://github.com/Point72/csp.git
-cd csp
-make requirements
-make build
-```
+Check out the [Developer Documentation](https://github.com/Point72/csp/wiki/99.-Developer)
 
 ## License
 This software is licensed under the Apache 2.0 license. See the [LICENSE](LICENSE) file for details.

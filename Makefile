@@ -5,7 +5,7 @@ EXTRA_ARGS :=
 #########
 .PHONY: develop build-py build install
 
-requirements:  ## install python dev dependnecies
+requirements:  ## install python dev and runtime dependencies
 	python -m pip install toml
 	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["build-system"]["requires"]))'`
 	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["project"]["optional-dependencies"]["develop"]))'`
@@ -64,11 +64,12 @@ checks: check
 #########
 .PHONY: test-py coverage-py test tests
 
+TEST_ARGS :=
 test-py: ## Clean and Make unit tests
-	python -m pytest -v csp/tests --junitxml=junit.xml
+	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
 
 coverage-py:
-	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing
+	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
 
 test: test-py  ## run the tests
 

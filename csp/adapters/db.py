@@ -9,13 +9,27 @@ except ImportError:
     from backports import zoneinfo
 
 import pytz
-import sqlalchemy as db
+from packaging import version
+from pkg_resources import DistributionNotFound, get_distribution
 
 from csp import PushMode, ts
 from csp.impl.adaptermanager import AdapterManagerImpl, ManagedSimInputAdapter
 from csp.impl.wiring import py_managed_adapter_def
 
 UTC = zoneinfo.ZoneInfo("UTC")
+
+try:
+    if version.parse(get_distribution("sqlalchemy").version) >= version.parse("2"):
+        _SQLALCHEMY_2 = True
+    else:
+        _SQLALCHEMY_2 = False
+
+    import sqlalchemy as db
+
+    _HAS_SQLALCHEMY = True
+except (DistributionNotFound, ValueError, TypeError, ImportError):
+    _HAS_SQLALCHEMY = False
+    db = None
 
 
 class TimeAccessor(ABC):
@@ -185,6 +199,8 @@ class DBReader:
         :param log_query: set to True to see what query was generated to access the data
         :param use_raw_user_query: Don't do any alteration to user query, assume it contains all the needed columns and sorting
         """
+        if not _HAS_SQLALCHEMY:
+            raise RuntimeError("Could not find SQLAlchemy installation")
         self._connection = connection
         self._table_name = table_name
         self._schema_name = schema_name
@@ -248,7 +264,7 @@ class DBReader:
         name = "DBDynStruct_{table}_{schema}".format(table=self._table_name or "", schema=self._schema_name or "")
         if name not in globals():
             db_metadata = db.MetaData(schema=self._schema_name)
-            table = db.Table(self._table_name, db_metadata, autoload=True, autoload_with=self._connection)
+            table = db.Table(self._table_name, db_metadata, autoload_with=self._connection)
             struct_metadata = {col: col_obj.type.python_type for col, col_obj in table.columns.items()}
 
             from csp.impl.struct import defineStruct
@@ -301,23 +317,44 @@ class DBReaderImpl(AdapterManagerImpl):
         self._row = None
 
     def start(self, starttime, endtime):
-        query = self.build_query(starttime, endtime)
+        self._query = self.build_query(starttime, endtime)
         if self._rep._log_query:
             import logging
 
-            logging.info("DBReader query: %s", query)
-        self._q = self._rep._connection.execute(query)
+            logging.info("DBReader query: %s", self._query)
+        if _SQLALCHEMY_2:
+            self._data_yielder = self._data_yielder_function()
+        else:
+            self._q = self._rep._connection.execute(self._query)
+
+    def _data_yielder_function(self):
+        # Connection yielder for SQLAlchemy 2
+        with self._rep._connection.connect() as conn:
+            for result in conn.execute(self._query).mappings():
+                yield result
+        # Signify the end
+        yield None
 
     def build_query(self, starttime, endtime):
         if self._rep._table_name:
             metadata = db.MetaData(schema=self._rep._schema_name)
-            table = db.Table(self._rep._table_name, metadata, autoload=True, autoload_with=self._rep._connection)
-            cols = [table.c[colname] for colname in self._rep._requested_cols]
-            q = db.select(cols)
+
+            if _SQLALCHEMY_2:
+                table = db.Table(self._rep._table_name, metadata, autoload_with=self._rep._connection)
+                cols = [table.c[colname] for colname in self._rep._requested_cols]
+                q = db.select(*cols)
+            else:
+                table = db.Table(self._rep._table_name, metadata, autoload=True, autoload_with=self._rep._connection)
+                cols = [table.c[colname] for colname in self._rep._requested_cols]
+                q = db.select(cols)
+
         elif self._rep._use_raw_user_query:
             return db.text(self._rep._query)
         else:  # self._rep._query
-            from_obj = db.text(f"({self._rep._query}) AS user_query")
+            if _SQLALCHEMY_2:
+                from_obj = db.text(f"({self._rep._query})")
+            else:
+                from_obj = db.text(f"({self._rep._query}) AS user_query")
 
             time_columns = self._rep._time_accessor.get_time_columns(self._rep._connection)
             if time_columns:
@@ -330,7 +367,11 @@ class DBReaderImpl(AdapterManagerImpl):
                 time_columns = []
                 time_select = []
             select_cols = [db.column(colname) for colname in self._rep._requested_cols.difference(set(time_columns))]
-            q = db.select(select_cols + time_select, from_obj=from_obj)
+
+            if _SQLALCHEMY_2:
+                q = db.select(*(select_cols + time_select)).select_from(from_obj)
+            else:
+                q = db.select(select_cols + time_select, from_obj=from_obj)
 
         cond = self._rep._time_accessor.get_time_constraint(starttime.replace(tzinfo=UTC), endtime.replace(tzinfo=UTC))
 
@@ -361,7 +402,10 @@ class DBReaderImpl(AdapterManagerImpl):
 
     def process_next_sim_timeslice(self, now):
         if self._row is None:
-            self._row = self._q.fetchone()
+            if _SQLALCHEMY_2:
+                self._row = next(self._data_yielder)
+            else:
+                self._row = self._q.fetchone()
 
         now = now.replace(tzinfo=UTC)
         while self._row is not None:
@@ -369,8 +413,10 @@ class DBReaderImpl(AdapterManagerImpl):
             if time > now:
                 return time
             self.process_row(self._row)
-            self._row = self._q.fetchone()
-
+            if _SQLALCHEMY_2:
+                self._row = next(self._data_yielder)
+            else:
+                self._row = self._q.fetchone()
         return None
 
     def process_row(self, row):

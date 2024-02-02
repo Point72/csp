@@ -5,7 +5,7 @@ import unittest
 from datetime import date, datetime, time
 
 import csp
-from csp.adapters.db import DateTimeAccessor, DBReader, EngineStartTimeAccessor, TimestampAccessor
+from csp.adapters.db import _SQLALCHEMY_2, DateTimeAccessor, DBReader, EngineStartTimeAccessor, TimestampAccessor
 
 
 class PriceQuantity(csp.Struct):
@@ -19,6 +19,15 @@ class PriceQuantity2(csp.Struct):
     price: float
     quantity: int
     side: str
+
+
+def execute_with_commit(engine, query, values):
+    if _SQLALCHEMY_2:
+        with engine.connect() as conn:
+            conn.execute(query, values)
+            conn.commit()
+    else:
+        engine.execute(query, values)
 
 
 class TestDBReader(unittest.TestCase):
@@ -46,7 +55,7 @@ class TestDBReader(unittest.TestCase):
             {"TIME": starttime.replace(second=5), "SYMBOL": "AAPL", "PRICE": 200.0, "SIZE": 400, "SIDE": "BUY"},
             {"TIME": starttime.replace(second=6), "SYMBOL": "GM", "PRICE": 2.0, "SIZE": 1, "SIDE": "BUY"},
         ]
-        engine.execute(query, values_list)
+        execute_with_commit(engine, query, values_list)
         return engine
 
     def test_sqlite_basic(self):
@@ -92,7 +101,7 @@ class TestDBReader(unittest.TestCase):
 
             # UTC
             result = csp.run(graph, starttime=datetime(2020, 3, 3, 9, 30))
-            print(result)
+
             self.assertEqual(len(result["aapl"]), 4)
             self.assertTrue(all(v[1].SYMBOL == "AAPL" for v in result["aapl"]))
 
@@ -211,7 +220,8 @@ class TestDBReader(unittest.TestCase):
                 "SIDE": "BUY",
             },
         ]
-        engine.execute(query, values_list)
+
+        execute_with_commit(engine, query, values_list)
 
         def graph():
             time_accessor = DateTimeAccessor(date_column="DATE", time_column="TIME", tz=pytz.timezone("US/Eastern"))
@@ -310,7 +320,7 @@ class TestDBReader(unittest.TestCase):
             {"TIME": starttime.replace(second=5), "SYMBOL": "AAPL", "PRICE": 200.0},
             {"TIME": starttime.replace(second=6), "SYMBOL": "GM", "PRICE": 2.0},
         ]
-        engine.execute(query, values_list1)
+        execute_with_commit(engine, query, values_list1)
 
         query = db.insert(test2)
         values_list2 = [
@@ -322,7 +332,7 @@ class TestDBReader(unittest.TestCase):
             # { 'TIME': starttime.replace( second = 5 ), 'SIZE': 400, 'SIDE': 'BUY' },
             {"TIME": starttime.replace(second=6), "SIZE": 1, "SIDE": "BUY"},
         ]
-        engine.execute(query, values_list2)
+        execute_with_commit(engine, query, values_list2)
 
         metadata.create_all(engine)
 
@@ -330,7 +340,7 @@ class TestDBReader(unittest.TestCase):
             time_accessor = TimestampAccessor(time_column="TIME", tz=pytz.timezone("US/Eastern"))
             query = "select * from test1 inner join test2 on test2.TIME=test1.TIME"
             reader = DBReader.create_from_connection(
-                connection=engine.connect(), query=query, time_accessor=time_accessor, symbol_column="SYMBOL"
+                connection=engine, query=query, time_accessor=time_accessor, symbol_column="SYMBOL"
             )
 
             # Struct
@@ -414,7 +424,8 @@ class TestDBReader(unittest.TestCase):
             (datetime(2020, 3, 5, 12), 700.0),
         ]
         values_list = [{"DATE": v[0].date(), "TIME": v[0].time(), "SYMBOL": "AAPL", "PRICE": v[1]} for v in values]
-        engine.execute(query, values_list)
+
+        execute_with_commit(engine, query, values_list)
 
         def graph():
             time_accessor = DateTimeAccessor(date_column="DATE", time_column="TIME", tz=pytz.timezone("US/Eastern"))

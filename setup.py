@@ -10,10 +10,9 @@ from shutil import which
 
 # This will be used for e.g. the sdist
 if not os.path.exists("vcpkg"):
-    if os.name == "nt":
-        subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
-    else:
-        subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
+    subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
+if not os.path.exists("vcpkg/ports"):
+    subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
 if not os.path.exists("vcpkg/buildtrees"):
     subprocess.call(["git", "pull"], cwd="vcpkg")
     if os.name == "nt":

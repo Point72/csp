@@ -92,21 +92,25 @@ showgraph = [
     "pillow",
 ]
 test = [
-    "graphviz",
-    "pillow",
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
     "pytest-sugar",
-    "httpx>=0.20,<1",
-    "perspective-python",
-    "polars",
-    "psutil",
-    "requests",
-    "slack-sdk>=3",
-    "sqlalchemy",
-    "threadpoolctl",
-    "tornado",
+    # showgraph
+    "graphviz",
+    "pillow",
+    # adapters
+    "httpx>=0.20,<1",  # kafka
+    "perspective-python>=2",  # perspective
+    "ipywidgets",  # perspective
+    "polars",  # parquet
+    "psutil",  # test_engine/test_history
+    "sqlalchemy",  # db
+    "threadpoolctl",  # test_random
+    "requests",  # profiler
+    "tornado",  # profiler, perspective, websocket
+    # type checking
+    "pydantic>=2",
 ]
 symphony = [
     "csp-adapter-symphony",

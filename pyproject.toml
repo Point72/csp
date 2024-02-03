@@ -77,15 +77,15 @@ test-requires = [
 ]
 
 [tool.cibuildwheel.linux]
-before-all ="make dependencies-fedora && make dependencies-vcpkg"
+before-all ="make dependencies-fedora"
 environment = {CSP_MANYLINUX="ON"}
 repair-wheel-command = "auditwheel -v show {wheel} && LD_LIBRARY_PATH=/project/csp/lib auditwheel -v repair -w {dest_dir} {wheel}"
 skip = "*i686 musllinux*"
 
 [tool.cibuildwheel.macos]
-before-all ="make dependencies-mac && make dependencies-vcpkg"
+before-all ="make dependencies-mac"
 archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
-environment = {CFLAGS="-I/usr/local/include -L/usr/local/lib", CXXFLAGS="-I/usr/local/include -L/usr/local/lib", LDFLAGS="-L/usr/local/lib"}
+environment = {}
 
 [tool.cibuildwheel.windows]
 archs = "AMD64"

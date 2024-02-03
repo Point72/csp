@@ -19,16 +19,17 @@ runs:
       uses: actions/cache@v4
       with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          key: pip-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
-              ${{ runner.os }}-pip-
+              pip-${{ runner.os }}
 
     - name: Set up Python ${{ inputs.version }}
       uses: actions/setup-python@v5
       with:
           python-version: ${{ inputs.version }}
-          cache: "pip"
-          cache-dependency-path: 'pyproject.toml'
+          # TODO consider re-adding this and/or removing the pip cache
+          # cache: "pip"
+          # cache-dependency-path: 'pyproject.toml'
 
     - name: Install cibuildwheel
       shell: bash

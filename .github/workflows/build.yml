@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-      - develop
-      - tkp/gh
-      - tkp/internal
     tags:
       - v*
     paths-ignore:
@@ -52,7 +49,7 @@ jobs:
     # github.event.head_commit.message otherwise on pull
     # requests)
     initialize:
-      runs-on: ubuntu-20.04
+      runs-on: ubuntu-22.04
 
       outputs:
         COMMIT_MESSAGE: ${{ steps.setup.outputs.COMMIT_MSG }}
@@ -125,7 +122,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-20.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
+            - ubuntu-22.04
           python-version:
             - 3.9
 
@@ -167,11 +164,10 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-20.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
-            - macos-11 # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
-            # - windows-2022 # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
-            # arm64 image
-            # - macos-13-xlarge # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
+            - ubuntu-22.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md
+            - macos-12 # https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
+            - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+            # - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
             - "3.8"
             - "3.9"
@@ -218,18 +214,31 @@ jobs:
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
+            # minimize CI resource usage
+            - is-full-run: false
+              os: ubuntu-22.04
+              python-version: "3.8"
             # windows is slow, so dont build unless its a full run
             - is-full-run: false
               os: windows-2022
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-11
+              os: macos-12
               python-version: "3.8"
             - is-full-run: false
-              os: macos-11
+              os: macos-12
               python-version: "3.9"
             - is-full-run: false
-              os: macos-11
+              os: macos-12
+              python-version: "3.10"
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.8"
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.9"
+            - is-full-run: false
+              os: macos-14
               python-version: "3.10"
 
       runs-on: ${{ matrix.os }}
@@ -255,6 +264,7 @@ jobs:
           uses: ./.github/actions/setup-dependencies
           with:
             cibuildwheel: '${{ matrix.cibuildwheel }}'
+          if: ${{ runner.os == 'macOS' }}
 
         ########
         # Linux
@@ -262,17 +272,29 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
-            CIBW_ENVIRONMENT_LINUX: CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host/home/runner/vcpkg_cache" VCPKG_DOWNLOADS="/host/home/runner/vcpkg_download_cache"
+            CIBW_ENVIRONMENT_LINUX: CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_BUILD_VERBOSITY: 3
           if: ${{ runner.os == 'Linux' }}
 
         ########
         # Macos
-        - name: Python Build Steps (Macos)
+        - name: Python Build Steps (Macos x86)
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
-            CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/Users/runner/vcpkg_cache" VCPKG_DOWNLOADS="/Users/runner/vcpkg_download_cache" CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13"
-          if: ${{ runner.os == 'macOS' }}
+            CIBW_ENVIRONMENT_MACOS: CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ARCHS_MACOS: x86_64
+            CIBW_BUILD_VERBOSITY: 3
+          if: ${{ matrix.os == 'macos-12' }}
+
+        - name: Python Build Steps (Macos arm)
+          run: make dist-py-cibw
+          env:
+            CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
+            CIBW_ENVIRONMENT_MACOS: PATH="/opt/homebrew/opt/bison/bin/:$PATH" CC="/opt/homebrew/bin/gcc-13" CXX="/opt/homebrew/bin/g++-13" LDFLAGS="-Wl,-ld_classic" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ARCHS_MACOS: arm64
+            CIBW_BUILD_VERBOSITY: 3
+          if: ${{ matrix.os == 'macos-14' }}
 
         ##########
         # Windows
@@ -288,7 +310,7 @@ jobs:
         - name: Upload Wheel
           uses: actions/upload-artifact@v4
           with:
-            name: csp-dist-${{ runner.os }}-${{ matrix.python-version }}
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
             path: wheelhouse/*.whl
 
     #############################
@@ -310,7 +332,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-20.04
+            - ubuntu-22.04
           python-version:
             - 3.9
 
@@ -361,10 +383,10 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-20.04
-            - macos-11
+            - ubuntu-22.04
+            - macos-12
+            - macos-14
             # - windows-2022
-            # - macos-13-xlarge # arm64 image
           python-version:
             - 3.8
             - 3.9
@@ -382,7 +404,10 @@ jobs:
 
             # Exclude macOS builds for now
             - is-full-run: false
-              os: macos-11
+              os: macos-12
+
+            - is-full-run: false
+              os: macos-14
 
             # Exclude Python 3.8, 3.10, 3.11 builds
             - is-full-run: false
@@ -425,7 +450,7 @@ jobs:
         - name: Download wheel
           uses: actions/download-artifact@v4
           with:
-            name: csp-dist-${{ runner.os }}-${{ matrix.python-version }}
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
         - name: Install wheel (Linux)
           run: python -m pip install -U *manylinux2014*.whl --target .
@@ -469,7 +494,7 @@ jobs:
     #   strategy:
     #     matrix:
     #       os:
-    #         - ubuntu-20.04
+    #         - ubuntu-22.04
     #       python-version:
     #         - 3.9
 

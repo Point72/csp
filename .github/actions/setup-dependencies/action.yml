@@ -21,14 +21,14 @@ runs:
     - name: Install python dependencies
       shell: bash
       run: make requirements
-      if: ${{ runner.os == 'Linux' }} # skip on linux, in docker
+      if: ${{ runner.os == 'Linux' }}
 
     ################
     # Linux # NOTE: skip for manylinux image
     # - name: Linux init steps
     #   shell: bash
     #   run: make dependencies-vcpkg
-    #   if: ${{ runner.os == 'Linux' }} # skip 
+    #   if: ${{ runner.os == 'Linux' }} # skip
 
     ################
     # Mac

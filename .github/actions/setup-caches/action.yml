@@ -18,6 +18,8 @@ runs:
     # Setup CCache
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2.12
+      with:
+        key: ${{ runner.os }}-${{ runner.arch }}
 
     - name: Setup ccache in shell
       shell: bash
@@ -33,8 +35,8 @@ runs:
           path: |
               ~/Library/Caches/Homebrew/*
               ~/Library/Caches/Homebrew/downloads/*
-          key: brew-
-          restore-keys: brew-
+          key: brew-${{ runner.os }}-${{ runner.arch }}-
+          restore-keys: brew-${{ runner.os }}-${{ runner.arch }}-
       if: ${{ runner.os == 'macOS' }}
 
     ################
@@ -54,6 +56,6 @@ runs:
         path: |
           ~/vcpkg_cache
           ~/vcpkg_download_cache
-        key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-        restore-keys: vcpkg-${{ runner.os }}
+        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+        restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
       if: ${{ runner.os != 'Windows' }}

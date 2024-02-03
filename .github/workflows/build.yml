@@ -169,7 +169,7 @@ jobs:
           os:
             - ubuntu-22.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md
             - macos-12 # https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
-            - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+            # - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             # - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
             - "3.8"
@@ -263,6 +263,7 @@ jobs:
           uses: ./.github/actions/setup-dependencies
           with:
             cibuildwheel: '${{ matrix.cibuildwheel }}'
+          if: ${{ runner.os == 'macOS' }}
 
         ########
         # Linux
@@ -271,6 +272,7 @@ jobs:
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
             CIBW_ENVIRONMENT_LINUX: CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_BUILD_VERBOSITY: 3
           if: ${{ runner.os == 'Linux' }}
 
         ########
@@ -281,15 +283,24 @@ jobs:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
             CIBW_ENVIRONMENT_MACOS: CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: x86_64
+            CIBW_BUILD_VERBOSITY: 3
           if: ${{ matrix.os == 'macos-12' }}
 
-        - name: Python Build Steps (arm)
+        - name: Python Build Steps (Macos arm)
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
-            CIBW_ENVIRONMENT_MACOS: CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ENVIRONMENT_MACOS: PATH="/opt/homebrew/opt/bison/bin/:$PATH" CC="/opt/homebrew/bin/gcc-13" CXX="/opt/homebrew/bin/g++-13" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: arm64
+            CIBW_BUILD_VERBOSITY: 3
           if: ${{ matrix.os == 'macos-14' }}
+
+        - name: Debug 14 build
+          run: |
+            cat /Users/runner/work/csp/csp/vcpkg/buildtrees/detect_compiler/config-arm64-osx-rel-CMakeCache.txt.log
+            cat /Users/runner/work/csp/csp/vcpkg/buildtrees/detect_compiler/config-arm64-osx-rel-out.log
+            cat /Users/runner/work/csp/csp/vcpkg/buildtrees/detect_compiler/config-arm64-osx-rel-err.log
+          if: ${{ matrix.os == 'macos-14' && always() }}
 
         ##########
         # Windows
@@ -380,7 +391,7 @@ jobs:
           os:
             - ubuntu-22.04
             - macos-12
-            - macos-14
+            # - macos-14
             # - windows-2022
           python-version:
             - 3.8

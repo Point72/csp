@@ -52,7 +52,7 @@ jobs:
     # github.event.head_commit.message otherwise on pull
     # requests)
     initialize:
-      runs-on: ubuntu-20.04
+      runs-on: ubuntu-22.04
 
       outputs:
         COMMIT_MESSAGE: ${{ steps.setup.outputs.COMMIT_MSG }}
@@ -125,7 +125,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-20.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
+            - ubuntu-22.04
           python-version:
             - 3.9
 
@@ -167,9 +167,9 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-20.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
-            - macos-11 # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
-            # - windows-2022 # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+            - ubuntu-22.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md
+            - macos-12 # https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
+            # - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
             # arm64 image
             # - macos-13-xlarge # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
           python-version:
@@ -223,13 +223,13 @@ jobs:
               os: windows-2022
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-11
+              os: macos-12
               python-version: "3.8"
             - is-full-run: false
-              os: macos-11
+              os: macos-12
               python-version: "3.9"
             - is-full-run: false
-              os: macos-11
+              os: macos-12
               python-version: "3.10"
 
       runs-on: ${{ matrix.os }}
@@ -262,7 +262,7 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
-            CIBW_ENVIRONMENT_LINUX: CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host/home/runner/vcpkg_cache" VCPKG_DOWNLOADS="/host/home/runner/vcpkg_download_cache"
+            CIBW_ENVIRONMENT_LINUX: CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
           if: ${{ runner.os == 'Linux' }}
 
         ########
@@ -271,7 +271,7 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
-            CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/Users/runner/vcpkg_cache" VCPKG_DOWNLOADS="/Users/runner/vcpkg_download_cache" CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13"
+            CIBW_ENVIRONMENT_MACOS: CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
           if: ${{ runner.os == 'macOS' }}
 
         ##########
@@ -310,7 +310,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-20.04
+            - ubuntu-22.04
           python-version:
             - 3.9
 
@@ -361,8 +361,8 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-20.04
-            - macos-11
+            - ubuntu-22.04
+            - macos-12
             # - windows-2022
             # - macos-13-xlarge # arm64 image
           python-version:
@@ -382,7 +382,7 @@ jobs:
 
             # Exclude macOS builds for now
             - is-full-run: false
-              os: macos-11
+              os: macos-12
 
             # Exclude Python 3.8, 3.10, 3.11 builds
             - is-full-run: false
@@ -469,7 +469,7 @@ jobs:
     #   strategy:
     #     matrix:
     #       os:
-    #         - ubuntu-20.04
+    #         - ubuntu-22.04
     #       python-version:
     #         - 3.9
 

@@ -21,7 +21,7 @@ runs:
 
     - name: Setup ccache in shell
       shell: bash
-      run: echo 'PATH=/usr/lib/ccache:'"$PATH" >> $GITHUB_ENV
+      run: echo 'PATH=/usr/lib/ccache:/usr/local/opt/ccache/libexec:'"$PATH" >> $GITHUB_ENV
       if: ${{ runner.os != 'Windows' }}
       # TODO windows
 
@@ -31,9 +31,9 @@ runs:
       uses: actions/cache@v4
       with:
           path: |
-              ~/Library/Caches/Homebrew/boost--*
-              ~/Library/Caches/Homebrew/downloads/*--boost-*
-          key: brew-${{ hashFiles('CMakeLists.txt') }}
+              ~/Library/Caches/Homebrew/*
+              ~/Library/Caches/Homebrew/downloads/*
+          key: brew-
           restore-keys: brew-
       if: ${{ runner.os == 'macOS' }}
 

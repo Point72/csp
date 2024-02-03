@@ -48,7 +48,7 @@ runs:
         echo "VCPKG_DOWNLOADS=$HOME/vcpkg_download_cache" >> $GITHUB_ENV
       if: ${{ runner.os != 'Windows' }}
 
-    - name: Setup vcpkg cache (Linux)
+    - name: Setup vcpkg cache
       uses: actions/cache@v4
       with:
         path: |

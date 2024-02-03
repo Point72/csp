@@ -169,9 +169,8 @@ jobs:
           os:
             - ubuntu-22.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md
             - macos-12 # https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
+            - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             # - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
-            # arm64 image
-            # - macos-13-xlarge # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
           python-version:
             - "3.8"
             - "3.9"
@@ -231,6 +230,15 @@ jobs:
             - is-full-run: false
               os: macos-12
               python-version: "3.10"
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.8"
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.9"
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.10"
 
       runs-on: ${{ matrix.os }}
 
@@ -267,12 +275,21 @@ jobs:
 
         ########
         # Macos
-        - name: Python Build Steps (Macos)
+        - name: Python Build Steps (Macos x86)
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
             CIBW_ENVIRONMENT_MACOS: CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
-          if: ${{ runner.os == 'macOS' }}
+            CIBW_ARCHS_MACOS: x86_64
+          if: ${{ matrix.os == 'macos-12' }}
+
+        - name: Python Build Steps (arm)
+          run: make dist-py-cibw
+          env:
+            CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
+            CIBW_ENVIRONMENT_MACOS: CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ARCHS_MACOS: arm64
+          if: ${{ matrix.os == 'macos-14' }}
 
         ##########
         # Windows
@@ -363,8 +380,8 @@ jobs:
           os:
             - ubuntu-22.04
             - macos-12
+            - macos-14
             # - windows-2022
-            # - macos-13-xlarge # arm64 image
           python-version:
             - 3.8
             - 3.9
@@ -383,6 +400,9 @@ jobs:
             # Exclude macOS builds for now
             - is-full-run: false
               os: macos-12
+
+            - is-full-run: false
+              os: macos-14
 
             # Exclude Python 3.8, 3.10, 3.11 builds
             - is-full-run: false

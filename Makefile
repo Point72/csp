@@ -164,7 +164,7 @@ dependencies-fedora:  ## install dependencies for linux
 	yum install -y automake bison cmake curl flex perl-IPC-Cmd tar unzip zip
 
 dependencies-vcpkg:  ## install dependnecies via vcpkg
-	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
+	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install --debug
 
 dependencies-win:  ## install dependnecies via windows (vcpkg)
 	cd vcpkg && ./bootstrap-vcpkg.bat && ./vcpkg install

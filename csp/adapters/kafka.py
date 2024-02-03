@@ -73,7 +73,7 @@ class KafkaAdapterManager:
 
         consumer_properties = {
             "group.id": group_id,
-            # To get end of parition notification for live / not live flag
+            # To get end of partition notification for live / not live flag
             "enable.partition.eof": "true",
         }
 

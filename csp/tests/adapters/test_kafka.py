@@ -79,11 +79,10 @@ class TestKafka:
             }
 
             topic = f"test.metadata.{os.getpid()}"
-            _precreate_topic(topic)
             subKey = "foo"
             pubKey = ["mapped_a", "mapped_b", "mapped_c"]
 
-            c = csp.count(csp.timer(timedelta(seconds=0.1)))
+            c = csp.count(csp.timer(timedelta(seconds=1)))
             t = csp.sample(c, csp.const("foo"))
 
             pubStruct = MetaPubData.collectts(
@@ -104,15 +103,17 @@ class TestKafka:
             )
 
             csp.add_graph_output("sub_data", sub_data)
-            # csp.print('sub', sub_data)
+            csp.print('sub', sub_data)
             # Wait for at least count ticks and until we get a live tick
-            done_flag = csp.count(sub_data) >= count
-            done_flag = csp.and_(done_flag, sub_data.mapped_live is True)
+            done_flag = csp.and_(csp.count(sub_data) >= count, sub_data.mapped_live == True)  # noqa: E712
             stop = csp.filter(done_flag, done_flag)
             csp.stop_engine(stop)
 
-        count = 5
-        results = csp.run(graph, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
+        # warm up the topic
+        results = csp.run(graph, 1, starttime=datetime.utcnow(), endtime=timedelta(seconds=3), realtime=True)
+
+        # now send some live in
+        results = csp.run(graph, 5, starttime=datetime.utcnow(), endtime=timedelta(seconds=20), realtime=True)
         assert len(results["sub_data"]) >= 5
         print(results)
         for result in results["sub_data"]:
@@ -120,6 +121,9 @@ class TestKafka:
             assert result[1].mapped_offset >= 0
             assert result[1].mapped_live is not None
             assert result[1].mapped_timestamp < datetime.utcnow()
+        # first record should be non live
+        assert results["sub_data"][0][1].mapped_live is False
+        # last record should be live
         assert results["sub_data"][-1][1].mapped_live
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
@@ -145,8 +149,7 @@ class TestKafka:
             struct_field_map = {"b": "b2", "i": "i2", "d": "d2", "s": "s2", "dt": "dt2"}
 
             done_flags = []
-            topic = f"mktdata.{os.getpid()}"
-            _precreate_topic(topic)
+
             for symbol in symbols:
                 kafkaadapter.publish(msg_mapper, topic, symbol, b, field_map="b")
                 kafkaadapter.publish(msg_mapper, topic, symbol, i, field_map="i")
@@ -183,10 +186,12 @@ class TestKafka:
             stop = csp.filter(stop, stop)
             csp.stop_engine(stop)
 
+        topic = f"mktdata.{os.getpid()}"
+        _precreate_topic(topic)
         symbols = ["AAPL", "MSFT"]
         count = 100
         results = csp.run(
-            graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
+            graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True
         )
         for symbol in symbols:
             pub = results[f"pall_{symbol}"]
@@ -212,7 +217,7 @@ class TestKafka:
             csp.stop_engine(stop)
             # csp.print('pub', struct)
 
-        csp.run(pub_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
+        csp.run(pub_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)
 
         # grab start/end times
         def get_times_graph():
@@ -232,7 +237,7 @@ class TestKafka:
             # csp.print('sub', data)
             # csp.print('status', kafkaadapter.status())
 
-        all_data = csp.run(get_times_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)[
+        all_data = csp.run(get_times_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)[
             "data"
         ]
         min_time = all_data[0][1].dt
@@ -258,7 +263,7 @@ class TestKafka:
             KafkaStartOffset.EARLIEST,
             10,
             starttime=datetime.utcnow(),
-            endtime=timedelta(seconds=30),
+            endtime=timedelta(seconds=10),
             realtime=True,
         )["data"]
         # print(res)
@@ -276,7 +281,7 @@ class TestKafka:
         assert len(res) == 0
 
         res = csp.run(
-            get_data, KafkaStartOffset.START_TIME, 10, starttime=min_time, endtime=timedelta(seconds=30), realtime=True
+            get_data, KafkaStartOffset.START_TIME, 10, starttime=min_time, endtime=timedelta(seconds=10), realtime=True
         )["data"]
         assert len(res) == 10
 
@@ -287,12 +292,12 @@ class TestKafka:
         stime = all_data[2][1].dt + timedelta(milliseconds=1)
         expected = [x for x in all_data if x[1].dt >= stime]
         res = csp.run(
-            get_data, stime, len(expected), starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
+            get_data, stime, len(expected), starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True
         )["data"]
         assert len(res) == len(expected)
 
         res = csp.run(
-            get_data, timedelta(seconds=0), len(expected), starttime=stime, endtime=timedelta(seconds=30), realtime=True
+            get_data, timedelta(seconds=0), len(expected), starttime=stime, endtime=timedelta(seconds=10), realtime=True
         )["data"]
         assert len(res) == len(expected)
 
@@ -314,8 +319,6 @@ class TestKafka:
             msg_mapper = RawBytesMessageMapper()
 
             done_flags = []
-            topic = f"test_str.{os.getpid()}"
-            _precreate_topic(topic)
             for symbol in symbols:
                 topic = f"test_str.{os.getpid()}"
                 kafkaadapter.publish(msg_mapper, topic, symbol, d)
@@ -356,10 +359,13 @@ class TestKafka:
             stop = csp.filter(stop, stop)
             csp.stop_engine(stop)
 
+        topic = f"test_str.{os.getpid()}"
+        _precreate_topic(topic)
+
         symbols = ["AAPL", "MSFT"]
         count = 10
         results = csp.run(
-            graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
+            graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True
         )
         # print(results)
         for symbol in symbols:

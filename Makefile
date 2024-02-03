@@ -86,7 +86,8 @@ tests: test
 
 .PHONY: dockerup dockerps dockerdown initpodmanmac
 ADAPTER := kafka
-DOCKER := podman
+DOCKER_COMPOSE := docker compose # or podman-compose
+DOCKERARGS :=
 
 initpodmanmac:
 	podman machine stop
@@ -94,13 +95,13 @@ initpodmanmac:
 	podman machine start
 
 dockerup:  ## spin up docker compose services for adapter testing
-	$(DOCKER) compose -f ci/$(ADAPTER)/docker-compose.yml up -d
+	$(DOCKER_COMPOSE) -f ci/$(ADAPTER)/docker-compose.yml up -d $(DOCKERARGS)
 
 dockerps:  ## spin up docker compose services for adapter testing
-	$(DOCKER) compose -f ci/$(ADAPTER)/docker-compose.yml ps
+	$(DOCKER_COMPOSE) -f ci/$(ADAPTER)/docker-compose.yml ps
 
 dockerdown:  ## spin up docker compose services for adapter testing
-	$(DOCKER) compose -f ci/$(ADAPTER)/docker-compose.yml down
+	$(DOCKER_COMPOSE) -f ci/$(ADAPTER)/docker-compose.yml down
 
 ###########
 # VERSION #

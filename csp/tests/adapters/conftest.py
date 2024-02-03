@@ -12,6 +12,6 @@ def kafkabroker():
 def kafkaadapter(kafkabroker):
     group_id = "group.id123"
     _kafkaadapter = KafkaAdapterManager(
-        broker=kafkabroker, group_id=group_id, rd_kafka_conf_options={"allow.auto.create.topics": "true"}
+        broker=kafkabroker, group_id=group_id
     )
     return _kafkaadapter

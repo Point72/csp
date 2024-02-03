@@ -14,7 +14,7 @@ class SubData(csp.Struct):
     a: bool
 
 
-class TestStatus:
+class TestStatusKafka:
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_basic(self, kafkaadapter):
         topic = f"csp.unittest.{os.getpid()}"

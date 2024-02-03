@@ -83,9 +83,10 @@ repair-wheel-command = "auditwheel -v show {wheel} && LD_LIBRARY_PATH=/project/c
 skip = "*i686 musllinux*"
 
 [tool.cibuildwheel.macos]
-before-all ="make dependencies-mac"
+before-all ="echo $PATH && make dependencies-mac"
 archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
-environment = {CFLAGS="-I/usr/local/include -L/usr/local/lib", CXXFLAGS="-I/usr/local/include -L/usr/local/lib", LDFLAGS="-L/usr/local/lib"}
+# environment = {CFLAGS="-I/usr/local/include -L/usr/local/lib", CXXFLAGS="-I/usr/local/include -L/usr/local/lib", LDFLAGS="-L/usr/local/lib"}
+environment = {}
 
 [tool.cibuildwheel.windows]
 archs = "AMD64"

@@ -70,7 +70,7 @@ def _series_to_python_type(series: pd.Series):
             elif how == "last":
                 idxpos = len(values) - 1 - is_valid[::-1].argmax()
 
-            chk_notna = is_valid[idxpos]
+            chk_notna = is_valid.iloc[idxpos]
 
             if not chk_notna:
                 return None
@@ -263,7 +263,7 @@ class CspSeriesAccessor(object):
                 col_name = f"{series.name}{delim}{col}"
             else:
                 col_name = col
-            col_series = series.apply(getattr, convert_dtype=False, args=(col,)).astype(TsDtype(meta[col]))
+            col_series = series.astype(object).apply(getattr, args=(col,)).astype(TsDtype(meta[col]))
             col_series.name = col_name
             if recursive and issubclass(meta[col], csp.Struct):
                 data.update(CspSeriesAccessor._flatten(col_series, None, prepend_name, delim, recursive))
@@ -571,28 +571,24 @@ class CspDataFrameAccessor(object):
         if not inplace:
             return df
 
-    def _collect(self, data, struct_type, padded):
+    def _collect(self, data, struct_type):
         data = data.copy()
         for field, typ in struct_type.metadata().items():
             if issubclass(typ, csp.Struct):
-                data[field] = self._collect(data[field], typ, padded)
+                data[field] = self._collect(data[field], typ)
         # Now apply collect to data
         df = pd.DataFrame(data)
 
         def row_collect(row):
             # Need to convert the "row" (ndarray of objects) into a dict (while dropping missing values)
             data = {k: v for k, v in row.items() if isinstance(v, Edge)}
-            if padded:
-                # FIXME
-                # data = _cast_to_obj(data)
-                ...
             if not data:
                 return csp.null_ts(struct_type)
             return struct_type.collectts(**data)
 
         return df.apply(row_collect, axis=1).astype(TsDtype(struct_type))
 
-    def collect(self, columns=None, struct_type=None, delim=" ", padded=False):
+    def collect(self, columns=None, struct_type=None, delim=" "):
         """Collects multiple ts columns of a frame into a series of ts or structs.
 
         :param columns: An optional subset of columns to map to the struct. If not provided, all columns
@@ -614,9 +610,6 @@ class CspDataFrameAccessor(object):
                 metatree = metatree.setdefault(part, {})
                 datatree = datatree.setdefault(part, {})
                 defaultstree = defaultstree.setdefault(part, {})
-            if padded:
-                metatree[parts[-1]] = object
-                defaultstree[parts[-1]] = np.nan
             else:
                 metatree[parts[-1]] = self._obj[col].dtype.subtype
             datatree[parts[-1]] = self._obj[col]
@@ -627,7 +620,7 @@ class CspDataFrameAccessor(object):
         if not data:
             return csp.null_ts(struct_type)
 
-        return self._collect(data, struct_type, padded)
+        return self._collect(data, struct_type)
 
     def show_graph(self):
         """Show the graph corresponding to the evaluation of all the edges.

@@ -385,8 +385,8 @@ class TestGroupby(PANDAS_BASE_EXTENSION_TESTS):
 
     def test_groupby_extension_apply(self, data_for_grouping, groupby_apply_op):
         df = pd.DataFrame({"A": [1, 1, 2, 2, 3, 3, 1, 4], "B": data_for_grouping})
-        df.groupby("A").apply(groupby_apply_op)
-        df.groupby("A").B.apply(groupby_apply_op)
+        df.groupby("A", group_keys=False).apply(groupby_apply_op)
+        df.groupby("A", group_keys=False).B.apply(groupby_apply_op)
 
 
 class TestInterface(base.BaseInterfaceTests):

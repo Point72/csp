@@ -169,4 +169,4 @@ def my_graph():
 
 
 if __name__ == "__main__":
-    csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)
+    csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=True)

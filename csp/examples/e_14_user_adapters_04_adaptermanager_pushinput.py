@@ -152,4 +152,4 @@ def my_graph():
     print("End of graph building")
 
 
-csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)
+csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=True)

@@ -31,4 +31,4 @@ if __name__ == "__main__":
     if realtime:
         csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)
     else:
-        csp.run(my_graph, starttime=datetime(2020, 3, 1), endtime=timedelta(seconds=10))
+        csp.run(my_graph, starttime=datetime(2020, 3, 1), endtime=timedelta(seconds=5))

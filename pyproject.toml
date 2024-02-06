@@ -10,8 +10,8 @@ build-backend="setuptools.build_meta"
 
 [project]
 name = "csp"
-authors = [{name = "the csp authors", email = "t.paine154@gmail.com"}]
-description="CSP stream processing library"
+authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
+description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
 version = "0.1.0"
 requires-python = ">=3.8"
@@ -41,7 +41,10 @@ classifiers = [
 file = "LICENSE"
 
 [project.urls]
-repository = "https://github.com/point72/csp"
+Repository = "https://github.com/point72/csp"
+Homepage = "https://github.com/Point72/csp"
+Documentation = "https://github.com/Point72/csp/wiki"
+Tracker = "https://github.com/point72/csp/issues"
 
 [project.optional-dependencies]
 develop = [
@@ -109,7 +112,7 @@ testpaths = 'tests'
 [tool.ruff]
 line-length = 120
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]
 "csp/impl/__*.py" = ["F401"]
 "csp/tests/*.py" = ["F401", "F403", "F811", "F821", "F841", "F842", "E731", "E741"]

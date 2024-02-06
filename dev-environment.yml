@@ -1,0 +1,26 @@
+dependencies:
+ - flex
+ - cmake
+ - ninja
+ - bison
+ - tar
+ - unzip
+ - zip
+ - numpy
+ - pyarrow>=7.0.0
+ - ruamel.yaml
+ - scikit-build
+ - psutil
+ - sqlalchemy<2
+ - bump2version>=1.0.0
+ - graphviz
+ - httpx
+ - isort
+ - ruff
+ - twine
+ - wheel
+ - polars
+ - pytest
+ - pytest-cov
+ - pytest-sugar
+ - python<3.12

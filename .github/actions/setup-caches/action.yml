@@ -18,10 +18,13 @@ runs:
     # Setup CCache
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2.12
+      with:
+        key: ccache-${{ runner.os }}-${{ runner.arch }}
+        append-timestamp: false  # avoid excess caching
 
     - name: Setup ccache in shell
       shell: bash
-      run: echo 'PATH=/usr/lib/ccache:'"$PATH" >> $GITHUB_ENV
+      run: echo 'PATH=/usr/lib/ccache:/usr/local/opt/ccache/libexec:'"$PATH" >> $GITHUB_ENV
       if: ${{ runner.os != 'Windows' }}
       # TODO windows
 
@@ -31,10 +34,10 @@ runs:
       uses: actions/cache@v4
       with:
           path: |
-              ~/Library/Caches/Homebrew/boost--*
-              ~/Library/Caches/Homebrew/downloads/*--boost-*
-          key: brew-${{ hashFiles('CMakeLists.txt') }}
-          restore-keys: brew-
+              ~/Library/Caches/Homebrew/*
+              ~/Library/Caches/Homebrew/downloads/*
+          key: brew-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Makefile') }}
+          restore-keys: brew-${{ runner.os }}-${{ runner.arch }}-
       if: ${{ runner.os == 'macOS' }}
 
     ################
@@ -42,18 +45,18 @@ runs:
     - name: Setup vcpkg cache in shell
       shell: bash
       run: |
-        mkdir -p ~/vcpkg_cache
-        mkdir -p ~/vcpkg_download_cache
+        mkdir -p $HOME/vcpkg_cache
+        mkdir -p $HOME/vcpkg_download_cache
         echo "VCPKG_DEFAULT_BINARY_CACHE=$HOME/vcpkg_cache" >> $GITHUB_ENV
         echo "VCPKG_DOWNLOADS=$HOME/vcpkg_download_cache" >> $GITHUB_ENV
       if: ${{ runner.os != 'Windows' }}
 
-    - name: Setup vcpkg cache (Linux)
+    - name: Setup vcpkg cache
       uses: actions/cache@v4
       with:
         path: |
-          ~/vcpkg_cache
-          ~/vcpkg_download_cache
-        key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-        restore-keys: vcpkg-${{ runner.os }}
+          $HOME/vcpkg_cache
+          $HOME/vcpkg_download_cache
+        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+        restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
       if: ${{ runner.os != 'Windows' }}

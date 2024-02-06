@@ -29,7 +29,7 @@ from csp.impl.wiring import (
 from csp.impl.wiring.context import clear_global_context, new_global_context
 from csp.showgraph import show_graph
 
-from . import cache_support
+from . import cache_support, stats
 
 __version__ = "0.1.0"
 

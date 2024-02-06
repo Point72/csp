@@ -59,6 +59,7 @@ develop = [
     "isort",
     "ruamel.yaml",
     "ruff",
+    "scikit-build",
     "twine",
     "wheel",
     # Test dependencies
@@ -68,14 +69,18 @@ develop = [
     "pytest-asyncio",
     "pytest-cov",
     "pytest-sugar",
-    "scikit-build",
+    "sqlalchemy",
     "threadpoolctl",
     "tornado",
     # Extras
     "requests",
+    "slack-sdk>=3",
 ]
 symphony = [
     "requests",
+]
+slack = [
+    "slack-sdk>=3",
 ]
 
 [tool.check-manifest]

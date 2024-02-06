@@ -35,8 +35,8 @@ install:  ## install library
 .PHONY: lint-py lint-cpp lint lints fix-py fix-cpp fix format check checks
 
 lint-py:
-	python -m isort --check csp/ setup.py
-	python -m ruff csp/ setup.py
+	python -m isort --check csp/ examples/ setup.py
+	python -m ruff csp/ examples/ setup.py
 
 lint-cpp:
 	# clang-format --dry-run -Werror -i -style=file `find ./cpp/ -name "*.*pp"`
@@ -49,8 +49,8 @@ lint: lint-py  ## run lints
 lints: lint
 
 fix-py:
-	python -m isort csp/ setup.py
-	python -m ruff format csp/ setup.py
+	python -m isort csp/ examples/ setup.py
+	python -m ruff format csp/ examples/ setup.py
 
 fix-cpp:
 	# clang-format -i -style=file `find ./cpp/ -name "*.*pp"`

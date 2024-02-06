@@ -25,10 +25,13 @@ def my_graph():
     csp.print("spread2", s2)
 
 
+def main():
+    # open in graphviz viewer
+    # csp.show_graph(my_graph)
+    # or output to file
+    csp.show_graph(my_graph, graph_filename="tmp.png")
+    csp.run(my_graph, starttime=datetime(2020, 3, 1), endtime=timedelta(seconds=10))
+
+
 if __name__ == "__main__":
-    csp.show_graph(my_graph)
-    realtime = True
-    if realtime:
-        csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)
-    else:
-        csp.run(my_graph, starttime=datetime(2020, 3, 1), endtime=timedelta(seconds=10))
+    main()

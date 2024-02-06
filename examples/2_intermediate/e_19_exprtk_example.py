@@ -53,7 +53,7 @@ def g4():
     csp.print("expr_array_out", csp.exprtk("return [x, 2*x, 3*x]", {"x": x}, output_ndarray=True))
 
 
-if __name__ == "__main__":
+def main():
     print("W/O TRIGGER:")
     csp.run(g, starttime=datetime.datetime(2022, 1, 1), endtime=datetime.timedelta(seconds=10))
     print("WITH TRIGGER:")
@@ -62,3 +62,7 @@ if __name__ == "__main__":
     csp.run(g3, starttime=datetime.datetime(2022, 1, 1), endtime=datetime.timedelta(seconds=10))
     print("NDARRAY OUTPUT:")
     csp.run(g4, starttime=datetime.datetime(2022, 1, 1), endtime=datetime.timedelta(seconds=10))
+
+
+if __name__ == "__main__":
+    main()

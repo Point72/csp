@@ -78,6 +78,9 @@ lib-cov
 coverage
 junit.xml
 
+# Temp files
+tmp*.*
+
 # Documentation
 docs/_build/
 /site
@@ -100,9 +103,6 @@ csp/include/
 csp/lib/
 *.so
 *.tsbuildinfo
-csp/extension
-csp/nbextension
-csp/labextension
 
 # Jupyter / Editors
 .ipynb_checkpoints

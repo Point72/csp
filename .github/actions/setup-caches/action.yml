@@ -29,18 +29,6 @@ runs:
       # TODO windows
 
     ################
-    # Homebrew Cache
-    - name: Setup homebrew cache
-      uses: actions/cache@v4
-      with:
-          path: |
-              ~/Library/Caches/Homebrew/*
-              ~/Library/Caches/Homebrew/downloads/*
-          key: brew-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Makefile') }}
-          restore-keys: brew-${{ runner.os }}-${{ runner.arch }}-
-      if: ${{ runner.os == 'macOS' }}
-
-    ################
     # vcpkg Cache
     - name: Setup vcpkg cache in shell
       shell: bash

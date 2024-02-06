@@ -19,7 +19,9 @@ dependencies:
  - ruff
  - twine
  - wheel
+ - pandas
  - polars
+ - pytz
  - pytest
  - pytest-cov
  - pytest-sugar

@@ -391,11 +391,19 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         # Test that running with repeat timestamps fails (because two different series have different indices, and one
         # of those indices has duplicates)
         t = datetime(2020, 1, 1)
-        bid = csp.curve(float, [(t, 99.0), (t, 98.0)])
-        ask = csp.curve(float, [(t, 100.0)])
-        self.df["bid"]["ABC"] = bid
-        self.df["ask"]["ABC"] = ask
-        self.df["bid"]["DEF"] = bid + 4
+        bid = pd.Series(
+            [csp.curve(float, [(t, 99.0), (t, 98.0)]), csp.curve(float, [(t, 103.0), (t, 102.0)]), np.nan],
+            dtype=TsDtype(float),
+            index=self.idx,
+        )
+        ask = pd.Series(
+            [csp.const(100.0), csp.timer(timedelta(seconds=2), 104.0), csp.const(100.0)],
+            dtype=TsDtype(float),
+            index=self.idx,
+        )
+        self.df["bid"] = bid
+        self.df["ask"] = ask
+
         out = self.df.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=0))
         idx = pd.MultiIndex.from_tuples(
             [

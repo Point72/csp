@@ -38,8 +38,6 @@ def spread(bid: ts[float], ask: ts[float]) -> ts[float]:
 def my_graph():
     bid = csp.const(1.0)
     ask = csp.const(2.0)
-    bid = csp.multiply( bid, csp.const(4) )
-    ask = csp.multiply( ask, csp.const(3) )
     s = spread(bid, ask)
 
     csp.print('spread', s)
@@ -51,6 +49,12 @@ if __name__ == '__main__':
     csp.run(my_graph, starttime=datetime.utcnow())
 ```
 
+Running this, our output should look like (with some slight variations for current time):
+```raw
+2024-02-07 04:37:13.446548 bid:1.0
+2024-02-07 04:37:13.446548 ask:2.0
+2024-02-07 04:37:13.446548 spread:1.0
+```
 
 ## Getting Started
 See [our wiki!](https://github.com/Point72/csp/wiki)

@@ -488,7 +488,6 @@ class TestEngine(unittest.TestCase):
 
     def test_bugreport_csp28(self):
         """bug where non-basket inputs after basket inputs were not being assigne dproperly in c++"""
-
         @csp.node
         def buggy(basket: [ts[int]], x: ts[bool]) -> ts[bool]:
             if csp.ticked(x) and csp.valid(x):
@@ -861,14 +860,14 @@ class TestEngine(unittest.TestCase):
             fb = csp.feedback(int)
             with self.assertRaisesRegex(
                 TypeError,
-                re.escape(r"""Expected csp.impl.types.tstype.TsType[""")
+                re.escape(r"""In function _bind: Expected csp.impl.types.tstype.TsType[""")
                 + ".*"
                 + re.escape(r"""('T')] for argument 'x', got 1 (int)"""),
             ):
                 fb.bind(1)
 
             with self.assertRaisesRegex(
-                TypeError, re.escape(r"""Expected ts[T] for argument 'x', got ts[str](T=int)""")
+                TypeError, re.escape(r"""In function _bind: Expected ts[T] for argument 'x', got ts[str](T=int)""")
             ):
                 fb.bind(csp.const("123"))
 
@@ -968,7 +967,7 @@ class TestEngine(unittest.TestCase):
             )
             self.assertTrue(__file__ in traceback_list[-1])
             self.assertLessEqual(len(traceback_list), 10)
-            self.assertEqual(str(e), "Expected ts[T] for argument 'my_arg', got None")
+            self.assertEqual(str(e), "In function aux: Expected ts[T] for argument 'my_arg', got None")
 
     def test_union_type_check(self):
         '''was a bug "Add support for typing.Union in type checking layer"'''
@@ -981,7 +980,8 @@ class TestEngine(unittest.TestCase):
         build_graph(graph, 1.1)
         build_graph(graph, "s")
         with self.assertRaisesRegex(
-            TypeError, "Expected typing.Union\\[int, float, str\\] for argument 'x', got \\[1.1\\] \\(list\\)"
+            TypeError,
+            "In function graph: Expected typing.Union\\[int, float, str\\] for argument 'x', got \\[1.1\\] \\(list\\)",
         ):
             build_graph(graph, [1.1])
 
@@ -994,7 +994,7 @@ class TestEngine(unittest.TestCase):
         build_graph(graph, csp.const("s"))
         with self.assertRaisesRegex(
             TypeError,
-            "Expected ts\\[typing.Union\\[int, float, str\\]\\] for argument 'x', got ts\\[typing.List\\[float\\]\\]",
+            "In function graph: Expected ts\\[typing.Union\\[int, float, str\\]\\] for argument 'x', got ts\\[typing.List\\[float\\]\\]",
         ):
             build_graph(graph, csp.const([1.1]))
 
@@ -1547,6 +1547,37 @@ class TestEngine(unittest.TestCase):
                 ),
                 endtime=timedelta(seconds=10),
             )
+
+    def test_return_arg_mismatch(self):
+        @csp.graph
+        def my_graph(x: csp.ts[int]) -> csp.ts[str]:
+            return x
+
+        with self.assertRaises(TSArgTypeMismatchError) as ctxt:
+            csp.run(my_graph, csp.const(1), starttime=datetime.utcnow())
+        self.assertEqual(str(ctxt.exception), "In function my_graph: Expected ts[str] for return value, got ts[int]")
+
+        @csp.graph
+        def dictbasket_graph(x: csp.ts[int]) -> {str: csp.ts[str]}:
+            return csp.output({"a": x})
+
+        with self.assertRaises(ArgTypeMismatchError) as ctxt:
+            csp.run(dictbasket_graph, csp.const(1), starttime=datetime.utcnow())
+        self.assertRegex(
+            str(ctxt.exception),
+            "In function dictbasket_graph: Expected typing\.Dict\[str, .* for return value, got \{'a': .* \(dict\)",
+        )
+
+        @csp.graph
+        def listbasket_graph(x: csp.ts[int]) -> [csp.ts[str]]:
+            return csp.output([x])
+
+        with self.assertRaises(ArgTypeMismatchError) as ctxt:
+            csp.run(listbasket_graph, csp.const(1), starttime=datetime.utcnow())
+        self.assertRegex(
+            str(ctxt.exception),
+            "In function listbasket_graph: Expected typing\.List\[.* for return value, got \[.* \(list\)",
+        )
 
     def test_global_context(self):
         try:

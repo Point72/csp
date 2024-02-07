@@ -2251,7 +2251,7 @@
 #                 return numpy.zeros(1, dtype=float)
 
 #         with _GraphTempCacheFolderConfig() as config:
-#             with self.assertRaisesRegex(TSArgTypeMismatchError, re.escape("Expected ts[csp.typing.Numpy1DArray[int]] for argument 'None', got ts[csp.typing.Numpy1DArray[float]]")):
+#             with self.assertRaisesRegex(TSArgTypeMismatchError, re.escape("In function g1: Expected ts[csp.typing.Numpy1DArray[int]] for return value, got ts[csp.typing.Numpy1DArray[float]]")):
 #                 csp.run(g1, starttime=datetime(2020, 1, 1), endtime=timedelta(minutes=20), config=config)
 
 #         with _GraphTempCacheFolderConfig() as config:

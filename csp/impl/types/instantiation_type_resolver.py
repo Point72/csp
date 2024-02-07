@@ -85,15 +85,15 @@ UpcastRegistry.instance()
 
 
 class ContainerTypeVarResolutionError(TypeError):
-    def __init__(self, tvar, tvar_value):
-        self._tvar, self._tvar_value = tvar, tvar_value
+    def __init__(self, func_name, tvar, tvar_value):
+        self._func_name, self._tvar, self._tvar_value = func_name, tvar, tvar_value
         super().__init__(
-            f"Unable to resolve container type for type variable {tvar} explicit value must have"
+            f"In function {func_name}: Unable to resolve container type for type variable {tvar} explicit value must have"
             + f" uniform values and be non empty, got: {tvar_value} "
         )
 
     def __reduce__(self):
-        return (ContainerTypeVarResolutionError, (self._tvar, self._tvar_value))
+        return (ContainerTypeVarResolutionError, (self._func_name, self._tvar, self._tvar_value))
 
 
 class TypeMismatchError(TypeError):
@@ -117,59 +117,77 @@ class TypeMismatchError(TypeError):
 
 
 class ArgTypeMismatchError(TypeMismatchError):
-    def __init__(self, expected_t, actual_arg, arg_name, tvar_info=None):
-        self._expected_t, self._actual_arg, self._arg_name, self._tvar_info = (
+    def __init__(self, func_name, expected_t, actual_arg, arg_name, tvar_info=None):
+        self._func_name, self._expected_t, self._actual_arg, self._arg_name, self._tvar_info = (
+            func_name,
             expected_t,
             actual_arg,
             arg_name,
             tvar_info,
         )
         super().__init__(
-            f"Expected {self.pretty_typename(expected_t)} for argument '{arg_name}', got {actual_arg} "
-            + f"({self.pretty_typename(type(actual_arg))}){self.get_tvar_info_str(tvar_info)}"
+            f"In function {func_name}: Expected {self.pretty_typename(expected_t)} for "
+            + ("return value, " if arg_name is None else f"argument '{arg_name}', ")
+            + f"got {actual_arg} ({self.pretty_typename(type(actual_arg))}){self.get_tvar_info_str(tvar_info)}"
         )
 
     def __reduce__(self):
-        return (ArgTypeMismatchError, (self._expected_t, self._actual_arg, self._arg_name, self._tvar_info))
+        return (
+            ArgTypeMismatchError,
+            (self._func_name, self._expected_t, self._actual_arg, self._arg_name, self._tvar_info),
+        )
 
 
 class ArgContainerMismatchError(TypeMismatchError):
-    def __init__(self, expected_t, actual_arg, arg_name, tvar_info=None):
-        self._expected_t, self._actual_arg, self._arg_name = expected_t, actual_arg, arg_name
+    def __init__(self, func_name, expected_t, actual_arg, arg_name, tvar_info=None):
+        self._func_name, self._expected_t, self._actual_arg, self._arg_name = (
+            func_name,
+            expected_t,
+            actual_arg,
+            arg_name,
+        )
         super().__init__(
-            f"Expected {self.pretty_typename(expected_t)} for argument '{arg_name}', got {actual_arg} "
+            f"In function {func_name}: Expected {self.pretty_typename(expected_t)} for argument '{arg_name}', got {actual_arg} "
             + "instead of generic container type specification"
         )
 
     def __reduce__(self):
-        return (ArgContainerMismatchError, (self._expected_t, self._actual_arg, self._arg_name))
+        return (ArgContainerMismatchError, (self._func_name, self._expected_t, self._actual_arg, self._arg_name))
 
 
 class TSArgTypeMismatchError(TypeMismatchError):
-    def __init__(self, expected_t, actual_arg_type, arg_name, tvar_info=None):
-        self._expected_t, self._actual_arg_type, self._arg_name, self._tvar_info = (
+    def __init__(self, func_name, expected_t, actual_arg_type, arg_name, tvar_info=None):
+        self._func_name, self._expected_t, self._actual_arg_type, self._arg_name, self._tvar_info = (
+            func_name,
             expected_t,
             actual_arg_type,
             arg_name,
             tvar_info,
         )
         actual_type_str = f"ts[{self.pretty_typename(actual_arg_type)}]" if actual_arg_type else "None"
+
         super().__init__(
-            f"Expected ts[{self.pretty_typename(expected_t)}] for argument '{arg_name}',"
-            + f" got {actual_type_str}{self.get_tvar_info_str(tvar_info)}"
+            f"In function {func_name}: Expected ts[{self.pretty_typename(expected_t)}] for "
+            + ("return value, " if arg_name is None else f"argument '{arg_name}', ")
+            + f"got {actual_type_str}{self.get_tvar_info_str(tvar_info)}"
         )
 
     def __reduce__(self):
-        return (TSArgTypeMismatchError, (self._expected_t, self._actual_arg_type, self._arg_name, self._tvar_info))
+        return (
+            TSArgTypeMismatchError,
+            (self._func_name, self._expected_t, self._actual_arg_type, self._arg_name, self._tvar_info),
+        )
 
 
 class TSDictBasketKeyMismatchError(TypeMismatchError):
-    def __init__(self, expected_t, arg_name):
-        self._expected_t, self._arg_name = expected_t, arg_name
-        super().__init__(f"Expected ts[{self.pretty_typename(expected_t)}] for argument {arg_name} must have str keys ")
+    def __init__(self, func_name, expected_t, arg_name):
+        self._func_name, self._expected_t, self._arg_name = func_name, expected_t, arg_name
+        super().__init__(
+            f"In function {func_name}: Expected ts[{self.pretty_typename(expected_t)}] for argument {arg_name} must have str keys "
+        )
 
     def __reduce__(self):
-        return (TSDictBasketKeyMismatchError, (self._expected_t, self._arg_name))
+        return (TSDictBasketKeyMismatchError, (self._func_name, self._expected_t, self._arg_name))
 
 
 class NestedTsTypeError:
@@ -316,13 +334,18 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
             if arg is not None:
                 if not isinstance(arg, Edge):
                     raise ArgTypeMismatchError(
-                        expected_t=self._cur_def.typ, actual_arg=arg, arg_name=self._cur_def.name, tvar_info=tvar_info
+                        func_name=self._function_name,
+                        expected_t=self._cur_def.typ,
+                        actual_arg=arg,
+                        arg_name=self._cur_def.name,
+                        tvar_info=tvar_info,
                     )
                 if isTsDynamicBasket(arg.tstype):
                     arg_type = arg.tstype
                 else:
                     arg_type = arg.tstype.typ
             raise TSArgTypeMismatchError(
+                func_name=self._function_name,
                 expected_t=self._cur_def.typ.typ,
                 actual_arg_type=arg_type,
                 arg_name=self._cur_def.name,
@@ -337,7 +360,11 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
                     else:
                         expected_type = typing.List[self._cur_def.typ]
             raise ArgTypeMismatchError(
-                expected_t=expected_type, actual_arg=arg, arg_name=self._cur_def.name, tvar_info=tvar_info
+                func_name=self._function_name,
+                expected_t=expected_type,
+                actual_arg=arg,
+                arg_name=self._cur_def.name,
+                tvar_info=tvar_info,
             )
 
     def _add_scalar_value(self, arg, in_out_def):
@@ -529,12 +556,14 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
         # list
         if arg is container_typ:
             if raise_on_error:
-                raise ArgContainerMismatchError(expected_t=tvar, actual_arg=arg, arg_name=self._cur_def.name)
+                raise ArgContainerMismatchError(
+                    func_name=self._function_name, expected_t=tvar, actual_arg=arg, arg_name=self._cur_def.name
+                )
             else:
                 return False
         if len(arg) == 0:
             if raise_on_error:
-                raise ContainerTypeVarResolutionError(tvar, arg)
+                raise ContainerTypeVarResolutionError(self._function_name, tvar, arg)
             else:
                 return None
         res = None
@@ -561,7 +590,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
             if first_key_t and first_val_t:
                 res = typing.Dict[first_key_t, first_val_t]
         if not res and raise_on_error:
-            raise ContainerTypeVarResolutionError(tvar, arg)
+            raise ContainerTypeVarResolutionError(self._function_name, tvar, arg)
         return res
 
     def _try_resolve_tvar_conflicts(self):
@@ -701,7 +730,7 @@ class GraphOutputTypeResolver(_InstanceTypeResolverBase):
         if in_out_def.kind == ArgKind.BASKET_TS and in_out_def.shape is not None:
             if len(args) != in_out_def.shape:
                 raise RuntimeError(
-                    f"Expected output shape for output {in_out_def.name} is of length {in_out_def.shape}, actual length is {len(args)}"
+                    f"In function {self._function_name}: Expected output shape for output {in_out_def.name} is of length {in_out_def.shape}, actual length is {len(args)}"
                 )
             expected_ts_type = in_out_def.typ.typ
             for value in args:
@@ -716,13 +745,13 @@ class GraphOutputTypeResolver(_InstanceTypeResolverBase):
         if in_out_def.kind == ArgKind.BASKET_TS and in_out_def.shape is not None:
             if len(args) != len(in_out_def.shape):
                 raise RuntimeError(
-                    f"Expected output shape for output {in_out_def.name} is of length {len(in_out_def.shape)}, actual length is {len(args)}"
+                    f"In function {self._function_name}: Expected output shape for output {in_out_def.name} is of length {len(in_out_def.shape)}, actual length is {len(args)}"
                 )
 
             for k in in_out_def.shape:
                 if k not in args:
                     raise RuntimeError(
-                        f"Expected key {k} for output {in_out_def.name} is missing from the actual returned value"
+                        f"In function {self._function_name}: Expected key {k} for output {in_out_def.name} is missing from the actual returned value"
                     )
 
             expected_ts_type = in_out_def.typ.typ

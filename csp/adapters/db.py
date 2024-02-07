@@ -9,8 +9,8 @@ except ImportError:
     from backports import zoneinfo
 
 import pytz
+from importlib.metadata import PackageNotFoundError, version as get_package_version
 from packaging import version
-from pkg_resources import DistributionNotFound, get_distribution
 
 from csp import PushMode, ts
 from csp.impl.adaptermanager import AdapterManagerImpl, ManagedSimInputAdapter
@@ -19,7 +19,7 @@ from csp.impl.wiring import py_managed_adapter_def
 UTC = zoneinfo.ZoneInfo("UTC")
 
 try:
-    if version.parse(get_distribution("sqlalchemy").version) >= version.parse("2"):
+    if version.parse(get_package_version("sqlalchemy")) >= version.parse("2"):
         _SQLALCHEMY_2 = True
     else:
         _SQLALCHEMY_2 = False
@@ -27,7 +27,7 @@ try:
     import sqlalchemy as db
 
     _HAS_SQLALCHEMY = True
-except (DistributionNotFound, ValueError, TypeError, ImportError):
+except (PackageNotFoundError, ValueError, TypeError, ImportError):
     _HAS_SQLALCHEMY = False
     db = None
 

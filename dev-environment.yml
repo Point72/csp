@@ -1,4 +1,6 @@
 dependencies:
+ - compilers
+ - git
  - flex
  - cmake
  - ninja

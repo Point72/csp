@@ -1,10 +1,10 @@
 import datetime
 import io
 import numpy
-import pkg_resources
 import platform
 import pyarrow
 import pyarrow.parquet
+from importlib.metadata import PackageNotFoundError, version as get_package_version
 from packaging import version
 from typing import TypeVar
 
@@ -28,9 +28,9 @@ T = TypeVar("T")
 
 try:
     _CAN_READ_ARROW_BINARY = False
-    if version.parse(pkg_resources.get_distribution("pyarrow").version) >= version.parse("4.0.1"):
+    if version.parse(get_package_version("pyarrow")) >= version.parse("4.0.1"):
         _CAN_READ_ARROW_BINARY = True
-except (ValueError, TypeError):
+except (PackageNotFoundError, ValueError, TypeError):
     # Cannot read binary arrow
     ...
 

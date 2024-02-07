@@ -64,7 +64,7 @@ develop = [
     "pytest-cov",
     "pytest-sugar",
     "scikit-build",
-    "sqlalchemy<2",
+    "sqlalchemy",
     "tornado",
 ]
 

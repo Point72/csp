@@ -11,7 +11,7 @@ dependencies:
  - ruamel.yaml
  - scikit-build
  - psutil
- - sqlalchemy<2
+ - sqlalchemy
  - bump2version>=1.0.0
  - python-graphviz
  - httpx

@@ -601,11 +601,11 @@ class TestTypeChecking(unittest.TestCase):
 
     def test_pickle_type_resolver_errors(self):
         errors = [
-            type_resolver.ContainerTypeVarResolutionError("T", "NotT"),
-            type_resolver.ArgTypeMismatchError("T", "NotT", "Var", {"field": 1}),
-            type_resolver.ArgContainerMismatchError("T", "NotT", "Var"),
-            type_resolver.TSArgTypeMismatchError("T", "NotT", "Var"),
-            type_resolver.TSDictBasketKeyMismatchError("T", "Var"),
+            type_resolver.ContainerTypeVarResolutionError("g", "T", "NotT"),
+            type_resolver.ArgTypeMismatchError("g", "T", "NotT", "Var", {"field": 1}),
+            type_resolver.ArgContainerMismatchError("g", "T", "NotT", "Var"),
+            type_resolver.TSArgTypeMismatchError("g", "T", "NotT", "Var"),
+            type_resolver.TSDictBasketKeyMismatchError("g", "T", "Var"),
         ]
 
         for err in errors:

@@ -57,10 +57,12 @@ develop = [
     "polars",
     "psutil",
     "pytest",
+    "pytest-asyncio",
     "pytest-cov",
     "pytest-sugar",
     "scikit-build",
     "sqlalchemy<2",
+    "tornado",
 ]
 
 [tool.check-manifest]

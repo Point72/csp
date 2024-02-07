@@ -214,13 +214,21 @@ jobs:
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
+            # mac arm builds support py3.10+
+            - os: macos-14
+              python-version: "3.8"
+            - os: macos-14
+              python-version: "3.9"
+
             # minimize CI resource usage
             - is-full-run: false
               os: ubuntu-22.04
               python-version: "3.8"
+
             # windows is slow, so dont build unless its a full run
-            - is-full-run: false
-              os: windows-2022
+            # - is-full-run: false
+            #   os: windows-2022
+
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-12
@@ -391,9 +399,15 @@ jobs:
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
+            # mac arm builds support py3.10+
+            - os: macos-14
+              python-version: "3.8"
+            - os: macos-14
+              python-version: "3.9"
+
             # Exclude windows builds
-            - is-full-run: false
-              os: windows-2022
+            # - is-full-run: false
+            #   os: windows-2022
 
             # Exclude macOS builds for now
             - is-full-run: false

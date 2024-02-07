@@ -64,6 +64,7 @@ develop = [
     "pytest-cov",
     "pytest-sugar",
     "scikit-build",
+    "threadpoolctl",
     "tornado",
 ]
 

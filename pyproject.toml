@@ -22,7 +22,7 @@ dependencies = [
     "psutil",
     "pyarrow>=7.0.0",
     "pytz",
-    "sqlalchemy<2",
+    "sqlalchemy",
 ]
 
 classifiers = [
@@ -64,7 +64,6 @@ develop = [
     "pytest-cov",
     "pytest-sugar",
     "scikit-build",
-    "sqlalchemy",
     "tornado",
 ]
 

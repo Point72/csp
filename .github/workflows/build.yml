@@ -16,7 +16,8 @@ on:
       - LICENSE
       - README.md
   workflow_dispatch:
-    ci-full:
+    inputs:
+      ci-full:
         description: "Run Full CI"
         required: false
         type: boolean

@@ -1,7 +1,20 @@
+import pytest
+
 import csp
 from csp.showgraph import _build_graphviz_graph
 
 
+def _cant_find_graphviz():
+    try:
+        from graphviz import Digraph
+
+        Digraph().pipe()
+    except BaseException:
+        return True
+    return False
+
+
+@pytest.mark.skipif(_cant_find_graphviz(), reason="cannot find graphviz installation")
 def test_showgraph_names():
     # Simple test to assert that node names
     # are properly propagated into graph viewer

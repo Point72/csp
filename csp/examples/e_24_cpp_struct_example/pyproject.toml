@@ -4,8 +4,8 @@ build-backend="setuptools.build_meta"
 
 [project]
 name = "csp-example-struct"
-authors = [{name = "the csp authors", email = "t.paine154@gmail.com"}]
-description="CSP stream processing library"
+authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
+description="csp example of C++ node with csp.Structs"
 readme = "README.md"
 version = "0.0.1"
 requires-python = ">=3.8"

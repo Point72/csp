@@ -1,7 +1,7 @@
 # Text files
 include LICENSE
+include NOTICE 
 include README.md
-include CONTRIBUTING.md
 
 # Python files
 graft csp

@@ -1,5 +1,13 @@
 EXTRA_ARGS :=
 
+UNAME := $(shell uname)
+ifeq ($(UNAME), Linux)
+NPROC = $(shell nproc)
+endif
+ifeq ($(UNAME), Darwin)
+NPROC = $(shell sysctl -n hw.physicalcpu)
+endif
+
 #########
 # BUILD #
 #########
@@ -14,7 +22,7 @@ develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
 build-py:  ## build the python library
-	python setup.py build build_ext --inplace -- -- -j8
+	python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
 build: build-py  ## build the library
 
@@ -114,7 +122,7 @@ major:
 ########
 # DIST #
 ########
-.PHONE: dist-py dist-py-sdist dist-py-wheel dist-py-cibw dist-check dist publish-py publish
+.PHONY: dist-py dist-py-sdist dist-py-wheel dist-py-cibw dist-check dist publish-py publish
 
 dist-py: dist-py-sdist  # Build python dist
 dist-py-sdist:
@@ -136,6 +144,13 @@ publish-py:  # Upload python assets
 	python -m twine upload dist/* --skip-existing
 
 publish: dist publish-py  ## Publish dists
+
+
+.PHONY: notice
+
+notice:
+	printf 'CSP - Copyright 2024 Point72, L.P.\nThis project contains software with the below copyrights\n\n\n' > NOTICE
+	for file in `find vcpkg_installed -name "copyright" | sort`; do echo $$file >> NOTICE && printf '\n\n' >> NOTICE && cat $$file >> NOTICE && printf '\n\n' >> NOTICE; done
 
 #########
 # CLEAN #
@@ -173,7 +188,7 @@ dependencies-win:  ## install dependnecies via windows (vcpkg)
 ############################################################################################
 # Thanks to Francoise at marmelab.com for this
 .DEFAULT_GOAL := help
-.PHONE: help
+.PHONY: help
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 

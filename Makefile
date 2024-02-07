@@ -161,7 +161,7 @@ dependencies-debian:  ## install dependencies for linux
 	apt-get install -y automake bison cmake curl flex ninja-build tar unzip zip
 
 dependencies-fedora:  ## install dependencies for linux
-	yum install -y automake bison cmake curl flex perl-IPC-Cmd tar unzip zip
+	yum install -y automake bison ccache cmake curl flex perl-IPC-Cmd tar unzip zip
 
 dependencies-vcpkg:  ## install dependnecies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install

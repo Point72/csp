@@ -30,21 +30,40 @@ runs:
 
     ################
     # vcpkg Cache
-    - name: Setup vcpkg cache in shell
+    - name: Setup vcpkg cache in shell (Linux)
       shell: bash
       run: |
-        mkdir -p $HOME/vcpkg_cache
-        mkdir -p $HOME/vcpkg_download_cache
-        echo "VCPKG_DEFAULT_BINARY_CACHE=$HOME/vcpkg_cache" >> $GITHUB_ENV
-        echo "VCPKG_DOWNLOADS=$HOME/vcpkg_download_cache" >> $GITHUB_ENV
-      if: ${{ runner.os != 'Windows' }}
+        mkdir -p /home/runner/vcpkg_cache
+        mkdir -p /home/runner/vcpkg_download_cache
+        echo "VCPKG_DEFAULT_BINARY_CACHE=/home/runner/vcpkg_cache" >> $GITHUB_ENV
+        echo "VCPKG_DOWNLOADS=/home/runner/vcpkg_download_cache" >> $GITHUB_ENV
+      if: ${{ runner.os == 'Linux' }}
 
-    - name: Setup vcpkg cache
+    - name: Setup vcpkg cache (Linux)
       uses: actions/cache@v4
       with:
         path: |
-          $HOME/vcpkg_cache
-          $HOME/vcpkg_download_cache
+          /home/runner/vcpkg_cache
+          /home/runner/vcpkg_download_cache
         key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
         restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
-      if: ${{ runner.os != 'Windows' }}
+      if: ${{ runner.os == 'Linux' }}
+
+    - name: Setup vcpkg cache in shell (macOS)
+      shell: bash
+      run: |
+        mkdir -p /Users/runner/vcpkg_cache
+        mkdir -p /Users/runner/vcpkg_download_cache
+        echo "VCPKG_DEFAULT_BINARY_CACHE=/Users/runner/vcpkg_cache" >> $GITHUB_ENV
+        echo "VCPKG_DOWNLOADS=/Users/runner/vcpkg_download_cache" >> $GITHUB_ENV
+      if: ${{ runner.os == 'macOS' }}
+
+    - name: Setup vcpkg cache (macOS)
+      uses: actions/cache@v4
+      with:
+        path: |
+          /Users/runner/vcpkg_cache
+          /Users/runner/vcpkg_download_cache
+        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+        restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
+      if: ${{ runner.os == 'macOS' }}

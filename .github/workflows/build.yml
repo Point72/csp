@@ -8,12 +8,14 @@ on:
       - v*
     paths-ignore:
       - LICENSE
+      - NOTICE
       - README.md
   pull_request:
     branches:
       - main
     paths-ignore:
       - LICENSE
+      - NOTICE
       - README.md
   workflow_dispatch:
     inputs:

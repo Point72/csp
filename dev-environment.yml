@@ -1,3 +1,7 @@
+name: csp-dev
+channels:
+  - conda-forge
+  - nodefaults
 dependencies:
  - compilers
  - git

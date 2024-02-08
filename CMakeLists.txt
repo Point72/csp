@@ -66,6 +66,7 @@ option(CSP_BUILD_GPROF "Hook into gprof for profiling" OFF)
 option(CSP_MANYLINUX "Build for python's manylinux setup" OFF)
 option(CSP_USE_VCPKG "Build with vcpkg dependencies" ON)
 option(CSP_USE_CCACHE "Build with ccache caching" OFF)
+option(CSP_USE_LD_CLASSIC_MAC "On macOS, link with ld_classic" OFF)
 
 # Extension options
 option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" ON)
@@ -115,8 +116,11 @@ if(MACOS)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
 
     # for exception unwinding on macOS
-    check_linker_flag(CXX "-Wl,-ld_classic" HAS_LD_CLASSIC_MAC)
-    if(HAS_LD_CLASSIC_MAC)
+    # TODO this does not work, which would be the
+    # proper cmake way of doing it, so instead we
+    # use a vanilla option
+    # check_linker_flag(CXX "-Wl,-ld_classic" CSP_USE_LD_CLASSIC_MAC)
+    if(CSP_USE_LD_CLASSIC_MAC)
       set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-ld_classic")
       set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-ld_classic")
     endif()

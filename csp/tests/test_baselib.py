@@ -417,16 +417,16 @@ class TestBaselib(unittest.TestCase):
             results[0], list(zip([start_time + timedelta(seconds=i) for i in range(5)], [0, 77, 154, 231, 308]))
         )
 
-    def test_math_ops(self):
+    def test_math_binary_ops(self):
         OPS = {
             csp.add: lambda x, y: x + y,
             csp.sub: lambda x, y: x - y,
             csp.multiply: lambda x, y: x * y,
             csp.divide: lambda x, y: x / y,
             csp.pow: lambda x, y: x**y,
-            csp.floordiv: lambda x, y: x // y,
             csp.min: lambda x, y: min(x, y),
             csp.max: lambda x, y: max(x, y),
+            csp.floordiv: lambda x, y: x // y,
         }
 
         @csp.graph
@@ -468,6 +468,63 @@ class TestBaselib(unittest.TestCase):
                 self.assertEqual(
                     [v[1] for v in results[op.__name__ + "-rev"]], [comp(y, x) for x, y in zip(xv, yv)], op.__name__
                 )
+
+    def test_math_unary_ops(self):
+        OPS = {
+            csp.abs: lambda x: abs(x),
+            csp.ln: lambda x: math.log(x),
+            csp.log2: lambda x: math.log2(x),
+            csp.log10: lambda x: math.log10(x),
+            csp.exp: lambda x: math.exp(x),
+            csp.exp2: lambda x: math.exp2(x),
+            csp.sin: lambda x: math.sin(x),
+            csp.cos: lambda x: math.cos(x),
+            csp.tan: lambda x: math.tan(x),
+            csp.arctan: lambda x: math.atan(x),
+            csp.sinh: lambda x: math.sinh(x),
+            csp.cosh: lambda x: math.cosh(x),
+            csp.tanh: lambda x: math.tanh(x),
+            csp.arcsinh: lambda x: math.asinh(x),
+            csp.arccosh: lambda x: math.acosh(x),
+            csp.erf: lambda x: math.erf(x),
+        }
+
+        @csp.graph
+        def graph():
+            x = csp.count(csp.timer(timedelta(seconds=0.25)))
+            csp.add_graph_output("x", x)
+
+            for op in OPS.keys():
+                csp.add_graph_output(op.__name__, op(x))
+
+        st = datetime(2020, 1, 1)
+        results = csp.run(graph, starttime=st, endtime=st + timedelta(seconds=3))
+        xv = [v[1] for v in results["x"]]
+
+        for op, comp in OPS.items():
+            self.assertEqual([v[1] for v in results[op.__name__]], [comp(x) for x in xv], op.__name__)
+
+    def test_math_unary_ops_other_domain(self):
+        OPS = {
+            csp.arcsin: lambda x: math.asin(x),
+            csp.arccos: lambda x: math.acos(x),
+            csp.arctanh: lambda x: math.atanh(x),
+        }
+
+        @csp.graph
+        def graph():
+            x = 1 / (csp.count(csp.timer(timedelta(seconds=0.25))) * math.pi)
+            csp.add_graph_output("x", x)
+
+            for op in OPS.keys():
+                csp.add_graph_output(op.__name__, op(x))
+
+        st = datetime(2020, 1, 1)
+        results = csp.run(graph, starttime=st, endtime=st + timedelta(seconds=3))
+        xv = [v[1] for v in results["x"]]
+
+        for op, comp in OPS.items():
+            self.assertEqual([v[1] for v in results[op.__name__]], [comp(x) for x in xv], op.__name__)
 
     def test_comparisons(self):
         OPS = {
@@ -1096,9 +1153,6 @@ class TestBaselib(unittest.TestCase):
 
             other_nodes = {
                 csp.drop_nans: lambda node: node(random_gen_nan(trigger1)),
-                csp.exp: lambda node: node(random_gen(trigger1, float) / 100),
-                csp.ln: lambda node: node(random_gen(trigger1, float)),
-                csp.abs: lambda node: node(random_gen(trigger1, float)),
                 csp.cast_int_to_float: lambda node: node(random_gen(trigger1, int)),
                 csp.bitwise_not: lambda node: node(random_gen(trigger1, int)),
             }
@@ -1131,6 +1185,7 @@ class TestBaselib(unittest.TestCase):
                         assertEqual(node.__name__, str(typ), python, cpp)
 
             for node, apply in other_nodes.items():
+                print(node.__name__)
                 python = apply(node.python)
                 cpp = apply(node)
                 assertEqual(node.__name__, "", python, cpp)

@@ -1,0 +1,216 @@
+#include <csp/adapters/redis/RedisAdapterManager.h>
+#include <csp/engine/Dictionary.h>
+#include <csp/core/Platform.h>
+
+#include <iostream>
+
+namespace csp
+{
+
+INIT_CSP_ENUM( csp::adapters::redis::RedisStatusMessageType,
+               "OK",
+               "MSG_DELIVERY_FAILED",
+               "MSG_SEND_ERROR",
+               "MSG_RECV_ERROR"
+);
+
+}
+
+namespace csp::adapters::redis
+{
+
+RedisAdapterManager::RedisAdapterManager( csp::Engine * engine, const Dictionary & properties ) : AdapterManager( engine ),
+                                                                                                  m_consumerIdx( 0 ),
+                                                                                                  m_producerPollThreadActive( false )
+{
+    m_host = properties.get<std::string>("host");
+    m_port = properties.get<binding_int_t>("port");
+    m_password = properties.get<std::string>("password");
+    m_db = properties.get<binding_int_t>("db");
+    m_keepAlive = properties.get<bool>("keep_alive");
+    m_connectTimeoutMs = properties.get<TimeDelta>("connect_timeout").asMilliseconds();
+    m_socketTimeoutMs = properties.get<TimeDelta>("socket_timeout").asMilliseconds();
+    m_resp = properties.get<binding_int_t>("resp");
+    m_poolSize = properties.get<size_t>("pool_size");
+    m_poolWaitTimeoutMs = properties.get<TimeDelta>("pool_wait_timeout").asMilliseconds();
+    m_poolConnectionLifetimeMs = properties.get<TimeDelta>("pool_connection_lifetime").asMilliseconds();
+    m_poolConnectionIdleTimeMs = properties.get<TimeDelta>("pool_connection_idle_time").asMilliseconds();
+}
+
+KafkaAdapterManager::~KafkaAdapterManager()
+{
+
+}
+
+void RedisAdapterManager::forceShutdown( const std::string & err )
+{
+    try
+    {
+        CSP_THROW( RuntimeException, "Redis fatal error. " +  err );
+    }
+    catch( const RuntimeException & )
+    {
+        rootEngine() -> shutdown( std::current_exception() );
+    }
+}
+
+void RedisAdapterManager::start( DateTime starttime, DateTime endtime )
+{
+    std::string errstr;
+
+    if( !m_staticPublishers.empty() || !m_dynamicPublishers.empty() )
+    {
+        m_producer.reset( RdKafka::Producer::create( m_producerConf.get(), errstr ) );
+        if ( !m_producer )
+        {
+            CSP_THROW( RuntimeException, "Failed to create producer: " << errstr );
+        }
+    }
+
+    // start all consumers
+    for( auto & it : m_consumerVector )
+        it -> start( starttime );
+
+    // start all publishers
+    for( auto & it : m_staticPublishers )
+        it.second -> start( m_producer );
+
+    for( auto & it : m_dynamicPublishers )
+        it -> start( m_producer );
+
+    AdapterManager::start( starttime, endtime );
+
+    if( !m_staticPublishers.empty() || !m_dynamicPublishers.empty() )
+    {
+        m_producerPollThreadActive = true;
+        m_producerPollThread = std::make_unique<std::thread>( [ this ](){ pollProducers(); } );
+    }
+}
+
+void RedisAdapterManager::stop()
+{
+    AdapterManager::stop();
+
+    // stop all consumers
+    for( auto & it : m_consumerVector )
+        it -> stop();
+
+    if( m_producerPollThreadActive )
+    {
+        m_producerPollThreadActive = false;
+        m_producerPollThread -> join();
+    }
+
+    // stop all publishers
+    for( auto & it : m_staticPublishers )
+        it.second -> stop();
+
+    for( auto & it : m_dynamicPublishers )
+        it -> stop();
+
+    m_staticPublishers.clear();
+    m_dynamicPublishers.clear();
+    m_consumerVector.clear();
+    m_producer.reset();
+}
+
+// DateTime RedisAdapterManager::processNextSimTimeSlice( DateTime time )
+// {
+//     // no sim data
+//     return DateTime::NONE();
+// }
+
+// PushInputAdapter * RedisAdapterManager::getInputAdapter( CspTypePtr & type, PushMode pushMode, const Dictionary & properties )
+// {
+//     std::string topic = properties.get<std::string>( "topic" );
+//     std::string key = properties.get<std::string>( "key" );
+//     KafkaSubscriber * subscriber = this -> getSubscriber( topic, key, properties );
+//     return subscriber -> getInputAdapter( type, pushMode, properties );
+// }
+
+// OutputAdapter * RedisAdapterManager::getOutputAdapter( CspTypePtr & type, const Dictionary & properties )
+// {
+//     std::string topic = properties.get<std::string>( "topic" );
+//     try
+//     {
+//         auto key = properties.get<std::string>( "key" );
+//         auto pair = TopicKeyPair( topic, key );
+//         KafkaPublisher * publisher = this -> getStaticPublisher( pair, properties );
+//         return publisher -> getOutputAdapter( type, properties, key );
+//     }
+//     catch( TypeError & e )
+//     {
+//         auto key = properties.get<std::vector<Dictionary::Data>>( "key" );
+//         std::vector<std::string> keyFields;
+//         for( auto & it : key )
+//             keyFields.emplace_back( std::get<std::string>( it._data ) );
+
+//         KafkaPublisher * publisher = this -> getDynamicPublisher( topic, properties );
+//         return publisher -> getOutputAdapter( type, properties, keyFields );
+//     }
+// }
+
+// RedisConsumer * RedisAdapterManager::getConsumer( const std::string & topic, const Dictionary & properties )
+// {
+//     // If we have seen this topic before, look up the consumer for it in the map
+//     // Otherwise, make a new consumer (and insert it into the map)
+//     // If we have reached m_maxThreads, then round-robin the topic onto a consumer (and insert it into the map)
+//     if( m_consumerMap.find( topic ) != m_consumerMap.end() )
+//     {
+//         return m_consumerMap[ topic ].get();
+//     }
+//     if( m_consumerVector.size() < m_maxThreads )
+//     {
+//         auto consumer = std::make_shared<KafkaConsumer>( this, properties );
+//         m_consumerVector.emplace_back( consumer );
+//         m_consumerMap.emplace( topic, consumer );
+//         return m_consumerMap[ topic ].get();
+//     }
+
+//     auto consumer = m_consumerVector[ m_consumerIdx++ ];
+//     m_consumerMap.emplace( topic, consumer );
+//     if( m_consumerIdx >= m_maxThreads )
+//         m_consumerIdx = 0;
+//     return consumer.get();
+// }
+
+// KafkaSubscriber * KafkaAdapterManager::getSubscriber( const std::string & topic, const std::string & key, const Dictionary & properties )
+// {
+//     auto pair = TopicKeyPair( topic, key );
+//     auto rv = m_subscribers.emplace( pair, nullptr );
+
+//     if( rv.second )
+//     {
+//         std::unique_ptr<KafkaSubscriber> subscriber( new KafkaSubscriber( this, properties ) );
+//         rv.first -> second = std::move( subscriber );
+
+//         this -> getConsumer( topic, properties ) -> addSubscriber( topic, key, rv.first -> second.get() );
+//     }
+
+//     return rv.first -> second.get();
+// }
+
+// for static (string) keys, we create one publisher instance per <topic, key> pair
+// KafkaPublisher * KafkaAdapterManager::getStaticPublisher( const TopicKeyPair & pair, const Dictionary & properties )
+// {
+//     auto rv = m_staticPublishers.emplace( pair, nullptr );
+
+//     if( rv.second )
+//     {
+//         std::unique_ptr<KafkaPublisher> publisher( new KafkaPublisher( this, properties, pair.first ) );
+//         rv.first -> second = std::move( publisher );
+//     }
+
+//     KafkaPublisher * p = rv.first -> second.get();
+//     return p;
+// }
+
+// for dynamic (struct) keys, we create one publisher instance per publish call
+// KafkaPublisher * KafkaAdapterManager::getDynamicPublisher( const std::string & topic, const Dictionary & properties )
+// {
+//     auto * p = new KafkaPublisher( this, properties, topic );
+//     m_dynamicPublishers.emplace_back( p );
+//     return p;
+// }
+
+}

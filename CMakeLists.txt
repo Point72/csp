@@ -70,6 +70,7 @@ option(CSP_USE_CCACHE "Build with ccache caching" OFF)
 # Extension options
 option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" ON)
 option(CSP_BUILD_PARQUET_ADAPTER "Build parquet adapter" ON)
+option(CSP_BUILD_REDIS_ADAPTER "Build redis adapter" ON)
 
 # Normalize build type for downstream comparisons
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
@@ -300,6 +301,9 @@ if(CSP_BUILD_PARQUET_ADAPTER)
     find_package(DepsParquetAdapter REQUIRED)
 endif()
 
+if(CSP_BUILD_REDIS_ADAPTER)
+    find_package(DepsRedisAdapter REQUIRED)
+endif()
 
 # PYTHON
 if(CSP_MANYLINUX)

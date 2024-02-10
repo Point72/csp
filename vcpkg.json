@@ -12,6 +12,7 @@
       "parquet",
       "protobuf",
       "rapidjson",
+      "redis-plus-plus",
       "thrift",
       "utf8proc"
     ],

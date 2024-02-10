@@ -7,4 +7,8 @@ if(CSP_BUILD_PARQUET_ADAPTER)
     add_subdirectory(parquet)
 endif()
 
+if(CSP_BUILD_REDIS_ADAPTER)
+    add_subdirectory(redis)
+endif()
+
 add_subdirectory(utils)

@@ -1,16 +1,18 @@
+#include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
+#include <csp/adapters/parquet/ParquetOutputAdapter.h>
 #include <csp/adapters/parquet/ParquetOutputAdapterManager.h>
 #include <csp/adapters/parquet/ParquetOutputFilenameAdapter.h>
-#include <csp/adapters/parquet/ParquetOutputAdapter.h>
-#include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetWriter.h>
 #include <csp/engine/Dictionary.h>
 
 namespace csp::adapters::parquet
 {
 
-
-ParquetOutputAdapterManager::ParquetOutputAdapterManager( csp::Engine *engine, const Dictionary &properties, FileVisitorCallback fileVisitor ) :
-    AdapterManager( engine ), m_fileVisitor( fileVisitor ), m_outputFilenameAdapter( nullptr )
+ParquetOutputAdapterManager::ParquetOutputAdapterManager( csp::Engine * engine, const Dictionary & properties,
+                                                          FileVisitorCallback fileVisitor )
+    : AdapterManager( engine )
+    , m_fileVisitor( fileVisitor )
+    , m_outputFilenameAdapter( nullptr )
 {
     m_fileName            = properties.get<std::string>( "file_name" );
     m_timestampColumnName = properties.get<std::string>( "timestamp_column_name" );
@@ -22,28 +24,26 @@ ParquetOutputAdapterManager::ParquetOutputAdapterManager( csp::Engine *engine, c
     m_parquetWriter       = std::make_unique<ParquetWriter>( this, properties );
 }
 
-ParquetOutputAdapterManager::~ParquetOutputAdapterManager()
-{
-}
+ParquetOutputAdapterManager::~ParquetOutputAdapterManager() {}
 
 void ParquetOutputAdapterManager::start( DateTime starttime, DateTime endtime )
 {
-    m_parquetWriter -> start();
-    for( auto &&writer:m_dictBasketWriters )
+    m_parquetWriter->start();
+    for( auto && writer : m_dictBasketWriters )
     {
-        writer -> start();
+        writer->start();
     }
 }
 
 void ParquetOutputAdapterManager::stop()
 {
-    bool visitFile = m_fileVisitor && m_parquetWriter -> isFileOpen();
-    m_parquetWriter -> stop();
+    bool visitFile = m_fileVisitor && m_parquetWriter->isFileOpen();
+    m_parquetWriter->stop();
     m_parquetWriter = nullptr;
 
-    for( auto &&writer:m_dictBasketWriters )
+    for( auto && writer : m_dictBasketWriters )
     {
-        writer -> stop();
+        writer->stop();
     }
     m_dictBasketWriters.clear();
 
@@ -51,14 +51,11 @@ void ParquetOutputAdapterManager::stop()
         m_fileVisitor( m_fileName );
 }
 
-DateTime ParquetOutputAdapterManager::processNextSimTimeSlice( DateTime time )
-{
-    return DateTime::NONE();
-}
+DateTime ParquetOutputAdapterManager::processNextSimTimeSlice( DateTime time ) { return DateTime::NONE(); }
 
-OutputAdapter *ParquetOutputAdapterManager::getOutputAdapter( CspTypePtr &type, const Dictionary &properties )
+OutputAdapter * ParquetOutputAdapterManager::getOutputAdapter( CspTypePtr & type, const Dictionary & properties )
 {
-    if( type -> type() == CspType::Type::STRUCT )
+    if( type->type() == CspType::Type::STRUCT )
     {
         return getStructOutputAdapter( type, properties );
     }
@@ -68,46 +65,49 @@ OutputAdapter *ParquetOutputAdapterManager::getOutputAdapter( CspTypePtr &type, 
     }
 }
 
-OutputAdapter *ParquetOutputAdapterManager::getListOutputAdapter( CspTypePtr &elemType, const Dictionary &properties,
-                                                                  const DialectGenericListWriterInterface::Ptr& listWriterInterface)
+OutputAdapter *
+ParquetOutputAdapterManager::getListOutputAdapter( CspTypePtr & elemType, const Dictionary & properties,
+                                                   const DialectGenericListWriterInterface::Ptr & listWriterInterface )
 {
     auto columnName = properties.get<std::string>( "column_name" );
-    return m_parquetWriter -> getListOutputAdapter( elemType, columnName, listWriterInterface );
+    return m_parquetWriter->getListOutputAdapter( elemType, columnName, listWriterInterface );
 }
 
-
 ParquetDictBasketOutputWriter *
-ParquetOutputAdapterManager::createDictOutputBasketWriter( const char *columnName, const CspTypePtr &cspTypePtr )
+ParquetOutputAdapterManager::createDictOutputBasketWriter( const char * columnName, const CspTypePtr & cspTypePtr )
 {
-    auto &&existingAdapterIt = m_dictBasketWriterIndexByName.find( columnName );
+    auto && existingAdapterIt = m_dictBasketWriterIndexByName.find( columnName );
     CSP_TRUE_OR_THROW_RUNTIME( existingAdapterIt == m_dictBasketWriterIndexByName.end(),
                                "Trying to create output basket writer for " << columnName << " more than once" );
 
-    if( cspTypePtr -> type() == CspType::Type::STRUCT )
+    if( cspTypePtr->type() == CspType::Type::STRUCT )
     {
-        m_dictBasketWriters.push_back( std::make_unique<ParquetStructDictBasketOutputWriter>( this, columnName, cspTypePtr ) );
+        m_dictBasketWriters.push_back(
+            std::make_unique<ParquetStructDictBasketOutputWriter>( this, columnName, cspTypePtr ) );
     }
     else
     {
-        m_dictBasketWriters.push_back( std::make_unique<ParquetScalarDictBasketOutputWriter>( this, columnName, cspTypePtr ) );
+        m_dictBasketWriters.push_back(
+            std::make_unique<ParquetScalarDictBasketOutputWriter>( this, columnName, cspTypePtr ) );
     }
 
-    m_dictBasketWriterIndexByName[ columnName ] = m_dictBasketWriters.size() - 1;
+    m_dictBasketWriterIndexByName[columnName] = m_dictBasketWriters.size() - 1;
     return m_dictBasketWriters.back().get();
 }
 
-OutputAdapter *ParquetOutputAdapterManager::createOutputFileNameAdapter()
+OutputAdapter * ParquetOutputAdapterManager::createOutputFileNameAdapter()
 {
-    CSP_TRUE_OR_THROW_RUNTIME( m_outputFilenameAdapter == nullptr, "Trying to set output filename adapter more than once" );
-    m_outputFilenameAdapter = engine() -> createOwnedObject<ParquetOutputFilenameAdapter>( *this );
+    CSP_TRUE_OR_THROW_RUNTIME( m_outputFilenameAdapter == nullptr,
+                               "Trying to set output filename adapter more than once" );
+    m_outputFilenameAdapter = engine()->createOwnedObject<ParquetOutputFilenameAdapter>( *this );
     return m_outputFilenameAdapter;
 }
 
-void ParquetOutputAdapterManager::changeFileName( const std::string &filename )
+void ParquetOutputAdapterManager::changeFileName( const std::string & filename )
 {
     if( m_parquetWriter )
     {
-        m_parquetWriter -> onFileNameChange( filename );
+        m_parquetWriter->onFileNameChange( filename );
     }
 
     if( m_fileVisitor )
@@ -118,28 +118,27 @@ void ParquetOutputAdapterManager::changeFileName( const std::string &filename )
 
 void ParquetOutputAdapterManager::scheduleEndCycle()
 {
-    if( rootEngine() -> scheduleEndCycleListener( m_parquetWriter.get() ) )
+    if( rootEngine()->scheduleEndCycleListener( m_parquetWriter.get() ) )
     {
-        for( auto &&basketWriter:m_dictBasketWriters )
+        for( auto && basketWriter : m_dictBasketWriters )
         {
-            rootEngine() -> scheduleEndCycleListener( basketWriter.get() );
+            rootEngine()->scheduleEndCycleListener( basketWriter.get() );
         }
     }
 }
 
-OutputAdapter *ParquetOutputAdapterManager::getScalarOutputAdapter( CspTypePtr &type, const Dictionary &properties )
+OutputAdapter * ParquetOutputAdapterManager::getScalarOutputAdapter( CspTypePtr & type, const Dictionary & properties )
 {
     auto columnName = properties.get<std::string>( "column_name" );
 
-    return m_parquetWriter -> getScalarOutputAdapter( type, columnName );
+    return m_parquetWriter->getScalarOutputAdapter( type, columnName );
 }
 
-OutputAdapter *ParquetOutputAdapterManager::getStructOutputAdapter( CspTypePtr &type, const Dictionary &properties )
+OutputAdapter * ParquetOutputAdapterManager::getStructOutputAdapter( CspTypePtr & type, const Dictionary & properties )
 {
     auto fieldMap = properties.get<DictionaryPtr>( "field_map" );
 
-    return m_parquetWriter -> getStructOutputAdapter( type, fieldMap );
+    return m_parquetWriter->getStructOutputAdapter( type, fieldMap );
 }
 
-
-}
+} // namespace csp::adapters::parquet

@@ -5,50 +5,43 @@ static_assert( alignof( csp::DialectGenericType ) == alignof( csp::python::PyObj
 
 namespace csp
 {
-DialectGenericType::DialectGenericType()
-{
-    new( this ) csp::python::PyObjectPtr();
-}
+DialectGenericType::DialectGenericType() { new( this ) csp::python::PyObjectPtr(); }
 
 DialectGenericType::~DialectGenericType()
 {
     using T = csp::python::PyObjectPtr;
-    reinterpret_cast<T *>(this) -> ~T();
+    reinterpret_cast<T *>( this )->~T();
 }
 
-DialectGenericType::DialectGenericType( const DialectGenericType &rhs )
+DialectGenericType::DialectGenericType( const DialectGenericType & rhs )
 {
-    new( this ) csp::python::PyObjectPtr( reinterpret_cast<const csp::python::PyObjectPtr &>(rhs) );
+    new( this ) csp::python::PyObjectPtr( reinterpret_cast<const csp::python::PyObjectPtr &>( rhs ) );
 }
 
-DialectGenericType::DialectGenericType( DialectGenericType &&rhs )
+DialectGenericType::DialectGenericType( DialectGenericType && rhs )
 {
-    new( this ) csp::python::PyObjectPtr( reinterpret_cast<const csp::python::PyObjectPtr &&>(rhs) );
+    new( this ) csp::python::PyObjectPtr( reinterpret_cast<const csp::python::PyObjectPtr &&>( rhs ) );
 }
 
-
-DialectGenericType &DialectGenericType::operator=( const DialectGenericType &rhs )
+DialectGenericType & DialectGenericType::operator=( const DialectGenericType & rhs )
 {
-    *reinterpret_cast<csp::python::PyObjectPtr *>(this) = reinterpret_cast<const csp::python::PyObjectPtr &>(rhs);
+    *reinterpret_cast<csp::python::PyObjectPtr *>( this ) = reinterpret_cast<const csp::python::PyObjectPtr &>( rhs );
     return *this;
 }
 
-DialectGenericType &DialectGenericType::operator=( DialectGenericType &&rhs )
+DialectGenericType & DialectGenericType::operator=( DialectGenericType && rhs )
 {
-    *reinterpret_cast<csp::python::PyObjectPtr *>(this) = reinterpret_cast<const csp::python::PyObjectPtr &&>(rhs);
+    *reinterpret_cast<csp::python::PyObjectPtr *>( this ) = reinterpret_cast<const csp::python::PyObjectPtr &&>( rhs );
     return *this;
 }
 
-
-bool DialectGenericType::operator==( const DialectGenericType &rhs ) const
+bool DialectGenericType::operator==( const DialectGenericType & rhs ) const
 {
-    return *reinterpret_cast<const csp::python::PyObjectPtr *>(this) == reinterpret_cast<const csp::python::PyObjectPtr &>(rhs);
+    return *reinterpret_cast<const csp::python::PyObjectPtr *>( this )
+        == reinterpret_cast<const csp::python::PyObjectPtr &>( rhs );
 }
 
-size_t DialectGenericType::hash() const
-{
-    return reinterpret_cast<const csp::python::PyObjectPtr *>(this) -> hash();
-}
+size_t DialectGenericType::hash() const { return reinterpret_cast<const csp::python::PyObjectPtr *>( this )->hash(); }
 
 std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj )
 {
@@ -56,4 +49,4 @@ std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj )
     return o;
 }
 
-}
+} // namespace csp

@@ -1,6 +1,6 @@
 #include <csp/core/Enum.h>
-#include <gtest/gtest.h>
 #include <csp/engine/Enums.h>
+#include <gtest/gtest.h>
 
 using namespace csp;
 
@@ -22,13 +22,7 @@ struct TestEnumTraits
 
 using TestEnum = Enum<TestEnumTraits>;
 
-INIT_CSP_ENUM(TestEnum,
-    "UNKNOWN",
-    "A",
-    "B",
-    "C",
-    "F"
-);
+INIT_CSP_ENUM( TestEnum, "UNKNOWN", "A", "B", "C", "F" );
 
 TEST( EnumTest, basic_functionality )
 {
@@ -41,7 +35,6 @@ TEST( EnumTest, basic_functionality )
     ASSERT_NE( TestEnum::A, TestEnum( TestEnum::B ) );
     ASSERT_NE( TestEnum( TestEnum::B ), TestEnum::A );
     ASSERT_NE( TestEnum::A, TestEnum( 2 ) );
-
 
     ASSERT_EQ( TestEnum( 1 ), TestEnum::A );
     ASSERT_EQ( TestEnum( 1 ).asString(), "A" );
@@ -56,7 +49,7 @@ TEST( EnumTest, basic_functionality )
 
     std::stringstream oss;
     oss << TestEnum( "UNKNOWN" );
-    ASSERT_EQ( oss.str(), "UNKNOWN");
+    ASSERT_EQ( oss.str(), "UNKNOWN" );
 
     ASSERT_THROW( TestEnum( "FOO" ), ValueError );
     ASSERT_THROW( TestEnum( 23 ), ValueError );
@@ -67,16 +60,16 @@ TEST( EnumTest, iteration )
     std::set<std::string> out;
     for( auto it = TestEnum::begin(); it != TestEnum::end(); ++it )
     {
-        out.insert( (*it).asString() );
+        out.insert( ( *it ).asString() );
     }
 
-    decltype( out ) comp{ "UNKNOWN", "A", "B" ,"C", "F" };
+    decltype( out ) comp{ "UNKNOWN", "A", "B", "C", "F" };
     ASSERT_EQ( out, comp );
 }
 
 TEST( EnumTest, test_external_init )
 {
-    //was a problem with static linking
+    // was a problem with static linking
     ASSERT_EQ( PushMode( "LAST_VALUE" ), PushMode::LAST_VALUE );
-    ASSERT_EQ( PushMode( PushMode::LAST_VALUE ).asString(), "LAST_VALUE" );    
+    ASSERT_EQ( PushMode( PushMode::LAST_VALUE ).asString(), "LAST_VALUE" );
 }

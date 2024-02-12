@@ -5,22 +5,17 @@
 namespace csp
 {
 
-Consumer::Consumer( Engine * engine ) : m_engine( engine ),
-                                        m_next( nullptr ),
-                                        m_rank( -1 )
+Consumer::Consumer( Engine * engine )
+    : m_engine( engine )
+    , m_next( nullptr )
+    , m_rank( -1 )
 {
 }
 
-Consumer::~Consumer()
-{
-}
+Consumer::~Consumer() {}
 
-void Consumer::start()
-{
-}
+void Consumer::start() {}
 
-void Consumer::stop()
-{
-}
+void Consumer::stop() {}
 
-}
+} // namespace csp

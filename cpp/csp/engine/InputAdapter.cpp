@@ -4,8 +4,9 @@
 namespace csp
 {
 
-InputAdapter::InputAdapter( Engine *engine, const CspTypePtr &type, PushMode pushMode ) : m_rootEngine( engine -> rootEngine() ),
-                                                                                          m_pushMode( pushMode )
+InputAdapter::InputAdapter( Engine * engine, const CspTypePtr & type, PushMode pushMode )
+    : m_rootEngine( engine->rootEngine() )
+    , m_pushMode( pushMode )
 {
     if( pushMode == PushMode::BURST )
         init( CspArrayType::create( type ) );
@@ -13,4 +14,4 @@ InputAdapter::InputAdapter( Engine *engine, const CspTypePtr &type, PushMode pus
         init( type );
 }
 
-}
+} // namespace csp

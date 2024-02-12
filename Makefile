@@ -39,8 +39,7 @@ lint-py:
 	python -m ruff csp/ setup.py
 
 lint-cpp:
-	# clang-format --dry-run -Werror -i -style=file `find ./cpp/ -name "*.*pp"`
-	echo "C++ linting disabled for now"
+	clang-format --dry-run -Werror -i -style=file `find ./cpp/ -name "*.*pp"`
 
 # lint: lint-py lint-cpp  ## run lints
 lint: lint-py  ## run lints
@@ -53,8 +52,7 @@ fix-py:
 	python -m ruff format csp/ setup.py
 
 fix-cpp:
-	# clang-format -i -style=file `find ./cpp/ -name "*.*pp"`
-	echo "C++ autoformatting disabled for now"
+	clang-format -i -style=file `find ./cpp/ -name "*.*pp"`
 
 fix: fix-py fix-cpp  ## run autofixers
 

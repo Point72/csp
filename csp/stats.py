@@ -193,7 +193,7 @@ def _np_exp(x: ts[np.ndarray]) -> ts[np.ndarray]:
 
 
 @csp.node(cppimpl=_cspnpstatsimpl._list_to_np)
-def list_to_numpy(x: [ts[float]], fillna: bool = False) -> ts[np.ndarray]:
+def list_to_numpy(x: [ts[float]], fillna: bool = False) -> ts[csp.typing.Numpy1DArray[float]]:
     """
     x: listbasket of floats
     fillna: if True, unticked values will hold their previous value in the array.

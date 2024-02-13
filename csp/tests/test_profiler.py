@@ -14,6 +14,8 @@ import csp.stats as stats
 from csp import profiler, ts
 from csp.tests.test_dynamic import DynData, gen_basket, random_keys
 
+from .test_showgraph import _cant_find_graphviz
+
 
 @csp.graph
 def stats_graph():
@@ -153,9 +155,10 @@ class TestProfiler(unittest.TestCase):
 
         with profiler.Profiler() as p:
             results = csp.run(graph3, starttime=st, endtime=st + timedelta(seconds=100))
-            with tempfile.NamedTemporaryFile(prefix="foo", suffix=".png", mode="w") as temp_file:
-                temp_file.close()
-                csp.show_graph(graph3, graph_filename=temp_file.name)
+            if not _cant_find_graphviz():
+                with tempfile.NamedTemporaryFile(prefix="foo", suffix=".png", mode="w") as temp_file:
+                    temp_file.close()
+                    csp.show_graph(graph3, graph_filename=temp_file.name)
 
         prof = p.results()
         self.assertEqual(prof.cycle_count, 100)

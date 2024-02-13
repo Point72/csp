@@ -1,4 +1,4 @@
-#ifndef _IN_CSP_ENGINE_ALARMINPUTADAPTER_H
+#ifndef _IN_CSP_ENGINE_CONSTINPUTADAPTER_H
 #define _IN_CSP_ENGINE_CONSTINPUTADAPTER_H
 
 #include <csp/engine/InputAdapter.h>
@@ -10,14 +10,14 @@ template<typename T>
 class ConstInputAdapter final : public InputAdapter
 {
 public:
-    ConstInputAdapter( Engine * engine, CspTypePtr & type, const T & value, 
+    ConstInputAdapter( Engine * engine, CspTypePtr & type, const T & value,
                        TimeDelta delay ) : InputAdapter( engine, type, PushMode::LAST_VALUE ), m_delay( delay ), m_value( value )
     {
     }
 
     void start( DateTime start, DateTime end ) override
     {
-        m_timerHandle = rootEngine() -> scheduleCallback( m_delay, 
+        m_timerHandle = rootEngine() -> scheduleCallback( m_delay,
                                                           [this]
                                                           {
                                                               this -> outputTickTyped<T>( rootEngine() -> now(), m_value );
@@ -25,7 +25,7 @@ public:
                                                           } );
     }
 
-    void stop() override 
+    void stop() override
     {
         rootEngine() -> cancelCallback( m_timerHandle );
     }

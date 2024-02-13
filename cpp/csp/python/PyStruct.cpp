@@ -138,7 +138,6 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                         using CElemType = typename decltype(tag)::type;
                         return std::make_shared<ArrayStructField<CElemType>>( csptype, keystr );
                     } );
-
                     break;
                 }
 
@@ -169,9 +168,9 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
 
     /*back reference to the struct type that will be accessible on the csp struct -> meta()
       DialectStructMeta will hold a borrowed reference to the type to avoid a circular dep
-      
+
       This is the layout of references between all these types
-                              StructMeta (shared_ptr) <-------- strong ref 
+                              StructMeta (shared_ptr) <-------- strong ref
                                   |                              |
                            DialectStructMeta ---> weak ref to PyStructMeta ( the PyType )
                                  /\                              /\
@@ -458,6 +457,10 @@ void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset
 template<typename ElemT>
 void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset );
 
+#ifdef __clang__
+void repr_array( const boost::container::vector<bool> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset );
+#endif
+
 // helper functions for formatting to Python standard
 void format_bool( const bool val, std::string & tl_repr ) {  tl_repr += ( ( val ? "True" : "False" ) ); }
 void format_double( const double val, std::string & tl_repr )
@@ -478,6 +481,11 @@ struct is_vector { static bool const value = false; };
 
 template<class T>
 struct is_vector<std::vector<T> > { static bool const value = true; };
+
+#ifdef __clang__
+template<>
+struct is_vector<boost::container::vector<bool>> { static bool const value = true; };
+#endif
 
 void repr_field( const Struct * struct_, const StructFieldPtr & field, std::string & tl_repr, bool show_unset )
 {
@@ -533,9 +541,20 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
             switchCspType( elemType, [ field, struct_, &arrayType, &tl_repr, show_unset ]( auto tag )
             {
                 using CElemType = typename decltype( tag )::type;
+                #ifdef __clang__
+                if constexpr (std::is_same<CElemType, bool>::value) {
+                    const boost::container::vector<bool> & val = field -> value<boost::container::vector<bool>>( struct_ );
+                    repr_array( val, *arrayType, tl_repr, show_unset );
+                } else {
+                    const std::vector<CElemType> & val = field -> value<std::vector<CElemType>>( struct_ );
+                    repr_array( val, *arrayType, tl_repr, show_unset );
+                }
+                #else
                 using ArrayType = typename std::vector<CElemType>;
                 const ArrayType & val = field -> value<ArrayType>( struct_ );
                 repr_array( val, *arrayType, tl_repr, show_unset );
+                #endif
+
             } );
 
             break;
@@ -594,6 +613,23 @@ void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType,
 
     tl_repr += "]";
 }
+
+#ifdef __clang__
+void repr_array( const boost::container::vector<bool> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset )
+{
+    tl_repr += "[";
+
+    bool first = true;
+    for( auto it = val.begin(); it != val.end(); it++ )
+    {
+        if( unlikely( first ) ) first = false;
+        else tl_repr += ", ";
+        format_bool( *it, tl_repr );
+    }
+
+    tl_repr += "]";
+}
+#endif
 
 void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset )
 {
@@ -857,7 +893,7 @@ PyObject * PyStruct_deepcopy( PyStruct * self )
     CSP_BEGIN_METHOD;
     //Note that once tp_alloc is called, the object will get added to GC
     //deepcopy traversal may kick in a GC collect, so we have to call that first before the PyStruct is created
-    //of it may traverse a partially consturcted object and crash 
+    //of it may traverse a partially consturcted object and crash
     auto deepcopy = self -> struct_ -> deepcopy();
     PyObject * pyDeepcopy = self -> ob_type -> tp_alloc( self -> ob_type, 0 );
     new ( pyDeepcopy ) PyStruct( deepcopy );

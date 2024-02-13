@@ -1,7 +1,6 @@
 import datetime
 import io
 import numpy
-import platform
 import pyarrow
 import pyarrow.parquet
 from importlib.metadata import PackageNotFoundError, version as get_package_version
@@ -101,9 +100,6 @@ class ParquetReader:
             self._properties["tz"] = tz.zone
         if binary_arrow:
             self._properties["is_arrow_ipc"] = True
-        if not binary_arrow and platform.system() == "Darwin":
-            # TKP fix parquet reading on darwin
-            raise RuntimeError("Cannot read parquet files on macOS yet")
         if start_time:
             self._properties["start_time"] = start_time
         if end_time:

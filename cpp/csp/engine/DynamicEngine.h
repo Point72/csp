@@ -1,5 +1,5 @@
 #ifndef _IN_CSP_ENGINE_DYNAMICENGINE_H
-#define _IN_CSP_ENGINE_DUNAMICENGINE_H
+#define _IN_CSP_ENGINE_DYNAMICENGINE_H
 
 #include <csp/engine/Engine.h>
 #include <csp/engine/OutputAdapter.h>

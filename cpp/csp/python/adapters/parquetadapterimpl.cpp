@@ -383,7 +383,7 @@ public:
         return reinterpret_cast<V *>(PyArray_DATA( arrayObject ));
     }
 
-    virtual void setValue(const csp::DialectGenericType& list, int index, const V& value)
+    virtual void setValue(const csp::DialectGenericType& list, int index, const V& value) override
     {
         getRawDataBuffer(list)[index] = value;
     }

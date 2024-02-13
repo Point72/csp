@@ -161,9 +161,9 @@ protected:
         using InputWrapper::InputWrapper;
 
         operator const T &() { return lastValue(); }
-        const T & lastValue() const { return ts() -> lastValueTyped<T>(); }
+        const T & lastValue() const { return ts() -> template lastValueTyped<T>(); }
 
-        const T & valueAtIndex( int32_t index ) const { return ts() -> valueAtIndex<T>( index ); }
+        const T & valueAtIndex( int32_t index ) const { return ts() -> template valueAtIndex<T>( index ); }
     };
 
     template<typename ElemWrapperT>
@@ -379,7 +379,7 @@ protected:
 
         T & reserveSpace()
         {
-            return ts() -> reserveTickTyped<T>( m_node.cycleCount(), m_node.now() );
+            return ts() -> template reserveTickTyped<T>( m_node.cycleCount(), m_node.now() );
         }
     };
 

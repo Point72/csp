@@ -37,16 +37,6 @@ runs:
       run: make dependencies-mac
       if: ${{ runner.os == 'macOS' }}
 
-    # - name: Setup vcpkg cache in shell
-    #   shell: bash
-    #   run: |
-    #     which -a gcc-12
-    #     echo "CC=/usr/local/bin/gcc-12" >> $GITHUB_ENV
-    #     echo "CMAKE_C_COMPILER=/usr/local/bin/gcc-12" >> $GITHUB_ENV
-    #     echo "CXX=/usr/local/bin/g++-12" >> $GITHUB_ENV
-    #     echo "CMAKE_CXX_COMPILER=/usr/local/bin/g++-12" >> $GITHUB_ENV
-    #   if: ${{ runner.os == 'macOS' }}
-
     ################
     # Windows
     - name: Windows init steps (vc143)

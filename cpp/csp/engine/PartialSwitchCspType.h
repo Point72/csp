@@ -149,9 +149,9 @@ private:
     static R_T handleArrayType( const CspType *type, F &&f )
     {
         const auto *arrayType = static_cast<const CspArrayType *>( type );
-
         return ArraySubTypeSwitchT::invoke( arrayType -> elemType().get(), [ &f ]( auto tag )
         {
+
             return f( CspType::Type::toCType<T, typename decltype(tag)::type>());
         } );
     }
@@ -339,6 +339,14 @@ struct ConstructibleTypeSwitchAux<std::vector<T>>
 {
     using type = PartialSwitchCspType<csp::CspType::Type::ARRAY>;
 };
+
+#ifdef __clang__
+template<>
+struct ConstructibleTypeSwitchAux<boost::container::vector<bool>>
+{
+    using type = PartialSwitchCspType<csp::CspType::Type::ARRAY>;
+};
+#endif
 
 template<>
 struct ConstructibleTypeSwitchAux<StructPtr>

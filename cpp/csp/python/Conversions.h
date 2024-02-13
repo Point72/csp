@@ -176,7 +176,6 @@ inline PyObject * toPython( const bool & value )
     return rv;
 }
 
-
 //double
 template<>
 inline double fromPython( PyObject * o )
@@ -721,6 +720,37 @@ inline PyObject * toPython( const std::vector<T> & v, const CspType & type )
 }
 
 template<>
+inline PyObject * toPython( const std::vector<bool> & v, const CspType & type )
+{
+    assert( type.type() == CspType::Type::ARRAY );
+
+    const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+    size_t size = v.size();
+    PyObjectPtr list = PyObjectPtr::check( PyList_New( size ) );
+
+    for( size_t idx = 0; idx < size; ++idx )
+        PyList_SET_ITEM( list.ptr(), idx, toPython<bool>( (bool) v[idx], elemType ) );
+    return list.release();
+}
+
+#ifdef __clang__
+template<>
+inline PyObject * toPython( const boost::container::vector<bool> & v, const CspType & type )
+{
+    assert( type.type() == CspType::Type::ARRAY );
+
+    const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+    size_t size = v.size();
+    PyObjectPtr list = PyObjectPtr::check( PyList_New( size ) );
+
+    for( size_t idx = 0; idx < size; ++idx )
+        PyList_SET_ITEM( list.ptr(), idx, toPython<bool>( (bool) v[idx], elemType ) );
+    return list.release();
+}
+#endif
+
+
+template<>
 inline PyObject * toPython( const Dictionary::Value & value )
 {
     switch( static_cast<int64_t>( value.index() ) )
@@ -807,6 +837,57 @@ struct FromPython<std::vector<T>>
         return out;
     }
 };
+
+#ifdef __clang__
+template<>
+struct FromPython<boost::container::vector<bool>>
+{
+    static boost::container::vector<bool> impl( PyObject * o, const CspType & type )
+    {
+        assert( type.type() == CspType::Type::ARRAY );
+        const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+
+        boost::container::vector<bool> out;
+        //fast path list and tuples since we can size up front
+        if( PyList_Check( o ) )
+        {
+            size_t size = PyList_GET_SIZE( o );
+            out.reserve( size );
+            for( size_t i = 0; i < size; ++i )
+                out.emplace_back( fromPython<bool>( PyList_GET_ITEM( o, i ), elemType ) );
+        }
+        else if( PyTuple_Check( o ) )
+        {
+            size_t size = PyTuple_GET_SIZE( o );
+            out.reserve( size );
+            for( size_t i = 0; i < size; ++i )
+                out.emplace_back( fromPython<bool>( PyTuple_GET_ITEM( o, i ), elemType ) );
+        }
+        //allow iteratables
+        else if( o -> ob_type -> tp_iter )
+        {
+            PyObjectPtr iter = PyObjectPtr::own( o -> ob_type -> tp_iter( o ) );
+            PyObject * value;
+            while( ( value = iter -> ob_type -> tp_iternext( iter.get() ) ) )
+            {
+                out.emplace_back( fromPython<bool>( value, elemType ) );
+                Py_DECREF( value );
+            }
+            if( PyErr_Occurred() )
+            {
+                if( PyErr_ExceptionMatches(PyExc_StopIteration))
+                    PyErr_Clear();
+                else
+                    CSP_THROW( PythonPassthrough, "" );
+            }
+        }
+        else
+            CSP_THROW( TypeError,  "Invalid list / iterator type, expected list or iterator got " << Py_TYPE( o ) -> tp_name );
+
+        return out;
+    }
+};
+#endif
 
 //timeserise helper method
 PyObject * lastValueToPython( const csp::TimeSeriesProvider * ts );

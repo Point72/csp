@@ -3,6 +3,7 @@
 
 #include <csp/adapters/utils/MessageStructConverter.h>
 #include <csp/core/Hash.h>
+#include <csp/engine/CspType.h>
 #include <csp/engine/Dictionary.h>
 #include <rapidjson/document.h>
 #include <list>
@@ -53,7 +54,11 @@ private:
     template<typename T>
     std::vector<T> convertJSON( const char * fieldname, const CspType & type, const FieldEntry & entry, const rapidjson::Value & v, std::vector<T> * );
 
-    
+    #ifdef __clang__
+    template<>
+    boost::container::vector<bool> convertJSON( const char * fieldname, const CspType & type, const FieldEntry & entry, const rapidjson::Value & v, boost::container::vector<bool> * );
+    #endif
+
     Fields           m_fields;
     DateTimeWireType m_datetimeType;
     std::list<std::string> m_jsonkeys; //intentionally stored as list so they dont invalidate on push

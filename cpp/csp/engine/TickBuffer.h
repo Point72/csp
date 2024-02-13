@@ -4,7 +4,7 @@
 /************************************************************************
  ** Tick buffer is the storage for CSP time series ticks
  ** it uses a circular buffer for storage but only allows pushing back
- ** and resizing 
+ ** and resizing
  ***********************************************************************/
 #include <csp/core/System.h>
 #include <csp/core/Time.h>
@@ -21,7 +21,7 @@ class TickBuffer
 public:
     TickBuffer( uint32_t capacity = 1 );
     ~TickBuffer();
-    
+
     void clear()
     {
         m_full = false;
@@ -138,7 +138,7 @@ inline T & TickBuffer<T>::operator[]( uint32_t index )
     int64_t raw_index = int64_t( m_writeIndex ) - index - 1;
     if( unlikely( raw_index < 0 ) )
         raw_index += m_capacity;
-    
+
     return m_buffer[ raw_index ];
 }
 

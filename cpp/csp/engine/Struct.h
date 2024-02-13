@@ -275,22 +275,22 @@ public:
         setIsSet( s );
     }
 
-    virtual void copyFrom( const Struct * src, Struct * dest ) const
+    virtual void copyFrom( const Struct * src, Struct * dest ) const override
     {
         value( dest ) = value( src );
     }
 
-    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const
+    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const override
     {
         value( dest ) = value( src );
     }
 
-    virtual bool isEqual( const Struct * x, const Struct * y ) const
+    virtual bool isEqual( const Struct * x, const Struct * y ) const override
     {
         return value( x ) == value( y );
     }
 
-    virtual size_t hash( const Struct * x ) const
+    virtual size_t hash( const Struct * x ) const override
     {
         return std::hash<CType>()( value( x ) );
     }
@@ -324,6 +324,13 @@ class ArrayStructField : public NonNativeStructField
     {
         dest = src;
     }
+
+#ifdef __clang__
+    static void deepcopy( const boost::container::vector<bool> & src, boost::container::vector<bool> & dest )
+    {
+        dest = src;
+    }
+ #endif
 
     //Declared at end of file since StructPtr isnt defined yet
     static void deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest );
@@ -370,7 +377,7 @@ public:
     {
         deepcopy( value( src ), value( dest ) );
     }
-    
+
     bool isEqual( const Struct * x, const Struct * y ) const override
     {
         return value( x ) == value( y );
@@ -386,7 +393,11 @@ private:
     template<typename V>
     size_t hash( const V & value ) const
     {
+        #ifdef __clang__
+        static_assert(std::is_same<V,ElemT>::value || std::is_same<std::vector<V>,ElemT>::value || std::is_same<boost::container::vector<bool>,ElemT>::value );
+        #else
         static_assert(std::is_same<V,ElemT>::value || std::is_same<std::vector<V>,ElemT>::value );
+        #endif
         return std::hash<V>()( value );
     }
 
@@ -399,6 +410,18 @@ private:
             h ^= hash( v );
         return h;
     }
+
+    #ifdef __clang__
+    template<>
+    size_t hash( const boost::container::vector<bool> & value ) const
+    {
+        size_t h = 1000003;
+
+        for( auto const & v : value )
+            h ^= hash( v );
+        return h;
+    }
+    #endif
 
     CType & value( Struct * s ) const
     {
@@ -902,6 +925,9 @@ template<> struct StructField::upcast<typename StringStructField::CType> { using
 template<> struct StructField::upcast<StructPtr>                         { using type = StructStructField; };
 
 template<typename T> struct StructField::upcast<std::vector<T>>          { using type = ArrayStructField<T>; };
+#ifdef __clang__
+template<> struct StructField::upcast<boost::container::vector<bool>>    { using type = ArrayStructField<bool>; };
+#endif
 template<> struct StructField::upcast<csp::DialectGenericType> { using type = DialectGenericStructField; };
 
 }

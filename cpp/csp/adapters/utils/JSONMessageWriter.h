@@ -2,6 +2,7 @@
 #define _IN_CSP_ADAPTERS_UTILS_JSONMESSAGEWRITER_H
 
 #include <csp/adapters/utils/MessageWriter.h>
+#include <csp/engine/CspType.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/PartialSwitchCspType.h>
 #include <rapidjson/document.h>
@@ -63,14 +64,14 @@ public:
     }
 
 private:
-    void processTickImpl( const OutputDataMapper & dataMapper, const TimeSeriesProvider * sourcets )
+    void processTickImpl( const OutputDataMapper & dataMapper, const TimeSeriesProvider * sourcets ) override
     {
         dataMapper.apply( *this, sourcets );
     }
 
     template<typename T>
     inline auto convertValue( const T & value )
-    { 
+    {
         return value;
     }
 
@@ -84,6 +85,11 @@ private:
     template<typename T>
     auto convertValue( const std::vector<T> & value, const CspType & type, const FieldEntry & entry );
 
+    #ifdef __clang__
+    template<>
+    auto convertValue( const boost::container::vector<bool> & value, const CspType & type, const FieldEntry & entry );
+    #endif
+
     rapidjson::Document     m_doc;
     rapidjson::StringBuffer m_stringBuffer;
     utils::DateTimeWireType m_datetimeWireType;
@@ -92,13 +98,13 @@ private:
 template<>
 inline auto JSONMessageWriter::convertValue( const std::string & value )
 {
-    return rapidjson::StringRef( value.c_str() ); 
+    return rapidjson::StringRef( value.c_str() );
 }
 
 template<>
 inline auto JSONMessageWriter::convertValue( const csp::Date & value )
 {
-    return rapidjson::Value( value.asYYYYMMDD().c_str(), m_doc.GetAllocator() ); 
+    return rapidjson::Value( value.asYYYYMMDD().c_str(), m_doc.GetAllocator() );
 }
 
 template<>
@@ -123,7 +129,7 @@ inline auto JSONMessageWriter::convertValue( const csp::DateTime & value )
 template<>
 inline auto JSONMessageWriter::convertValue( const csp::TimeDelta & value )
 {
-    return rapidjson::Value( value.asNanoseconds() ); 
+    return rapidjson::Value( value.asNanoseconds() );
 }
 
 template<>
@@ -150,6 +156,26 @@ inline auto JSONMessageWriter::convertValue( const std::vector<T> & value, const
     return array;
 }
 
+#ifdef __clang__
+template<>
+inline auto JSONMessageWriter::convertValue( const boost::container::vector<bool> & value, const CspType & type, const FieldEntry & entry )
+{
+    auto & allocator = m_doc.GetAllocator();
+    rapidjson::Value array( rapidjson::kArrayType );
+    size_t sz = value.size();
+
+    const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+
+    //iterating by index for vector<bool> support
+    for( size_t index = 0; index < sz; ++index )
+    {
+        //Note this passes an empty FieldEntry / wont work on vector of structs
+        array.PushBack( convertValue( value[index], elemType, {} ), allocator );
+    }
+    return array;
+}
+#endif
+
 template<>
 inline auto JSONMessageWriter::convertValue( const StructPtr & struct_, const CspType & type, const FieldEntry & entry )
 {
@@ -159,7 +185,7 @@ inline auto JSONMessageWriter::convertValue( const StructPtr & struct_, const Cs
         if( !nestedEntry.sField -> isSet( struct_.get() ) )
             continue;
 
-        
+
         SupportedCspTypeSwitch::template invoke<SupportedArrayCspTypeSwitch>(
             nestedEntry.sField -> type().get(),
             [ & ]( auto tag )

@@ -1,4 +1,5 @@
 #include <csp/adapters/utils/JSONMessageStructConverter.h>
+#include <csp/engine/CspType.h>
 #include <csp/engine/PartialSwitchCspType.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
@@ -158,6 +159,29 @@ std::vector<T> JSONMessageStructConverter::convertJSON( const char * fieldname, 
 
     return out;
 }
+
+#ifdef __clang__
+template <>
+boost::container::vector<bool> JSONMessageStructConverter::convertJSON( const char * fieldname, const CspType & type, const FieldEntry &, const rapidjson::Value & jValue, boost::container::vector<bool> * x )
+{
+    if( !jValue.IsArray() )
+        CSP_THROW( TypeError, "expected ARRAY type for json field " << fieldname );
+
+    auto jArray = jValue.GetArray();
+
+    const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+
+    boost::container::vector<bool> out;
+    out.reserve( jArray.Size() );
+    for( auto & v : jArray )
+    {
+        //note that we dont pass FieldEntry to convert here, this doesnt support arrays of structs
+        out.emplace_back( convertJSON( fieldname, elemType, {}, v, ( bool * ) nullptr) );
+    }
+
+    return out;
+}
+#endif
 
 JSONMessageStructConverter::JSONMessageStructConverter( const CspTypePtr & type,
                                                         const Dictionary & properties ) : MessageStructConverter( type, properties )

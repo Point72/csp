@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   checks: write
   pull-requests: write
 
@@ -503,8 +503,6 @@ jobs:
 
       runs-on: ${{ matrix.os }}
 
-      if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
-
       steps:
         - name: Checkout
           uses: actions/checkout@v4
@@ -533,6 +531,7 @@ jobs:
 
         # Install sdist
         - name: Install sdist
+          if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           run: python -m pip install -U -vvv dist/csp*.tar.gz --target .
           env:
             CCACHE_DIR: /home/runner/work/csp/csp/.ccache
@@ -541,6 +540,7 @@ jobs:
 
         # Test sdist
         - name: Run tests against from-scratch sdist build
+          if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           run: make test
 
 
@@ -618,12 +618,20 @@ jobs:
     #~~~~~~|#|~~~~~~~~|##|~~~~~~#
     #~~~~~~|#|~~~~~~~~|##|~~~~~~#
     #~~~~~~|#############|~~~~~~#
-    #~~~~Upload to testpypi~~~~~#
+    #~Upload Release Artifacts~~#
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    testpypi_publish:
+
+    # only publish artifacts on tags, but otherwise this always runs
+    # Note this whole workflow only triggers on release tags (e.g. "v0.1.0")
+    publish_release_artifacts:
+      # build must complete and all tests must pass
+      # before release artifacts can be uploaded
       needs:
         - build_sdist
         - build
+        - test
+        - test_sdist
+        - test_dependencies
 
       runs-on: ubuntu-22.04
       permissions:
@@ -639,10 +647,18 @@ jobs:
         - name: Display structure of downloaded files
           run: ls -R ./dist
 
-        - name: Publish version to testpypi
-          # only publish to testpypi on tag pushes
-          if: startsWith(github.ref, 'refs/tags/') # only publish to PyPI on tag pushes
+        - name: Publish to github releases
+          uses: softprops/action-gh-release@v1
+          if: startsWith(github.ref, 'refs/tags/')
+          with:
+            draft: true
+            generate_release_notes: true
+            files: dist/*
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+        - name: Publish to testpypi
+          if: startsWith(github.ref, 'refs/tags/')
           uses: pypa/gh-action-pypi-publish@release/v1
           with:
             repository-url: https://test.pypi.org/legacy

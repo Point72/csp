@@ -32,7 +32,7 @@ public:
     {
         CSP_THROW( RuntimeException, "Failed to load proto schema " << filename << ":" << line << ":" << column << ": " << message );
     }
-    
+
 private:
     proto::DescriptorPoolDatabase                 m_wellKnownTypesDatabase;
     proto::compiler::SourceTreeDescriptorDatabase m_database;
@@ -83,7 +83,7 @@ proto::FieldDescriptor::CppType ProtobufHelper::cspToProtoCppType( const CspType
         case CspType::Type::DOUBLE: return proto::FieldDescriptor::CPPTYPE_DOUBLE;
         case CspType::Type::STRING: return proto::FieldDescriptor::CPPTYPE_STRING;
         case CspType::Type::STRUCT: return proto::FieldDescriptor::CPPTYPE_MESSAGE;
-        case CspType::Type::ARRAY: 
+        case CspType::Type::ARRAY:
         {
             auto elemType = static_cast<const CspArrayType &>( type ).elemType();
             return cspToProtoCppType( *elemType );
@@ -106,6 +106,23 @@ bool ProtobufHelper::isCoercible( proto::FieldDescriptor::CppType src, CspType::
         case proto::FieldDescriptor::CPPTYPE_ENUM:   return dest == CspType::Type::STRING;
         default:
             return false;
+    }
+}
+
+template<>
+int8_t ProtobufHelper::coercedValue( const proto::Reflection * access, const proto::Message & message, const proto::FieldDescriptor * descr, int index )
+{
+    switch( descr -> cpp_type() )
+    {
+        case proto::FieldDescriptor::CPPTYPE_BOOL:  return index == -1 ? access -> GetBool( message, descr ) : access -> GetRepeatedBool( message, descr, index );
+        {
+            uint32_t v = index == -1 ? access -> GetBool( message, descr ) : access -> GetRepeatedBool( message, descr, index );
+            if( v > uint32_t(std::numeric_limits<int32_t>::max()) )
+                CSP_THROW( RangeError, "coercion out of range for UINT32 value into INT32 value for proto msg type " << message.GetTypeName() << " field " << descr -> name() );
+            return ( int32_t ) v;
+        }
+        default:
+            CSP_THROW( TypeError, "Attempting to coerce proto field type " << descr -> cpp_type_name() << " to int32_t" );
     }
 }
 
@@ -287,6 +304,12 @@ bool extractRepeatedValue( const proto::Message & protoMsg, const proto::FieldDe
 }
 
 template<>
+int8_t extractRepeatedValue( const proto::Message & protoMsg, const proto::FieldDescriptor * field, int index )
+{
+    return ProtobufHelper::coercedValue<int8_t>( protoMsg.GetReflection(), protoMsg, field, index );
+}
+
+template<>
 int32_t extractRepeatedValue( const proto::Message & protoMsg, const proto::FieldDescriptor * field, int index )
 {
     return ProtobufHelper::coercedValue<int32_t>( protoMsg.GetReflection(), protoMsg, field, index );
@@ -334,6 +357,7 @@ void ProtobufStructMapper::mapProtoToStruct( StructPtr & struct_, const proto::M
         switch( sField -> type() -> type() )
         {
             case CspType::Type::BOOL:   sField -> setValue<bool>( struct_.get(),        protoAccess -> GetBool( protoMsg, pField ) );  break;
+            case CspType::Type::INT8:   sField -> setValue<int8_t>( struct_.get(),      ProtobufHelper::coercedValue<int8_t>( protoAccess,  protoMsg, pField ) ); break;
             case CspType::Type::INT32:  sField -> setValue<int32_t>( struct_.get(),     ProtobufHelper::coercedValue<int32_t>( protoAccess,  protoMsg, pField ) ); break;
             case CspType::Type::UINT32: sField -> setValue<uint32_t>( struct_.get(),    ProtobufHelper::coercedValue<uint32_t>( protoAccess, protoMsg, pField ) ); break;
             case CspType::Type::INT64:  sField -> setValue<int64_t>( struct_.get(),     ProtobufHelper::coercedValue<int64_t>( protoAccess,  protoMsg, pField ) ); break;

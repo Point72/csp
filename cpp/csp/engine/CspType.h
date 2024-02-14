@@ -21,7 +21,7 @@ public:
     struct TypeTraits
     {
     public:
-        
+
         enum _enum : uint8_t
         {
             UNKNOWN,
@@ -53,6 +53,8 @@ public:
 
             NUM_TYPES
         };
+
+        constexpr TypeTraits() : m_value(_enum::UNKNOWN) {}
 
         template< typename T >
         struct fromCType;
@@ -145,7 +147,7 @@ public:
     CspStructType( const std::shared_ptr<StructMeta> & meta ) : CspType( CspType::Type::STRUCT ),
                                                                 m_meta( meta )
     {}
-    
+
     const std::shared_ptr<StructMeta> & meta() const { return m_meta; }
 
 private:
@@ -169,47 +171,53 @@ private:
     CspTypePtr m_elemType;
 };
 
-template<> struct CspType::Type::fromCType<std::_Bit_reference>      { static constexpr CspType::Type type = CspType::Type::BOOL;            };
-template<> struct CspType::Type::fromCType<bool>                     { static constexpr CspType::Type type = CspType::Type::BOOL;            };
-template<> struct CspType::Type::fromCType<int8_t>                   { static constexpr CspType::Type type = CspType::Type::INT8;            };
-template<> struct CspType::Type::fromCType<uint8_t>                  { static constexpr CspType::Type type = CspType::Type::UINT8;           };
-template<> struct CspType::Type::fromCType<int16_t>                  { static constexpr CspType::Type type = CspType::Type::INT16;           };
-template<> struct CspType::Type::fromCType<uint16_t>                 { static constexpr CspType::Type type = CspType::Type::UINT16;          };
-template<> struct CspType::Type::fromCType<int32_t>                  { static constexpr CspType::Type type = CspType::Type::INT32;           };
-template<> struct CspType::Type::fromCType<uint32_t>                 { static constexpr CspType::Type type = CspType::Type::UINT32;          };
-template<> struct CspType::Type::fromCType<int64_t>                  { static constexpr CspType::Type type = CspType::Type::INT64;           };
-template<> struct CspType::Type::fromCType<uint64_t>                 { static constexpr CspType::Type type = CspType::Type::UINT64;          };
-template<> struct CspType::Type::fromCType<double>                   { static constexpr CspType::Type type = CspType::Type::DOUBLE;          };
-template<> struct CspType::Type::fromCType<DateTime>                 { static constexpr CspType::Type type = CspType::Type::DATETIME;        };
-template<> struct CspType::Type::fromCType<TimeDelta>                { static constexpr CspType::Type type = CspType::Type::TIMEDELTA;       };
-template<> struct CspType::Type::fromCType<Date>                     { static constexpr CspType::Type type = CspType::Type::DATE;            };
-template<> struct CspType::Type::fromCType<Time>                     { static constexpr CspType::Type type = CspType::Type::TIME;            };
-template<> struct CspType::Type::fromCType<CspEnum>                  { static constexpr CspType::Type type = CspType::Type::ENUM;            };
-template<> struct CspType::Type::fromCType<CspType::StringCType>     { static constexpr CspType::Type type = CspType::Type::STRING;          };
-template<> struct CspType::Type::fromCType<StructPtr>                { static constexpr CspType::Type type = CspType::Type::STRUCT;          };
-template<typename T> struct CspType::Type::fromCType<TypedStructPtr<T>> { static constexpr CspType::Type type = CspType::Type::STRUCT;       };
-template<> struct CspType::Type::fromCType<DialectGenericType>       { static constexpr CspType::Type type = CspType::Type::DIALECT_GENERIC; };
-template<typename T> struct CspType::Type::fromCType<std::vector<T>> { static constexpr CspType::Type type = CspType::Type::ARRAY; };
+// #ifndef __clang__
+// template<> template<> struct CspType::Type::fromCType<std::_Bit_reference>      { static constexpr CspType::Type type = CspType::Type::BOOL;            };
+// # else
+// template<> template<typename T> struct CspType::Type::fromCType<std::__bit_const_reference<T>> { static constexpr CspType::Type type = CspType::Type::BOOL;};
+// template<> template<> struct CspType::Type::fromCType<std::vector<bool>::reference> { static constexpr CspType::Type type = CspType::Type::BOOL;};
+// #endif
+template<> template<> struct CspType::Type::fromCType<bool>                     { static constexpr CspType::Type type = CspType::Type::BOOL;            };
+template<> template<> struct CspType::Type::fromCType<int8_t>                   { static constexpr CspType::Type type = CspType::Type::INT8;            };
+template<> template<> struct CspType::Type::fromCType<uint8_t>                  { static constexpr CspType::Type type = CspType::Type::UINT8;           };
+template<> template<> struct CspType::Type::fromCType<int16_t>                  { static constexpr CspType::Type type = CspType::Type::INT16;           };
+template<> template<> struct CspType::Type::fromCType<uint16_t>                 { static constexpr CspType::Type type = CspType::Type::UINT16;          };
+template<> template<> struct CspType::Type::fromCType<int32_t>                  { static constexpr CspType::Type type = CspType::Type::INT32;           };
+template<> template<> struct CspType::Type::fromCType<uint32_t>                 { static constexpr CspType::Type type = CspType::Type::UINT32;          };
+template<> template<> struct CspType::Type::fromCType<int64_t>                  { static constexpr CspType::Type type = CspType::Type::INT64;           };
+template<> template<> struct CspType::Type::fromCType<uint64_t>                 { static constexpr CspType::Type type = CspType::Type::UINT64;          };
+template<> template<> struct CspType::Type::fromCType<double>                   { static constexpr CspType::Type type = CspType::Type::DOUBLE;          };
+template<> template<> struct CspType::Type::fromCType<DateTime>                 { static constexpr CspType::Type type = CspType::Type::DATETIME;        };
+template<> template<> struct CspType::Type::fromCType<TimeDelta>                { static constexpr CspType::Type type = CspType::Type::TIMEDELTA;       };
+template<> template<> struct CspType::Type::fromCType<Date>                     { static constexpr CspType::Type type = CspType::Type::DATE;            };
+template<> template<> struct CspType::Type::fromCType<Time>                     { static constexpr CspType::Type type = CspType::Type::TIME;            };
+template<> template<> struct CspType::Type::fromCType<CspEnum>                  { static constexpr CspType::Type type = CspType::Type::ENUM;            };
+template<> template<> struct CspType::Type::fromCType<CspType::StringCType>     { static constexpr CspType::Type type = CspType::Type::STRING;          };
+template<> template<> struct CspType::Type::fromCType<StructPtr>                { static constexpr CspType::Type type = CspType::Type::STRUCT;          };
+template<> template<typename T> struct CspType::Type::fromCType<TypedStructPtr<T>> { static constexpr CspType::Type type = CspType::Type::STRUCT;       };
+template<> template<> struct CspType::Type::fromCType<DialectGenericType>       { static constexpr CspType::Type type = CspType::Type::DIALECT_GENERIC; };
+template<> template<typename T> struct CspType::Type::fromCType<std::vector<T>> { static constexpr CspType::Type type = CspType::Type::ARRAY;           };
 
-template<> struct CspType::Type::toCType<CspType::Type::BOOL,void>            { using type = bool;      };
-template<> struct CspType::Type::toCType<CspType::Type::INT8,void>            { using type = int8_t;    };
-template<> struct CspType::Type::toCType<CspType::Type::UINT8,void>           { using type = uint8_t;   };
-template<> struct CspType::Type::toCType<CspType::Type::INT16,void>           { using type = int16_t;   };
-template<> struct CspType::Type::toCType<CspType::Type::UINT16,void>          { using type = uint16_t;  };
-template<> struct CspType::Type::toCType<CspType::Type::INT32,void>           { using type = int32_t;   };
-template<> struct CspType::Type::toCType<CspType::Type::UINT32,void>          { using type = uint32_t;  };
-template<> struct CspType::Type::toCType<CspType::Type::INT64,void>           { using type = int64_t;   };
-template<> struct CspType::Type::toCType<CspType::Type::UINT64,void>          { using type = uint64_t;  };
-template<> struct CspType::Type::toCType<CspType::Type::DOUBLE,void>          { using type = double;    };
-template<> struct CspType::Type::toCType<CspType::Type::DATETIME,void>        { using type = DateTime;  };
-template<> struct CspType::Type::toCType<CspType::Type::TIMEDELTA,void>       { using type = TimeDelta; };
-template<> struct CspType::Type::toCType<CspType::Type::DATE,void>            { using type = Date; };
-template<> struct CspType::Type::toCType<CspType::Type::TIME,void>            { using type = Time; };
-template<> struct CspType::Type::toCType<CspType::Type::ENUM,void>            { using type = CspEnum; };
-template<> struct CspType::Type::toCType<CspType::Type::STRING,void>          { using type = CspType::StringCType; };
-template<> struct CspType::Type::toCType<CspType::Type::STRUCT,void>          { using type = StructPtr; };
-template<> struct CspType::Type::toCType<CspType::Type::DIALECT_GENERIC,void> { using type = DialectGenericType; };
-template<typename T> struct CspType::Type::toCType<CspType::Type::ARRAY,T> { using type = std::vector<T>; };
+template<> template<> struct CspType::Type::toCType<CspType::Type::BOOL,void>            { using type = int8_t;               };
+template<> template<> struct CspType::Type::toCType<CspType::Type::INT8,void>            { using type = int8_t;               };
+template<> template<> struct CspType::Type::toCType<CspType::Type::UINT8,void>           { using type = uint8_t;              };
+template<> template<> struct CspType::Type::toCType<CspType::Type::INT16,void>           { using type = int16_t;              };
+template<> template<> struct CspType::Type::toCType<CspType::Type::UINT16,void>          { using type = uint16_t;             };
+template<> template<> struct CspType::Type::toCType<CspType::Type::INT32,void>           { using type = int32_t;              };
+template<> template<> struct CspType::Type::toCType<CspType::Type::UINT32,void>          { using type = uint32_t;             };
+template<> template<> struct CspType::Type::toCType<CspType::Type::INT64,void>           { using type = int64_t;              };
+template<> template<> struct CspType::Type::toCType<CspType::Type::UINT64,void>          { using type = uint64_t;             };
+template<> template<> struct CspType::Type::toCType<CspType::Type::DOUBLE,void>          { using type = double;               };
+template<> template<> struct CspType::Type::toCType<CspType::Type::DATETIME,void>        { using type = DateTime;             };
+template<> template<> struct CspType::Type::toCType<CspType::Type::TIMEDELTA,void>       { using type = TimeDelta;            };
+template<> template<> struct CspType::Type::toCType<CspType::Type::DATE,void>            { using type = Date;                 };
+template<> template<> struct CspType::Type::toCType<CspType::Type::TIME,void>            { using type = Time;                 };
+template<> template<> struct CspType::Type::toCType<CspType::Type::ENUM,void>            { using type = CspEnum;              };
+template<> template<> struct CspType::Type::toCType<CspType::Type::STRING,void>          { using type = CspType::StringCType; };
+template<> template<> struct CspType::Type::toCType<CspType::Type::STRUCT,void>          { using type = StructPtr;            };
+template<> template<> struct CspType::Type::toCType<CspType::Type::DIALECT_GENERIC,void> { using type = DialectGenericType;   };
+template<> template<typename T> struct CspType::Type::toCType<CspType::Type::ARRAY,T>    { using type = std::vector<T>;       };
+template<> template<> struct CspType::Type::toCType<CspType::Type::ARRAY,bool>           { using type = std::vector<uint8_t>; };
 
 template<> struct CspType::fromCType<bool>                 { static CspTypePtr & type() { return CspType::BOOL();      } };
 template<> struct CspType::fromCType<int8_t>               { static CspTypePtr & type() { return CspType::INT8();      } };

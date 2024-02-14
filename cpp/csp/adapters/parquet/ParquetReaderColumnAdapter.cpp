@@ -801,8 +801,9 @@ class ListColumnAdapter<arrow::Int64Array>;
 template
 class ListColumnAdapter<arrow::DoubleArray>;
 
+// This is used for booleans
 template
-class ListColumnAdapter<arrow::BooleanArray>;
+class ListColumnAdapter<arrow::Int8Array>;
 
 template
 class ListColumnAdapter<arrow::StringArray, std::string>;

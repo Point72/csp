@@ -6,7 +6,7 @@
 #include <set>
 #include <type_traits>
 
-#ifdef __GNUC__
+#ifndef __clang__
 #include <ext/pb_ds/assoc_container.hpp>
 #include <ext/pb_ds/tree_policy.hpp>
 #endif
@@ -1084,7 +1084,7 @@ class WeightedKurtosis
         bool m_excess;
 };
 
-#ifdef __GNUC__
+#ifndef __clang__
 template<typename Comparator>
 using ost = __gnu_pbds::tree<double, __gnu_pbds::null_type, Comparator, __gnu_pbds::rb_tree_tag,
     __gnu_pbds::tree_order_statistics_node_update>;
@@ -1139,7 +1139,7 @@ class Quantile
 
         void remove( double x )
         {
-        #ifdef __GNUC__
+        #ifndef __clang__
             ost_erase( m_tree, x );
         #else
             m_tree.erase( m_tree.find( x ) );
@@ -1164,7 +1164,7 @@ class Quantile
             int ct = ceil( target );
 
             double qtl;
-        #ifdef __GNUC__
+        #ifndef __clang__
             switch ( m_interpolation )
             {
                 case LINEAR:
@@ -1263,8 +1263,8 @@ class Quantile
         }
 
     private:
-    
-    #ifdef __GNUC__
+
+    #ifndef __clang__
         ost<std::less_equal<double>> m_tree;
     #else
         std::multiset<double> m_tree;
@@ -1356,7 +1356,7 @@ class Rank
             else
             {
                 m_lastval = x;
-            #ifdef __GNUC__
+            #ifndef __clang__
                 if( m_method == MAX )
                     m_maxtree.insert( x );
                 else
@@ -1371,7 +1371,7 @@ class Rank
         {
             if( likely( !isnan( x ) ) )
             {
-            #ifdef __GNUC__
+            #ifndef __clang__
                 if( m_method == MAX )
                     ost_erase( m_maxtree, x );
                 else
@@ -1384,7 +1384,7 @@ class Rank
 
         void reset()
         {
-        #ifdef __GNUC__
+        #ifndef __clang__
             if( m_method == MAX )
                 m_maxtree.clear();
             else
@@ -1398,7 +1398,7 @@ class Rank
         {
             // Verify tree is not empty and lastValue is valid
             // Last value can only ever be NaN if the "keep" nan option is used
-        #ifdef __GNUC__
+        #ifndef __clang__
             if( likely( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) )
             {
                 switch( m_method )
@@ -1463,7 +1463,7 @@ class Rank
 
     private:
 
-    #ifdef __GNUC__
+    #ifndef __clang__
         ost<std::less_equal<double>> m_mintree;
         ost<std::greater_equal<double>> m_maxtree;
     #else

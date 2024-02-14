@@ -21,7 +21,7 @@ using StructPtr = TypedStructPtr<Struct>;
 class StructField
 {
 public:
-    
+
     virtual ~StructField() {}
 
     const std::string & fieldname() const { return m_fieldname; }
@@ -31,7 +31,7 @@ public:
     size_t  alignment() const             { return m_alignment; }   //alignment of the field
     size_t  maskOffset() const            { return m_maskOffset; }  //offset to location of the mask byte fo this field from start of struct mem
     uint8_t maskBit() const               { return m_maskBit; }     //bit within mask byte associated with this field
-    uint8_t maskBitMask() const           { return m_maskBitMask; } //same as maskBit but as a mask ( 1 << bit 
+    uint8_t maskBitMask() const           { return m_maskBitMask; } //same as maskBit but as a mask ( 1 << bit
 
     bool isNative() const                 { return m_type -> type() <= CspType::Type::MAX_NATIVE_TYPE; }
 
@@ -41,8 +41,8 @@ public:
         CSP_ASSERT( bit < 8 );
 
         m_maskOffset  = off;
-        m_maskBit     = bit; 
-        m_maskBitMask = 1 << bit; 
+        m_maskBit     = bit;
+        m_maskBitMask = 1 << bit;
     }
 
     bool isSet( const Struct * s ) const
@@ -72,7 +72,7 @@ public:
 
 protected:
 
-    StructField( CspTypePtr type, const std::string & fieldname, 
+    StructField( CspTypePtr type, const std::string & fieldname,
                  size_t size, size_t alignment );
 
     void setIsSet( Struct * s ) const
@@ -80,14 +80,14 @@ protected:
         uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
         (*m) |= m_maskBitMask;
     }
-    
+
     const void * valuePtr( const Struct * s ) const
-    { 
+    {
         return valuePtr( const_cast<Struct*>( s ) );
     }
 
     void * valuePtr( Struct * s ) const
-    { 
+    {
         return reinterpret_cast<uint8_t *>( s ) + m_offset;
     }
 
@@ -96,7 +96,7 @@ protected:
         uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
         (*m) &= ~m_maskBitMask;
     }
-  
+
 private:
     std::string  m_fieldname;
     size_t       m_offset;
@@ -263,17 +263,17 @@ public:
         setIsSet( s );
     }
 
-    virtual void copyFrom( const Struct * src, Struct * dest ) const
+    virtual void copyFrom( const Struct * src, Struct * dest ) const override
     {
         value( dest ) = value( src );
     }
 
-    virtual bool isEqual( const Struct * x, const Struct * y ) const
+    virtual bool isEqual( const Struct * x, const Struct * y ) const override
     {
         return value( x ) == value( y );
     }
 
-    virtual size_t hash( const Struct * x ) const
+    virtual size_t hash( const Struct * x ) const override
     {
         return std::hash<CType>()( value( x ) );
     }
@@ -345,6 +345,25 @@ private:
         static_assert(std::is_same<V,ElemT>::value || std::is_same<std::vector<V>,ElemT>::value );
         return std::hash<V>()( value );
     }
+
+// #ifdef __clang__
+//     // specialize for vector<bool> fun
+//     // template< typename T>
+//     // size_t hash( const std::__bit_const_reference<T> & value ) const
+//     // {
+//     //     return std::hash<bool>()( (bool) value );
+//     // }
+
+//     size_t hash( const std::__bit_const_reference<std::vector<bool, std::allocator<bool>>> & value ) const
+//     {
+//         return std::hash<bool>()( (bool) value );
+//     }
+
+//     size_t hash( const std::vector<bool>::reference value ) const
+//     {
+//         return std::hash<bool>()( (bool) value );
+//     }
+// #endif
 
     template<typename V>
     size_t hash( const std::vector<V> & value ) const
@@ -507,7 +526,7 @@ private:
     void incref();
 
     T * m_obj;
-    
+
     template<typename U>
     friend class TypedStructPtr;
 
@@ -539,7 +558,7 @@ public:
     size_t partialSize() const                { return m_partialSize; }
 
     bool isNative() const                     { return m_isFullyNative; }
-    
+
     const Fields & fields() const             { return m_fields; }
     const FieldNames & fieldNames() const     { return m_fieldnames; }
 
@@ -547,10 +566,10 @@ public:
     size_t maskSize() const                   { return m_maskSize; }
 
     const StructFieldPtr & field( const char * name ) const
-    { 
+    {
         static StructFieldPtr s_empty;
-        auto it = m_fieldMap.find( name ); 
-        return it == m_fieldMap.end() ? s_empty : it -> second; 
+        auto it = m_fieldMap.find( name );
+        return it == m_fieldMap.end() ? s_empty : it -> second;
     }
 
     const StructFieldPtr & field( const std::string & name ) const
@@ -730,7 +749,7 @@ template<typename T>
 inline void TypedStructPtr<T>::decref()
 {
     m_obj -> decref();
-}      
+}
 
 
 template<typename T>
@@ -746,7 +765,7 @@ bool TypedStructPtr<T>::operator==( const TypedStructPtr<T> & rhs ) const
 class StructStructField final : public NonNativeStructField
 {
 public:
-    StructStructField( CspTypePtr cspType, const std::string &fieldname ) : 
+    StructStructField( CspTypePtr cspType, const std::string &fieldname ) :
         NonNativeStructField( cspType, fieldname, sizeof( StructPtr ), alignof( StructPtr ) )
     {
         CSP_ASSERT( cspType -> type() == CspType::Type::STRUCT );

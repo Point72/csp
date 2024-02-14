@@ -380,7 +380,7 @@ public:
         return reinterpret_cast<V *>(PyArray_DATA( arrayObject ));
     }
 
-    virtual void setValue(const csp::DialectGenericType& list, int index, const V& value)
+    virtual void setValue(const csp::DialectGenericType& list, int index, const V& value) override
     {
         getRawDataBuffer(list)[index] = value;
     }
@@ -634,7 +634,7 @@ csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, co
     {
         PyObjectPtr pyFilenameVisitor = PyObjectPtr::own( toPython( pyFilenameVisitorDG ) );
         fileVisitor = [pyFilenameVisitor]( const std::string & filename )
-            { 
+            {
                 PyObjectPtr rv =  PyObjectPtr::own( PyObject_CallFunction( pyFilenameVisitor.get(), "O", PyObjectPtr::own( toPython( filename ) ).get() ) );
                 if( !rv.get() )
                     CSP_THROW( PythonPassthrough, "" );

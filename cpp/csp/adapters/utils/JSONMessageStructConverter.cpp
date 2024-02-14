@@ -38,6 +38,15 @@ bool JSONMessageStructConverter::convertJSON( const char * fieldname, const rapi
 }
 
 template<>
+int8_t JSONMessageStructConverter::convertJSON( const char * fieldname, const rapidjson::Value & jValue, int8_t * )
+{
+    if( jValue.IsInt() )
+        return jValue.GetInt();
+    else
+        CSP_THROW( TypeError, "expected INT32 type for json field " << fieldname );
+}
+
+template<>
 int32_t JSONMessageStructConverter::convertJSON( const char * fieldname, const rapidjson::Value & jValue, int32_t * )
 {
     if( jValue.IsInt() )

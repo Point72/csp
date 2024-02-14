@@ -93,11 +93,7 @@ def my_graph():
 
 def main():
     start = datetime(2020, 1, 1)
-    show_graph = False
-    if show_graph:
-        csp.showgraph.show_graph(my_graph)
-    else:
-        csp.run(my_graph, starttime=start)
+    csp.run(my_graph, starttime=start)
 
 
 if __name__ == "__main__":

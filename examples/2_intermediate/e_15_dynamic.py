@@ -69,7 +69,9 @@ def main_graph():
     process_results(cum_sizes)
 
 
-realtime = True
-csp.run(
-    main_graph, starttime=datetime.utcnow().replace(microsecond=0), endtime=timedelta(seconds=10), realtime=realtime
-)
+def main():
+    csp.run(main_graph, starttime=datetime.utcnow().replace(microsecond=0), endtime=timedelta(seconds=10))
+
+
+if __name__ == "__main__":
+    main()

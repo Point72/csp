@@ -55,7 +55,7 @@ def numpy_stats_graph():
     csp.add_graph_output("corr_matrix", corr_matrix)
 
 
-if __name__ == "__main__":
+def main():
     results = csp.run(numpy_stats_graph, starttime=st, endtime=st + timedelta(minutes=10))
 
     print("Price Averages\n")
@@ -69,3 +69,7 @@ if __name__ == "__main__":
     for i in range(7):
         print(f"Time: {results['corr_matrix'][i][0]}", end="\t")
         print(f"Corr. Matrix:\n{results['corr_matrix'][i][1]}")
+
+
+if __name__ == "__main__":
+    main()

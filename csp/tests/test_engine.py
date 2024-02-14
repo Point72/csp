@@ -488,6 +488,7 @@ class TestEngine(unittest.TestCase):
 
     def test_bugreport_csp28(self):
         """bug where non-basket inputs after basket inputs were not being assigne dproperly in c++"""
+
         @csp.node
         def buggy(basket: [ts[int]], x: ts[bool]) -> ts[bool]:
             if csp.ticked(x) and csp.valid(x):

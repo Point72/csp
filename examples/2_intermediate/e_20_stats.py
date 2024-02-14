@@ -71,7 +71,7 @@ def stats_graph():
     csp.add_graph_output("total_vol", total_vol)
 
 
-if __name__ == "__main__":
+def main():
     results = csp.run(stats_graph, starttime=st, endtime=st + timedelta(minutes=10))
 
     for i in range(10):
@@ -79,3 +79,7 @@ if __name__ == "__main__":
         print(f"VWAP: {round(results['vwap'][i][1], 4)}", end="\t")
         print(f"Exp Price: {round(results['ewm_price'][i][1], 4)}", end="\t")
         print(f"Cum. Vol: {results['total_vol'][i][1]}")
+
+
+if __name__ == "__main__":
+    main()

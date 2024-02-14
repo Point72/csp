@@ -17,10 +17,12 @@ prune _skbuild
 include vcpkg.json
 prune vcpkg
 
-# IDE / VCS files
+# IDE / VCS / docs files
 prune .git
 prune .github
 prune .vscode
+prune ci
+prune examples
 exclude .clang-format
 exclude .gitattributes
 exclude .gitignore

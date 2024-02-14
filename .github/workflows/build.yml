@@ -608,3 +608,41 @@ jobs:
         - name: Python Test Steps
           run: make test TEST_ARGS="-k TestDBReader"
           if: ${{ contains( 'sqlalchemy', matrix.package )}}
+
+    #############################
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #~~~~~~|#############|~~~~~~#
+    #~~~~~~|#|~~~~~~~~|##|~~~~~~#
+    #~~~~~~|#|~~~~~~~~|##|~~~~~~#
+    #~~~~~~|#############|~~~~~~#
+    #~~~~~~|#|~~~~~~~~|##|~~~~~~#
+    #~~~~~~|#|~~~~~~~~|##|~~~~~~#
+    #~~~~~~|#############|~~~~~~#
+    #~~~~Upload to testpypi~~~~~#
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    testpypi_publish:
+      needs:
+        - build_sdist
+        - build
+
+      runs-on: ubuntu-22.04
+      permissions:
+        id-token: write
+      steps:
+        - name: Download wheels and sdist
+          uses: actions/download-artifact@v4
+          with:
+            name:
+            merge-multiple: true
+            path: ./dist
+
+        - name: Display structure of downloaded files
+          run: ls -R ./dist
+
+        - name: Publish version to testpypi
+          # only publish to testpypi on tag pushes
+          if: startsWith(github.ref, 'refs/tags/') # only publish to PyPI on tag pushes
+
+          uses: pypa/gh-action-pypi-publish@release/v1
+          with:
+            repository-url: https://test.pypi.org/legacy

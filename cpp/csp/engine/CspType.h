@@ -217,7 +217,6 @@ template<> template<> struct CspType::Type::toCType<CspType::Type::STRING,void> 
 template<> template<> struct CspType::Type::toCType<CspType::Type::STRUCT,void>          { using type = StructPtr;            };
 template<> template<> struct CspType::Type::toCType<CspType::Type::DIALECT_GENERIC,void> { using type = DialectGenericType;   };
 template<> template<typename T> struct CspType::Type::toCType<CspType::Type::ARRAY,T>    { using type = std::vector<T>;       };
-template<> template<> struct CspType::Type::toCType<CspType::Type::ARRAY,bool>           { using type = std::vector<uint8_t>; };
 
 template<> struct CspType::fromCType<bool>                 { static CspTypePtr & type() { return CspType::BOOL();      } };
 template<> struct CspType::fromCType<int8_t>               { static CspTypePtr & type() { return CspType::INT8();      } };

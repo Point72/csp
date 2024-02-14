@@ -63,14 +63,14 @@ public:
     }
 
 private:
-    void processTickImpl( const OutputDataMapper & dataMapper, const TimeSeriesProvider * sourcets )
+    void processTickImpl( const OutputDataMapper & dataMapper, const TimeSeriesProvider * sourcets ) override
     {
         dataMapper.apply( *this, sourcets );
     }
 
     template<typename T>
     inline auto convertValue( const T & value )
-    { 
+    {
         return value;
     }
 
@@ -92,13 +92,13 @@ private:
 template<>
 inline auto JSONMessageWriter::convertValue( const std::string & value )
 {
-    return rapidjson::StringRef( value.c_str() ); 
+    return rapidjson::StringRef( value.c_str() );
 }
 
 template<>
 inline auto JSONMessageWriter::convertValue( const csp::Date & value )
 {
-    return rapidjson::Value( value.asYYYYMMDD().c_str(), m_doc.GetAllocator() ); 
+    return rapidjson::Value( value.asYYYYMMDD().c_str(), m_doc.GetAllocator() );
 }
 
 template<>
@@ -123,7 +123,7 @@ inline auto JSONMessageWriter::convertValue( const csp::DateTime & value )
 template<>
 inline auto JSONMessageWriter::convertValue( const csp::TimeDelta & value )
 {
-    return rapidjson::Value( value.asNanoseconds() ); 
+    return rapidjson::Value( value.asNanoseconds() );
 }
 
 template<>
@@ -159,7 +159,7 @@ inline auto JSONMessageWriter::convertValue( const StructPtr & struct_, const Cs
         if( !nestedEntry.sField -> isSet( struct_.get() ) )
             continue;
 
-        
+
         SupportedCspTypeSwitch::template invoke<SupportedArrayCspTypeSwitch>(
             nestedEntry.sField -> type().get(),
             [ & ]( auto tag )

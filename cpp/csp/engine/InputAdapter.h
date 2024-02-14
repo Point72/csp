@@ -70,7 +70,7 @@ bool InputAdapter::consumeTick( const T & value )
             using ArrayT = typename CspType::Type::toCType<CspType::Type::ARRAY,T>::type;
             if( likely( rootEngine() -> cycleCount() != lastCycleCount() ) )
             {
-                //ensure we reuse vector memory in our buffer by using reserve api and 
+                //ensure we reuse vector memory in our buffer by using reserve api and
                 //clearing existing value if any
                 reserveTickTyped<ArrayT>( rootEngine() -> cycleCount(), rootEngine() -> now() ).clear();
             }
@@ -97,5 +97,4 @@ bool InputAdapter::consumeTick( const T & value )
 }
 
 };
-
 #endif

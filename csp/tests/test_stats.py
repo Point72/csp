@@ -2628,6 +2628,10 @@ class TestStats(unittest.TestCase):
     def test_listbasket(self):
         st = datetime(2020, 1, 1)
 
+        @csp.node
+        def takes_1darray( x: csp.ts[csp.typing.Numpy1DArray[float]] ) -> csp.ts[csp.typing.Numpy1DArray[float]]:
+            return x
+        
         @csp.graph
         def graph():
             x_np = csp.curve(
@@ -2643,7 +2647,7 @@ class TestStats(unittest.TestCase):
             as_np = csp.stats.list_to_numpy([x_list1, x_list2])
             as_list = csp.stats.numpy_to_list(x_np, 2)
 
-            csp.add_graph_output("as_np", as_np)
+            csp.add_graph_output("as_np", takes_1darray( as_np ) )
             csp.add_graph_output("as_list0", as_list[0])
             csp.add_graph_output("as_list1", as_list[1])
 

@@ -62,5 +62,13 @@ See [our wiki!](https://github.com/Point72/csp/wiki)
 ## Development
 Check out the [Developer Documentation](https://github.com/Point72/csp/wiki/99.-Developer)
 
+## Authors
+`csp` was developed at Point72 by the High Frequency Algo team, with contributions from users across the firm.
+
+[<img src="https://avatars.githubusercontent.com/u/28680700" alt="robambalu" width="50" height="50">](https://github.com/robambalu)
+[<img src="https://avatars.githubusercontent.com/u/35146413" alt="jacarr4" width="50" height="50">](https://github.com/jacarr4)
+[<img src="https://avatars.githubusercontent.com/u/55991383" alt="AdamGlustein" width="50" height="50">](https://github.com/AdamGlustein)
+[<img src="https://avatars.githubusercontent.com/u/18348081" alt="stephenmarkacs" width="50" height="50">](https://github.com/stephenmarkacs)
+
 ## License
 This software is licensed under the Apache 2.0 license. See the [LICENSE](LICENSE) file for details.

@@ -73,7 +73,7 @@ if which("ccache"):
 print(f"CMake Args: {cmake_args}")
 setup(
     name="csp",
-    version="0.0.0",
+    version="0.0.1",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,

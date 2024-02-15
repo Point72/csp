@@ -40,7 +40,7 @@ def main(port: int, num_keys: int):
         r = delayed_angle / math.pi
         s = sin(r)
 
-        data = MyData.fromts(key=csp.const(key), angle=angle, radians=r, sin=s, timestamp=times(snap))
+        data = MyData.fromts(key=csp.const(key), angle=csp.cast_int_to_float(angle), radians=r, sin=s, timestamp=times(snap))
         all_structs.append(data)
 
     data = csp.flatten(all_structs)

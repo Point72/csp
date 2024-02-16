@@ -24,7 +24,11 @@ def _get_modules_to_test(folder):
         if file.endswith(".py")
     ]
 
+def _no_examples_folder_or_running_sdist_tests():
+    return os.environ.get("CSP_TEST_SKIP_EXAMPLES", None) is not None or not os.path.exists(EXAMPLES_ROOT)
 
+
+@pytest.mark.skipif(_no_examples_folder_or_running_sdist_tests(), reason="no examples present or manually skipping")
 class TestExamples:
     @pytest.mark.parametrize("filename,module", _get_modules_to_test("1_basics"))
     def test_1_basics(self, filename, module):

@@ -542,6 +542,8 @@ jobs:
         - name: Run tests against from-scratch sdist build
           if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           run: make test
+          env:
+            CSP_TEST_SKIP_EXAMPLES: "1"
 
 
     #################################

@@ -2,37 +2,48 @@
 name: Bug report
 about: Create a report to help us improve
 title: ''
-labels: ''
+labels: bug
 assignees: ''
 
 ---
 
+<!--
+Thank you for taking the time to file a bug report. Before creating a
+new issue, please take a few minutes to search the issue tracker for an
+existing issues about the bug you would like to report.
+-->
+
 **Describe the bug**
-A clear and concise description of what the bug is.
+<!-- A clear and concise description of what the bug is. -->
 
 **To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+<!-- A short code example that reproduces the problem. It should be
+self-contained, i.e., can be copy-pasted into the Python interpreter or
+run as-is via `python myproblem.py`. If this is a problem with the C++
+interface, it should link to a buildable C++ project that demonstrates
+the issue. 
+
+```python
+
+```
+-->
+
+
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+<!-- A clear and concise description of what you expected to happen. -->
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Error Message**
+<!-- Please include the full error message you see,if any, including the
+      full traceback -->
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+**Runtime Environment**
+<!-- Output from 
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+`import sys, csp; print(csp.__version__); print(sys.version); print(sys.platform)`.
+-->
 
 **Additional context**
-Add any other context about the problem here.
+<!-- Explain how this issue affects your work or why it should be
+prioritized. If there are additional details that don't fit elsewhere,
+include them here. -->

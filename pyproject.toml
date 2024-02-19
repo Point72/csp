@@ -19,10 +19,12 @@ requires-python = ">=3.8"
 dependencies = [
     "backports.zoneinfo; python_version<'3.9'",
     "numpy",
+    "packaging",
     "pandas",
     "psutil",
     "pyarrow>=7.0.0",
     "pytz",
+    "ruamel.yaml",
     "sqlalchemy",
 ]
 

@@ -5,6 +5,12 @@ if(CSP_BUILD_KAFKA_ADAPTER)
     install(TARGETS kafkaadapterimpl RUNTIME DESTINATION bin/ LIBRARY DESTINATION lib/)
 endif()
 
+if(CSP_BUILD_WS_CLIENT_ADAPTER)
+    add_library(wsclientadapterimpl SHARED wsclientadapterimpl.cpp)
+    target_link_libraries(wsclientadapterimpl csp_core csp_engine cspimpl csp_websocket_client_adapter)
+    install(TARGETS wsclientadapterimpl RUNTIME DESTINATION bin/ LIBRARY DESTINATION lib/)
+endif()
+
 if(CSP_BUILD_PARQUET_ADAPTER)
     set(VENDORED_PYARROW_ROOW "${CMAKE_SOURCE_DIR}/cpp/csp/python/adapters/vendored/pyarrow-7.0.0/")
     set(ARROW_PYTHON_SRCS

@@ -7,4 +7,8 @@ if(CSP_BUILD_PARQUET_ADAPTER)
     add_subdirectory(parquet)
 endif()
 
+if(CSP_BUILD_WS_CLIENT_ADAPTER)
+    add_subdirectory(websocket_client)
+endif()
+
 add_subdirectory(utils)

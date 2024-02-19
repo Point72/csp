@@ -33,7 +33,7 @@ permissions:
   contents: write
   checks: write
   pull-requests: write
-  id-token: write  # for pypi test release
+  id-token: write  # for testpypi release
 
 jobs:
     ####################################
@@ -636,8 +636,14 @@ jobs:
         - test_sdist
         - test_dependencies
 
+      # only publish artifacts on releases
       if: startsWith(github.ref, 'refs/tags/v')
+
       runs-on: ubuntu-22.04
+
+      environment:
+        name: testpypi
+        url: https://test.pypi.org/p/csp
 
       steps:
         - name: Download wheels and sdist
@@ -651,13 +657,13 @@ jobs:
           run: ls -R ./dist
 
         - name: Publish to github releases
+          env:
+             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           uses: softprops/action-gh-release@v1
           with:
-            draft: true
-            generate_release_notes: true
-            files: dist/*
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+             draft: true
+             generate_release_notes: true
+             files: dist/*
 
         - name: Publish to testpypi
           uses: pypa/gh-action-pypi-publish@release/v1

@@ -33,6 +33,7 @@ permissions:
   contents: write
   checks: write
   pull-requests: write
+  id-token: write  # for pypi test release
 
 jobs:
     ####################################

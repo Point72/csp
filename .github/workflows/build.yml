@@ -306,12 +306,16 @@ jobs:
             CIBW_ENVIRONMENT_WINDOWS: TODO="todo"
           if: ${{ matrix.os == 'windows-2022' }}
 
+        # Check dist files
+        - name: Check Wheels
+          run: make dist-check
+
         # Upload artifacts
         - name: Upload Wheel
           uses: actions/upload-artifact@v4
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
-            path: wheelhouse/*.whl
+            path: dist/*.whl
 
     #############################
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -355,6 +359,10 @@ jobs:
         # Build SDist
         - name: Python SDist Steps
           run: make dist-py-sdist
+
+        # Check dist files
+        - name: Check sdist
+          run: make dist-check
 
         # Upload artifacts
         - name: Upload SDist
@@ -658,8 +666,3 @@ jobs:
             files: dist/*
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-        - name: Publish to testpypi
-          uses: pypa/gh-action-pypi-publish@release/v1
-          with:
-            repository-url: https://test.pypi.org/legacy

@@ -469,6 +469,60 @@ class TestBaselib(unittest.TestCase):
                     [v[1] for v in results[op.__name__ + "-rev"]], [comp(y, x) for x, y in zip(xv, yv)], op.__name__
                 )
 
+    def test_math_binary_ops_numpy(self):
+        OPS = {
+            csp.add: lambda x, y: x + y,
+            csp.sub: lambda x, y: x - y,
+            csp.multiply: lambda x, y: x * y,
+            csp.divide: lambda x, y: x / y,
+            csp.pow: lambda x, y: x**y,
+            csp.min: lambda x, y: np.minimum(x, y),
+            csp.max: lambda x, y: np.maximum(x, y),
+            csp.floordiv: lambda x, y: x // y,
+        }
+
+        @csp.graph
+        def graph(use_promotion: bool):
+            x = csp.count(csp.timer(timedelta(seconds=0.25))) + csp.const(np.random.randint(0, 10, (10,)))
+            if use_promotion:
+                y = 10
+                y_edge = csp.const(y)
+            else:
+                y = csp.default(
+                    csp.count(csp.timer(timedelta(seconds=1))), 1, delay=timedelta(seconds=0.25)
+                ) * csp.const(np.random.randint(1, 2, (10,)))
+                y_edge = y
+
+            csp.add_graph_output("x", csp.merge(x, csp.sample(y_edge, x)))
+            csp.add_graph_output("y", csp.merge(y_edge, csp.sample(x, y_edge)))
+
+            for op in OPS.keys():
+                if use_promotion:
+                    if op in [csp.min, csp.max]:
+                        continue  # can't type promote, it's not being called ON an edge
+                    p_op = OPS[op]
+                    csp.add_graph_output(op.__name__, p_op(x, y))
+                    csp.add_graph_output(op.__name__ + "-rev", p_op(y, x))
+                else:
+                    csp.add_graph_output(op.__name__, op(x, y))
+                    csp.add_graph_output(op.__name__ + "-rev", op(y, x))
+
+        for use_promotion in [False, True]:
+            st = datetime(2020, 1, 1)
+            results = csp.run(graph, use_promotion, starttime=st, endtime=st + timedelta(seconds=3))
+            xv = [v[1] for v in results["x"]]
+            yv = [v[1] for v in results["y"]]
+
+            for op, comp in OPS.items():
+                if op in [csp.min, csp.max] and use_promotion:
+                    continue
+                for i, (_, result) in enumerate(results[op.__name__]):
+                    reference = comp(xv[i], yv[i])
+                    self.assertTrue((result == reference).all(), op.__name__)
+                for i, (_, result) in enumerate(results[op.__name__ + "-rev"]):
+                    reference = comp(yv[i], xv[i])
+                    self.assertTrue((result == reference).all(), op.__name__)
+
     def test_math_unary_ops(self):
         OPS = {
             csp.abs: lambda x: abs(x),
@@ -503,6 +557,46 @@ class TestBaselib(unittest.TestCase):
 
         for op, comp in OPS.items():
             self.assertEqual([v[1] for v in results[op.__name__]], [comp(x) for x in xv], op.__name__)
+
+    def test_math_unary_ops_numpy(self):
+        OPS = {
+            csp.abs: lambda x: np.abs(x),
+            csp.ln: lambda x: np.log(x),
+            csp.log2: lambda x: np.log2(x),
+            csp.log10: lambda x: np.log10(x),
+            csp.exp: lambda x: np.exp(x),
+            csp.exp2: lambda x: np.exp2(x),
+            csp.sin: lambda x: np.sin(x),
+            csp.cos: lambda x: np.cos(x),
+            csp.tan: lambda x: np.tan(x),
+            csp.arctan: lambda x: np.arctan(x),
+            csp.sinh: lambda x: np.sinh(x),
+            csp.cosh: lambda x: np.cosh(x),
+            csp.tanh: lambda x: np.tanh(x),
+            csp.arcsinh: lambda x: np.arcsinh(x),
+            csp.arccosh: lambda x: np.arccosh(x),
+            # csp.erf: lambda x: math.erf(x),
+        }
+
+        @csp.graph
+        def graph():
+            x = csp.count(csp.timer(timedelta(seconds=0.25))) + csp.const(np.random.randint(-10, 10, (10,)))
+            csp.add_graph_output("x", x)
+
+            for op in OPS.keys():
+                csp.add_graph_output(op.__name__, op(x))
+
+        st = datetime(2020, 1, 1)
+        results = csp.run(graph, starttime=st, endtime=st + timedelta(seconds=3))
+        xv = [v[1] for v in results["x"]]
+
+        for op, comp in OPS.items():
+            for i, (_, result) in enumerate(results[op.__name__]):
+                reference = comp(xv[i])
+                # drop nans
+                result = result[~np.isnan(result)]
+                reference = reference[~np.isnan(reference)]
+                self.assertTrue((result == reference).all(), op.__name__)
 
     def test_math_unary_ops_other_domain(self):
         OPS = {

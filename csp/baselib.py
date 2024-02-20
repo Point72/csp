@@ -230,6 +230,9 @@ def _print_ts(tag: str, x: ts["T"]):
         builtins.print("%s %s:%s" % (t, tag, x))
 
 
+_python_print = print
+
+
 def print(tag: str, x):
     return _print_ts(tag, _convert_ts_object_for_print(x))
 
@@ -738,12 +741,34 @@ MATH_COMP_OPS_CPP = {
     ("pow", "int"): _cspbaselibimpl.pow_i,
     ("max", "float"): _cspbaselibimpl.max_f,
     ("max", "int"): _cspbaselibimpl.max_i,
+    ("max", "np"): np.maximum,
     ("min", "float"): _cspbaselibimpl.min_f,
     ("min", "int"): _cspbaselibimpl.min_i,
+    ("min", "np"): np.minimum,
     # unary math
     ("abs", "float"): _cspbaselibimpl.abs,
+    ("abs", "np"): np.abs,
     ("ln", "float"): _cspbaselibimpl.ln,
+    ("ln", "np"): np.log,
+    ("log2", "np"): np.log2,
+    ("log10", "np"): np.log10,
     ("exp", "float"): _cspbaselibimpl.exp,
+    ("exp", "np"): np.exp,
+    ("exp2", "np"): np.exp2,
+    ("sqrt", "np"): np.sqrt,
+    # ("erf", "np"): np.erf,  # erf is in scipy, worth it to import?
+    ("sin", "np"): np.sin,
+    ("cos", "np"): np.cos,
+    ("tan", "np"): np.tan,
+    ("arcsin", "np"): np.arcsin,
+    ("arccos", "np"): np.arccos,
+    ("arctan", "np"): np.arctan,
+    ("sinh", "np"): np.sinh,
+    ("cosh", "np"): np.cosh,
+    ("tanh", "np"): np.tanh,
+    ("arcsinh", "np"): np.arcsinh,
+    ("arccosh", "np"): np.arccosh,
+    ("arctanh", "np"): np.arctanh,
     # binary comparator
     ("eq", "float"): _cspbaselibimpl.eq_f,
     ("eq", "int"): _cspbaselibimpl.eq_i,
@@ -788,10 +813,12 @@ def define_binary_op(name, op_lambda):
         if csp.valid(x, y):
             return op_lambda(x, y)
 
+    numpy_func = MATH_COMP_OPS_CPP.get((name, "np"), op_lambda)
+
     @_node_internal_use(name=name)
     def numpy_type(x: ts["T"], y: ts["U"]) -> ts[np.ndarray]:
         if csp.valid(x, y):
-            return op_lambda(x, y)
+            return numpy_func(x, y)
 
     @_node_internal_use(name=name)
     def generic_type(x: ts["T"], y: ts["T"]) -> ts[generic_out_type]:
@@ -799,9 +826,9 @@ def define_binary_op(name, op_lambda):
             return op_lambda(x, y)
 
     def comp(x: ts["T"], y: ts["U"]):
-        if x.tstype.typ in [Numpy1DArray[float], NumpyNDArray[float]] or y.tstype.typ in [
-            Numpy1DArray[float],
-            NumpyNDArray[float],
+        if typing.get_origin(x.tstype.typ) in [Numpy1DArray, NumpyNDArray] or typing.get_origin(y.tstype.typ) in [
+            Numpy1DArray,
+            NumpyNDArray,
         ]:
             return numpy_type(x, y)
         elif x.tstype.typ is float and y.tstype.typ is float:
@@ -843,10 +870,12 @@ def define_unary_op(name, op_lambda):
         if csp.valid(x):
             return op_lambda(x)
 
+    numpy_func = MATH_COMP_OPS_CPP.get((name, "np"), op_lambda)
+
     @_node_internal_use(name=name)
     def numpy_type(x: ts["T"]) -> ts[np.ndarray]:
         if csp.valid(x):
-            return op_lambda(x)
+            return numpy_func(x)
 
     @_node_internal_use(name=name)
     def generic_type(x: ts["T"]) -> ts[generic_out_type]:
@@ -854,7 +883,7 @@ def define_unary_op(name, op_lambda):
             return op_lambda(x)
 
     def comp(x: ts["T"]):
-        if x.tstype.typ in [Numpy1DArray[float], NumpyNDArray[float]]:
+        if typing.get_origin(x.tstype.typ) in [Numpy1DArray, NumpyNDArray]:
             return numpy_type(x)
         elif x.tstype.typ is float:
             return float_type(x)

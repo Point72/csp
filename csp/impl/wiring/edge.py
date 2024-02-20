@@ -8,6 +8,8 @@ _UFUNC_MAP = MappingProxyType(
         "divide": lambda x, y: x.__truediv__(y) if isinstance(x, Edge) else y.__truediv__(x),
         "floor_divide": lambda x, y: x.__floordiv__(y) if isinstance(x, Edge) else y.__floordiv__(x),
         "power": lambda x, y: x.pow(y),
+        "pos": lambda x: x.pos(),
+        "neg": lambda x: x.neg(),
         "abs": lambda x: x.abs(),
         "log": lambda x: x.ln(),
         "log2": lambda x: x.log2(),
@@ -153,19 +155,15 @@ class Edge:
             return csp.bitwise_not(self)
         raise TypeError(f"Cannot call invert with a ts[{self.tstype.typ.__name__}], not an integer type")
 
+    def __pos__(self):
+        import csp
+
+        return csp.pos(self)
+
     def __neg__(self):
         import csp
 
         return csp.neg(self)
-
-    # def __ceil__(self):
-    # def __floor__(self):
-    # def __round__(self):
-    # def __trunc__(self):
-    # def __lshift__(self):
-    # def __rshift__(self):
-    # def __pos__(self):
-    # def __xor__(self):
 
     def __abs__(self):
         import csp
@@ -176,6 +174,15 @@ class Edge:
         import csp
 
         return csp.abs(self)
+
+    # def __ceil__(self):
+    # def __floor__(self):
+    # def __round__(self):
+    # def __trunc__(self):
+    # def __lshift__(self):
+    # def __rshift__(self):
+    # def __pos__(self):
+    # def __xor__(self):
 
     def ln(self):
         import csp

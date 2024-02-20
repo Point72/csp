@@ -43,6 +43,7 @@ __all__ = [
     "neg",
     "not_",
     "or_",
+    "pos",
     "pow",
     "sin",
     "sinh",
@@ -267,7 +268,7 @@ def define_binary_op(name, op_lambda):
             return op_lambda(x, y)
 
     def comp(x: ts["T"], y: ts["U"]):
-        if typing.get_origin(x.tstype.typ) in [Numpy1DArray, NumpyNDArray] or typing.get_origin(y.tstype.typ) in [
+        if typing.get_origin(x.tstype.typ) is [Numpy1DArray, NumpyNDArray] or typing.get_origin(y.tstype.typ) in [
             Numpy1DArray,
             NumpyNDArray,
         ]:
@@ -314,7 +315,7 @@ def define_unary_op(name, op_lambda):
     numpy_func = MATH_COMP_OPS_CPP.get((name, "np"), op_lambda)
 
     @_node_internal_use(name=name)
-    def numpy_type(x: ts["T"]) -> ts[np.ndarray]:
+    def numpy_type(x: ts[np.ndarray]) -> ts[np.ndarray]:
         if csp.valid(x):
             return numpy_func(x)
 
@@ -346,7 +347,8 @@ min = define_binary_op("min", lambda x, y: x if x < y else y)
 max = define_binary_op("max", lambda x, y: x if x > y else y)
 floordiv = define_binary_op("floordiv", lambda x, y: x // y)
 mod = define_binary_op("mod", lambda x, y: x % y)
-neg = define_unary_op("mod", lambda x: -x)
+pos = define_unary_op("pos", lambda x: +x)
+neg = define_unary_op("neg", lambda x: -x)
 
 # Other math ops
 _python_abs = abs

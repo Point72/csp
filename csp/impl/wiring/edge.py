@@ -1,4 +1,29 @@
-import numpy as np
+from types import MappingProxyType
+
+_UFUNC_MAP = MappingProxyType(
+    {
+        "add": lambda x, y: x.__add__(y) if isinstance(x, Edge) else y.__add__(x),
+        "subtract": lambda x, y: x.__sub__(y) if isinstance(x, Edge) else y.__sub__(x),
+        "multiply": lambda x, y: x.__mul__(y) if isinstance(x, Edge) else y.__mul__(x),
+        "divide": lambda x, y: x.__truediv__(y) if isinstance(x, Edge) else y.__truediv__(x),
+        "floor_divide": lambda x, y: x.__floordiv__(y) if isinstance(x, Edge) else y.__floordiv__(x),
+        "power": lambda x, y: x.pow(y),
+        "abs": lambda x: x.abs(),
+        "log": lambda x: x.ln(),
+        "log2": lambda x: x.log2(),
+        "log10": lambda x: x.log10(),
+        "exp": lambda x: x.exp(),
+        "exp2": lambda x: x.exp2(),
+        "sin": lambda x: x.sin(),
+        "cos": lambda x: x.cos(),
+        "tan": lambda x: x.tan(),
+        "arcsin": lambda x: x.asin(),
+        "arccos": lambda x: x.acos(),
+        "arctan": lambda x: x.atan(),
+        "sqrt": lambda x: x.sqrt(),
+        "erf": lambda x: x.erf(),
+    }
+)
 
 
 class Edge:
@@ -213,62 +238,18 @@ class Edge:
         return csp.erf(self)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        if ufunc == np.add:
-            if isinstance(inputs[0], Edge):
-                return inputs[0].__add__(inputs[1])
-            else:
-                return inputs[1].__add__(inputs[0])
-        elif ufunc == np.subtract:
-            if isinstance(inputs[0], Edge):
-                return inputs[0].__sub__(inputs[1])
-            else:
-                return inputs[1].__sub__(inputs[0])
-        elif ufunc == np.multiply:
-            if isinstance(inputs[0], Edge):
-                return inputs[0].__mul__(inputs[1])
-            else:
-                return inputs[1].__mul__(inputs[0])
-        elif ufunc == np.divide:
-            if isinstance(inputs[0], Edge):
-                return inputs[0].__truediv__(inputs[1])
-            else:
-                return inputs[1].__truediv__(inputs[0])
-        elif ufunc == np.floor_divide:
-            if isinstance(inputs[0], Edge):
-                return inputs[0].__floordiv__(inputs[1])
-            else:
-                return inputs[1].__floordiv__(inputs[0])
-        elif ufunc == np.power:
-            return inputs[0].pow(inputs[1])
-        elif ufunc == np.abs:
-            return inputs[0].abs()
-        elif ufunc == np.log:
-            return inputs[0].ln()
-        elif ufunc == np.log2:
-            return inputs[0].log2()
-        elif ufunc == np.log10:
-            return inputs[0].log10()
-        elif ufunc == np.exp:
-            return inputs[0].exp()
-        elif ufunc == np.exp2:
-            return inputs[0].exp2()
-        elif ufunc == np.sin:
-            return inputs[0].sin()
-        elif ufunc == np.cos:
-            return inputs[0].cos()
-        elif ufunc == np.tan:
-            return inputs[0].tan()
-        elif ufunc == np.arcsin:
-            return inputs[0].asin()
-        elif ufunc == np.arccos:
-            return inputs[0].acos()
-        elif ufunc == np.arctan:
-            return inputs[0].atan()
-        elif ufunc == np.sqrt:
-            return inputs[0].sqrt()
-        elif ufunc.__name__ == "erf":
-            # TODO can we use name for all?
-            return inputs[0].erf()
+        ufunc_func = _UFUNC_MAP.get(ufunc.__name__, None)
+        if ufunc_func:
+            if ufunc.__name__ in (
+                "add",
+                "subtract",
+                "multiply",
+                "divide",
+                "floor_divide",
+                "power",
+            ):
+                return ufunc_func(inputs[0], inputs[1])
+            return ufunc_func(self)
         raise NotImplementedError("Not Implemented for type csp.Edge: {}".format(ufunc))
 
     def __getattr__(self, key):

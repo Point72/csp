@@ -5,6 +5,7 @@ requires = [
     "pyarrow>=7.0.0",
     "ruamel.yaml",
     "scikit-build",
+    "setuptools>=69",
 ]
 build-backend="setuptools.build_meta"
 
@@ -52,6 +53,7 @@ Tracker = "https://github.com/point72/csp/issues"
 [project.optional-dependencies]
 develop = [
     "bump2version>=1.0.0",
+    "build",
     "graphviz",
     "httpx",
     "isort",

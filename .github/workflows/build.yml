@@ -653,13 +653,7 @@ jobs:
         - name: Publish to github releases
           uses: softprops/action-gh-release@v1
           with:
-            draft: true
             generate_release_notes: true
             files: dist/*
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-        - name: Publish to testpypi
-          uses: pypa/gh-action-pypi-publish@release/v1
-          with:
-            repository-url: https://test.pypi.org/legacy

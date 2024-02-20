@@ -115,6 +115,7 @@ class TestMath(unittest.TestCase):
 
     def test_math_unary_ops(self):
         OPS = {
+            csp.pos: lambda x: +x,
             csp.neg: lambda x: -x,
             csp.abs: lambda x: abs(x),
             csp.ln: lambda x: math.log(x),

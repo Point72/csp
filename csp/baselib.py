@@ -189,6 +189,10 @@ def _print_ts(tag: str, x: ts["T"]):
         builtins.print("%s %s:%s" % (t, tag, x))
 
 
+# Because python's builtin print is masked
+# in the next function definition, add a local
+# variable in case it is needed during debugging.
+# NOTE: this should not be exported in __all__
 _python_print = print
 
 

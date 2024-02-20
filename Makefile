@@ -136,7 +136,7 @@ dist-py-cibw:
 	python -m cibuildwheel --output-dir wheelhouse $(EXTRA_ARGS)
 
 dist-check:
-	python -m twine check dist/*
+	python -m twine check --strict dist/*
 
 dist: clean build dist-py dist-check  ## Build dists
 

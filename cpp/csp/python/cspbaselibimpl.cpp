@@ -335,6 +335,7 @@ REGISTER_CPPNODE( csp::cppnodes, merge );
 REGISTER_CPPNODE( csp::cppnodes, split );
 REGISTER_CPPNODE( csp::cppnodes, cast_int_to_float );
 REGISTER_CPPNODE( csp::cppnodes, filter );
+REGISTER_CPPNODE( csp::cppnodes, _drop_dups_float );
 REGISTER_CPPNODE( csp::cppnodes, drop_nans );
 REGISTER_CPPNODE( csp::cppnodes, unroll );
 REGISTER_CPPNODE( csp::cppnodes, collect );

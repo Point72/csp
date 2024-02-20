@@ -895,28 +895,35 @@ class TestBaselib(unittest.TestCase):
 
     def test_drop_dups(self):
         @csp.graph
-        def g(d1: list, d2: list, d3: list):
+        def g(d1: list, d2: list, d3: list, d4: list, d5: list):
             d1 = csp.unroll(csp.const.using(T=[int])(d1))
             d2 = csp.unroll(csp.const.using(T=[tuple])(d2))
             d3 = csp.unroll(csp.const.using(T=[float])(d3))
+            d4 = csp.unroll(csp.const.using(T=[float])(d4))
+            d5 = csp.unroll(csp.const.using(T=[float])(d5))
 
             csp.add_graph_output("d1", csp.drop_dups(d1))
             csp.add_graph_output("d2", csp.drop_dups(d2))
             csp.add_graph_output("d3", csp.drop_dups(d3))
+            csp.add_graph_output("d4", csp.drop_dups(d4, eps=1e-1))
+            csp.add_graph_output("d5", csp.drop_dups(d5, eps=1e-7))
 
+        eps = {"d4": 1e-1, "d5": 1e-7}
         nan = float("nan")
         d1 = [1, 2, 3, 3, 4, 3, 5, 5]
         d2 = [(1, 2), (1, 2), (3, 4)]
-        d3 = [1.0, 2.0, 3.0, 3.0, nan, 4.0, nan, nan, nan, 5]
-        res = csp.run(g, d1, d2, d3, starttime=datetime(2022, 5, 13))
+        d3 = [1.0, 2.0, 3.0, 3.0, nan, 4.0, nan, nan, nan, 5, 0.3 - 0.2, 0.1]
+        d4 = [0.1, 0.19, 0.5, nan]
+        d5 = [0.3 - 0.2, 0.1, 0.09999999999999, nan, 0.2]
+        res = csp.run(g, d1, d2, d3, d4, d5, starttime=datetime(2022, 5, 13))
 
         for k, tseries in res.items():
             prev = None
             for v in tseries:
-                self.assertNotEqual(v, prev)
-                self.assertTrue(
-                    (not isinstance(v, float)) or (not isinstance(prev, float)) or (math.isnan(v) != math.isnan(prev))
-                )
+                if prev and isinstance(v[1], float) and isinstance(prev[1], float):
+                    self.assertTrue(math.isnan(v[1]) != math.isnan(prev[1]) or abs(v[1] - prev[1]) > eps.get(k, 1e-12))
+                else:
+                    self.assertNotEqual(v, prev)
                 prev = v
 
     def test_struct_fromts(self):

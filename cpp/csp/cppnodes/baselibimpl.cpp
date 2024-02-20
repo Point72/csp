@@ -1,6 +1,6 @@
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/CppNode.h>
-
+#include <numeric>
 
 namespace csp::cppnodes
 {
@@ -270,6 +270,41 @@ DECLARE_CPPNODE( filter )
 };
 
 EXPORT_CPPNODE( filter )
+
+/*
+@csp.node
+def _drop_dups_float(x: ts[float], eps: float):
+    __outputs__(ts[float])
+*/
+DECLARE_CPPNODE( _drop_dups_float )
+{
+    INIT_CPPNODE( _drop_dups_float )
+    {}
+
+    TS_INPUT( double, x );
+
+    SCALAR_INPUT( double, eps );
+
+    TS_OUTPUT( double );
+
+    STATE_VAR( bool, s_first{true} );
+    STATE_VAR( double, s_prev{} );
+
+    INVOKE()
+    {
+        if( csp.ticked( x ) )
+        {
+            if( s_first || ( isnan( x ) != isnan( s_prev ) ) || ( !isnan( x ) && fabs( x - s_prev ) >= eps ))
+            {
+                s_first = false;
+                s_prev = x;
+                RETURN( x );
+            }
+        }
+    }
+};
+
+EXPORT_CPPNODE( _drop_dups_float )
 
 /*
 @csp.node

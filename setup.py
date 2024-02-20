@@ -4,6 +4,7 @@ import os.path
 import platform
 import subprocess
 import sys
+from pathlib import Path
 from shutil import which
 from skbuild import setup
 
@@ -71,11 +72,17 @@ if which("ccache"):
     cmake_args.append("-DCSP_USE_CCACHE=On")
 
 print(f"CMake Args: {cmake_args}")
+
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
+
 setup(
     name="csp",
     version="0.0.1",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     # cmake_with_sdist=True,
 )

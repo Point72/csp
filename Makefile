@@ -133,7 +133,7 @@ dist-py-wheel:
 	python setup.py bdist_wheel $(EXTRA_ARGS)
 
 dist-py-cibw:
-	python -m cibuildwheel --output-dir wheelhouse $(EXTRA_ARGS)
+	python -m cibuildwheel --output-dir dist $(EXTRA_ARGS)
 
 dist-check:
 	python -m twine check dist/*

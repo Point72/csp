@@ -31,6 +31,6 @@ runs:
           # cache: "pip"
           # cache-dependency-path: 'pyproject.toml'
 
-    - name: Install cibuildwheel
+    - name: Install cibuildwheel and twine
       shell: bash
-      run: pip install cibuildwheel==2.11.2
+      run: pip install cibuildwheel==2.11.2 twine

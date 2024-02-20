@@ -1,5 +1,5 @@
 add_library(baselibimpl STATIC baselibimpl.cpp)
-target_link_libraries(baselibimpl csp_core csp_engine)
+target_link_libraries(baselibimpl csp_core csp_engine m)
 
 add_library(basketlibimpl STATIC basketlibimpl.cpp)
 target_link_libraries(basketlibimpl baselibimpl csp_core csp_engine)

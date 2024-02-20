@@ -580,18 +580,18 @@ Math operations
 
 // Unary operation
 
-template<typename T, T (*Func)(T)>
+template<typename ArgT, typename OutT, OutT (*Func)(ArgT)>
 DECLARE_CPPNODE( _unary_op )
 {
-    TS_INPUT( T, x );
-    TS_OUTPUT( T );
+    TS_INPUT( ArgT, x );
+    TS_OUTPUT( OutT );
 
     //Expanded out INIT_CPPNODE without create call...
     CSP csp;
     const char * name() const override { return "_unary_op"; }
 
 public:
-    _STATIC_CREATE_METHOD( SINGLE_ARG( _unary_op<T, Func> ) );
+    _STATIC_CREATE_METHOD( SINGLE_ARG( _unary_op<ArgT, OutT, Func> ) );
     _unary_op( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef ) : csp::CppNode( engine, nodedef )
     {}
 
@@ -601,18 +601,73 @@ public:
     }
 };
 
-inline double _exp( double x ){ return std::exp(x ); }
-inline double _ln( double x ){ return std::log( x ); }
-inline double _abs( double x ){ return std::abs( x ); }
+template<typename T> inline T _abs( T x ){ return std::abs( x ); }
+template<typename T> inline double _ln( T x ){ return std::log( x ); }
+template<typename T> inline double _log2( T x ){ return std::log2( x ); }
+template<typename T> inline double _log10( T x ){ return std::log10( x ); }
+template<typename T> inline double _exp( T x ){ return std::exp( x ); }
+template<typename T> inline double _exp2( T x ){ return std::exp2( x ); }
+template<typename T> inline double _sqrt( T x ){ return std::sqrt( x ); }
+template<typename T> inline double _erf( T x ){ return std::erf( x ); }
+template<typename T> inline double _sin( T x ){ return std::sin( x ); }
+template<typename T> inline double _cos( T x ){ return std::cos( x ); }
+template<typename T> inline double _tan( T x ){ return std::tan( x ); }
+template<typename T> inline double _asin( T x ){ return std::asin( x ); }
+template<typename T> inline double _acos( T x ){ return std::acos( x ); }
+template<typename T> inline double _atan( T x ){ return std::atan( x ); }
+template<typename T> inline double _sinh( T x ){ return std::sinh( x ); }
+template<typename T> inline double _cosh( T x ){ return std::cosh( x ); }
+template<typename T> inline double _tanh( T x ){ return std::tanh( x ); }
+template<typename T> inline double _asinh( T x ){ return std::asinh( x ); }
+template<typename T> inline double _acosh( T x ){ return std::acosh( x ); }
+template<typename T> inline double _atanh( T x ){ return std::atanh( x ); }
+
 inline bool _not_( bool x ){ return !x; }
 inline int64_t _bitwise_not(int64_t x) { return ~x; }
 
-#define EXPORT_UNARY_OP( Type, Name ) EXPORT_TEMPLATE_CPPNODE( Name, SINGLE_ARG( _unary_op<Type, _##Name> ) )
-    EXPORT_UNARY_OP( double, ln );
-    EXPORT_UNARY_OP( double, exp );
-    EXPORT_UNARY_OP( double, abs );
-    EXPORT_UNARY_OP( bool, not_ );
-    EXPORT_UNARY_OP( int64_t, bitwise_not );
+#define EXPORT_UNARY_OP( Name, ArgType, OutType, Func ) EXPORT_TEMPLATE_CPPNODE( Name, SINGLE_ARG( _unary_op<ArgType, OutType, _##Func> ) )
+    EXPORT_UNARY_OP( abs_f, double, double, abs );
+    EXPORT_UNARY_OP( abs_i, int64_t, int64_t, abs );
+    EXPORT_UNARY_OP( ln_f, double, double, ln );
+    EXPORT_UNARY_OP( ln_i, int64_t, double, ln );
+    EXPORT_UNARY_OP( log2_f, double, double, log2 );
+    EXPORT_UNARY_OP( log2_i, int64_t, double, log2 );
+    EXPORT_UNARY_OP( log10_f, double, double, log10 );
+    EXPORT_UNARY_OP( log10_i, int64_t, double, log10 );
+    EXPORT_UNARY_OP( exp_f, double, double, exp );
+    EXPORT_UNARY_OP( exp_i, int64_t, double, exp );
+    EXPORT_UNARY_OP( exp2_f, double, double, exp2 );
+    EXPORT_UNARY_OP( exp2_i, int64_t, double, exp2 );
+    EXPORT_UNARY_OP( sqrt_f, double, double, sqrt );
+    EXPORT_UNARY_OP( sqrt_i, int64_t, double, sqrt );
+    EXPORT_UNARY_OP( erf_f, double, double, erf );
+    EXPORT_UNARY_OP( erf_i, int64_t, double, erf );
+    EXPORT_UNARY_OP( sin_f, double, double, sin );
+    EXPORT_UNARY_OP( sin_i, int64_t, double, sin );
+    EXPORT_UNARY_OP( cos_f, double, double, cos );
+    EXPORT_UNARY_OP( cos_i, int64_t, double, cos );
+    EXPORT_UNARY_OP( tan_f, double, double, tan );
+    EXPORT_UNARY_OP( tan_i, int64_t, double, tan );
+    EXPORT_UNARY_OP( asin_f, double, double, asin );
+    EXPORT_UNARY_OP( asin_i, int64_t, double, asin );
+    EXPORT_UNARY_OP( acos_f, double, double, acos );
+    EXPORT_UNARY_OP( acos_i, int64_t, double, acos );
+    EXPORT_UNARY_OP( atan_f, double, double, atan );
+    EXPORT_UNARY_OP( atan_i, int64_t, double, atan );
+    EXPORT_UNARY_OP( sinh_f, double, double, sinh );
+    EXPORT_UNARY_OP( sinh_i, int64_t, double, sinh );
+    EXPORT_UNARY_OP( cosh_f, double, double, cosh );
+    EXPORT_UNARY_OP( cosh_i, int64_t, double, cosh );
+    EXPORT_UNARY_OP( tanh_f, double, double, tanh );
+    EXPORT_UNARY_OP( tanh_i, int64_t, double, tanh );
+    EXPORT_UNARY_OP( asinh_f, double, double, asinh );
+    EXPORT_UNARY_OP( asinh_i, int64_t, double, asinh );
+    EXPORT_UNARY_OP( acosh_f, double, double, acosh );
+    EXPORT_UNARY_OP( acosh_i, int64_t, double, acosh );
+    EXPORT_UNARY_OP( atanh_f, double, double, atanh );
+    EXPORT_UNARY_OP( atanh_i, int64_t, double, atanh );
+    EXPORT_UNARY_OP( not_, bool, bool, not_ );
+    EXPORT_UNARY_OP( bitwise_not, int64_t, int64_t, bitwise_not );
 #undef EXPORT_UNARY_OP
 
 // Binary operation

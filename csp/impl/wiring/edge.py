@@ -128,6 +128,25 @@ class Edge:
             return csp.bitwise_not(self)
         raise TypeError(f"Cannot call invert with a ts[{self.tstype.typ.__name__}], not an integer type")
 
+    def __neg__(self):
+        import csp
+
+        return csp.neg(self)
+
+    # def __ceil__(self):
+    # def __floor__(self):
+    # def __round__(self):
+    # def __trunc__(self):
+    # def __lshift__(self):
+    # def __rshift__(self):
+    # def __pos__(self):
+    # def __xor__(self):
+
+    def __abs__(self):
+        import csp
+
+        return csp.abs(self)
+
     def abs(self):
         import csp
 

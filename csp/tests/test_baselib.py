@@ -483,7 +483,7 @@ class TestBaselib(unittest.TestCase):
 
         @csp.graph
         def graph(use_promotion: bool):
-            x = csp.count(csp.timer(timedelta(seconds=0.25))) + csp.const(np.random.randint(0, 10, (10,)))
+            x = csp.count(csp.timer(timedelta(seconds=0.25))) + csp.const(np.random.rand(10))
             if use_promotion:
                 y = 10
                 y_edge = csp.const(y)
@@ -525,6 +525,7 @@ class TestBaselib(unittest.TestCase):
 
     def test_math_unary_ops(self):
         OPS = {
+            csp.neg: lambda x: -x,
             csp.abs: lambda x: abs(x),
             csp.ln: lambda x: math.log(x),
             csp.log2: lambda x: math.log2(x),
@@ -580,7 +581,7 @@ class TestBaselib(unittest.TestCase):
 
         @csp.graph
         def graph():
-            x = csp.count(csp.timer(timedelta(seconds=0.25))) + csp.const(np.random.randint(-10, 10, (10,)))
+            x = csp.count(csp.timer(timedelta(seconds=0.25))) + csp.const(np.random.rand(10))
             csp.add_graph_output("x", x)
 
             for op in OPS.keys():

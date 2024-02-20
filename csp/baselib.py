@@ -457,26 +457,26 @@ def _drop_dups(x: ts["T"]) -> ts["T"]:
         return x
 
 
-# TODO cppimpl
-@node
-def _drop_dups_float(x: ts[float]) -> ts[float]:
+@node(cppimpl=_cspbaselibimpl._drop_dups_float)
+def _drop_dups_float(x: ts[float], eps: float) -> ts[float]:
     with csp.start():
-        s_prev = csp.impl.constants.UNSET
+        s_prev = None
 
     if csp.ticked(x):
-        if math.isnan(x):
-            if s_prev is csp.impl.constants.UNSET or not math.isnan(s_prev):
-                s_prev = x
-                return x
-        elif x != s_prev:
+        if s_prev is None or math.isnan(x) != math.isnan(s_prev) or (not math.isnan(x) and abs(x - s_prev) >= eps):
             s_prev = x
             return x
 
 
 @graph
-def drop_dups(x: ts["T"]) -> ts["T"]:
+def drop_dups(x: ts["T"], eps: float = None) -> ts["T"]:
+    """removes consecutive duplicates from the input series"""
     if x.tstype.typ is float:
-        return _drop_dups_float(x)
+        if eps is None:
+            eps = 1e-12
+        return _drop_dups_float(x, eps)
+    if eps is not None:
+        raise ValueError("eps should not be passed for non-float")
     return _drop_dups(x)
 
 

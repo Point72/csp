@@ -71,16 +71,23 @@ add_library(cspimpl SHARED
 
 set_target_properties(cspimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_PUBLIC_HEADERS}")
 
-        
 target_link_libraries(cspimpl csptypesimpl csp_core csp_engine)
 target_compile_definitions(cspimpl PUBLIC NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
-        
+
 ## Baselib c++ module
 add_library(cspbaselibimpl SHARED cspbaselibimpl.cpp)
 target_link_libraries(cspbaselibimpl cspimpl baselibimpl)
 
 # Include exprtk include directory for exprtk node
 target_include_directories(cspbaselibimpl PRIVATE ${EXPRTK_INCLUDE_DIRS})
+
+## Basketlib c++ module
+add_library(cspbasketlibimpl SHARED cspbasketlibimpl.cpp)
+target_link_libraries(cspbasketlibimpl cspimpl basketlibimpl)
+
+## Math c++ module
+add_library(cspmathimpl SHARED cspmathimpl.cpp)
+target_link_libraries(cspmathimpl cspimpl mathimpl)
 
 ## Stats c++ module
 add_library(cspstatsimpl SHARED cspstatsimpl.cpp)
@@ -93,11 +100,7 @@ target_link_libraries(cspnpstatsimpl cspimpl npstatsimpl)
 target_include_directories(npstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 target_include_directories(cspnpstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 
-## Basketlib c++ module
-add_library(cspbasketlibimpl SHARED cspbasketlibimpl.cpp)
-target_link_libraries(cspbasketlibimpl cspimpl basketlibimpl)
-
-install(TARGETS cspimpl cspstatsimpl cspnpstatsimpl cspbaselibimpl csptypesimpl cspbasketlibimpl
+install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl cspnpstatsimpl
         PUBLIC_HEADER DESTINATION include/csp/python
         RUNTIME DESTINATION bin/
         LIBRARY DESTINATION lib/

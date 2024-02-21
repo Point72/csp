@@ -27,6 +27,7 @@ from csp.impl.wiring import (
     run_on_thread,
 )
 from csp.impl.wiring.context import clear_global_context, new_global_context
+from csp.math import *
 from csp.showgraph import show_graph
 
 from . import cache_support, stats

@@ -6,7 +6,6 @@ import numpy as np
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum, auto
-from io import StringIO
 
 import csp
 from csp import ts
@@ -416,129 +415,6 @@ class TestBaselib(unittest.TestCase):
         self.assertEqual(
             results[0], list(zip([start_time + timedelta(seconds=i) for i in range(5)], [0, 77, 154, 231, 308]))
         )
-
-    def test_math_ops(self):
-        OPS = {
-            csp.add: lambda x, y: x + y,
-            csp.sub: lambda x, y: x - y,
-            csp.multiply: lambda x, y: x * y,
-            csp.divide: lambda x, y: x / y,
-            csp.pow: lambda x, y: x**y,
-            csp.floordiv: lambda x, y: x // y,
-            csp.min: lambda x, y: min(x, y),
-            csp.max: lambda x, y: max(x, y),
-        }
-
-        @csp.graph
-        def graph(use_promotion: bool):
-            x = csp.count(csp.timer(timedelta(seconds=0.25)))
-            if use_promotion:
-                y = 10
-                y_edge = csp.const(y)
-            else:
-                y = csp.default(csp.count(csp.timer(timedelta(seconds=1))), 1, delay=timedelta(seconds=0.25))
-                y_edge = y
-
-            csp.add_graph_output("x", csp.merge(x, csp.sample(y_edge, x)))
-            csp.add_graph_output("y", csp.merge(y_edge, csp.sample(x, y_edge)))
-
-            for op in OPS.keys():
-                if use_promotion:
-                    if op in [csp.min, csp.max]:
-                        continue  # can't type promote, it's not being called ON an edge
-                    p_op = OPS[op]
-                    csp.add_graph_output(op.__name__, p_op(x, y))
-                    csp.add_graph_output(op.__name__ + "-rev", p_op(y, x))
-                else:
-                    csp.add_graph_output(op.__name__, op(x, y))
-                    csp.add_graph_output(op.__name__ + "-rev", op(y, x))
-
-        for use_promotion in [False, True]:
-            st = datetime(2020, 1, 1)
-            results = csp.run(graph, use_promotion, starttime=st, endtime=st + timedelta(seconds=3))
-            xv = [v[1] for v in results["x"]]
-            yv = [v[1] for v in results["y"]]
-
-            for op, comp in OPS.items():
-                if op in [csp.min, csp.max] and use_promotion:
-                    continue
-                self.assertEqual(
-                    [v[1] for v in results[op.__name__]], [comp(x, y) for x, y in zip(xv, yv)], op.__name__
-                )
-                self.assertEqual(
-                    [v[1] for v in results[op.__name__ + "-rev"]], [comp(y, x) for x, y in zip(xv, yv)], op.__name__
-                )
-
-    def test_comparisons(self):
-        OPS = {
-            csp.gt: lambda x, y: x > y,
-            csp.ge: lambda x, y: x >= y,
-            csp.lt: lambda x, y: x < y,
-            csp.le: lambda x, y: x <= y,
-            csp.eq: lambda x, y: x == y,
-            csp.ne: lambda x, y: x != y,
-        }
-
-        @csp.graph
-        def graph(use_promotion: bool):
-            x = csp.count(csp.timer(timedelta(seconds=0.25)))
-            if use_promotion:
-                y = 10
-                y_edge = csp.const(y)
-            else:
-                y = csp.default(csp.count(csp.timer(timedelta(seconds=1))), 1, delay=timedelta(seconds=0.25))
-                y_edge = y
-
-            csp.add_graph_output("x", csp.merge(x, csp.sample(y_edge, x)))
-            csp.add_graph_output("y", csp.merge(y_edge, csp.sample(x, y_edge)))
-
-            for op in OPS.keys():
-                if use_promotion:
-                    p_op = OPS[op]
-                    csp.add_graph_output(op.__name__, p_op(x, y))
-                    csp.add_graph_output(op.__name__ + "-rev", p_op(y, x))
-                else:
-                    csp.add_graph_output(op.__name__, op(x, y))
-                    csp.add_graph_output(op.__name__ + "-rev", op(y, x))
-
-        for use_promotion in [False, True]:
-            st = datetime(2020, 1, 1)
-            results = csp.run(graph, use_promotion, starttime=st, endtime=st + timedelta(seconds=10))
-            xv = [v[1] for v in results["x"]]
-            yv = [v[1] for v in results["y"]]
-
-            for op, comp in OPS.items():
-                self.assertEqual(
-                    [v[1] for v in results[op.__name__]], [comp(x, y) for x, y in zip(xv, yv)], op.__name__
-                )
-                self.assertEqual(
-                    [v[1] for v in results[op.__name__ + "-rev"]], [comp(y, x) for x, y in zip(xv, yv)], op.__name__
-                )
-
-    def test_boolean_ops(self):
-        def graph():
-            x = csp.default(csp.curve(bool, [(timedelta(seconds=s), s % 2 == 0) for s in range(1, 20)]), False)
-            y = csp.default(csp.curve(bool, [(timedelta(seconds=s * 0.5), s % 2 == 0) for s in range(1, 40)]), False)
-            z = csp.default(csp.curve(bool, [(timedelta(seconds=s * 2), s % 2 == 0) for s in range(1, 10)]), False)
-
-            csp.add_graph_output("rawx", x)
-            csp.add_graph_output("x", csp.merge(x, csp.merge(csp.sample(y, x), csp.sample(z, x))))
-            csp.add_graph_output("y", csp.merge(y, csp.merge(csp.sample(x, y), csp.sample(z, y))))
-            csp.add_graph_output("z", csp.merge(z, csp.merge(csp.sample(x, z), csp.sample(y, z))))
-
-            csp.add_graph_output("and_", csp.baselib.and_(x, y, z))
-            csp.add_graph_output("or_", csp.baselib.or_(x, y, z))
-            csp.add_graph_output("not_", csp.baselib.not_(x))
-
-        results = csp.run(graph, starttime=datetime(2020, 5, 18))
-        x = [v[1] for v in results["x"]]
-        y = [v[1] for v in results["y"]]
-        z = [v[1] for v in results["z"]]
-
-        self.assertEqual([v[1] for v in results["and_"]], [all([a, b, c]) for a, b, c in zip(x, y, z)])
-        self.assertEqual([v[1] for v in results["or_"]], [any([a, b, c]) for a, b, c in zip(x, y, z)])
-        self.assertEqual([v[1] for v in results["not_"]], [not v[1] for v in results["rawx"]])
-        pass
 
     def test_multiplex_decode(self):
         class Trade(csp.Struct):
@@ -1103,9 +979,6 @@ class TestBaselib(unittest.TestCase):
 
             other_nodes = {
                 csp.drop_nans: lambda node: node(random_gen_nan(trigger1)),
-                csp.exp: lambda node: node(random_gen(trigger1, float) / 100),
-                csp.ln: lambda node: node(random_gen(trigger1, float)),
-                csp.abs: lambda node: node(random_gen(trigger1, float)),
                 csp.cast_int_to_float: lambda node: node(random_gen(trigger1, int)),
                 csp.bitwise_not: lambda node: node(random_gen(trigger1, int)),
             }

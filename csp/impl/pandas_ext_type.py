@@ -603,3 +603,6 @@ def is_csp_type(arr_or_dtype) -> bool:
 TsArray._add_arithmetic_ops()
 TsArray._add_comparison_ops()
 TsArray._add_logical_ops()
+setattr(TsArray, "__pos__", TsArray._create_arithmetic_method(operator.pos))
+setattr(TsArray, "__neg__", TsArray._create_arithmetic_method(operator.neg))
+setattr(TsArray, "__abs__", TsArray._create_arithmetic_method(operator.abs))

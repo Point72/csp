@@ -347,40 +347,6 @@ REGISTER_CPPNODE( csp::cppnodes, struct_field );
 REGISTER_CPPNODE( csp::cppnodes, struct_fromts );
 REGISTER_CPPNODE( csp::cppnodes, struct_collectts );
 
-// Math ops
-REGISTER_CPPNODE( csp::cppnodes, add_f );
-REGISTER_CPPNODE( csp::cppnodes, add_i );
-REGISTER_CPPNODE( csp::cppnodes, sub_f );
-REGISTER_CPPNODE( csp::cppnodes, sub_i );
-REGISTER_CPPNODE( csp::cppnodes, mul_f );
-REGISTER_CPPNODE( csp::cppnodes, mul_i );
-REGISTER_CPPNODE( csp::cppnodes, div_f );
-REGISTER_CPPNODE( csp::cppnodes, div_i );
-REGISTER_CPPNODE( csp::cppnodes, pow_f );
-REGISTER_CPPNODE( csp::cppnodes, pow_i );
-REGISTER_CPPNODE( csp::cppnodes, max_f );
-REGISTER_CPPNODE( csp::cppnodes, max_i );
-REGISTER_CPPNODE( csp::cppnodes, min_f );
-REGISTER_CPPNODE( csp::cppnodes, min_i );
-REGISTER_CPPNODE( csp::cppnodes, ln );
-REGISTER_CPPNODE( csp::cppnodes, exp );
-REGISTER_CPPNODE( csp::cppnodes, abs );
-REGISTER_CPPNODE( csp::cppnodes, bitwise_not );
-
-// Comparisons
-REGISTER_CPPNODE( csp::cppnodes, not_ );
-REGISTER_CPPNODE( csp::cppnodes, eq_f );
-REGISTER_CPPNODE( csp::cppnodes, eq_i );
-REGISTER_CPPNODE( csp::cppnodes, ne_f );
-REGISTER_CPPNODE( csp::cppnodes, ne_i );
-REGISTER_CPPNODE( csp::cppnodes, gt_f );
-REGISTER_CPPNODE( csp::cppnodes, gt_i );
-REGISTER_CPPNODE( csp::cppnodes, lt_f );
-REGISTER_CPPNODE( csp::cppnodes, lt_i );
-REGISTER_CPPNODE( csp::cppnodes, ge_f );
-REGISTER_CPPNODE( csp::cppnodes, ge_i );
-REGISTER_CPPNODE( csp::cppnodes, le_f );
-REGISTER_CPPNODE( csp::cppnodes, le_i );
 REGISTER_CPPNODE( csp::cppnodes, exprtk_impl );
 
 static PyModuleDef _cspbaselibimpl_module = {

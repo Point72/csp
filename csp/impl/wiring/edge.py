@@ -116,6 +116,11 @@ class Edge:
     def __mod__(self, other):
         import csp
 
+        return self.__wrap_binary_method(other, csp.mod)
+
+    def __rmod__(self, other):
+        import csp
+
         return csp.mod(csp.const(other), self)
 
     def __gt__(self, other):

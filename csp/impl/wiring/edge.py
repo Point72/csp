@@ -1,32 +1,3 @@
-from types import MappingProxyType
-
-_UFUNC_MAP = MappingProxyType(
-    {
-        "add": lambda x, y: x.__add__(y) if isinstance(x, Edge) else y.__add__(x),
-        "subtract": lambda x, y: x.__sub__(y) if isinstance(x, Edge) else y.__sub__(x),
-        "multiply": lambda x, y: x.__mul__(y) if isinstance(x, Edge) else y.__mul__(x),
-        "divide": lambda x, y: x.__truediv__(y) if isinstance(x, Edge) else y.__truediv__(x),
-        "floor_divide": lambda x, y: x.__floordiv__(y) if isinstance(x, Edge) else y.__floordiv__(x),
-        "power": lambda x, y: x.pow(y),
-        "pos": lambda x: x.pos(),
-        "neg": lambda x: x.neg(),
-        "abs": lambda x: x.abs(),
-        "log": lambda x: x.ln(),
-        "log2": lambda x: x.log2(),
-        "log10": lambda x: x.log10(),
-        "exp": lambda x: x.exp(),
-        "exp2": lambda x: x.exp2(),
-        "sin": lambda x: x.sin(),
-        "cos": lambda x: x.cos(),
-        "tan": lambda x: x.tan(),
-        "arcsin": lambda x: x.asin(),
-        "arccos": lambda x: x.acos(),
-        "arctan": lambda x: x.atan(),
-        "sqrt": lambda x: x.sqrt(),
-        "erf": lambda x: x.erf(),
-    }
-)
-
 
 class Edge:
     __slots__ = ["tstype", "nodedef", "output_idx", "basket_idx"]
@@ -209,36 +180,6 @@ class Edge:
 
         return csp.exp(self)
 
-    def sin(self):
-        import csp
-
-        return csp.sin(self)
-
-    def cos(self):
-        import csp
-
-        return csp.cos(self)
-
-    def tan(self):
-        import csp
-
-        return csp.tan(self)
-
-    def arcsin(self):
-        import csp
-
-        return csp.arcsin(self)
-
-    def arccos(self):
-        import csp
-
-        return csp.arccos(self)
-
-    def arctan(self):
-        import csp
-
-        return csp.arctan(self)
-
     def sqrt(self):
         import csp
 
@@ -248,21 +189,6 @@ class Edge:
         import csp
 
         return csp.erf(self)
-
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        ufunc_func = _UFUNC_MAP.get(ufunc.__name__, None)
-        if ufunc_func:
-            if ufunc.__name__ in (
-                "add",
-                "subtract",
-                "multiply",
-                "divide",
-                "floor_divide",
-                "power",
-            ):
-                return ufunc_func(inputs[0], inputs[1])
-            return ufunc_func(self)
-        raise NotImplementedError("Not Implemented for type csp.Edge: {}".format(ufunc))
 
     def __getattr__(self, key):
         from csp.impl.struct import Struct

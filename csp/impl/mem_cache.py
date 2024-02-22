@@ -206,7 +206,7 @@ def csp_memoized(func=None, *, force_memoize=False, function_name=None, is_user_
                         raise
                     if not warned_flag.value:
                         logging_context = function_name if function_name else str(func)
-                        logging.warning(f"Not memoizing output of {str(logging_context)}: {str(e)}")
+                        logging.debug(f"Not memoizing output of {str(logging_context)}: {str(e)}")
                         warned_flag.value = True
                     cur_item = func(*args, **kwargs)
                 else:

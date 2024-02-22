@@ -27,7 +27,7 @@ public:
             m_full = m_file + ":" + m_function + ":" + std::to_string( m_line ) + ":";
         m_full += m_exType + ": " + m_description;
         if( includeBacktrace && m_backtracesize > 0 )
-            m_full += "\n" + backtraceString();
+            m_full += '\n' + backtraceString();
         return m_full;
     }
     const std::string & description() const noexcept  { return m_description; }

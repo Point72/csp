@@ -167,8 +167,22 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
         }
     }
 
-    //back reference to the struct type that will be accessible on the csp struct -> meta()
-    //DialectStructMeta will hold a borrowed reference to the type to avoid a circular dep
+    /*back reference to the struct type that will be accessible on the csp struct -> meta()
+      DialectStructMeta will hold a borrowed reference to the type to avoid a circular dep
+
+      This is the layout of references between all these types
+                              StructMeta (shared_ptr) <-------- strong ref
+                                  |                              |
+                           DialectStructMeta ---> weak ref to PyStructMeta ( the PyType )
+                                 /\                              /\
+                                  |                              |
+                                  | (strong ref )                |
+                              Struct (shared_ptr)            python ref to its PyType
+                                 /\                              |
+                                  |                              |
+                                  |                              |
+                              PyStruct  --------------------------
+    */
     auto structMeta = std::make_shared<DialectStructMeta>( ( PyTypeObject * ) pymeta, name, fields, metabase );
 
     //Setup fast attr dict lookup
@@ -454,7 +468,7 @@ void format_double( const double val, std::string & tl_repr )
 }
 void format_pyobject( const PyObjectPtr & pyptr, std::string & tl_repr )
 {
-    auto repr = PyObjectPtr::own( PyObject_Repr( pyptr.get() ) );
+    auto repr = PyObjectPtr::check( PyObject_Repr( pyptr.get() ) );
     tl_repr += ( char * ) PyUnicode_DATA(repr.get() );
 }
 

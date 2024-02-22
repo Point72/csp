@@ -21,7 +21,7 @@ using StructPtr = TypedStructPtr<Struct>;
 class StructField
 {
 public:
-    
+
     virtual ~StructField() {}
 
     const std::string & fieldname() const { return m_fieldname; }
@@ -31,7 +31,7 @@ public:
     size_t  alignment() const             { return m_alignment; }   //alignment of the field
     size_t  maskOffset() const            { return m_maskOffset; }  //offset to location of the mask byte fo this field from start of struct mem
     uint8_t maskBit() const               { return m_maskBit; }     //bit within mask byte associated with this field
-    uint8_t maskBitMask() const           { return m_maskBitMask; } //same as maskBit but as a mask ( 1 << bit 
+    uint8_t maskBitMask() const           { return m_maskBitMask; } //same as maskBit but as a mask ( 1 << bit
 
     bool isNative() const                 { return m_type -> type() <= CspType::Type::MAX_NATIVE_TYPE; }
 
@@ -41,8 +41,8 @@ public:
         CSP_ASSERT( bit < 8 );
 
         m_maskOffset  = off;
-        m_maskBit     = bit; 
-        m_maskBitMask = 1 << bit; 
+        m_maskBit     = bit;
+        m_maskBitMask = 1 << bit;
     }
 
     bool isSet( const Struct * s ) const
@@ -72,7 +72,7 @@ public:
 
 protected:
 
-    StructField( CspTypePtr type, const std::string & fieldname, 
+    StructField( CspTypePtr type, const std::string & fieldname,
                  size_t size, size_t alignment );
 
     void setIsSet( Struct * s ) const
@@ -80,14 +80,14 @@ protected:
         uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
         (*m) |= m_maskBitMask;
     }
-    
+
     const void * valuePtr( const Struct * s ) const
-    { 
+    {
         return valuePtr( const_cast<Struct*>( s ) );
     }
 
     void * valuePtr( Struct * s ) const
-    { 
+    {
         return reinterpret_cast<uint8_t *>( s ) + m_offset;
     }
 
@@ -96,7 +96,7 @@ protected:
         uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
         (*m) &= ~m_maskBitMask;
     }
-  
+
 private:
     std::string  m_fieldname;
     size_t       m_offset;
@@ -507,7 +507,7 @@ private:
     void incref();
 
     T * m_obj;
-    
+
     template<typename U>
     friend class TypedStructPtr;
 
@@ -524,7 +524,7 @@ TypedStructPtr<T> structptr_cast( const TypedStructPtr<U> & r )
     return out;
 }
 
-class StructMeta
+class StructMeta : public std::enable_shared_from_this<StructMeta>
 {
 public:
     using Fields = std::vector<StructFieldPtr>;
@@ -539,7 +539,7 @@ public:
     size_t partialSize() const                { return m_partialSize; }
 
     bool isNative() const                     { return m_isFullyNative; }
-    
+
     const Fields & fields() const             { return m_fields; }
     const FieldNames & fieldNames() const     { return m_fieldnames; }
 
@@ -547,10 +547,10 @@ public:
     size_t maskSize() const                   { return m_maskSize; }
 
     const StructFieldPtr & field( const char * name ) const
-    { 
+    {
         static StructFieldPtr s_empty;
-        auto it = m_fieldMap.find( name ); 
-        return it == m_fieldMap.end() ? s_empty : it -> second; 
+        auto it = m_fieldMap.find( name );
+        return it == m_fieldMap.end() ? s_empty : it -> second;
     }
 
     const StructFieldPtr & field( const std::string & name ) const
@@ -631,7 +631,7 @@ class Struct
 {
 public:
 
-    const StructMeta * meta() const { return hidden() -> meta; }
+    const StructMeta * meta() const { return hidden() -> meta.get(); }
     size_t refcount() const         { return hidden() -> refcount; }
 
     bool operator==( const Struct & rhs ) const { return meta() -> isEqual( this, &rhs ); }
@@ -673,10 +673,10 @@ public:
     void setDialectPtr( void * p ) { hidden() -> dialectPtr = p; }
 
 private:
-    static void * operator new( std::size_t count, const StructMeta * meta );
+    static void * operator new( std::size_t count, const std::shared_ptr<const StructMeta> & meta );
     static void   operator delete( void * ptr );
 
-    Struct( const StructMeta * meta );
+    Struct( const std::shared_ptr<const StructMeta> & meta );
     ~Struct()
     {
         meta() -> destroy( this );
@@ -703,7 +703,7 @@ private:
     struct HiddenData
     {
         size_t             refcount;
-        const StructMeta * meta;
+        std::shared_ptr<const StructMeta> meta;
         void             * dialectPtr;
     };
 
@@ -730,7 +730,7 @@ template<typename T>
 inline void TypedStructPtr<T>::decref()
 {
     m_obj -> decref();
-}      
+}
 
 
 template<typename T>
@@ -746,7 +746,7 @@ bool TypedStructPtr<T>::operator==( const TypedStructPtr<T> & rhs ) const
 class StructStructField final : public NonNativeStructField
 {
 public:
-    StructStructField( CspTypePtr cspType, const std::string &fieldname ) : 
+    StructStructField( CspTypePtr cspType, const std::string &fieldname ) :
         NonNativeStructField( cspType, fieldname, sizeof( StructPtr ), alignof( StructPtr ) )
     {
         CSP_ASSERT( cspType -> type() == CspType::Type::STRUCT );

@@ -5,7 +5,7 @@
 namespace csp
 {
 
-StructField::StructField( CspTypePtr type, const std::string & fieldname, 
+StructField::StructField( CspTypePtr type, const std::string & fieldname,
                           size_t size, size_t alignment ) :
     m_fieldname( fieldname ),
     m_offset( 0 ),
@@ -18,7 +18,7 @@ StructField::StructField( CspTypePtr type, const std::string & fieldname,
 {
 }
 
-/*  StructMeta  
+/*  StructMeta
 
 A note on member layout.  Meta will order objects in the following order:
 - non-native fields ( ie PyObjectPtr for the python dialect )
@@ -26,7 +26,7 @@ A note on member layout.  Meta will order objects in the following order:
 - set/unset bitmask bytes ( 1 byte per 8 fields )
 
 Derived structs will simply append to the layout of the base struct, properly padding between classes to align
-its fields properly.  
+its fields properly.
 This layout is imposed on Struct instances.  Since Struct needs refcount and meta * fields, for convenience they are stored
 *before* a Struct's "this" pointer as hidden data.  This way struct ptrs can be passed into StructMeta without
 and adjustments required for the hidden fields
@@ -47,7 +47,7 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields,
     //decided to place them at the start cause they are most likely size of ptr or greater
 
     m_fieldnames.reserve( m_fields.size() );
-    for( size_t i = 0; i < m_fields.size(); i++ ) 
+    for( size_t i = 0; i < m_fields.size(); i++ )
         m_fieldnames.emplace_back( m_fields[i] -> fieldname() );
 
     std::sort( m_fields.begin(), m_fields.end(), []( auto && a, auto && b )
@@ -93,7 +93,7 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields,
     m_isFullyNative = m_isPartialNative && ( m_base ? m_base -> isNative() : true );
 
     //Setup masking bits for our fields
-    //NOTE we can be more efficient by sticking masks into any potential alignment gaps, dont want to spend time on it 
+    //NOTE we can be more efficient by sticking masks into any potential alignment gaps, dont want to spend time on it
     //at this point
     m_maskSize     = !m_fields.empty() ? 1 + ( ( m_fields.size() - 1 ) / 8 ) : 0;
     m_size         = offset + m_maskSize;
@@ -116,7 +116,7 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields,
     {
         m_fields.insert( m_fields.begin(), m_base -> m_fields.begin(), m_base -> m_fields.end() );
         m_fieldnames.insert( m_fieldnames.begin(), m_base -> m_fieldnames.begin(), m_base -> m_fieldnames.end() );
-        
+
         m_firstPartialField        = m_base -> m_fields.size();
         m_firstNativePartialField += m_base -> m_fields.size();
         m_fieldMap = m_base -> m_fieldMap;
@@ -138,9 +138,9 @@ StructMeta::~StructMeta()
 Struct * StructMeta::createRaw() const
 {
     Struct * s;
-    //This weird looking new call actually is calling Struct::opereatore new( size_t, StructMeta * )
+    //This weird looking new call actually is calling Struct::opereatore new( size_t, std::shared_ptr<StructMeta> )
     //its not actually doing an in-place on StructMeta this
-    s = new ( this ) Struct( this );
+    s = new ( shared_from_this() ) Struct( shared_from_this() );
 
     initialize( s );
 
@@ -212,7 +212,7 @@ void StructMeta::initialize( Struct * s ) const
     }
 
     memset( reinterpret_cast<std::byte*>(s) + m_nativeStart, 0, partialNativeSize() );
-    
+
     if( !m_isPartialNative )
     {
         for( size_t idx = m_firstPartialField; idx < m_firstNativePartialField; ++idx )
@@ -221,7 +221,7 @@ void StructMeta::initialize( Struct * s ) const
             static_cast<NonNativeStructField*>( field ) -> initialize( s );
         }
     }
-    
+
     if( m_base )
         m_base -> initialize( s );
 }
@@ -231,13 +231,13 @@ void StructMeta::copyFrom( const Struct * src, Struct * dest )
     if( unlikely( src == dest ) )
         return;
 
-    if( dest -> meta() != src -> meta() && 
+    if( dest -> meta() != src -> meta() &&
         !StructMeta::isDerivedType( src -> meta(), dest -> meta() ) )
-            CSP_THROW( TypeError, "Attempting to copy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
+            CSP_THROW( TypeError, "Attempting to copy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name()
                        << "'. copy_from may only be used to copy from same type or derived types" );
 
     dest -> meta() -> copyFromImpl( src, dest );
-}    
+}
 
 void StructMeta::copyFromImpl( const Struct * src, Struct * dest ) const
 {
@@ -264,7 +264,7 @@ void StructMeta::copyFromImpl( const Struct * src, Struct * dest ) const
         //note that partialNative will include the mask bytes - this sets the native part and the mask
         memcpy( reinterpret_cast<std::byte*>(dest) + m_nativeStart, reinterpret_cast<const std::byte*>(src) + m_nativeStart,
                 partialNativeSize() );
-     
+
         if( m_base )
             m_base -> copyFromImpl( src, dest );
     }
@@ -275,13 +275,13 @@ void StructMeta::updateFrom( const Struct * src, Struct * dest )
     if( unlikely( src == dest ) )
         return;
 
-    if( dest -> meta() != src -> meta() && 
+    if( dest -> meta() != src -> meta() &&
         !StructMeta::isDerivedType( src -> meta(), dest -> meta() ) )
-            CSP_THROW( TypeError, "Attempting to update from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
+            CSP_THROW( TypeError, "Attempting to update from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name()
                        << "'. update_from may only be used to update from same type or derived types" );
 
     dest -> meta() -> updateFromImpl( src, dest );
-}    
+}
 
 void StructMeta::updateFromImpl( const Struct * src, Struct * dest ) const
 {
@@ -312,7 +312,7 @@ bool StructMeta::isEqual( const Struct * x, const Struct * y ) const
 
     //Note the curent use of memcpy for native types.  This can cause issues on double comparisons
     //esp if expecting NaN == NaN to be false, and when comparing -0.0 to +0.0.. may want to revisit
-    //We we do we may as well remove the basepadding copy 
+    //We we do we may as well remove the basepadding copy
     if( isNative() )
         return memcmp( x, y, size() ) == 0;
 
@@ -325,7 +325,7 @@ bool StructMeta::isEqual( const Struct * x, const Struct * y ) const
         for( size_t idx = m_firstPartialField; idx < m_firstNativePartialField; ++idx )
         {
             auto * field = m_fields[ idx ].get();
-                
+
             if( field -> isSet( x ) != field -> isSet( y ) )
                 return false;
 
@@ -370,19 +370,19 @@ size_t StructMeta::hash( const Struct * x ) const
             "Exceeded max recursion depth of " << MAX_RECURSION_DEPTH << " in " << name() << "::hash(), cannot hash cyclic data structure" );
 
     hash ^= csp::hash::hash_bytes( x + m_nativeStart, partialNativeSize() );
-    
+
     if( !m_isPartialNative )
     {
         for( size_t idx = m_firstPartialField; idx < m_firstNativePartialField; ++idx )
         {
             auto * field = m_fields[ idx ].get();
-            
+
             //we dont incorporate unset fields, bitmask will cover them
             if( field -> isSet( x ) )
                 hash ^= static_cast<NonNativeStructField*>( field ) -> hash( x );
         }
     }
-    
+
     if( m_base )
         hash ^= std::hash<uint64_t>()( (uint64_t ) m_base.get() ) ^ m_base -> hash( x );
 
@@ -398,18 +398,18 @@ void StructMeta::clear( Struct * s ) const
     }
 
     memset( reinterpret_cast<std::byte*>(s) + m_nativeStart, 0, partialNativeSize() );
-    
+
     if( !m_isPartialNative )
     {
         for( size_t idx = m_firstPartialField; idx < m_firstNativePartialField; ++idx )
         {
             auto * field = m_fields[ idx ].get();
-            
+
             if( field -> isSet( s ) )
                 static_cast<NonNativeStructField*>( field ) -> clearValue( s );
         }
     }
-    
+
     if( m_base )
         m_base -> clear( s );
 }
@@ -450,19 +450,22 @@ void StructMeta::destroy( Struct * s ) const
             static_cast<NonNativeStructField*>( field ) -> destroy( s );
         }
     }
-    
+
     if( m_base )
         m_base -> destroy( s );
 }
 
-Struct::Struct( const StructMeta * meta )
+Struct::Struct( const std::shared_ptr<const StructMeta> & meta )
 {
+    //Initialize meta shared_ptr
+    new( hidden() ) HiddenData();
+
     hidden() -> refcount   = 1;
     hidden() -> meta       = meta;
     hidden() -> dialectPtr = nullptr;
 }
 
-void * Struct::operator new( std::size_t count, const StructMeta * meta )
+void * Struct::operator new( std::size_t count, const std::shared_ptr<const StructMeta> & meta )
 {
     //allocate meta -> size() ( data members ) + room for hidden data refcount and meta ptr
     //Note that we currently assume sizeof( HiddenData ) is 16.  We expect it to be a multiple of 8

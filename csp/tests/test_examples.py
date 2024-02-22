@@ -24,6 +24,7 @@ def _get_modules_to_test(folder):
         if file.endswith(".py")
     ]
 
+
 def _no_examples_folder_or_running_sdist_tests():
     return os.environ.get("CSP_TEST_SKIP_EXAMPLES", None) is not None or not os.path.exists(EXAMPLES_ROOT)
 

@@ -192,13 +192,14 @@ class SymphonyRoomMapper:
                 return room_id
 
     def get_room_name(self, room_id):
-        if room_id in self._id_to_name:
-            return self._id_to_name[room_id]
-        else:
-            room_name = _get_room_name(room_id, self._room_info_url, self._header)
-            self._name_to_id[room_name] = room_id
-            self._id_to_name[room_id] = room_name
-            return room_name
+        with self._lock:
+            if room_id in self._id_to_name:
+                return self._id_to_name[room_id]
+            else:
+                room_name = _get_room_name(room_id, self._room_info_url, self._header)
+                self._name_to_id[room_name] = room_id
+                self._id_to_name[room_id] = room_name
+                return room_name
 
     def set_im_id(self, user, id):
         with self._lock:

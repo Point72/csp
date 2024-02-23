@@ -1,4 +1,3 @@
-
 class Edge:
     __slots__ = ["tstype", "nodedef", "output_idx", "basket_idx"]
 

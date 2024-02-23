@@ -4,6 +4,7 @@ import unittest
 from datetime import date, datetime, time, timedelta
 
 import csp
+from csp.impl.struct import defineStruct
 
 
 class MyEnum(csp.Enum):
@@ -588,16 +589,16 @@ class TestCspStruct(unittest.TestCase):
                 i: 2
                 f: 2.5
                 b: false
-        ls: 
-            - 1 
-            - 2 
+        ls:
+            - 1
+            - 2
             - 3
         lc:
             -
                 value: [1,2,3]
                 set_value: ["x","y","z"]
             -
-                value: 
+                value:
                     - 4
         """
 
@@ -1063,6 +1064,19 @@ class TestCspStruct(unittest.TestCase):
         b = StructB()
         b.x = b
         self.assertEqual(repr(b), "StructB( x=( ... ) )")
+
+    def test_disappearing_dynamic_types(self):
+        """Was a BUG due to missing refcount: https://github.com/Point72/csp/issues/74"""
+
+        class Outer(csp.Struct):
+            s: csp.Struct
+
+        all = []
+        for i in range(10000):
+            sType = defineStruct("foo", {"a": dict})
+            all.append(Outer(s=sType(a={"foo": "bar"})))
+            repr(all)
+            all = all[:100]
 
 
 if __name__ == "__main__":

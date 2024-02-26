@@ -615,7 +615,7 @@ class WeightedCovariance
 
 double corrCompute( double cov, double vx, double vy )
 {
-    if( vx == 0 || vy == 0 )
+    if( vx < EPSILON || vy < EPSILON )
         return std::numeric_limits<double>::quiet_NaN();
     return cov / sqrt( vx * vy );
 }
@@ -798,7 +798,7 @@ class WeightedStandardError
 
 double skewCompute( double count, double mx, double mx3, double vx, bool bias )
 {
-    if( count <= 2 || vx == 0 )
+    if( count <= 2 || vx < EPSILON )
             return std::numeric_limits<double>::quiet_NaN();
 
     double bias_skew = ( mx3 - 3 * mx * vx - mx * mx * mx ) / ( vx * sqrt( vx ) );
@@ -811,7 +811,7 @@ double skewCompute( double count, double mx, double mx3, double vx, bool bias )
 
 double kurtCompute( double count, double mx, double mx2, double mx3, double mx4, double vx, bool bias, bool excess )
 {
-    if( count <= 3 || vx == 0 )
+    if( count <= 3 || vx < EPSILON )
         return std::numeric_limits<double>::quiet_NaN();
 
     double bias_kurt = ( mx4 - 4 * mx * mx3 + 6 * mx2 * mx * mx - 3 * mx * mx * mx * mx ) / ( vx * vx );

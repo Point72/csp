@@ -31,6 +31,8 @@ For **questions** or to discuss **larger changes or features**, please use our [
 
 For **contributions**, please see our [developer documentation](https://github.com/Point72/csp/wiki/99.-Developer). We have `help wanted` and `good first issue` tags on our issues page, so these are a great place to start.
 
+For **documentation updates**, make PRs that update the pages in `/docs/wiki`. The documentation is pushed to the GitHub wiki automatically through a GitHub workflow. Note that direct updates to this wiki will be overwritten.
+
 # Roadmap
 We do not have a formal roadmap, but we're happy to discuss features, improvements, new adapters, etc, in our [discussions area](https://github.com/Point72/csp/discussions). Here are some high level items we hope to accomplish in the next few months:
 

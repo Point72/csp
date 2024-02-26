@@ -467,7 +467,7 @@ jobs:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
         - name: Install wheel (Linux)
-          run: python -m pip install -U *manylinux2014*.whl --target .
+          run: python -m pip install -U *manylinux*.whl --target .
           if: ${{ runner.os == 'Linux' }}
 
         - name: Install wheel (OSX x86)
@@ -610,7 +610,7 @@ jobs:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
         - name: Install wheel
-          run: python -m pip install -U *manylinux2014*.whl --target .
+          run: python -m pip install -U *manylinux*.whl --target .
 
         - name: Install package - ${{ matrix.package }}
           run: python -m pip install -U "${{ matrix.package }}"

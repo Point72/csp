@@ -87,10 +87,15 @@ test-requires = [
 ]
 
 [tool.cibuildwheel.linux]
-before-all ="make dependencies-fedora"
+before-all ="""
+dnf config-manager --set-enabled powertools &&
+dnf install -y epel-release &&
+make dependencies-fedora
+"""
 environment = {CSP_MANYLINUX="ON"}
 repair-wheel-command = "auditwheel -v show {wheel} && LD_LIBRARY_PATH=/project/csp/lib auditwheel -v repair -w {dest_dir} {wheel}"
 skip = "*i686 musllinux*"
+manylinux-x86_64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
 before-all ="make dependencies-mac"

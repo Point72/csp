@@ -3540,6 +3540,30 @@ class TestStats(unittest.TestCase):
 
         np.random.set_state(original_state)
 
+    def test_skew_kurt_corr_instability_issue(self):
+        # Since we divide by variance to a power in the online skew/kurtosis/correlation formulas
+        # we need to ensure the variance is significant (i.e. not slightly > 0) to avoid nonsensical results
+
+        st = datetime(2020,1,1)
+        
+        @csp.graph
+        def g():
+            x = csp.curve(typ=float, data=[(datetime(2020, 1, 1), 1), (datetime(2020, 1, 2), 1-1e-11), (datetime(2020, 1, 3), 1), (datetime(2020, 1, 4), 1-1e-12), 
+                                (datetime(2020, 1, 5), 1-1e-14), (datetime(2020, 1, 6), 1-1e-10), (datetime(2020, 1, 7), 1-1e-12), (datetime(2020, 1, 8), 1)])
+            skew = csp.stats.skew(x, 5, 1)
+            kurt = csp.stats.kurt(x, 5, 1)
+            corr = csp.stats.corr(x, x, 5, 1)
+            csp.add_graph_output('skew', skew)
+            csp.add_graph_output('kurt', kurt)
+            csp.add_graph_output('corr', corr)
+
+        res = csp.run(g, starttime=st, endtime=timedelta(days=8), output_numpy=True)
+
+        # All should be NaN, as the small differences < 1e-9 should be resolved as floating point error
+        self.assertTrue( pd.Series(res['skew'][1]).isna().all() )
+        self.assertTrue( pd.Series(res['kurt'][1]).isna().all() )
+        self.assertTrue( pd.Series(res['corr'][1]).isna().all() )
+
 
 if __name__ == "__main__":
     unittest.main()

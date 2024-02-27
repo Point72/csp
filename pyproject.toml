@@ -10,7 +10,7 @@ requires = [
 build-backend="setuptools.build_meta"
 
 [project]
-name = "csp"
+name = "csp-next"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"

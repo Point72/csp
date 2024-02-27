@@ -422,7 +422,13 @@ inline StructPtr fromPython( PyObject * o, const CspType & type )
         ( static_cast<const CspStructType &>( type ).meta() && //could be csp.Struct as a type annotation which is allowed
           !StructMeta::isDerivedType( static_cast<PyStruct *>( o ) -> structMeta(),
                                       static_cast<const CspStructType &>( type ).meta().get() ) ) )
-        CSP_THROW( TypeError, "Invalid struct type, expected struct " << static_cast<const CspStructType &>( type ).meta() -> name() << " got " << Py_TYPE( o ) -> tp_name );
+    {
+        std::string name;
+        auto meta = static_cast<const CspStructType &>( type ).meta();
+        if( meta )
+            name = " " + meta -> name();
+        CSP_THROW( TypeError, "Invalid struct type, expected struct" << name << " got " << Py_TYPE( o ) -> tp_name );
+    }
 
     return static_cast<PyStruct *>( o ) -> struct_;
 }

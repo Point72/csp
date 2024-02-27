@@ -1078,6 +1078,20 @@ class TestCspStruct(unittest.TestCase):
             repr(all)
             all = all[:100]
 
+    def test_python_conversion_on_nested_base_struct(self):
+        ''' Was a BUG due to the error message in fromPython trying to access the meta name of a base struct class'''
+        class A(csp.Struct):
+            a: csp.Struct
+
+        # 1) in constructor
+        with self.assertRaises(TypeError) as e:
+            my_a = A(a=None)
+        
+        # 2) setting the member
+        with self.assertRaises(TypeError) as e:
+            my_a = A()
+            my_a.a = None
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -36,7 +36,7 @@ install:  ## install library
 
 lint-py:
 	python -m isort --check csp/ examples/ setup.py
-	python -m ruff csp/ examples/ setup.py
+	python -m ruff check csp/ examples/ setup.py
 
 lint-cpp:
 	# clang-format --dry-run -Werror -i -style=file `find ./cpp/ -name "*.*pp"`

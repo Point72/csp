@@ -1,6 +1,7 @@
 """
 This example illustrates how csp edges can be used inside a pandas data frame via the pandas extension type mechanism.
 """
+
 import numpy as np
 import pandas as pd
 import random

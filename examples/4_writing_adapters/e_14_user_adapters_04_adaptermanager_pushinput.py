@@ -4,7 +4,6 @@ when you have a shared input or output resources ( ie single CSV / Parquet file,
 that you want to connect to once, but provide data to / from many input / output adapters ( aka time series )
 """
 
-
 import random
 import threading
 import time

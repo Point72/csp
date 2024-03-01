@@ -2,6 +2,7 @@
 csp.GenericPushAdapter is a more user-friendly and the simplest way to generically push some stream of data
 from a non-csp engine thread into the csp engine.
 """
+
 import threading
 import time
 from datetime import datetime, timedelta

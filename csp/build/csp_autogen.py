@@ -8,66 +8,63 @@ import types
 
 # We need to patch mock modules into sys.modules to avoid pulling in csp/__init__.py and all of its baggage, which include imports of
 # _cspimpl, which would be a circular dep
-spec = importlib.util.find_spec('csp')
+spec = importlib.util.find_spec("csp")
 loader = importlib.machinery.SourceFileLoader(spec.name, spec.origin)
-spec = importlib.util.spec_from_loader('csp', loader)
+spec = importlib.util.spec_from_loader("csp", loader)
 csp_mod = importlib.util.module_from_spec(spec)
-sys.modules['csp'] = csp_mod
+sys.modules["csp"] = csp_mod
 
-from csp.impl.struct import Struct
-from csp.impl.enum import Enum
+from csp.impl.struct import Struct  # noqa: E402
+from csp.impl.enum import Enum  # noqa: E402
 
 
 def struct_type(type_info):
-    return f'''csp::autogen::{type_info['pytype'].__name__}::Ptr'''
+    return f"""csp::autogen::{type_info['pytype'].__name__}::Ptr"""
 
 
 def enum_type(type_info):
-    return f'''csp::autogen::{type_info['pytype'].__name__}'''
+    return f"""csp::autogen::{type_info['pytype'].__name__}"""
 
 
 def array_type(type_info):
-    elem_typeinfo = type_info['elemtype']
-    elemctype = CSP_CPP_TYPE_MAP[elem_typeinfo['type']]
+    elem_typeinfo = type_info["elemtype"]
+    elemctype = CSP_CPP_TYPE_MAP[elem_typeinfo["type"]]
     if isinstance(elemctype, types.FunctionType):
         elemctype = elemctype(elem_typeinfo)
 
-    return f'''std::vector<{elemctype}>'''
+    return f"""std::vector<{elemctype}>"""
 
 
 CSP_CPP_TYPE_MAP = {
-    'BOOL'           : 'bool',
-    'INT8'           : 'int8_t',
-    'UINT8'          : 'uint8_t',
-    'INT16'          : 'int16_t',
-    'UINT16'         : 'uint16_t',
-    'INT32'          : 'int32_t',
-    'UINT32'         : 'uint32_t',
-    'INT64'          : 'int64_t',
-    'UINT64'         : 'uint64_t',
-    'DOUBLE'         : 'double',
-    'DATETIME'       : 'csp::DateTime',
-    'TIMEDELTA'      : 'csp::TimeDelta',
-    'DATE'           : 'csp::Date',
-    'STRING'         : 'std::string',
-    'DIALECT_GENERIC': 'csp::DialectGenericType',
-    'STRUCT'         : struct_type,
-    'ENUM'           : enum_type,
-    'ARRAY'          : array_type,
+    "BOOL": "bool",
+    "INT8": "int8_t",
+    "UINT8": "uint8_t",
+    "INT16": "int16_t",
+    "UINT16": "uint16_t",
+    "INT32": "int32_t",
+    "UINT32": "uint32_t",
+    "INT64": "int64_t",
+    "UINT64": "uint64_t",
+    "DOUBLE": "double",
+    "DATETIME": "csp::DateTime",
+    "TIMEDELTA": "csp::TimeDelta",
+    "DATE": "csp::Date",
+    "STRING": "std::string",
+    "DIALECT_GENERIC": "csp::DialectGenericType",
+    "STRUCT": struct_type,
+    "ENUM": enum_type,
+    "ARRAY": array_type,
 }
 
 
 class CodeGenerator:
-    def __init__(self, module_name: str,
-                 output_filename: str,
-                 namespace: str,
-                 generate_imported_types: bool):
+    def __init__(self, module_name: str, output_filename: str, namespace: str, generate_imported_types: bool):
         self._module_name = module_name
         self._module = importlib.import_module(module_name)
         self._namespace = namespace
 
-        self._header_filename = f'{output_filename}.h'
-        self._cpp_filename = f'{output_filename}.cpp'
+        self._header_filename = f"{output_filename}.h"
+        self._cpp_filename = f"{output_filename}.cpp"
 
         self._struct_types = []
         self._enum_types = []
@@ -89,26 +86,26 @@ class CodeGenerator:
                 self._enum_types.append(v)
 
     def _get_dependent_headers(self):
-        """ see if there are any dependent headers we need to include """
+        """see if there are any dependent headers we need to include"""
         headers = set()
         for struct_type in self._struct_types:
             metainfo = struct_type._metadata_info()
-            fields = metainfo['fields']
+            fields = metainfo["fields"]
             for field in fields:
-                type_info = field['type']
-                if type_info['type'] not in ('STRUCT', 'ENUM'):
+                type_info = field["type"]
+                if type_info["type"] not in ("STRUCT", "ENUM"):
                     continue
 
-                pytype = type_info['pytype']
+                pytype = type_info["pytype"]
                 extmod = self._external_types.get(pytype)
                 if extmod is not None:
-                    headers.add(extmod.CSP_AUTOGEN_HINTS['cpp_header'])
+                    headers.add(extmod.CSP_AUTOGEN_HINTS["cpp_header"])
 
             # Include dependent bases as well
             base_struct = struct_type.__bases__[0] if struct_type.__bases__[0] != Struct else None
             extmod = self._external_types.get(base_struct)
             if extmod is not None:
-                headers.add(extmod.CSP_AUTOGEN_HINTS['cpp_header'])
+                headers.add(extmod.CSP_AUTOGEN_HINTS["cpp_header"])
 
         return headers
 
@@ -119,19 +116,19 @@ class CodeGenerator:
         return self._cpp_filename
 
     def generate_header_code(self):
-        include_guard = '_IN_CSP_AUTOGEN_' + self._module_name.replace('.', '_').upper()
-        out = f'''
+        include_guard = "_IN_CSP_AUTOGEN_" + self._module_name.replace(".", "_").upper()
+        out = f"""
 #ifndef {include_guard}
 #define {include_guard}
 
-'''
+"""
         out += self._generate_headers()
 
-        out += f'''
+        out += f"""
 
 namespace {self._namespace}
 {{
-'''
+"""
 
         for enum_type in self._enum_types:
             out += self._generate_enum_class(enum_type)
@@ -139,26 +136,22 @@ namespace {self._namespace}
         for struct_type in self._struct_types:
             out += self._generate_struct_class(struct_type)
 
-        out += '\n}\n#endif'
+        out += "\n}\n#endif"
         return out
 
     def _generate_headers(self):
-        common_headers = [
-            'csp/core/Exception.h',
-            'csp/engine/Struct.h',
-            'cstddef'
-        ]
+        common_headers = ["csp/core/Exception.h", "csp/engine/Struct.h", "cstddef"]
 
         common_headers.extend(self._get_dependent_headers())
-        return '\n'.join(f'#include <{h}>' for h in common_headers)
+        return "\n".join(f"#include <{h}>" for h in common_headers)
 
     def _generate_enum_class(self, enum_type):
         enum_name = enum_type.__name__
 
-        value_decls = ',\n'.join(f'        {x.name} = {x.value}' for x in enum_type)
-        cspenum_decls = '\n'.join(f'    static {enum_name} {x.name};' for x in enum_type)
+        value_decls = ",\n".join(f"        {x.name} = {x.value}" for x in enum_type)
+        cspenum_decls = "\n".join(f"    static {enum_name} {x.name};" for x in enum_type)
 
-        out = f'''
+        out = f"""
 class {enum_name} : public csp::CspEnum
 {{
 public:
@@ -190,7 +183,7 @@ private:
 
     static std::shared_ptr<csp::CspEnumMeta> s_meta;
 }};
-'''
+"""
 
         return out
 
@@ -200,60 +193,66 @@ private:
 
         base_struct = struct_type.__bases__[0] if struct_type.__bases__[0] != Struct else None
 
-        mask_loc = metainfo['mask_loc']
-        mask_size = metainfo['mask_size']
+        mask_loc = metainfo["mask_loc"]
+        mask_size = metainfo["mask_size"]
 
         field_getsets = []
         field_decls = []
 
-        fields = metainfo['fields']
+        fields = metainfo["fields"]
         if base_struct:
             base_metainfo = base_struct._metadata_info()
-            base_fields = set(f['fieldname'] for f in base_metainfo['fields'])
+            base_fields = set(f["fieldname"] for f in base_metainfo["fields"])
 
             # remove fields from the base, we will derive from it
-            fields = [f for f in fields if f['fieldname'] not in base_fields]
+            fields = [f for f in fields if f["fieldname"] not in base_fields]
 
-        mask_fieldname = f'm_{struct_name}_mask'
+        mask_fieldname = f"m_{struct_name}_mask"
 
         for field in fields:
-            fieldname = field['fieldname']
-            type_info = field['type']
-            field_offset = field['offset']
-            field_size = field['size']
-            field_alignment = field['alignment']
-            csp_type = type_info['type']
-            mask_offset = field['mask_offset']
-            mask_bitmask = field['mask_bitmask']
+            fieldname = field["fieldname"]
+            type_info = field["type"]
+            field_offset = field["offset"]
+            field_size = field["size"]
+            field_alignment = field["alignment"]
+            csp_type = type_info["type"]
+            mask_offset = field["mask_offset"]
+            mask_bitmask = field["mask_bitmask"]
 
             ctype = CSP_CPP_TYPE_MAP[csp_type]
             if isinstance(ctype, types.FunctionType):
                 ctype = ctype(type_info)
 
-            decl = f'    {ctype} m_{fieldname};\n'
+            decl = f"    {ctype} m_{fieldname};\n"
             field_decls.append(decl)
 
             # index into mask char array
             mask_byte = mask_offset - mask_loc
 
-            field_offset_assert = f'static_assert( offsetof( {struct_name},m_{fieldname} ) == {field_offset} );'
-            mask_offset_assert = f'static_assert(( offsetof( {struct_name},{mask_fieldname}) + {mask_byte} ) == {mask_offset} );'
+            field_offset_assert = f"static_assert( offsetof( {struct_name},m_{fieldname} ) == {field_offset} );"
+            mask_offset_assert = (
+                f"static_assert(( offsetof( {struct_name},{mask_fieldname}) + {mask_byte} ) == {mask_offset} );"
+            )
 
             # Unfortunately our version of GCC doesnt allow offset of on derived members!
             if base_struct is not None:
-                field_offset_assert = '//Moved to runtime check due to offsetof issue on derived types\n        //' + field_offset_assert
-                mask_offset_assert = '//Moved to runtime check due to offsetof issue on derived types\n        //' + mask_offset_assert
+                field_offset_assert = (
+                    "//Moved to runtime check due to offsetof issue on derived types\n        //" + field_offset_assert
+                )
+                mask_offset_assert = (
+                    "//Moved to runtime check due to offsetof issue on derived types\n        //" + mask_offset_assert
+                )
 
-            common_setter = f'''
+            common_setter = f"""
         {field_offset_assert}
         static_assert( alignof( {ctype} ) == {field_alignment} );
         static_assert( sizeof( {ctype} ) == {field_size} );
- 
+
         {mask_fieldname}[{mask_byte}] |= {mask_bitmask};
-'''
-            extra_setter =  ''
-            if ctype == 'std::string':
-                extra_setter = f'''
+"""
+            extra_setter = ""
+            if ctype == "std::string":
+                extra_setter = f"""
     void set_{fieldname}( const char * value )
     {{
         {common_setter}
@@ -265,21 +264,21 @@ private:
         {common_setter}
         m_{fieldname} = value;
     }}
-'''
-            getset = f'''
-    const {ctype} & {fieldname}() const 
+"""
+            getset = f"""
+    const {ctype} & {fieldname}() const
     {{
         {field_offset_assert}
         static_assert( alignof( {ctype} ) == {field_alignment} );
         static_assert( sizeof( {ctype} ) == {field_size} );
- 
+
         if( !{fieldname}_isSet() )
             CSP_THROW( csp::ValueError, "field {fieldname} on struct {struct_name} is not set" );
 
         return m_{fieldname};
     }}
-    
-    void set_{fieldname}( const {ctype} & value ) 
+
+    void set_{fieldname}( const {ctype} & value )
     {{
         {common_setter}
 
@@ -300,20 +299,22 @@ private:
         {mask_offset_assert}
         {mask_fieldname}[{mask_byte}] &= ~{mask_bitmask};
     }}
-'''
+"""
             field_getsets.append(getset)
 
-        field_decls.append(f'    char {mask_fieldname}[{mask_size}];\n')
-        getset = ''.join(field_getsets)
-        decls = ''.join(field_decls)
+        field_decls.append(f"    char {mask_fieldname}[{mask_size}];\n")
+        getset = "".join(field_getsets)
+        decls = "".join(field_decls)
 
-        base_class = 'csp::Struct' if base_struct is None else base_struct.__name__
+        base_class = "csp::Struct" if base_struct is None else base_struct.__name__
 
-        maskloc_offset_assert = f'static_assert( offsetof( {struct_name}, {mask_fieldname} ) == {mask_loc} );'
+        maskloc_offset_assert = f"static_assert( offsetof( {struct_name}, {mask_fieldname} ) == {mask_loc} );"
         if base_struct is not None:
-            maskloc_offset_assert = '//Moved to runtime check due to offsetof issue on derived types\n        //' + maskloc_offset_assert
+            maskloc_offset_assert = (
+                "//Moved to runtime check due to offsetof issue on derived types\n        //" + maskloc_offset_assert
+            )
 
-        out = f'''
+        out = f"""
 class {struct_name} : public {base_class}
 {{
 public:
@@ -339,7 +340,7 @@ public:
     static bool static_init();
 
 private:
-  
+
 {decls}
 
     static csp::StructMetaPtr s_meta;
@@ -349,11 +350,10 @@ private:
         {maskloc_offset_assert}
     }}
 }};
-'''
+"""
         return out
 
     def generate_cpp_code(self):
-
         struct_inits = []
         for struct_type in self._struct_types:
             struct_name = struct_type.__name__
@@ -364,24 +364,24 @@ private:
             if base_struct:
                 metainfo = struct_type._metadata_info()
                 base_metainfo = base_struct._metadata_info()
-                base_fields = set(f['fieldname'] for f in base_metainfo['fields'])
-                fields = [f for f in metainfo['fields'] if f['fieldname'] not in base_fields]
-                mask_fieldname = f'm_{struct_name}_mask'
-                mask_loc = metainfo['mask_loc']
+                base_fields = set(f["fieldname"] for f in base_metainfo["fields"])
+                fields = [f for f in metainfo["fields"] if f["fieldname"] not in base_fields]
+                mask_fieldname = f"m_{struct_name}_mask"
+                mask_loc = metainfo["mask_loc"]
 
                 for field in fields:
-                    fieldname = field['fieldname']
-                    field_offset = field['offset']
-                    mask_offset = field['mask_offset']
+                    fieldname = field["fieldname"]
+                    field_offset = field["offset"]
+                    mask_offset = field["mask_offset"]
                     mask_byte = mask_offset - mask_loc
-                    assertions.append(f'_offsetof( {struct_name},m_{fieldname} ) == {field_offset}')
-                    assertions.append(f'( _offsetof( {struct_name},{mask_fieldname}) + {mask_byte} ) == {mask_offset}')
+                    assertions.append(f"_offsetof( {struct_name},m_{fieldname} ) == {field_offset}")
+                    assertions.append(f"( _offsetof( {struct_name},{mask_fieldname}) + {mask_byte} ) == {mask_offset}")
 
-                assertions.append(f'_offsetof( {struct_name}, {mask_fieldname} ) == {mask_loc}')
+                assertions.append(f"_offsetof( {struct_name}, {mask_fieldname} ) == {mask_loc}")
 
-            assertions = '\n'.join(f'    assert_or_die( {assertion}, "{assertion}" );' for assertion in assertions)
+            assertions = "\n".join(f'    assert_or_die( {assertion}, "{assertion}" );' for assertion in assertions)
 
-            struct_init = f'''
+            struct_init = f"""
 bool {struct_name}::static_init()
 {{
 {assertions}
@@ -390,33 +390,35 @@ bool {struct_name}::static_init()
         // initialize StructMeta from python type if we're in python
         PyObject * pymodule = PyImport_ImportModule( "{self._module_name}" );
         assert_or_die( pymodule != nullptr, "failed to import struct module {self._module_name}" );
-        
+
         PyObject * structType = PyObject_GetAttrString(pymodule, "{struct_name}" );
         assert_or_die( structType != nullptr, "failed to find struct type {struct_name} in module {self._module_name}" );
-        
+
         // should add some assertion here..
         csp::python::PyStructMeta * pymeta = ( csp::python::PyStructMeta * ) structType;
         s_meta = pymeta -> structMeta;
     }}
-    
+
     return true;
 }}
 
 bool static_init_{struct_name} = {struct_name}::static_init();
 csp::StructMetaPtr {struct_name}::s_meta;
-'''
+"""
 
             struct_inits.append(struct_init)
 
-        struct_inits = '\n'.join(struct_inits)
+        struct_inits = "\n".join(struct_inits)
 
         enum_inits = []
         for enum_type in self._enum_types:
             enum_name = enum_type.__name__
 
-            static_decls = '\n'.join(f'{enum_name} {enum_name}::{x.name} = {enum_name}::create("{x.name}");' for x in enum_type)
+            static_decls = "\n".join(
+                f'{enum_name} {enum_name}::{x.name} = {enum_name}::create("{x.name}");' for x in enum_type
+            )
 
-            enum_init = f'''
+            enum_init = f"""
 bool {enum_name}::static_init()
 {{
     if( Py_IsInitialized() )
@@ -439,13 +441,13 @@ bool {enum_name}::static_init()
 bool static_init_{enum_name} = {enum_name}::static_init();
 std::shared_ptr<csp::CspEnumMeta> {enum_name}::s_meta;
 {static_decls}
-'''
+"""
 
             enum_inits.append(enum_init)
 
-        enum_inits = '\n'.join(enum_inits)
+        enum_inits = "\n".join(enum_inits)
 
-        out = f'''
+        out = f"""
 #include "{self._header_filename}"
 #include <csp/python/PyStruct.h>
 #include <csp/python/PyCspEnum.h>
@@ -472,7 +474,7 @@ static void assert_or_die( bool assertion, const char * error )
 {enum_inits}
 {struct_inits}
 }}
-'''
+"""
 
         return out
 
@@ -492,15 +494,31 @@ class Derived(Test):
 
 # Test2 = csp.impl.struct.defineStruct( 'Test2', { 'A' + str(i) : bool for i in range(25 )})
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', dest='module_name', action='store', required=True, help='module to parse and autogen')
-    parser.add_argument('-o', dest='outname', action='store', required=True, help='name of output .h/.cpp files')
-    parser.add_argument('-n', dest='namespace', action='store', required=False, default='csp::autogen', help='c++ namespace to generate in')
-    parser.add_argument('-d', dest='output_directory', action='store', required=True, help='directory to write files to')
-    parser.add_argument('--generate_imports', dest='generate_imports', action='store_true', required=False,
-                        help='pass flag to generate types that are imported into the specified module as well')
-    parser.add_argument('--dryRun', dest='dry_run', action='store_true', required=False, help='if true write output to stdout')
+    parser.add_argument("-m", dest="module_name", action="store", required=True, help="module to parse and autogen")
+    parser.add_argument("-o", dest="outname", action="store", required=True, help="name of output .h/.cpp files")
+    parser.add_argument(
+        "-n",
+        dest="namespace",
+        action="store",
+        required=False,
+        default="csp::autogen",
+        help="c++ namespace to generate in",
+    )
+    parser.add_argument(
+        "-d", dest="output_directory", action="store", required=True, help="directory to write files to"
+    )
+    parser.add_argument(
+        "--generate_imports",
+        dest="generate_imports",
+        action="store_true",
+        required=False,
+        help="pass flag to generate types that are imported into the specified module as well",
+    )
+    parser.add_argument(
+        "--dryRun", dest="dry_run", action="store_true", required=False, help="if true write output to stdout"
+    )
 
     args = parser.parse_args()
 
@@ -518,8 +536,8 @@ if __name__ == '__main__':
         print(cpp_file)
         print(cpp_code)
     else:
-        with open(header_file, 'w') as f:
+        with open(header_file, "w") as f:
             f.write(header_code)
 
-        with open(cpp_file, 'w') as f:
+        with open(cpp_file, "w") as f:
             f.write(cpp_code)

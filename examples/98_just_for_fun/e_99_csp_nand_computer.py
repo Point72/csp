@@ -1,9 +1,10 @@
-""" The purpose of this example is to help demonstrate the difference between csp.node and csp.graph concepts ( and because its awesome ).
+"""The purpose of this example is to help demonstrate the difference between csp.node and csp.graph concepts ( and because its awesome ).
 We define a single node, which is a simple NAND gate.  We then wire up the NAND gate nodes in more and more complex constructs under csp.graph definitions
 to build up our "computer".
 csp.graph calls only define the wiring of the NAND gate nodes.  At runtime, the only things that exist and execute are the NAND nodes.
 The wiring done here has been taken from the awesome book  https://www.amazon.com/Elements-Computing-Systems-Building-Principles/dp/0262640686
 """
+
 from datetime import datetime
 from typing import List
 

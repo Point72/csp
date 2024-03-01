@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "cmake",
-    "numpy",
+    "oldest-supported-numpy",
     "pyarrow>=7.0.0",
     "ruamel.yaml",
     "scikit-build",

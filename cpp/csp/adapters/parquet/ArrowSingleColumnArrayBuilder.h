@@ -304,7 +304,7 @@ public:
 protected:
     void pushValueToArray()
     {
-        this -> m_builderPtr -> Append( *this -> m_value );
+        [[maybe_unused]] auto status = this -> m_builderPtr -> Append( *this -> m_value );        
     }
 };
 

@@ -22,6 +22,7 @@ class Dictionary;
 class EndCycleListener
 {
 public:
+    virtual ~EndCycleListener() {};
     virtual void onEndCycle() = 0;
     
     bool isDirty() const  { return m_dirty; }

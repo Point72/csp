@@ -31,6 +31,8 @@ public:
     {
     }
 
+    virtual ~ParquetOutputHandler() {}
+
     uint32_t getChunkSize() const;
 
     virtual uint32_t getNumColumns() = 0;

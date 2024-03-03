@@ -7,7 +7,7 @@
 namespace csp
 {
 
-class PushGroup;
+struct PushGroup;
 class PushInputAdapters;
 
 class PendingPushEvents

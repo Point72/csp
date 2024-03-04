@@ -10,6 +10,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
+      - docs
   pull_request:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
+      - docs
   workflow_dispatch:
     inputs:
       ci-full:

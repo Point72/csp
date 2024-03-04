@@ -1,4 +1,4 @@
-name: Public Wiki
+name: Publish Wiki
 
 on:
   push:

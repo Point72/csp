@@ -22,6 +22,20 @@ adapters or in realtime mode using realtime input adapters.
 - [8. Profiler](https://github.com/Point72/csp/wiki/8.-Profiler)
 - [9. Caching](https://github.com/Point72/csp/wiki/9.-Caching)
 
+# Installation
+
+We ship binary wheels to install `csp`  on MacOS and Linux via `pip`:
+
+```bash
+pip install csp
+```
+
+Other platforms will need to see the instructions to [build `csp` from
+source](https://github.com/Point72/csp/wiki/98.-Building-From-Source).
+
+We plan to create conda packages on conda-forge and ship binaries for Windows in
+the near future.
+
 # Contributing
 Contributions are welcome on this project. We distribute under the terms of the [Apache 2.0 license](https://github.com/Point72/csp/blob/main/LICENSE).
 

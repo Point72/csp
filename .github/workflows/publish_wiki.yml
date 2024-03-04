@@ -1,4 +1,4 @@
-name: "Push docs to wiki"
+name: Public Wiki
 
 on:
   push:
@@ -8,15 +8,19 @@ on:
       - "docs/wiki/**"
   workflow_dispatch:
 
-jobs:
-   build:
-    runs-on: ubuntu-latest
+concurrency:
+  group: publish-wiki
+  cancel-in-progress: true
 
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
       - name: Upload Documentation to Wiki
-        uses: SwiftDocOrg/github-wiki-publish-action@v1
+        uses: Andrew-Chen-Wang/github-wiki-action@v4
         with:
-          path: "docs/wiki"
-        env:
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_TOKEN }}
+          path: docs/wiki

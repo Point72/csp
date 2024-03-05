@@ -28,12 +28,11 @@ DialectGenericType::DialectGenericType( DialectGenericType &&rhs )
     new( this ) csp::python::PyObjectPtr( reinterpret_cast<const csp::python::PyObjectPtr &&>(rhs) );
 }
 
-void DialectGenericType::deepcopy( const DialectGenericType & rhs )
+DialectGenericType DialectGenericType::deepcopy() const
 {
     static PyObject *pyDeepcopy = PyObject_GetAttrString( PyImport_ImportModule( "copy" ), "deepcopy" );
-    PyObject * deepcopy = PyObject_CallObject( pyDeepcopy, PyTuple_Pack(1, python::toPython( rhs ) ) );
-
-    new( this ) DialectGenericType( python::fromPython<DialectGenericType>( deepcopy ) );
+    PyObject * pyVal = PyObject_CallFunction( pyDeepcopy, "O", python::toPythonBorrowed( *this ) );
+    return DialectGenericType( reinterpret_cast<const DialectGenericType &&>( std::move( csp::python::PyObjectPtr::own( pyVal ) ) ) );
 }
 
 DialectGenericType &DialectGenericType::operator=( const DialectGenericType &rhs )

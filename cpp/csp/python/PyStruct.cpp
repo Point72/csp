@@ -133,7 +133,7 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                 case csp::CspType::Type::ARRAY:
                 {
                     const CspArrayType & arrayType = static_cast<const CspArrayType&>( *csptype );
-                    field = switchCspType( arrayType.elemType(), [csptype,keystr]( auto tag ) -> std::shared_ptr<StructField>
+                    field = ArraySubTypeSwitch::invoke( arrayType.elemType(), [csptype,keystr]( auto tag ) -> std::shared_ptr<StructField>
                     {
                         using CElemType = typename decltype(tag)::type;
                         return std::make_shared<ArrayStructField<CElemType>>( csptype, keystr );
@@ -871,7 +871,18 @@ PyObject * PyStruct_copy_from( PyStruct * self, PyObject * o )
     if( !PyType_IsSubtype( Py_TYPE( o ), &PyStruct::PyType ) )
         CSP_THROW( TypeError, "Attempting to copy from non-struct type " << Py_TYPE( o ) -> tp_name );
 
-    self -> struct_ -> copyFrom( ( ( PyStruct * ) o ) -> struct_.get(), true );
+    self -> struct_ -> copyFrom( ( ( PyStruct * ) o ) -> struct_.get() );
+    CSP_RETURN_NONE;
+}
+
+PyObject * PyStruct_deepcopy_from( PyStruct * self, PyObject * o )
+{
+    CSP_BEGIN_METHOD;
+
+    if( !PyType_IsSubtype( Py_TYPE( o ), &PyStruct::PyType ) )
+        CSP_THROW( TypeError, "Attempting to deepcopy from non-struct type " << Py_TYPE( o ) -> tp_name );
+
+    self -> struct_ -> deepcopyFrom( ( ( PyStruct * ) o ) -> struct_.get() );
     CSP_RETURN_NONE;
 }
 
@@ -892,12 +903,13 @@ PyObject * PyStruct_all_fields_set( PyStruct * self )
 }
 
 static PyMethodDef PyStruct_methods[] = {
-    { "copy",        (PyCFunction) PyStruct_copy,        METH_NOARGS, "make a shallow copy of the struct" },
-    { "deepcopy",    (PyCFunction) PyStruct_deepcopy,    METH_NOARGS, "make a deep copy of the struct" },
-    { "clear",       (PyCFunction) PyStruct_clear,       METH_NOARGS, "clear all fields" },
-    { "copy_from",   (PyCFunction) PyStruct_copy_from,   METH_O,      "copy from struct. struct must be same type or a derived type. unset fields will copy over" },
-    { "update_from", (PyCFunction) PyStruct_update_from, METH_O,      "update from struct. struct must be same type or a derived type. unset fields will be not be copied" },
-    { "update",      (PyCFunction) PyStruct_update,      METH_VARARGS | METH_KEYWORDS, "update from key=val.  given fields will be set on struct.  other fields will remain as is in struct" },
+    { "copy",           (PyCFunction) PyStruct_copy,           METH_NOARGS, "make a shallow copy of the struct" },
+    { "deepcopy",       (PyCFunction) PyStruct_deepcopy,       METH_NOARGS, "make a deep copy of the struct" },
+    { "clear",          (PyCFunction) PyStruct_clear,          METH_NOARGS, "clear all fields" },
+    { "copy_from",      (PyCFunction) PyStruct_copy_from,      METH_O,      "copy from struct. struct must be same type or a derived type. unset fields will copy over" },
+    { "deepcopy_from",  (PyCFunction) PyStruct_deepcopy_from,  METH_O,      "deepcopy from struct. struct must be same type or a derived type. unset fields will copy over" },
+    { "update_from",    (PyCFunction) PyStruct_update_from,    METH_O,      "update from struct. struct must be same type or a derived type. unset fields will be not be copied" },
+    { "update",         (PyCFunction) PyStruct_update,         METH_VARARGS | METH_KEYWORDS, "update from key=val.  given fields will be set on struct.  other fields will remain as is in struct" },
     { "all_fields_set", (PyCFunction) PyStruct_all_fields_set, METH_NOARGS, "return true if all fields on the struct are set" },
     { NULL}
 };

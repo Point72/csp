@@ -313,6 +313,28 @@ class ArrayStructField : public NonNativeStructField
 {
     using CType = typename csp::CspType::Type::toCType<CspType::Type::ARRAY,ElemT>::type;
 
+    //template<typename T, std::enable_if_t<CspType::isNative(CspType::fromCType<T>::type), bool> = true>
+    template<typename T>
+    static std::enable_if_t<CspType::isNative(CspType::Type::fromCType<T>::type), void> deepcopy( const std::vector<T> & src, std::vector<T> & dest )
+    {
+        dest = src;
+    }
+
+    static void deepcopy( const std::vector<std::string> & src, std::vector<std::string> & dest )
+    {
+        dest = src;
+    }
+
+    //Declared at end of file since StructPtr isnt defined yet
+    static void deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest );
+
+    static void deepcopy( const std::vector<DialectGenericType> & src, std::vector<DialectGenericType> & dest )
+    {
+        dest.resize( src.size() );
+        for( size_t i = 0; i < src.size(); ++i )
+            dest[i] = src[i].deepcopy();
+    }
+
 public:
     ArrayStructField( CspTypePtr arrayType, const std::string & fieldname ) :
         NonNativeStructField( arrayType, fieldname, sizeof( CType ), alignof( CType ) )
@@ -344,11 +366,11 @@ public:
         value( dest ) = value( src );
     }
 
-    void deepcopyFrom( const Struct * src, Struct * dest ) const override //TODO implement
+    void deepcopyFrom( const Struct * src, Struct * dest ) const override
     {
-        value( dest ) = value( src );
+        deepcopy( value( src ), value( dest ) );
     }
-
+    
     bool isEqual( const Struct * x, const Struct * y ) const override
     {
         return value( x ) == value( y );
@@ -434,7 +456,7 @@ public:
 
     void deepcopyFrom( const Struct * src, Struct * dest ) const override
     {
-        ( ( DialectGenericType * ) valuePtr( dest ) ) -> deepcopy( * ( ( DialectGenericType * ) valuePtr( src ) ) );
+        *( ( DialectGenericType * ) valuePtr( dest ) ) = ( ( DialectGenericType * ) valuePtr( src ) ) -> deepcopy();
     }
 
     bool isEqual( const Struct * x, const Struct * y ) const override
@@ -594,7 +616,8 @@ public:
     void   destroy( Struct * s ) const;
     bool   isEqual( const Struct * x, const Struct * y ) const;
     size_t hash( const Struct * x ) const;
-    static void copyFrom( const Struct * src, Struct * dest, bool isDeepcopy );
+    static void copyFrom( const Struct * src, Struct * dest );
+    static void deepcopyFrom( const Struct * src, Struct * dest );
     static void updateFrom( const Struct * src, Struct * dest );
     void   clear( Struct * s ) const;
     bool   allFieldsSet( const Struct * s ) const;
@@ -612,7 +635,7 @@ private:
     using FieldMap = std::unordered_map<const char *,StructFieldPtr, hash::CStrHash, hash::CStrEq >;
 
     size_t partialNativeSize()  const  { return m_size - m_nativeStart; }
-    void   copyFromImpl( const Struct * src, Struct * dest, bool isDeepcopy ) const;
+    void   copyFromImpl( const Struct * src, Struct * dest, bool deepcopy ) const;
     void updateFromImpl( const Struct * src, Struct * dest ) const;
 
     std::string                 m_name;
@@ -674,20 +697,19 @@ public:
     StructPtr copy() const
     {
         StructPtr copy = meta() -> create();
-        copy -> copyFrom( this, false );
+        copy -> copyFrom( this );
         return copy;
     }
 
     StructPtr deepcopy() const
     {
         StructPtr copy = meta() -> create();
-        copy -> copyFrom( this, true );
+        copy -> deepcopyFrom( this );
         return copy;
     }
 
-    void copyFrom( const Struct * rhs, bool isDeepcopy )
+    void copyFrom( const Struct * rhs )
     {
-
         StructMeta::copyFrom( rhs, this );
     }
 
@@ -848,6 +870,15 @@ private:
 
     StructMetaPtr m_meta;
 };
+
+//Defined here to break decl dep
+template<typename ElemT>
+void ArrayStructField<ElemT>::deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest )
+{
+    dest.resize( src.size() );
+    for( size_t i = 0; i < src.size(); ++i )
+        dest[i] = src[i] -> deepcopy();
+}
 
 template<typename T> struct StructField::upcast  { using type = NotImplementedStructField<T>; };
 

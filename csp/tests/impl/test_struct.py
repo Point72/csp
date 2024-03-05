@@ -113,14 +113,14 @@ class StructWithStruct(csp.Struct):
     s: BaseNative
 
 
-class StructWithStructWithMutable(csp.Struct):
+class StructWithMutableStruct(csp.Struct):
     a: int
     s: BaseNonNative
 
 
 class StructWithLists(csp.Struct):
     # native_list: [int]
-    # struct_list: [BaseNative]
+    struct_list: [BaseNative]
     dialect_generic_list: [list]
 
 
@@ -331,7 +331,7 @@ class TestCspStruct(unittest.TestCase):
             delattr(o, list(typ.metadata().keys())[0])
             self.assertEqual(o, o.deepcopy())
         
-        o = StructWithStructWithMutable()
+        o = StructWithMutableStruct()
         o.s = BaseNonNative()
         o.s.l = [1, 2, 3]
 
@@ -341,21 +341,17 @@ class TestCspStruct(unittest.TestCase):
         o.s.l[0] = -1
         self.assertNotEqual(o, o_deepcopy)
 
-        list_new_values = {
-            # 'native_list': -1,
-            # 'struct_list': BaseNative(i=-1),
-            'dialect_generic_list': [-1]
-            }
+        o = StructWithLists( struct_list= [ BaseNative( i = 123 ) ],
+                             dialect_generic_list = [ { 'a' : 1 } ] )
 
-        for list_type in list_new_values.keys():
-            o = StructWithLists()
-            for key in StructWithLists.metadata().keys():
-                    setattr(o, key, values[key])
-            o_deepcopy = o.deepcopy()
-            self.assertEqual(o, o_deepcopy)
-            # getattr(o, list_type)[0] = list_new_values[list_type]
-            getattr(o, list_type)[0][0] = list_new_values[list_type]
-            self.assertNotEqual(o, o_deepcopy)
+        o_deepcopy = o.deepcopy()
+        o.struct_list[0].i = -1
+        o.dialect_generic_list[0][ 'b' ] = 2
+
+        self.assertEqual(o.struct_list[0].i, -1 )
+        self.assertEqual(o.dialect_generic_list[0], { 'a' : 1, 'b' : 2} )
+        self.assertEqual(o_deepcopy.struct_list[0].i, 123)
+        self.assertEqual(o_deepcopy.dialect_generic_list[0], {'a': 1})
 
     def test_derived_defaults(self):
         s1 = StructWithDefaults()
@@ -511,7 +507,7 @@ class TestCspStruct(unittest.TestCase):
 
                     blank.copy_from(source)
                     for key in blank.metadata().keys():
-                        self.assertEqual(getattr(blank, key), getattr(source, key))
+                        self.assertEqual(getattr(blank, key), getattr(source, key), ( typ, typ2, key ))
 
     def test_copy_from_unsets(self):
         source = DerivedMixed(i=1, f=2.3, i2=4, s2="woodchuck")

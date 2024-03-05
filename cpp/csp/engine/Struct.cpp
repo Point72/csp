@@ -145,7 +145,7 @@ Struct * StructMeta::createRaw() const
     initialize( s );
 
     if( m_default )
-        s -> copyFrom( m_default.get() );
+        s -> copyFrom( m_default.get(), true ); //TODO should be copy or deepcopy?
 
     return s;
 }
@@ -226,7 +226,7 @@ void StructMeta::initialize( Struct * s ) const
         m_base -> initialize( s );
 }
 
-void StructMeta::copyFrom( const Struct * src, Struct * dest )
+void StructMeta::copyFrom( const Struct * src, Struct * dest, bool isDeepcopy )
 {
     if( unlikely( src == dest ) )
         return;
@@ -236,10 +236,11 @@ void StructMeta::copyFrom( const Struct * src, Struct * dest )
             CSP_THROW( TypeError, "Attempting to copy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name()
                        << "'. copy_from may only be used to copy from same type or derived types" );
 
-    dest -> meta() -> copyFromImpl( src, dest );
-}
 
-void StructMeta::copyFromImpl( const Struct * src, Struct * dest ) const
+    dest -> meta() -> copyFromImpl( src, dest, isDeepcopy );
+}    
+
+void StructMeta::copyFromImpl( const Struct * src, Struct * dest, bool isDeepcopy ) const
 {
     //quick outs, if fully native we can memcpy the whole thing
     if( isNative() )
@@ -255,7 +256,10 @@ void StructMeta::copyFromImpl( const Struct * src, Struct * dest ) const
                 auto * field = m_fields[ idx ].get();
 
                 if( field -> isSet( src ) )
-                    static_cast<NonNativeStructField*>( field ) -> copyFrom( src, dest );
+                    if( !isDeepcopy )
+                        static_cast<NonNativeStructField*>( field ) -> copyFrom( src, dest );
+                    else
+                        static_cast<NonNativeStructField*>( field ) -> deepcopyFrom( src, dest );
                 else
                     static_cast<NonNativeStructField*>( field ) -> clearValue( dest );
             }
@@ -266,7 +270,7 @@ void StructMeta::copyFromImpl( const Struct * src, Struct * dest ) const
                 partialNativeSize() );
 
         if( m_base )
-            m_base -> copyFromImpl( src, dest );
+            m_base -> copyFromImpl( src, dest, isDeepcopy );
     }
 }
 

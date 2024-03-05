@@ -54,6 +54,8 @@ public:
     //copy methods need not deal with mask set/unset, only copy values
     virtual void copyFrom( const Struct * src, Struct * dest ) const = 0;
 
+    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const = 0;
+
     template<typename T>
     struct upcast;
 
@@ -149,6 +151,11 @@ public:
         value( dest ) = value( src );
     }
 
+    void deepcopyFrom( const Struct * src, Struct * dest ) const override
+    {
+        value( dest ) = value( src );
+    }
+
 protected:
     NativeStructField( CspTypePtr type, const std::string & fieldname ) : StructField( type, fieldname, sizeof( T ), alignof( T ) )
     {}
@@ -196,6 +203,11 @@ public:
     }
 
     void copyFrom( const Struct * src, Struct * dest ) const override
+    {
+        CSP_THROW( NotImplemented, "Struct fields are not supported for type " << CspType::Type::fromCType<T>::type );
+    }
+
+    void deepcopyFrom( const Struct * src, Struct * dest ) const override
     {
         CSP_THROW( NotImplemented, "Struct fields are not supported for type " << CspType::Type::fromCType<T>::type );
     }
@@ -268,6 +280,11 @@ public:
         value( dest ) = value( src );
     }
 
+    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const
+    {
+        value( dest ) = value( src );
+    }
+
     virtual bool isEqual( const Struct * x, const Struct * y ) const
     {
         return value( x ) == value( y );
@@ -323,6 +340,11 @@ public:
     }
 
     void copyFrom( const Struct * src, Struct * dest ) const override
+    {
+        value( dest ) = value( src );
+    }
+
+    void deepcopyFrom( const Struct * src, Struct * dest ) const override //TODO implement
     {
         value( dest ) = value( src );
     }
@@ -408,6 +430,11 @@ public:
     void copyFrom( const Struct * src, Struct * dest ) const override
     {
         value( dest ) = value( src );
+    }
+
+    void deepcopyFrom( const Struct * src, Struct * dest ) const override
+    {
+        ( ( DialectGenericType * ) valuePtr( dest ) ) -> deepcopy( * ( ( DialectGenericType * ) valuePtr( src ) ) );
     }
 
     bool isEqual( const Struct * x, const Struct * y ) const override
@@ -567,7 +594,7 @@ public:
     void   destroy( Struct * s ) const;
     bool   isEqual( const Struct * x, const Struct * y ) const;
     size_t hash( const Struct * x ) const;
-    static void copyFrom( const Struct * src, Struct * dest );
+    static void copyFrom( const Struct * src, Struct * dest, bool isDeepcopy );
     static void updateFrom( const Struct * src, Struct * dest );
     void   clear( Struct * s ) const;
     bool   allFieldsSet( const Struct * s ) const;
@@ -585,7 +612,7 @@ private:
     using FieldMap = std::unordered_map<const char *,StructFieldPtr, hash::CStrHash, hash::CStrEq >;
 
     size_t partialNativeSize()  const  { return m_size - m_nativeStart; }
-    void   copyFromImpl( const Struct * src, Struct * dest ) const;
+    void   copyFromImpl( const Struct * src, Struct * dest, bool isDeepcopy ) const;
     void updateFromImpl( const Struct * src, Struct * dest ) const;
 
     std::string                 m_name;
@@ -647,13 +674,26 @@ public:
     StructPtr copy() const
     {
         StructPtr copy = meta() -> create();
-        copy -> copyFrom( this );
+        copy -> copyFrom( this, false );
         return copy;
     }
 
-    void copyFrom( const Struct * rhs )
+    StructPtr deepcopy() const
     {
+        StructPtr copy = meta() -> create();
+        copy -> copyFrom( this, true );
+        return copy;
+    }
+
+    void copyFrom( const Struct * rhs, bool isDeepcopy )
+    {
+
         StructMeta::copyFrom( rhs, this );
+    }
+
+    void deepcopyFrom( const Struct * rhs )
+    {
+        StructMeta::deepcopyFrom( rhs, this );
     }
 
     void updateFrom( const Struct * rhs )
@@ -666,7 +706,6 @@ public:
         return meta() -> allFieldsSet( this );
     }
 
-    //void deepcopyFrom( StructMeta * meta, Struct * rhs );
 
     //used to cache dialect representations of this struct, if needed
     void * dialectPtr() const      { return hidden() -> dialectPtr; }
@@ -784,6 +823,11 @@ public:
     virtual void copyFrom( const Struct * src, Struct * dest ) const override
     {
         value( dest ) = value( src );
+    }
+
+    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const override
+    {
+        value( dest ) = value(src) -> deepcopy();
     }
 
     virtual bool isEqual( const Struct * x, const Struct * y ) const override

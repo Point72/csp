@@ -1,3 +1,4 @@
+#include <mutex>
 #include <csp/core/System.h>
 #include <csp/engine/CspType.h>
 #include <csp/engine/Dictionary.h>

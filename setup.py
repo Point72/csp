@@ -7,19 +7,21 @@ import sys
 from shutil import which
 from skbuild import setup
 
+
 # This will be used for e.g. the sdist
-if not os.path.exists("vcpkg"):
-    subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
-if not os.path.exists("vcpkg/ports"):
-    subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
-if not os.path.exists("vcpkg/buildtrees"):
-    subprocess.call(["git", "pull"], cwd="vcpkg")
-    if os.name == "nt":
-        subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg")
-        subprocess.call(["vcpkg", "install"], cwd="vcpkg")
-    else:
-        subprocess.call(["./bootstrap-vcpkg.sh"], cwd="vcpkg")
-        subprocess.call(["./vcpkg", "install"], cwd="vcpkg")
+if os.environ.get("CSP_USE_VCPKG", "1") == "1":
+    if not os.path.exists("vcpkg"):
+        subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
+    if not os.path.exists("vcpkg/ports"):
+        subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
+    if not os.path.exists("vcpkg/buildtrees"):
+        subprocess.call(["git", "pull"], cwd="vcpkg")
+        if os.name == "nt":
+            subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg")
+            subprocess.call(["vcpkg", "install"], cwd="vcpkg")
+        else:
+            subprocess.call(["./bootstrap-vcpkg.sh"], cwd="vcpkg")
+            subprocess.call(["./vcpkg", "install"], cwd="vcpkg")
 
 
 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -40,6 +42,8 @@ if os.path.exists(vcpkg_toolchain_file):
             "-DARROW_WITH_UTF8PROC=Off",
         ]
     )
+else:
+    cmake_args.append("-DCSP_BUILD_PARQUET_ADAPTER=OFF")
 
 # if "CONDA_PREFIX" in os.environ:
 #     cmake_args.append(f"-DCMAKE_MODULE_PATH={os.environ['CONDA_PREFIX']}/lib/cmake/absl;{os.environ['CONDA_PREFIX']}/lib/cmake/arrow")

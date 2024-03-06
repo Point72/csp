@@ -42,8 +42,12 @@ lint-cpp:
 	# clang-format --dry-run -Werror -i -style=file `find ./cpp/ -name "*.*pp"`
 	echo "C++ linting disabled for now"
 
+lint-docs:
+	mdformat docs/wiki/ README.md examples/README.md
+	codespell --write docs/wiki/ README.md examples/README.md
+
 # lint: lint-py lint-cpp  ## run lints
-lint: lint-py  ## run lints
+lint: lint-py lint-docs ## run lints
 
 # Alias
 lints: lint

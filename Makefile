@@ -25,7 +25,7 @@ build:  ## build the library
 	python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
 build-conda:  ## build the library in Conda
-	python setup.py build build_ext --inplace -- -- -j$(NPROC)
+	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
 install:  ## install library
 	python -m pip install .

@@ -1,3 +1,4 @@
+# NOTE: this only assumes that rdkafka is a shared library
 find_path(RdKafka_INCLUDE_DIR NAMES librdkafka/rdkafkacpp.h)
 find_library(RdKafka_LIBRARY NAMES rdkafka++ librdkafkacpp)
 find_library(RdKafka_C_LIBRARY NAMES rdkafka librdkafka)

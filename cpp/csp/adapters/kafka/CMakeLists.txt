@@ -20,14 +20,9 @@ set(KAFKA_SOURCE_FILES
 add_library(csp_kafka_adapter STATIC ${KAFKA_SOURCE_FILES})
 set_target_properties(csp_kafka_adapter PROPERTIES PUBLIC_HEADER "${KAFKA_HEADER_FILES}")
 
-find_package(RdKafka REQUIRED)
-find_package(OpenSSL REQUIRED)
-find_package(lz4 REQUIRED)
-if(CSP_LINK_SASL)
-  set(SASL_LIBRARY sasl2)
-endif()
+find_package(DepsKafkaAdapter REQUIRED)
 
-target_link_libraries(csp_kafka_adapter PRIVATE csp_adapter_utils ${RdKafka_LIBRARY} ${RdKafka_C_LIBRARY} OpenSSL::SSL OpenSSL::Crypto lz4::lz4 ${SASL_LIBRARY})
+target_link_libraries(csp_kafka_adapter PRIVATE csp_adapter_utils RdKafka::rdkafka RdKafka::rdkafka++)
 
 install(TARGETS csp_kafka_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/kafka

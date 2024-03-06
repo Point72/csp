@@ -15,7 +15,7 @@ dependencies:
  - python-graphviz
  - httpx
  - isort
- - libarrow>=7
+ - libarrow=15
  - librdkafka
  - lz4-c
  - mamba
@@ -23,7 +23,7 @@ dependencies:
  - ninja
  - numpy
  - psutil
- - pyarrow>=7
+ - pyarrow=15
  - pandas
  - pillow
  - polars
@@ -35,9 +35,11 @@ dependencies:
  - python<3.12
  - python-rapidjson
  - rapidjson
+ - requests
  - ruamel.yaml
  - ruff
  - scikit-build
+ - slack-sdk
  - sqlalchemy
  - tar
  - tornado

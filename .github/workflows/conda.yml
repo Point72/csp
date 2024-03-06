@@ -50,9 +50,12 @@ jobs:
 
         - name: Python Lint Steps (Linux)
           run: make lint
+          shell: micromamba-shell {0}
 
         - name: Python Build Steps (Linux)
-          run: make build
+          run: make build-conda
+          shell: micromamba-shell {0}
 
         - name: Python Test Steps (Linux)
           run: make test
+          shell: micromamba-shell {0}

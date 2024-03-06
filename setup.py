@@ -7,7 +7,6 @@ import sys
 from shutil import which
 from skbuild import setup
 
-
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1") == "1"
 
 # This will be used for e.g. the sdist
@@ -40,7 +39,6 @@ if CSP_USE_VCPKG and os.path.exists(vcpkg_toolchain_file):
         [
             "-DCMAKE_TOOLCHAIN_FILE={}".format(vcpkg_toolchain_file),
             "-DCSP_USE_VCPKG=ON",
-            "-DWITH_SASL=Off", # TODO reenable after cyrus-sasl available on vcpkg
         ]
     )
 else:

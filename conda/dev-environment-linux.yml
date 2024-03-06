@@ -1,0 +1,47 @@
+name: csp-dev
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+ - bison
+ - brotli
+ - bump2version>=1
+ - cmake
+ - codespell
+ - compilers
+ - cyrus-sasl
+ - exprtk
+ - flex
+ - python-graphviz
+ - httpx
+ - isort
+ - libarrow>=7
+ - librdkafka
+ - lz4-c
+ - mamba
+ - mdformat
+ - ninja
+ - numpy
+ - psutil
+ - pyarrow>=7
+ - pandas
+ - pillow
+ - polars
+ - pytz
+ - pytest
+ - pytest-cov
+ - pytest-sugar
+ - pytest-asyncio
+ - python<3.12
+ - python-rapidjson
+ - rapidjson
+ - ruamel.yaml
+ - ruff
+ - scikit-build
+ - sqlalchemy
+ - tar
+ - tornado
+ - twine
+ - unzip
+ - wheel
+ - zip

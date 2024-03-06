@@ -8,8 +8,10 @@ from shutil import which
 from skbuild import setup
 
 
+CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1") == "1"
+
 # This will be used for e.g. the sdist
-if os.environ.get("CSP_USE_VCPKG", "1") == "1":
+if CSP_USE_VCPKG:
     if not os.path.exists("vcpkg"):
         subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
     if not os.path.exists("vcpkg/ports"):
@@ -33,17 +35,17 @@ vcpkg_toolchain_file = os.path.abspath(
     )
 )
 
-if os.path.exists(vcpkg_toolchain_file):
+if CSP_USE_VCPKG and os.path.exists(vcpkg_toolchain_file):
     cmake_args.extend(
         [
             "-DCMAKE_TOOLCHAIN_FILE={}".format(vcpkg_toolchain_file),
             "-DCSP_USE_VCPKG=ON",
-            "-DSnappy_LIB=snappy",
-            "-DARROW_WITH_UTF8PROC=Off",
+            "-DWITH_SASL=Off", # TODO reenable after cyrus-sasl available on vcpkg
         ]
     )
 else:
-    cmake_args.append("-DCSP_BUILD_PARQUET_ADAPTER=OFF")
+    cmake_args.append("-DCSP_USE_VCPKG=OFF")
+
 
 # if "CONDA_PREFIX" in os.environ:
 #     cmake_args.append(f"-DCMAKE_MODULE_PATH={os.environ['CONDA_PREFIX']}/lib/cmake/absl;{os.environ['CONDA_PREFIX']}/lib/cmake/arrow")

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string.h>
 #include <csp/core/Likely.h>
+#include <csp/core/Platform.h>
 
 namespace csp
 {
@@ -71,9 +72,9 @@ CSP_DECLARE_EXCEPTION( OSError,            RuntimeException )
 CSP_DECLARE_EXCEPTION( OutOfMemoryError,   RuntimeException )
 CSP_DECLARE_EXCEPTION( FileNotFoundError,  IOError )
 
-
 template<typename T>
-[[noreturn]] void throw_exc(T&& e) __attribute__ ((noinline));
+[[noreturn]] NO_INLINE void throw_exc(T&& e);
+
 template<typename T>
 [[noreturn]] inline void throw_exc(T&& e) {throw e;}
 

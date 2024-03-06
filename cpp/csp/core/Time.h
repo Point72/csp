@@ -2,13 +2,13 @@
 #define _IN_CSP_CORE_TIME_H
 
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/core/System.h>
 #include <math.h>
 #include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
 #include <time.h>
 #include <limits>
 #include <string>
@@ -90,9 +90,9 @@ public:
     TimeDelta operator-() const       { return TimeDelta( -m_ticks ); }
 
     static constexpr TimeDelta ZERO()      { return TimeDelta( 0 ); }
-    static constexpr TimeDelta NONE()      { return TimeDelta( std::numeric_limits<int64_t>::min() ); }
-    static constexpr TimeDelta MIN_VALUE() { return TimeDelta( std::numeric_limits<int64_t>::min() + 1 ); } //min reserved for NONE
-    static constexpr TimeDelta MAX_VALUE() { return TimeDelta( std::numeric_limits<int64_t>::max() ); }
+    static constexpr TimeDelta NONE()      { return TimeDelta( csp::numeric_limits<int64_t>::min_value() ); }
+    static constexpr TimeDelta MIN_VALUE() { return TimeDelta( csp::numeric_limits<int64_t>::min_value() + 1 ); } //min reserved for NONE
+    static constexpr TimeDelta MAX_VALUE() { return TimeDelta( csp::numeric_limits<int64_t>::max_value() ); }
 
 private:
     //the fact that we store this as nanos is an implementation detail
@@ -450,7 +450,6 @@ class DateTime
 {
 public:
     DateTime() : DateTime( DateTime::NONE() ) {}
-    DateTime( const timeval & tv );
     DateTime( int year, int month, int day,
               int hour = 0, int minute = 0, int second = 0, int nanosecond = 0 );
     DateTime( Date date, Time time );
@@ -506,9 +505,9 @@ public:
     DateTime& operator +=( const TimeDelta & delta ) { m_ticks += delta.asNanoseconds(); return *this; }
     DateTime& operator -=( const TimeDelta & delta ) { m_ticks -= delta.asNanoseconds(); return *this; }
 
-    static constexpr DateTime NONE() { return DateTime( std::numeric_limits<int64_t>::min() ); }
-    static constexpr DateTime MIN_VALUE() { return DateTime( std::numeric_limits<int64_t>::min() + 1 ); }  //min reserved for NONE
-    static constexpr DateTime MAX_VALUE() { return DateTime( std::numeric_limits<int64_t>::max() ); }
+    static constexpr DateTime NONE()      { return DateTime( csp::numeric_limits<int64_t>::min_value() ); }
+    static constexpr DateTime MIN_VALUE() { return DateTime( csp::numeric_limits<int64_t>::min_value)() + 1 ); }  //min reserved for NONE
+    static constexpr DateTime MAX_VALUE() { return DateTime( csp::numeric_limits<int64_t>::max_value)() ); }
 
 protected:
     //the fact that we store this as nanos is an implementation detail
@@ -536,11 +535,6 @@ inline DateTime::DateTime( int year, int month, int day,
 
 }
 
-inline DateTime::DateTime( const timeval & tv )
-{
-    m_ticks = tv.tv_sec * NANOS_PER_SECOND + tv.tv_usec * NANOS_PER_MICROSECOND;
-}
-
 inline DateTime::DateTime( Date date, Time time ) :
     DateTime( date.year(), date.month(), date.day(), time.hour(), time.minute(), time.second(), time.nanosecond() )
 {
@@ -549,7 +543,11 @@ inline DateTime::DateTime( Date date, Time time ) :
 inline DateTime DateTime::now()
 {
     timespec ts;
+#ifdef WIN32
+    timespec_get(&ts, TIME_UTC);
+#else
     clock_gettime( CLOCK_REALTIME, &ts );
+#endif
     return DateTime( ts.tv_sec * NANOS_PER_SECOND + ts.tv_nsec );
 }
 

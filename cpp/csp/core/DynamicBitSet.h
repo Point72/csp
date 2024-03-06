@@ -2,6 +2,7 @@
 #define _IN_CSP_CORE_DYNAMICBITSET_H
 
 #include <csp/core/Likely.h>
+#include <csp/core/Platform.h>
 #include <type_traits>
 
 namespace csp
@@ -160,15 +161,15 @@ private:
 
     template<typename U, 
         std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
-    static constexpr nbit_type log2( U n )           { return nbits<uint32_t>() - __builtin_clz( n ) - 1; }
-    static constexpr nbit_type log2( uint64_t n )    { return nbits<uint64_t>() - __builtin_clzl( n ) - 1; }
+    static constexpr nbit_type log2( U n )           { return nbits<uint32_t>() - clz(n) - 1; }
+    static constexpr nbit_type log2(uint64_t n)      { return nbits<uint64_t>() - clz(n) - 1; }
 
     // clz (count leading zeros) returns number of leading zeros before MSB (i.e. clz(00110..) = 2 )
     // __builtin_clz auto-promotes to 32-bits: need to subtract off extra leading zeros
-    static constexpr nbit_type clz( uint8_t n )  { return __builtin_clz( n ) - 24; }
-    static constexpr nbit_type clz( uint16_t n ) { return __builtin_clz( n ) - 16; }
-    static constexpr nbit_type clz( uint32_t n ) { return __builtin_clz( n ); }
-    static constexpr nbit_type clz( uint64_t n ) { return __builtin_clzl( n ); }
+    static constexpr nbit_type clz( uint8_t n )  { return clz( n ) - 24; }
+    static constexpr nbit_type clz( uint16_t n ) { return clz( n ) - 16; }
+    static constexpr nbit_type clz( uint32_t n ) { return clz( n ); }
+    static constexpr nbit_type clz( uint64_t n ) { return clz( n ); }
 
     // ffs (find first set) returns offset of first set bit (i.e. ffs(..0110) = 2 ), with ffs(0) = 0
     template<typename U, 

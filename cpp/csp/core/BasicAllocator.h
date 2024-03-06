@@ -1,11 +1,15 @@
 #ifndef _IN_CSP_CORE_BASIC_ALLOCATOR_H
 #define _IN_CSP_CORE_BASIC_ALLOCATOR_H
 
+#include <csp/core/Platform.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 #include <list>
 #include <string>
+
+#ifdef __linux__
+#include <sys/mman.h>
+#endif
 
 namespace csp
 {
@@ -60,7 +64,7 @@ inline void BasicAllocator::init( size_t elemSize, size_t blockSize,
     m_useHugePage = useHugePage;
     m_blockSize   = blockSize;
     m_freeptr     = nullptr;
-    m_elemSize    = std::max( elemSize, sizeof( void * ) );
+    m_elemSize    = csp::max_value( elemSize, sizeof( void * ) );
     allocBlock();
 }
 
@@ -68,9 +72,11 @@ inline BasicAllocator::~BasicAllocator()
 {
     for( auto & entry : m_arenas )
     {
+#ifdef __linux__
         if( entry.mmap )
             munmap( entry.buffer, entry.size );
         else
+#endif
             ::free( entry.buffer );
     }       
 }

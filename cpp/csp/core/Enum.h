@@ -3,6 +3,7 @@
 
 #include <csp/core/Hash.h>
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -70,6 +71,7 @@ auto UnknownOnInvalidValue(int) -> decltype(T::UNKNOWN_ON_INVALID_VALUE) { retur
 template<typename T>
 bool UnknownOnInvalidValue(long) { return false; }
 
+START_PACKED
 template<typename EnumTraits>
 struct Enum : public EnumTraits
 {
@@ -196,7 +198,7 @@ protected:
         return s_reverseMap; 
     }
 
-} __attribute__((packed));
+} END_PACKED;
 
 template<typename EnumTraits>
 Enum<EnumTraits>::Enum( UType v ) 

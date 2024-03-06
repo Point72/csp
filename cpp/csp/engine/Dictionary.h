@@ -218,7 +218,7 @@ template<> inline double   Dictionary::cast<int32_t,double>( const int32_t & val
 template<> inline double   Dictionary::cast<uint32_t,double>( const uint32_t & value )   { return value; }
 template<> inline int32_t  Dictionary::cast<uint32_t,int32_t>( const uint32_t & value )
 {
-    if( value > (uint32_t) std::numeric_limits<int32_t>::max() )
+    if( value > (uint32_t) csp::numeric_limits<int32_t>::max_value()() )
         CSP_THROW( RangeError, "Dictionary value for uint32_t ( " << value << " ) is out of range for int32_t cast" );
     return value;
 }
@@ -236,7 +236,7 @@ template<> inline int64_t  Dictionary::cast<int32_t,int64_t>( const int32_t & va
 template<> inline int64_t  Dictionary::cast<uint32_t,int64_t>( const uint32_t & value )  { return value; }
 template<> inline int64_t  Dictionary::cast<uint64_t,int64_t>( const uint64_t & value )
 {
-    if( value > ( uint64_t ) std::numeric_limits<int64_t>::max() )
+    if( value > ( uint64_t ) csp::numeric_limits<int64_t>::max_value()() )
         CSP_THROW( RangeError, "Dictionary value for uint64_t ( " << value << " ) is out of range for int64_t cast" );
     return value;
 }

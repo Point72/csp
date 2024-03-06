@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_INITHELPER_H
 #define _IN_CSP_PYTHON_INITHELPER_H
 
+#include <csp/core/Platform.h>
 #include <Python.h>
 #include <functional>
 #include <string>
@@ -9,7 +10,7 @@
 namespace csp::python
 {
 
-class __attribute__ ((visibility ("hidden"))) InitHelper
+class DLL_LOCAL InitHelper
 {
 public:
     ~InitHelper() {}

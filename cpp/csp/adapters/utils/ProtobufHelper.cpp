@@ -1,5 +1,6 @@
 #include <csp/adapters/utils/ProtobufHelper.h>
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/core/System.h>
 #include <csp/engine/PartialSwitchCspType.h>
 
@@ -118,7 +119,7 @@ int32_t ProtobufHelper::coercedValue( const proto::Reflection * access, const pr
         case proto::FieldDescriptor::CPPTYPE_UINT32:
         {
             uint32_t v = index == -1 ? access -> GetUInt32( message, descr ) : access -> GetRepeatedUInt32( message, descr, index );
-            if( v > uint32_t(std::numeric_limits<int32_t>::max()) )
+            if( v > uint32_t(csp::numeric_limits<int32_t>::max_value()) )
                 CSP_THROW( RangeError, "coercion out of range for UINT32 value into INT32 value for proto msg type " << message.GetTypeName() << " field " << descr -> name() );
             return ( int32_t ) v;
         }
@@ -154,7 +155,7 @@ int64_t ProtobufHelper::coercedValue( const proto::Reflection * access, const pr
         case proto::FieldDescriptor::CPPTYPE_UINT64:
         {
             uint64_t v = index == -1 ? access -> GetUInt64( message, descr ) : access -> GetRepeatedUInt64( message, descr, index );
-            if( v > uint64_t(std::numeric_limits<int64_t>::max()) )
+            if( v > uint64_t(csp::numeric_limits<int64_t>::max_value()) )
                 CSP_THROW( RangeError, "coercion out of range for UINT64 value into int64_t value for proto msg type " << message.GetTypeName() << " field " << descr -> name() );
             return ( int64_t ) v;
         }

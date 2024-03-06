@@ -1,13 +1,14 @@
 #ifndef _IN_CSP_ENGINE_PROFILER_H
 #define _IN_CSP_ENGINE_PROFILER_H
 
+#include <csp/core/Platform.h>
+#include <csp/core/Time.h>
+#include <csp/engine/Dictionary.h>
 #include <algorithm>
 #include <fstream>
 #include <numeric>
 #include <stack>
 #include <vector>
-#include <csp/engine/Dictionary.h>
-#include <csp/core/Time.h>
 
 namespace csp
 {
@@ -158,7 +159,7 @@ class Profiler
             void add_exec( const TimeDelta & t )
             {
                 m_exec++;
-                m_maxTime = std::max( m_maxTime, t );
+                m_maxTime = csp::max_value( m_maxTime, t );
                 m_totalTime += t;
             }
         };

@@ -10,7 +10,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
-      - docs
+      - "docs/wiki/**"
   pull_request:
     branches:
       - main
@@ -18,7 +18,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
-      - docs
+      - "docs/wiki/**"
   workflow_dispatch:
     inputs:
       ci-full:
@@ -585,7 +585,7 @@ jobs:
             - "sqlalchemy>=2"
             - "sqlalchemy<2"
             - "numpy==1.19.5"
-            
+
       runs-on: ${{ matrix.os }}
 
       steps:

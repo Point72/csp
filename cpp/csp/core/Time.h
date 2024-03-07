@@ -505,9 +505,9 @@ public:
     DateTime& operator +=( const TimeDelta & delta ) { m_ticks += delta.asNanoseconds(); return *this; }
     DateTime& operator -=( const TimeDelta & delta ) { m_ticks -= delta.asNanoseconds(); return *this; }
 
-    static constexpr DateTime NONE()      { return DateTime( csp::numeric_limits<int64_t>::min_value() ); }
-    static constexpr DateTime MIN_VALUE() { return DateTime( csp::numeric_limits<int64_t>::min_value)() + 1 ); }  //min reserved for NONE
-    static constexpr DateTime MAX_VALUE() { return DateTime( csp::numeric_limits<int64_t>::max_value)() ); }
+    static constexpr DateTime NONE()      { return DateTime(csp::numeric_limits<int64_t>::min_value()); }
+    static constexpr DateTime MIN_VALUE() { return DateTime( csp::numeric_limits<int64_t>::min_value() + 1 ); }  //min reserved for NONE
+    static constexpr DateTime MAX_VALUE() { return DateTime( csp::numeric_limits<int64_t>::max_value() ); }
 
 protected:
     //the fact that we store this as nanos is an implementation detail

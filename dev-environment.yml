@@ -36,3 +36,5 @@ dependencies:
  - tornado
  - python-rapidjson
  - pillow
+ - mdformat
+ - codespell

@@ -44,6 +44,14 @@ inline int nanosleep(const timespec* req, timespec* rem)
 	return 0;
 }
 
+inline uint8_t clz(uint64_t n)
+{
+	unsigned long index = 0;
+	if (_BitScanReverse64(&index, n))
+		return 64 - index;
+	return 0;
+}
+
 inline uint8_t clz(uint32_t n)
 {
 	unsigned long index = 0;
@@ -52,13 +60,8 @@ inline uint8_t clz(uint32_t n)
 	return 0;
 }
 
-inline uint8_t clz(uint64_t n)
-{ 
-	unsigned long index = 0;
-	if( _BitScanReverse64(&index, n))
-		return 64 - index;
-	return 0;
-}
+inline uint8_t clz(uint16_t n) { return clz(static_cast<uint32_t>(n)) - 16; }
+inline uint8_t clz(uint8_t n)  { return clz(static_cast<uint32_t>(n)) - 24; }
 
 #else
 #define DLL_PUBLIC 
@@ -71,6 +74,9 @@ inline uint8_t clz(uint64_t n)
 
 inline constexpr uint8_t clz(uint32_t n) { return __builtin_clz(n); }
 inline constexpr uint8_t clz(uint64_t n) { return __builtin_clzl(n); }
+inline constexpr uint8_t clz(uint16_t n) { return clz(static_cast<uint32_t>(n)) - 16; }
+inline constexpr uint8_t clz(uint8_t n)  { return clz(static_cast<uint32_t>(n)) - 24; }
+
 #endif
 
 namespace csp

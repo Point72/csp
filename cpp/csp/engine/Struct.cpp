@@ -145,7 +145,7 @@ Struct * StructMeta::createRaw() const
     initialize( s );
 
     if( m_default )
-        s -> copyFrom( m_default.get() );
+        s -> copyFrom( m_default.get() ); //TODO change to deepcopy after this fix is released
 
     return s;
 }
@@ -236,10 +236,23 @@ void StructMeta::copyFrom( const Struct * src, Struct * dest )
             CSP_THROW( TypeError, "Attempting to copy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name()
                        << "'. copy_from may only be used to copy from same type or derived types" );
 
-    dest -> meta() -> copyFromImpl( src, dest );
+    dest -> meta() -> copyFromImpl( src, dest, false );
 }
 
-void StructMeta::copyFromImpl( const Struct * src, Struct * dest ) const
+void StructMeta::deepcopyFrom( const Struct * src, Struct * dest )
+{
+    if( unlikely( src == dest ) )
+        return;
+
+    if( dest -> meta() != src -> meta() && 
+        !StructMeta::isDerivedType( src -> meta(), dest -> meta() ) )
+            CSP_THROW( TypeError, "Attempting to deepcopy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
+                       << "'. deepcopy_from may only be used to copy from same type or derived types" );
+
+    dest -> meta() -> copyFromImpl( src, dest, true );
+}   
+
+void StructMeta::copyFromImpl( const Struct * src, Struct * dest, bool deepcopy ) const
 {
     //quick outs, if fully native we can memcpy the whole thing
     if( isNative() )
@@ -255,7 +268,10 @@ void StructMeta::copyFromImpl( const Struct * src, Struct * dest ) const
                 auto * field = m_fields[ idx ].get();
 
                 if( field -> isSet( src ) )
-                    static_cast<NonNativeStructField*>( field ) -> copyFrom( src, dest );
+                    if( deepcopy )
+                        static_cast<NonNativeStructField*>( field ) -> deepcopyFrom( src, dest );
+                    else
+                        static_cast<NonNativeStructField*>( field ) -> copyFrom( src, dest );
                 else
                     static_cast<NonNativeStructField*>( field ) -> clearValue( dest );
             }
@@ -266,7 +282,7 @@ void StructMeta::copyFromImpl( const Struct * src, Struct * dest ) const
                 partialNativeSize() );
 
         if( m_base )
-            m_base -> copyFromImpl( src, dest );
+            m_base -> copyFromImpl( src, dest, deepcopy );
     }
 }
 
@@ -482,9 +498,5 @@ void Struct::operator delete( void * ptr )
     void * p = reinterpret_cast<uint8_t *>( ptr ) - sizeof( HiddenData );
     ::operator delete( p );
 }
-
-/*void Struct::deepcopyFrom( StructMeta * meta, Struct * rhs )
-{
-}*/
 
 }

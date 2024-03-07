@@ -1,4 +1,6 @@
 #include <csp/python/PyCspType.h>
+#include <csp/python/Conversions.h>
+#include <Python.h>
 
 static_assert( sizeof( csp::DialectGenericType ) == sizeof( csp::python::PyObjectPtr ) );
 static_assert( alignof( csp::DialectGenericType ) == alignof( csp::python::PyObjectPtr ) );
@@ -26,6 +28,12 @@ DialectGenericType::DialectGenericType( DialectGenericType &&rhs )
     new( this ) csp::python::PyObjectPtr( reinterpret_cast<const csp::python::PyObjectPtr &&>(rhs) );
 }
 
+DialectGenericType DialectGenericType::deepcopy() const
+{
+    static PyObject *pyDeepcopy = PyObject_GetAttrString( PyImport_ImportModule( "copy" ), "deepcopy" );
+    PyObject * pyVal = PyObject_CallFunction( pyDeepcopy, "O", python::toPythonBorrowed( *this ) );
+    return DialectGenericType( reinterpret_cast<const DialectGenericType &&>( std::move( csp::python::PyObjectPtr::own( pyVal ) ) ) );
+}
 
 DialectGenericType &DialectGenericType::operator=( const DialectGenericType &rhs )
 {

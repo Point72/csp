@@ -195,6 +195,9 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
     def __setstate__(self, state):
         self.update(**state)
 
+    def __deepcopy__(self, memodict={}):
+        return self.deepcopy()
+
     def __dir__(self):
         return self.__full_metadata_typed__.keys()
 

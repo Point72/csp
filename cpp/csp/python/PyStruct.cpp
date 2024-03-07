@@ -169,9 +169,9 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
 
     /*back reference to the struct type that will be accessible on the csp struct -> meta()
       DialectStructMeta will hold a borrowed reference to the type to avoid a circular dep
-
+      
       This is the layout of references between all these types
-                              StructMeta (shared_ptr) <-------- strong ref
+                              StructMeta (shared_ptr) <-------- strong ref 
                                   |                              |
                            DialectStructMeta ---> weak ref to PyStructMeta ( the PyType )
                                  /\                              /\
@@ -671,9 +671,9 @@ PyObject * PyStruct_new( PyTypeObject * type, PyObject *args, PyObject *kwds )
     if( ! ( (PyStructMeta * ) type ) -> structMeta )
         CSP_THROW( TypeError, "csp.Struct cannot be instantiated" );
 
-    PyStruct * pystruct = ( PyStruct * ) type -> tp_alloc( type, 0 );
-
     StructPtr struct_ =  ( (PyStructMeta * ) type ) -> structMeta -> create();
+
+    PyStruct * pystruct = ( PyStruct * ) type -> tp_alloc( type, 0 );
 
     //assign dialectptr, but we DO NOT incref the instance on the struct
     struct_ -> setDialectPtr( pystruct );
@@ -845,16 +845,24 @@ int PyStruct_setattro( PyStruct * self, PyObject * attr, PyObject * value )
 
 PyObject * PyStruct_copy( PyStruct * self )
 {
+    CSP_BEGIN_METHOD;
     PyObject * copy = self -> ob_type -> tp_alloc( self -> ob_type, 0 );
     new ( copy ) PyStruct( self -> struct_ -> copy() );
     return copy;
+    CSP_RETURN_NULL;
 }
 
 PyObject * PyStruct_deepcopy( PyStruct * self )
 {
-    PyObject * deepcopy = self -> ob_type -> tp_alloc( self -> ob_type, 0 );
-    new ( deepcopy ) PyStruct( self -> struct_ -> deepcopy() );
-    return deepcopy;
+    CSP_BEGIN_METHOD;
+    //Note that once tp_alloc is called, the object will get added to GC
+    //deepcopy traversal may kick in a GC collect, so we have to call that first before the PyStruct is created
+    //of it may traverse a partially consturcted object and crash 
+    auto deepcopy = self -> struct_ -> deepcopy();
+    PyObject * pyDeepcopy = self -> ob_type -> tp_alloc( self -> ob_type, 0 );
+    new ( pyDeepcopy ) PyStruct( deepcopy );
+    return pyDeepcopy;
+    CSP_RETURN_NULL;
 }
 
 PyObject * PyStruct_clear( PyStruct * self )

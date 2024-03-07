@@ -280,7 +280,7 @@ public:
         value( dest ) = value( src );
     }
 
-    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const
+    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const override
     {
         value( dest ) = value( src );
     }
@@ -319,6 +319,13 @@ class ArrayStructField : public NonNativeStructField
     {
         dest = src;
     }
+
+#ifdef __clang__
+    static void deepcopy( const boost::container::vector<bool> & src, boost::container::vector<bool> & dest )
+    {
+        dest = src;
+    }
+#endif
 
     static void deepcopy( const std::vector<std::string> & src, std::vector<std::string> & dest )
     {

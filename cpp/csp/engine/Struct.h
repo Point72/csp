@@ -674,7 +674,8 @@ public:
 
 private:
     static void * operator new( std::size_t count, const std::shared_ptr<const StructMeta> & meta );
-    static void   operator delete( void * ptr );
+    static void operator delete( void * ptr, const std::shared_ptr<const StructMeta> & meta ) { delete( ptr ); }
+    static void operator delete( void * ptr );
 
     Struct( const std::shared_ptr<const StructMeta> & meta );
     ~Struct()

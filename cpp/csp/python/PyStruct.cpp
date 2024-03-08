@@ -436,7 +436,8 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
         switchCspType( field -> type(), [field,&struct_=s,value]( auto tag )
         {
             using CType = typename decltype(tag)::type;
-            auto *typedField = static_cast<const typename StructField::upcast<CType>::type *>( field );
+            using fieldType = typename StructField::upcast<CType>::type;
+            auto *typedField = static_cast<const fieldType *>( field );
 
             if( value )
                 typedField -> setValue( struct_, fromPython<CType>( value, *field -> type() ) );

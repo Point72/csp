@@ -74,7 +74,7 @@ void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem
     if( numpy_type == NPY_UNICODELTR)
     {
         const wchar_t * const raw_value = (const wchar_t *) data;
-        const int field_size = elem_size_bytes / __SIZEOF_WCHAR_T__;
+        const int field_size = elem_size_bytes / sizeof( wchar_t );
 
         if( raw_value[field_size - 1] == 0 )
         {

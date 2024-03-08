@@ -1,13 +1,14 @@
 #ifndef _IN_CSP_CORE_DIALECTGENERICTYPE_H
 #define _IN_CSP_CORE_DIALECTGENERICTYPE_H
 
+#include <csp/core/Platform.h>
 #include <cstddef>
 #include <functional>
 
 namespace csp
 {
 
-struct DialectGenericType
+struct DLL_PUBLIC DialectGenericType
 {
 public:
     DialectGenericType();

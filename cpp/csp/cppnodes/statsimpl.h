@@ -2112,7 +2112,7 @@ public:
                 // Handle incremental additions since last call
                 size_t ticks = total_count - s_last_call;
                 size_t sz = s_value_buffer.count();
-                int64_t add_cutoff = csp::min_value( ticks, sz );
+                int64_t add_cutoff = std::min( ticks, sz );
                 int64_t offset = add_cutoff-1;
 
                 std::vector<T>* additions = nullptr;
@@ -2278,7 +2278,7 @@ public:
             {
                 // Handle additions incrementally
                 int64_t sz = s_time_buffer.count();
-                int64_t offset = csp::min_value( count - s_last_tick, sz ) - 1;
+                int64_t offset = std::min( count - s_last_tick, sz ) - 1;
 
                 std::vector<T>* additions = nullptr;
                 while( offset >= 0 )

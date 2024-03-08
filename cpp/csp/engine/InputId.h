@@ -21,11 +21,11 @@ struct InOutId
     
     bool operator==( InOutId rhs ) const { return rhs.elemId == elemId && rhs.id == id; }
 
-    static constexpr size_t maxId()             { return csp::numeric_limits<INOUT_ID_TYPE>::max_value(); }
+    static constexpr size_t maxId()             { return std::numeric_limits<INOUT_ID_TYPE>::max(); }
     static constexpr size_t maxInputs()         { return maxId() + 1; }
     static constexpr size_t maxOutputs()        { return maxId() + 1; }
 
-    static constexpr size_t maxElemId()         { return csp::numeric_limits<INOUT_ELEMID_TYPE>::max_value(); } //max is taken by NONE
+    static constexpr size_t maxElemId()         { return std::numeric_limits<INOUT_ELEMID_TYPE>::max(); } //max is taken by NONE
     static constexpr size_t maxBasketElements() { return maxElemId() + 1; }
 
     static constexpr INOUT_ELEMID_TYPE ELEM_ID_NONE = -1;

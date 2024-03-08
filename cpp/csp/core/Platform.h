@@ -1,6 +1,6 @@
 #ifndef _IN_CSP_CORE_PLATFORM_H
 #define _IN_CSP_CORE_PLATFORM_H
-#include <limits>
+#include <type_traits>
 #include <stdint.h>
 #include <time.h>
 
@@ -13,9 +13,12 @@ typedef int64_t binding_int_t;
 #endif
 
 #ifdef WIN32
+#define NOMINMAX
 #include <windows.h>
 #include <assert.h>
 #include <synchapi.h>
+
+#undef ERROR
 
 #define DLL_PUBLIC __declspec(dllexport)
 #define DLL_LOCAL
@@ -63,6 +66,23 @@ inline uint8_t clz(uint32_t n)
 inline uint8_t clz(uint16_t n) { return clz(static_cast<uint32_t>(n)) - 16; }
 inline uint8_t clz(uint8_t n)  { return clz(static_cast<uint32_t>(n)) - 24; }
 
+template<typename U, std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
+inline uint8_t ffs(U n)
+{ 
+	unsigned long index = 0;
+	if (_BitScanForward(&index, n))
+		return n + 1;
+	return 0;
+}
+
+inline uint8_t ffs(uint64_t n)
+{
+	unsigned long index = 0;
+	if (_BitScanForward64(&index, n))
+		return n + 1;
+	return 0;
+}
+
 #else
 #define DLL_PUBLIC 
 #define DLL_LOCAL __attribute__ ((visibility ("hidden")))
@@ -74,22 +94,18 @@ inline uint8_t clz(uint8_t n)  { return clz(static_cast<uint32_t>(n)) - 24; }
 
 inline constexpr uint8_t clz(uint32_t n) { return __builtin_clz(n); }
 inline constexpr uint8_t clz(uint64_t n) { return __builtin_clzl(n); }
+
+// clz (count leading zeros) returns number of leading zeros before MSB (i.e. clz(00110..) = 2 )
+// __builtin_clz auto-promotes to 32-bits: need to subtract off extra leading zeros
 inline constexpr uint8_t clz(uint16_t n) { return clz(static_cast<uint32_t>(n)) - 16; }
 inline constexpr uint8_t clz(uint8_t n)  { return clz(static_cast<uint32_t>(n)) - 24; }
 
+// ffs (find first set) returns offset of first set bit (i.e. ffs(..0110) = 2 ), with ffs(0) = 0
+template<typename U,std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
+inline constexpr nbit_type ffs( U n )        { return __builtin_ffs(n); }
+inline constexpr nbit_type ffs( uint64_t n ) { return __builtin_ffsl(n); }
+
+
 #endif
 
-namespace csp
-{
-	// This is to work around the insanity that we cant call numeric_limits min/max properly on windows because they are #defined as amcros somewhere
-	template<typename T>
-	struct numeric_limits : public std::numeric_limits<T>
-	{
-		static constexpr T min_value() { return (std::numeric_limits<T>::min)(); }
-		static constexpr T max_value() { return (std::numeric_limits<T>::max)(); }
-	};
-
-	template<typename T> constexpr const T& min_value(const T& a, const T& b) { return (std::min)(a, b); }
-	template<typename T> constexpr const T& max_value(const T& a, const T& b) { return (std::max)(a, b); }
-}
 #endif

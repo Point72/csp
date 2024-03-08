@@ -90,9 +90,9 @@ public:
     TimeDelta operator-() const       { return TimeDelta( -m_ticks ); }
 
     static constexpr TimeDelta ZERO()      { return TimeDelta( 0 ); }
-    static constexpr TimeDelta NONE()      { return TimeDelta( csp::numeric_limits<int64_t>::min_value() ); }
-    static constexpr TimeDelta MIN_VALUE() { return TimeDelta( csp::numeric_limits<int64_t>::min_value() + 1 ); } //min reserved for NONE
-    static constexpr TimeDelta MAX_VALUE() { return TimeDelta( csp::numeric_limits<int64_t>::max_value() ); }
+    static constexpr TimeDelta NONE()      { return TimeDelta( std::numeric_limits<int64_t>::min() ); }
+    static constexpr TimeDelta MIN_VALUE() { return TimeDelta( std::numeric_limits<int64_t>::min() + 1 ); } //min reserved for NONE
+    static constexpr TimeDelta MAX_VALUE() { return TimeDelta( std::numeric_limits<int64_t>::max() ); }
 
 private:
     //the fact that we store this as nanos is an implementation detail
@@ -505,9 +505,9 @@ public:
     DateTime& operator +=( const TimeDelta & delta ) { m_ticks += delta.asNanoseconds(); return *this; }
     DateTime& operator -=( const TimeDelta & delta ) { m_ticks -= delta.asNanoseconds(); return *this; }
 
-    static constexpr DateTime NONE()      { return DateTime(csp::numeric_limits<int64_t>::min_value()); }
-    static constexpr DateTime MIN_VALUE() { return DateTime( csp::numeric_limits<int64_t>::min_value() + 1 ); }  //min reserved for NONE
-    static constexpr DateTime MAX_VALUE() { return DateTime( csp::numeric_limits<int64_t>::max_value() ); }
+    static constexpr DateTime NONE()      { return DateTime(std::numeric_limits<int64_t>::min()); }
+    static constexpr DateTime MIN_VALUE() { return DateTime( std::numeric_limits<int64_t>::min() + 1 ); }  //min reserved for NONE
+    static constexpr DateTime MAX_VALUE() { return DateTime( std::numeric_limits<int64_t>::max() ); }
 
 protected:
     //the fact that we store this as nanos is an implementation detail

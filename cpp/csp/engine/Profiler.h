@@ -159,7 +159,7 @@ class Profiler
             void add_exec( const TimeDelta & t )
             {
                 m_exec++;
-                m_maxTime = csp::max_value( m_maxTime, t );
+                m_maxTime = std::max( m_maxTime, t );
                 m_totalTime += t;
             }
         };

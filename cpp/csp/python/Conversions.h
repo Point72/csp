@@ -256,7 +256,7 @@ template<>
 inline int32_t fromPython( PyObject * o )
 {
     auto rv = fromPython<int64_t>( o );
-    if( rv > csp::numeric_limits<int32_t>::max_value() || rv < csp::numeric_limits<int32_t>::min_value() )
+    if( rv > std::numeric_limits<int32_t>::max() || rv < std::numeric_limits<int32_t>::min() )
         CSP_THROW( OverflowError, rv << " is too big/small to fit in int32" );
     return ( int32_t ) rv;
 }
@@ -273,7 +273,7 @@ template<>
 inline uint32_t fromPython( PyObject * o )
 {
     auto rv = fromPython<uint64_t>( o );
-    if( rv > csp::numeric_limits<uint32_t>::max_value() )
+    if( rv > std::numeric_limits<uint32_t>::max() )
         CSP_THROW( OverflowError, rv << " is too big to fit in uint32" );
     return ( uint32_t ) rv;
 }
@@ -289,7 +289,7 @@ template<>
 inline int16_t fromPython( PyObject * o )
 {
     auto rv = fromPython<int64_t>( o );
-    if( rv > csp::numeric_limits<int16_t>::max_value() || rv < csp::numeric_limits<int16_t>::min_value() )
+    if( rv > std::numeric_limits<int16_t>::max() || rv < std::numeric_limits<int16_t>::min() )
         CSP_THROW( OverflowError, rv << " is too big/small to fit in int16" );
     return ( int16_t ) rv;
 }
@@ -306,7 +306,7 @@ template<>
 inline uint16_t fromPython( PyObject * o )
 {
     auto rv = fromPython<uint64_t>( o );
-    if( rv > csp::numeric_limits<uint16_t>::max_value() )
+    if( rv > std::numeric_limits<uint16_t>::max() )
         CSP_THROW( OverflowError, rv << " is too big to fit in uint16" );
     return ( uint16_t ) rv;
 }
@@ -322,7 +322,7 @@ template<>
 inline int8_t fromPython( PyObject * o )
 {
     auto rv = fromPython<int64_t>( o );
-    if( rv > csp::numeric_limits<int8_t>::max_value() || rv < csp::numeric_limits<int8_t>::min_value() )
+    if( rv > std::numeric_limits<int8_t>::max() || rv < std::numeric_limits<int8_t>::min() )
         CSP_THROW( OverflowError, rv << " is too big/small to fit in int8" );
     return ( int8_t ) rv;
 }
@@ -339,7 +339,7 @@ template<>
 inline uint8_t fromPython( PyObject * o )
 {
     auto rv = fromPython<uint64_t>( o );
-    if( rv > csp::numeric_limits<uint8_t>::max_value() )
+    if( rv > std::numeric_limits<uint8_t>::max() )
         CSP_THROW( OverflowError, rv << " is too big to fit in uint8" );
     return ( uint8_t ) rv;
 }

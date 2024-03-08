@@ -166,21 +166,8 @@ private:
     static constexpr nbit_type nbits() { return sizeof( value_type ) * 8; }
 
     template<typename U, std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
-    static CLZ_CONSTEXPR nbit_type log2( U n )           { return nbits<uint32_t>() - ::clz(n) - 1; }
-    static CLZ_CONSTEXPR nbit_type log2(uint64_t n)      { return nbits<uint64_t>() - ::clz(n) - 1; }
-
-    // clz (count leading zeros) returns number of leading zeros before MSB (i.e. clz(00110..) = 2 )
-    // __builtin_clz auto-promotes to 32-bits: need to subtract off extra leading zeros
-    static CLZ_CONSTEXPR nbit_type clz( uint8_t n )  { return ::clz( n ) - 24; }
-    static CLZ_CONSTEXPR nbit_type clz( uint16_t n ) { return ::clz( n ) - 16; }
-    static CLZ_CONSTEXPR nbit_type clz( uint32_t n ) { return ::clz( n ); }
-    static CLZ_CONSTEXPR nbit_type clz( uint64_t n ) { return ::clz( n ); }
-
-    // ffs (find first set) returns offset of first set bit (i.e. ffs(..0110) = 2 ), with ffs(0) = 0
-    template<typename U, 
-        std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
-    static constexpr nbit_type ffs( U n )           { return __builtin_ffs( n ); }
-    static constexpr nbit_type ffs( uint64_t n )    { return __builtin_ffsl( n ); }
+    static CLZ_CONSTEXPR nbit_type log2( U n )           { return nbits<uint32_t>() - clz(n) - 1; }
+    static CLZ_CONSTEXPR nbit_type log2(uint64_t n)      { return nbits<uint64_t>() - clz(n) - 1; }
 
     static constexpr node_type mask( nbit_type bitIndex )  { return ( node_type )1 << bitIndex; }
 
@@ -194,7 +181,7 @@ private:
         return ( index_type )bit + ( node << _logBits );
     }
 
-    static constexpr nbit_type _bits        = nbits<NodeT>();
+    static constexpr nbit_type _bits               = nbits<NodeT>();
     static inline CLZ_CONSTEXPR nbit_type _logBits = log2( _bits );
 
     node_type * m_nodes;

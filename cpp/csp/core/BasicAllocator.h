@@ -64,7 +64,7 @@ inline void BasicAllocator::init( size_t elemSize, size_t blockSize,
     m_useHugePage = useHugePage;
     m_blockSize   = blockSize;
     m_freeptr     = nullptr;
-    m_elemSize    = csp::max_value( elemSize, sizeof( void * ) );
+    m_elemSize    = std::max( elemSize, sizeof( void * ) );
     allocBlock();
 }
 

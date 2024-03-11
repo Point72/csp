@@ -666,7 +666,7 @@ jobs:
           run: ls -R ./dist
 
         - name: Publish to github releases
-          uses: softprops/action-gh-release@v1
+          uses: softprops/action-gh-release@v2
           with:
             draft: true
             generate_release_notes: true

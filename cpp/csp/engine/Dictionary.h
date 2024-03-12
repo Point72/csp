@@ -38,7 +38,7 @@ public:
         Value _data;
     };
 private:
-    using Map = std::unordered_map<std::string, uint32_t>;
+    using Map = std::unordered_map<std::string, size_t>;
     using DataVector = std::vector<std::pair<std::string, Data>>;
 
 public:

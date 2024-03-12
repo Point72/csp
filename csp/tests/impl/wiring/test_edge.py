@@ -1,4 +1,5 @@
 import unittest
+from copy import deepcopy
 from datetime import datetime, timedelta
 
 import csp
@@ -47,6 +48,18 @@ class TestPipeApplyRun(unittest.TestCase):
         # This was an issue
         with self.assertRaisesRegex(ValueError, "boolean evaluation of an edge is not supported"):
             _ = csp.const(1) in [1]
+
+    def test_deepcopy(self):
+        # Make sure this doesn't fail, as it had previously due to recursive attribute access
+        _ = deepcopy(csp.const(1))
+
+    def test_struct_access(self):
+        # Make sure struct attribute access works
+        class MyStruct(csp.Struct):
+            x: float = 0.0
+
+        self.assertEqual(csp.const(MyStruct()).x.tstype.typ, float)
+        self.assertRaises(AttributeError, getattr, csp.const(MyStruct()), "foo")
 
 
 if __name__ == "__main__":

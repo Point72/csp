@@ -53,13 +53,41 @@ class Outputs:
             kwargs = {k: v if not isTsBasket(v) else OutputBasket(v) for k, v in kwargs.items()}
 
         # stash for convenience later
-        kwargs["__annotations__"] = kwargs
+        kwargs["__annotations__"] = kwargs.copy()
+        try:
+            _make_pydantic_outputs(kwargs)
+        except ImportError:
+            pass
         return type("Outputs", (Outputs,), kwargs)
 
     def __init__(self, *args, **kwargs):
         if args:
             raise Exception("Should not get here")
         ...
+
+
+def _make_pydantic_outputs(kwargs):
+    """Add pydantic functionality to Outputs, if necessary"""
+    from pydantic import create_model
+    from pydantic_core import core_schema
+
+    from csp.impl.wiring.outputs import OutputsContainer
+
+    if None in kwargs:
+        typ = ContainerTypeNormalizer.normalize_type(kwargs[None])
+        model_fields = {"out": (typ, ...)}
+    else:
+        model_fields = {
+            name: (ContainerTypeNormalizer.normalize_type(annotation), ...)
+            for name, annotation in kwargs["__annotations__"].items()
+        }
+    config = {"arbitrary_types_allowed": True, "extra": "forbid"}
+    kwargs["__pydantic_model__"] = create_model("OutputsModel", __config__=config, **model_fields)
+    kwargs["__get_pydantic_core_schema__"] = classmethod(
+        lambda cls, source_type, handler: core_schema.no_info_after_validator_function(
+            lambda v: OutputsContainer(**v.model_dump()), handler(cls.__pydantic_model__)
+        )
+    )
 
 
 class OutputBasket(object):
@@ -94,7 +122,32 @@ class OutputBasket(object):
             # if shape is required, it will be enforced in the parser
             kwargs["shape"] = None
             kwargs["shape_func"] = None
+
         return type("OutputBasket", (OutputBasket,), kwargs)
+
+
+# Add core schema to OutputBasket
+def __get_pydantic_core_schema__(cls, source_type, handler):
+    from pydantic_core import core_schema
+
+    def validate_shape(v, info):
+        shape = cls.shape
+        # Allow the context to override the shape, for the cases where shape references an input variable name
+        # and so is not known until later
+        if info.context and hasattr(info.context, "shapes"):
+            override_shape = info.context.shapes.get(info.field_name)
+            if override_shape is not None:
+                shape = override_shape
+        if isinstance(shape, int) and len(v) != shape:
+            raise ValueError(f"Wrong shape! Got {len(v)}, expecting {shape}")
+        if isinstance(shape, (list, tuple)) and v.keys() != set(shape):
+            raise ValueError(f"Wrong dict shape! Got {v.keys()}, expecting {set(shape)}")
+        return v
+
+    return core_schema.with_info_after_validator_function(validate_shape, handler(cls.typ))
+
+
+OutputBasket.__get_pydantic_core_schema__ = classmethod(__get_pydantic_core_schema__)
 
 
 class OutputBasketContainer:
@@ -170,7 +223,7 @@ class OutputBasketContainer:
         return CspTypingUtils.get_origin(self.typ) is List
 
     def __str__(self):
-        return f"OutputBasketContainer(typ={self.typ}, shape={self.shape}, eval_type={self.eval_type}, lineno={self.lineno}, col_offset={self.col_offset})"
+        return f"OutputBasketContainer(typ={self.typ}, shape={self.shape}, eval_type={self.eval_type})"
 
     def __repr__(self):
         return str(self)
@@ -184,6 +237,7 @@ OutputBasketContainer.SHAPE_FUNCS = {
     "with_shape": OutputBasketContainer.create_wrapper(OutputBasketContainer.EvalType.WITH_SHAPE),
     "with_shape_of": OutputBasketContainer.create_wrapper(OutputBasketContainer.EvalType.WITH_SHAPE_OF),
 }
+
 
 InputDef = namedtuple("InputDef", ["name", "typ", "kind", "basket_kind", "ts_idx", "arg_idx"])
 OutputDef = namedtuple("OutputDef", ["name", "typ", "kind", "ts_idx", "shape"])

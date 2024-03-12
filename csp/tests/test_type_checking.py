@@ -1,5 +1,7 @@
 import numpy as np
+import os
 import pickle
+import re
 import typing
 import unittest
 from datetime import datetime, time, timedelta
@@ -8,6 +10,8 @@ import csp
 import csp.impl.types.instantiation_type_resolver as type_resolver
 from csp import ts
 from csp.impl.wiring.runtime import build_graph
+
+USE_PYDANTIC = os.environ.get("CSP_PYDANTIC")
 
 
 class TestTypeChecking(unittest.TestCase):
@@ -37,12 +41,22 @@ class TestTypeChecking(unittest.TestCase):
 
             typed_scalar(i, "xyz")
 
-            with self.assertRaisesRegex(TypeError, "Expected ts\\[int\\] for argument 'x', got ts\\[str\\]"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts.*" + re.escape(
+                    "cannot validate ts[str] as ts[int]: <class 'str'> is not a subclass of <class 'int'>"
+                )
+            else:
+                msg = "Expected ts\\[int\\] for argument 'x', got ts\\[str\\]"
+            with self.assertRaisesRegex(TypeError, msg):
                 s = csp.const("xyz")
                 ## THIS SHOULD RAISE, passing ts[str] but typed takes ts[int]
                 typed_ts(s)
 
-            with self.assertRaisesRegex(TypeError, "Expected str for argument 'y', got 123 \\(int\\)"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_scalar.*y.*Input should be a valid string"
+            else:
+                msg = "Expected str for argument 'y', got 123 \\(int\\)"
+            with self.assertRaisesRegex(TypeError, msg):
                 ## THIS SHOULD RAISE, passing int instead of str
                 typed_scalar(i, 123)
 
@@ -188,28 +202,38 @@ class TestTypeChecking(unittest.TestCase):
             # OK, resolved to Dummy
             typed_scalar_two_args(TestTypeChecking.Dummy2, d)
 
-            with self.assertRaisesRegex(
-                TypeError,
-                "Conflicting type resolution for V when calling to typed_scalar : "
-                + r".*<class 'int'>, <class '.*test_type_checking.TestTypeChecking.Dummy'>.*",
-            ):
+            with self.assertRaisesRegex(TypeError, "Conflicting type resolution for V.*"):
                 typed_scalar(int, i, TestTypeChecking.Dummy())
 
             with self.assertRaisesRegex(
                 TypeError,
-                "Conflicting type resolution for T when calling to typed_scalar_two_args : "
-                + r"\(<class '.*test_type_checking.TestTypeChecking.Dummy'>, <class 'int'>\)",
+                "Conflicting type resolution for T.*",
             ):
                 typed_scalar_two_args(TestTypeChecking.Dummy, i)
 
-            with self.assertRaisesRegex(TypeError, "Expected ts\\[int\\] for argument 'x', got ts\\[str\\]"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts_int.*" + re.escape(
+                    "cannot validate ts[str] as ts[int]: <class 'str'> is not a subclass of <class 'int'>"
+                )
+            else:
+                msg = "Expected ts\\[int\\] for argument 'x', got ts\\[str\\]"
+            with self.assertRaisesRegex(TypeError, msg):
                 s = csp.const("xyz")
                 typed_ts_int(s)
 
-            with self.assertRaisesRegex(TypeError, "Expected str for argument 'y', got 123 \\(int\\)"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for str_typed_scalar.*Input should be a valid string"
+            else:
+                msg = "Expected str for argument 'y', got 123 \\(int\\)"
+            with self.assertRaisesRegex(TypeError, msg):
                 ## THIS SHOULD RAISE, passing int instead of str
                 str_typed_scalar(i, 123)
-            with self.assertRaisesRegex(TypeError, r"Expected ~V for argument 't', got .*Dummy.*\(V=int\)"):
+
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_scalar.*Input should be a valid integer"
+            else:
+                msg = r"Expected ~V for argument 't', got .*Dummy.*\(V=int\)"
+            with self.assertRaisesRegex(TypeError, msg):
                 typed_scalar.using(V=int)(TestTypeChecking.Dummy, i, object())
 
         csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
@@ -286,23 +310,35 @@ class TestTypeChecking(unittest.TestCase):
                     },
                 )
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.Dict\[int, int\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_dict_int_int2.*Input should be a valid integer"
+            else:
+                msg = r"Expected typing.Dict\[int, int\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a float value instead of expected ints
-                typed_dict_int_int2({1: 2, 3: 4.0})
+                typed_dict_int_int2({1: 2, 3: 4.1})
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.Dict\[float, float\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_dict_float_float.*Input should be a valid number"
+            else:
+                msg = r"Expected typing.Dict\[float, float\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_dict_float_float({1.0: TestTypeChecking.Dummy()})
 
-            with self.assertRaisesRegex(
-                TypeError, "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
-            ):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts_and_scalar_generic.*Conflicting type resolution for T"
+            else:
+                msg = "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_ts_and_scalar_generic(d_i_i, {1: 2.0}, TestTypeChecking.Dummy())
 
-            with self.assertRaisesRegex(
-                TypeError, "Conflicting type resolution for T1 when calling to deep_nested_generic_resolution : " ".*"
-            ):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for deep_nested_generic_resolution.*Conflicting type resolution for T1"
+            else:
+                msg = r"Conflicting type resolution for T1 when calling to deep_nested_generic_resolution : " ".*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Here for inernal sets we pass Dummy and Dummy3 - they result in conflicting type resolution for T1
                 deep_nested_generic_resolution(
                     TestTypeChecking.Dummy,
@@ -358,16 +394,27 @@ class TestTypeChecking(unittest.TestCase):
             typed_ts_and_scalar(l_i, [1, 2, 3])
             typed_ts_and_scalar_generic(l_i, [1, 2, 3], 1)
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.List\[int\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_list_int.*x.*Input should be a valid integer"
+            else:
+                msg = r"Expected typing.List\[int\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a float value instead of expected ints
-                typed_list_int([1, 2, 3.0])
+                typed_list_int([1, 2, 3.1])
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.List\[float\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_list_float.*Input should be a valid number"
+            else:
+                msg = r"Expected typing.List\[float\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_list_float([TestTypeChecking.Dummy()])
-            with self.assertRaisesRegex(
-                TypeError, "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
-            ):
+
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts_and_scalar_generic.*Conflicting type resolution for T"
+            else:
+                msg = "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_ts_and_scalar_generic(l_i, [1, 2], TestTypeChecking.Dummy())
 
@@ -410,16 +457,27 @@ class TestTypeChecking(unittest.TestCase):
             typed_ts_and_scalar(l_i, {1, 2, 3})
             typed_ts_and_scalar_generic(l_i, {1, 2, 3}, 1)
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.Set\[int\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_set_int.*Input should be a valid integer"
+            else:
+                msg = r"Expected typing.Set\[int\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a float value instead of expected ints
-                typed_set_int({1, 2, 3.0})
+                typed_set_int({1, 2, 3.1})
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.Set\[float\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_set_float.*Input should be a valid number"
+            else:
+                msg = r"Expected typing.Set\[float\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_set_float({TestTypeChecking.Dummy()})
-            with self.assertRaisesRegex(
-                TypeError, "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
-            ):
+
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts_and_scalar_generic.*Conflicting type resolution for T"
+            else:
+                msg = "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_ts_and_scalar_generic(l_i, {1, 2}, TestTypeChecking.Dummy())
 

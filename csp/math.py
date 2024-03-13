@@ -1,6 +1,5 @@
 import math
 import numpy as np
-import sys
 import typing
 from functools import lru_cache
 
@@ -364,10 +363,8 @@ ln = define_unary_op("ln", lambda x: math.log(x))
 log2 = define_unary_op("log2", lambda x: math.log2(x))
 log10 = define_unary_op("log10", lambda x: math.log10(x))
 exp = define_unary_op("exp", lambda x: math.exp(x))
-if sys.version_info < (3, 11):
-    exp2 = define_unary_op("exp2", lambda x: 2**x)
-else:
-    exp2 = define_unary_op("exp2", lambda x: math.exp2)
+# could replace with math.exp2 once python3.10 and older aren't supported
+exp2 = define_unary_op("exp2", lambda x: 2**x)
 sqrt = define_unary_op("sqrt", lambda x: math.sqrt(x))
 erf = define_unary_op("erf", lambda x: math.erf(x))
 sin = define_unary_op("sin", lambda x: math.sin(x))

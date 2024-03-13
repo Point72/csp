@@ -12,6 +12,7 @@
             "features": ["ssl"]
         },
       "lz4",
+      "openssl",
       "parquet",
       "protobuf",
       "rapidjson",
@@ -19,7 +20,7 @@
       "utf8proc"
     ],
     "overrides": [
-      { "name": "arrow", "version": "7.0.0"}
+      { "name": "arrow", "version": "15.0.0"}
     ],
     "builtin-baseline": "288e8bebf4ca67c1f8ebd49366b03650cfd9eb7d"
   }

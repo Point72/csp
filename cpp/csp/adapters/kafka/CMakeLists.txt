@@ -20,8 +20,9 @@ set(KAFKA_SOURCE_FILES
 add_library(csp_kafka_adapter STATIC ${KAFKA_SOURCE_FILES})
 set_target_properties(csp_kafka_adapter PROPERTIES PUBLIC_HEADER "${KAFKA_HEADER_FILES}")
 
-find_package(RdKafka REQUIRED)
-target_link_libraries(csp_kafka_adapter csp_adapter_utils RdKafka::rdkafka RdKafka::rdkafka++)
+find_package(DepsKafkaAdapter REQUIRED)
+
+target_link_libraries(csp_kafka_adapter PRIVATE csp_adapter_utils RdKafka::rdkafka RdKafka::rdkafka++)
 
 install(TARGETS csp_kafka_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/kafka

@@ -44,14 +44,6 @@ if CSP_USE_VCPKG and os.path.exists(vcpkg_toolchain_file):
 else:
     cmake_args.append("-DCSP_USE_VCPKG=OFF")
 
-
-# if "CONDA_PREFIX" in os.environ:
-#     cmake_args.append(f"-DCMAKE_MODULE_PATH={os.environ['CONDA_PREFIX']}/lib/cmake/absl;{os.environ['CONDA_PREFIX']}/lib/cmake/arrow")
-
-if "CMAKE_ARGS" in os.environ:
-    # conda
-    cmake_args.extend(os.environ["CMAKE_ARGS"].split(" "))
-
 if "CXX" in os.environ:
     cmake_args.append(f"-DCMAKE_CXX_COMPILER={os.environ['CXX']}")
 

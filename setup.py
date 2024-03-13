@@ -57,6 +57,9 @@ if "DEBUG" in os.environ:
 if "CSP_MANYLINUX" in os.environ:
     cmake_args.append("-DCSP_MANYLINUX=ON")
 
+if "CSP_BUILD_TESTS" in os.environ:
+    cmake_args.append("-DCSP_BUILD_TESTS=ON")
+
 if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
     os.environ["CMAKE_BUILD_PARALLEL_LEVEL"] = str(multiprocessing.cpu_count())
 

@@ -24,29 +24,27 @@ Each computation is a `csp.graph` which consists of one or more nodes that perfo
 Users can treat these graphs as a "black box" with specified inputs and outputs as provided in the API reference.
 Example statistics graphs for *mean* and *standard deviation* are provided below to give a rough idea of how the graphs work.
 
-
 **Mean using a tick-specified interval**
 ![437686747](https://github.com/Point72/csp/assets/3105306/5586a355-e405-45c3-aa6d-c64754fd6c26)
 
 **Standard deviation using a tick-specified interval**
 ![437686748](https://github.com/Point72/csp/assets/3105306/8ae2ab7a-413d-4175-89d5-5b252401a83e)
 
-
 Rolling windows can either be specified by the number of ticks in the window or the time duration of the window.
 Users can specify minimum window sizes for results as well as the minimum number of data points for a valid computation.
 Standard NaN handling is provided with two different options.
-Weighting is available for relevant stats functions such as sums, mean, covariance, and skew. 
+Weighting is available for relevant stats functions such as sums, mean, covariance, and skew.
 
 ## Working with a single-valued time series
 
 Time series of float and int types can be used for all stats functions, except those listed as "NumPy Specific".
 Internally, all values are cast to float-type.
-`NaN` values in the series (if applicable) are allowed and will be handled as specified by the `ignore_na` flag. 
+`NaN` values in the series (if applicable) are allowed and will be handled as specified by the `ignore_na` flag.
 
 If you are performing the same calculation on many different series, **it is highly recommended that you use a NumPy array.**
 NumPy array inputs result in a much smaller csp graph which can drastically improve performance.
 If different series tick asynchronously, then sometimes using single-input calculations cannot be avoided.
-However, you can consider sampling your data at regularly specified intervals, and then using the sampled values to create a NumPy array which is provided to the calculation. 
+However, you can consider sampling your data at regularly specified intervals, and then using the sampled values to create a NumPy array which is provided to the calculation.
 
 ## Working with a NumPy time series
 
@@ -60,7 +58,7 @@ All calculations on NumPy arrays are performed element-wise, with exception of `
 Arrays of arbitrary dimension are supported, as well as array views such as transposes and slices.
 The data type of arrays must be of float-type, not an int.
 If your data is integer valued, convert the array to a float-type using the `astype` function in the NumPy library.
-Basic mathematical operations (such as addition, multiplication etc.) are defined on NumPy array time series using NumPy's built-in functions, which allow for proper broadcasting rules. 
+Basic mathematical operations (such as addition, multiplication etc.) are defined on NumPy array time series using NumPy's built-in functions, which allow for proper broadcasting rules.
 
 ## Working with a basket of time series
 
@@ -70,11 +68,8 @@ using the `list_to_numpy` node, run the calculations they want, and then convert
 Since NumPy arrays only require one node per computation, whereas a list of `N` time series will require `N` nodes, this method is highly efficient even for small graphs.
 Below is a diagram of the workflow for a listbasket with 2 elements.
 
-
-
 **A sum over a listbasket with 2 elements**
 ![437687654](https://github.com/Point72/csp/assets/3105306/0e12b9ff-9461-497c-895d-3b1c33669235)
-
 
 If the data does not tick (or is sampled) at the same time or the computations are fundamentally different in nature (i.e. different intervals), then the NumPy method will not provide the desired functionality.
 Instead, if users wish to store all their individual time series in a listbasket, then they must use single input stats with standard csp listbasket syntax.
@@ -87,13 +82,12 @@ If possible, it is highly recommended that you consider transformations to your 
 The `stats` library also exposes an option to compute cross-sectional statistics.
 Cross-sectional statistics are statistics which are computed using every value in the window at each iteration.
 These computations are less efficient than rolling window functions that employ smart updating.
-However, some computations may have to be applied cross-sectionally, and some users may want to apply cross-sectional statistics for small window calculations that require high numerical stability. 
+However, some computations may have to be applied cross-sectionally, and some users may want to apply cross-sectional statistics for small window calculations that require high numerical stability.
 
 To use cross-sectional statistics, use the `csp.stats.cross_sectional` utility to receive all data in the current window.
 Then, use `csp.apply` to use your own function on the cross-sectional data.
 The `cross_sectional` function allows for the same user options as standard stats functions (such as triggering and sampling).
 An example of using `csp.stats.cross_sectional` is shown below:
-
 
 ```python
 # Starttime: 2020-01-01 00:00:00
@@ -101,6 +95,7 @@ x = {'2020-01-01': 1, '2020-01-01': 2, '2020-01-01': 3, '2020-01-01': 4, '2020-0
 cs = cross_sectional(x, interval=3, min_window=2)
 cs
 ```
+
 ```python
 {'2020-01-02': [1,2], '2020-01-03': [1,2,3], '2020-01-04': [2,3,4], '2020-01-05': [3,4,5]}
 ```
@@ -110,6 +105,7 @@ cs
 cs_mean = csp.apply(cs, lambda v: sum(v)/len(v), float)
 cs_mean
 ```
+
 ```python
 {'2020-01-02': 1.5, '2020-01-03': 2.0, '2020-01-04': 3.0, '2020-01-05': 4.0}
 ```
@@ -125,6 +121,7 @@ An example of an expanding window sum is shown below:
 x = {'2020-01-01': 1, '2020-01-01': 2, '2020-01-01': 3, '2020-01-01': 4, '2020-01-01': 5}
 sum(x)
 ```
+
 ```python
 {'2020-01-01': 1, '2020-01-02': 3, '2020-01-03': 6, '2020-01-04': 10, '2020-01-05': 15}
 ```
@@ -148,12 +145,12 @@ Tick intervals include `NaN` values.
 For example, a tick interval of size `10` with `9` `NaN` values in the interval will only use the single non-nan value for computations.
 For more information on `NaN` handling, see the "NaN handling" section.
 
-If no interval is specified, then the calculation will be treated as an expanding window statistic and all data will be cumulative (see the above section on Expanding Window Statistics). 
+If no interval is specified, then the calculation will be treated as an expanding window statistic and all data will be cumulative (see the above section on Expanding Window Statistics).
 
 ### Triggers, samplers and resets
 
 **Triggers** are optional arguments which *trigger* a computation of the statistic.
-If no trigger is provided as an argument, the statistic will be computed every time `x` ticks i.e. `x` becomes the trigger. 
+If no trigger is provided as an argument, the statistic will be computed every time `x` ticks i.e. `x` becomes the trigger.
 
 ```python
 x = {'2020-01-01': 1, '2020-01-02': 2, '2020-01-03': 3}
@@ -161,6 +158,7 @@ trigger = {'2020-01-02': True}
 
 sum(x, interval=2)
 ```
+
 ```python
 {'2020-01-02': 3, '2020-01-03': 5}
 ```
@@ -168,11 +166,11 @@ sum(x, interval=2)
 ```python
 sum(x, interval=2, trigger=trigger)
 ```
+
 ```python
 # No result at day 3
 {'2020-01-02': 3}
 ```
-
 
 **Samplers** are optional arguments which *sample* the data.
 Samplers are used to signify when the data, `x`, *should* tick.
@@ -188,17 +186,19 @@ sampler = {'2020-01-01': True, '2020-01-03': True}
 
 sum(x, interval=2)
 ```
+
 ```python
 {'2020-01-02': 3, '2020-01-03': 5}
 ```
+
 ```python
 sum(x, interval=2, sampler=sampler)
 ```
+
 ```python
 # Tick on day 2 is ignored
 {'2020-01-03': 4}
 ```
-
 
 **Resets** are optional arguments which *reset* the interval, clearing all existing data.
 Whenever reset ticks, the data is cleared.
@@ -210,21 +210,22 @@ reset = {'2020-01-02 12:00:00': True}
 
 sum(x, interval=2)
 ```
+
 ```python
 {'2020-01-02': 3, '2020-01-03': 5}
 ```
+
 ```python
 sum(x, interval=2, reset=reset)
 ```
+
 ```python
 # Data is reset after day 2
 {'2020-01-02': 3, '2020-01-03': 3}
 ```
 
-
-
 **Important:** the order of operations between all three actions is as follows: reset, sample, trigger.
-If all three series were to tick at the same time: the data is first reset, then sampled, and then a computation is triggered. 
+If all three series were to tick at the same time: the data is first reset, then sampled, and then a computation is triggered.
 
 ```python
 x = {'2020-01-01': 1, '2020-01-02': 2, '2020-01-03': 3}
@@ -234,6 +235,7 @@ reset = {2020-01-03: True}
 
 sum(x, interval=2, reset=reset)
 ```
+
 ```python
 # the data is first reset, then 3 is sampled, and then the sum is computed
 {'2020-01-02': 3, '2020-01-03': 3}
@@ -252,18 +254,19 @@ By *default*, the minimum window size is equal to the interval itself.
 x = {'2020-01-01': 1, '2020-01-02': 2, '2020-01-03': 3}
 sum(x, interval=2, min_window=1}
 ```
+
 ```python
 {'2020-01-01': 1, '2020-01-02': 3, '2020-01-03': 5}
 ```
+
 ```python
 sum(x, interval=timedelta(days=2), min_window=timedelta(days=1))
 ```
+
 ```python
 # Assuming graph start time is 2020-01-01
 {'2020-01-02': 3, '2020-01-03': 5}
 ```
-
-
 
 **Minimum data points** (`min_data_points`) is the number of *valid* (non-nan) data points that must exist in the current window for a valid computation.
 By default, min_data_points is 0.
@@ -275,17 +278,17 @@ x = {'2020-01-01': 1, '2020-01-02': nan, '2020-01-03': 3}
 
 sum(x, interval=2)
 ```
+
 ```python
 {'2020-01-02': 1, '2020-01-03': 3}
 
 sum(x, interval=2, min_data_points=2)
 ```
+
 ```python
 # We only have 1 valid data point
 {'2020-01-02': nan, '2020-01-03': nan}
 ```
-
-
 
 ### NaN handling
 
@@ -300,12 +303,15 @@ x = {'2020-01-01': 1, '2020-01-02': nan, '2020-01-03': 3, '2020-01-04': 4}
 
 sum(x, interval=2, ignore_na=True}
 ```
+
 ```python
 {'2020-01-02': 1, '2020-01-03': 3, '2020-01-04': 7}
 ```
+
 ```python
 sum(x, interval=2, ignore_na=False)
 ```
+
 ```python
 # NaN at t=2 only out of interval by t=4
 {'2020-01-02': nan, '2020-01-03': nan, '2020-01-04': 7}
@@ -324,7 +330,7 @@ Weighted statistics are available for: *sum(), mean(), var(), cov(), stddev(), s
 Since weights are relative, they do not need to be normalized by the user.
 Weights also do not need to tick at the same time as the data, necessarily: the weights are *sampled* whenever the data sampler ticks.
 For higher-order statistics such as variance, covariance, correlation, standard deviation, standard error, skewness and kurtosis, weights are interpreted as *frequency weights*.
-This means that a weight of 1 corresponds to that observation occurring once and a weight of 2 signifies that observation occurring twice. 
+This means that a weight of 1 corresponds to that observation occurring once and a weight of 2 signifies that observation occurring twice.
 
 If either the data *or* its corresponding weight is NaN, then the weighted data point is collectively treated as NaN.
 
@@ -336,13 +342,16 @@ weights = {'2020-01-01': 1, '2020-01-02': 2, '2020-01-04': 1}
 
 sum(x, interval=2, weights=weights)
 ```
+
 ```python
 # Weight of 2 applied to x=3, as it is sampled
 {'2020-01-02': 5, '2020-01-03': 10, '2020-01-04': 10}
 ```
+
 ```python
 mean(x, interval=2, weights=weights)
 ```
+
 ```python
 # Weighted mean
 {'2020-01-02': 1.667, '2020-01-03': 2.5, '2020-01-04': 3.333}
@@ -363,12 +372,15 @@ weights = {'2020-01-01': [1,2], '2020-01-02': [2,1], '2020-01-03': [1,1]}
 sum(x, interval=2, weights=weights)
 
 ```
+
 ```python
 {'2020-01-02': [5,4], '2020-01-03': [7,5]}
 ```
+
 ```python
 mean(x, interval=2, weights=weights)
 ```
+
 ```python
 # Weighted mean
 {'2020-01-02': [1.667, 1.333], '2020-01-03': [2.333, 2.5]}
@@ -404,14 +416,17 @@ A basic example using the `recalc` parameter is provided below.
 x = {'2020-01-01': 0.1, '2020-01-02': 0.2, '2020-01-03': 0, '2020-01-04': 0}
 sum(x, interval=2)
 ```
+
 ```python
 # floating-point error has caused the sum to not perfectly go to zero
 {'2020-01-02': 0.3, '2020-01-03': 0.19999999, '2020-01-03': -0.00000001}
 ```
+
 ```python
 recalc = {'2020-01-04': True}
 sum(x, interval=2, recalc=recalc)
 ```
+
 ```python
 # at day 4, a clean recalculation clears the floating-point error from the previous data
 {'2020-01-02': 0.3, '2020-01-03': 0.19999999, '2020-01-04': 0}

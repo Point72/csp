@@ -31,23 +31,22 @@ docs](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/
    in the GitHub UI, which shows up in the URL for the pull request. For
    example, https://github.com/Point72/csp/pull/98 has PR ID 98.
 
-2. Fetch the pull request ref and assign it to a local branch name.
+1. Fetch the pull request ref and assign it to a local branch name.
 
-    ```bash
-    git fetch upstream pull/<ID>/HEAD/:LOCAL_BRANCH_NAME
-    ```
+   ```bash
+   git fetch upstream pull/<ID>/HEAD/:LOCAL_BRANCH_NAME
+   ```
 
-    where `<ID>` is the PR ID number and `LOCAL_BRANCH_NAME` is a name
-    chosen for the PR branch in your local checkout of `csp`.
+   where `<ID>` is the PR ID number and `LOCAL_BRANCH_NAME` is a name
+   chosen for the PR branch in your local checkout of `csp`.
 
+1. Switch to the PR branch
 
-3. Switch to the PR branch
+   ```bash
+   git switch LOCAL_BRANCH_NAME
+   ```
 
-    ```bash
-    git switch LOCAL_BRANCH_NAME
-    ```
-
-4. Rebuild `csp`
+1. Rebuild `csp`
 
 ## Pushing Fixups to Pull Requests
 

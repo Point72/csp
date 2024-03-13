@@ -20,7 +20,7 @@
 
 ## Kafka
 
-The Kafka adapter is a user adapter to stream data from a Kafka bus as a reactive time series. It leverages the [librdkafka](https://github.com/confluentinc/librdkafka) C/C++ library internally. 
+The Kafka adapter is a user adapter to stream data from a Kafka bus as a reactive time series. It leverages the [librdkafka](https://github.com/confluentinc/librdkafka) C/C++ library internally.
 
 The `KafkaAdapterManager` instance represents a single connection to a broker.
 A single connection can subscribe and/or publish to multiple topics.
@@ -50,23 +50,22 @@ KafkaAdapterManager(
 - **`broker`**: name of the Kafka broker, such as `protocol://host:port`
 
 - **`start_offset`**: signify where to start the stream playback from (defaults to `KafkaStartOffset.LATEST`).
-    Can be one of the`KafkaStartOffset` enum types or: 
-    - `datetime`: to replay from the given absolute time
-    - `timedelta`: this will be taken as an absolute offset from starttime to playback from
+  Can be one of the`KafkaStartOffset` enum types or:
+
+  - `datetime`: to replay from the given absolute time
+  - `timedelta`: this will be taken as an absolute offset from starttime to playback from
 
 - **`group_id`**: if set, this adapter will behave as a consume-once consumer.
-    `start_offset` may not be set in this case since adapter will always replay from the last consumed offset.
+  `start_offset` may not be set in this case since adapter will always replay from the last consumed offset.
 
-- **`group_id_prefix**: when not passing an explicit group_id, a prefix can be supplied that will be use to prefix the UUID generated for the group_id
+- **\`group_id_prefix**: when not passing an explicit group_id, a prefix can be supplied that will be use to prefix the UUID generated for the group_id
 
 - **`max_threads`**: maximum number of threads to create for consumers.
-    The topics are round-robin'd onto threads to balance the load.
-    The adapter won't create more threads than topics.
+  The topics are round-robin'd onto threads to balance the load.
+  The adapter won't create more threads than topics.
 
 - **`max_queue_size`**: maximum size of the (internal to Kafka) message queue.
-    If the queue is full, messages can be dropped, so the default is very large.
-
-
+  If the queue is full, messages can be dropped, so the default is very large.
 
 ### MessageMapper
 
@@ -112,16 +111,15 @@ KafkaAdapterManager.subscribe(
 - **`key`**: The key to subscribe to. If `None`, then this will subscribe to all messages on the topic. Note that in this "wildcard" mode, all messages will tick as "live" as replay in engine time cannot be supported
 - **`field_map`**: dictionary of `{message_field: struct_field}` to define how the subscribed message gets mapped onto the struct
 - **`meta_field_map`**: to extract meta information from the kafka message, provide a meta_field_map dictionary of meta field info → struct field name to place it into.
-    The following meta fields are currently supported:
-    - **`"partition"`**: which partition the message came from
-    - **`"offset"`**: the kafka offset of the given message
-    - **`"live"`**: whether this message is "live" and not being replayed
-    - **`"timestamp"`**: timestamp of the kafka message
-    - **`"key"`**: key of the message
+  The following meta fields are currently supported:
+  - **`"partition"`**: which partition the message came from
+  - **`"offset"`**: the kafka offset of the given message
+  - **`"live"`**: whether this message is "live" and not being replayed
+  - **`"timestamp"`**: timestamp of the kafka message
+  - **`"key"`**: key of the message
 - **`push_mode`**: `csp.PushMode` (LAST_VALUE, NON_COLLAPSING, BURST)
-- **`adjust_out_of_order_time`**: in some cases it has been seen that kafka can produce out of order messages, even for the same key. 
-    This allows the adapter to be more laz and allow it through by forcing time to max(time, prev time)
-
+- **`adjust_out_of_order_time`**: in some cases it has been seen that kafka can produce out of order messages, even for the same key.
+  This allows the adapter to be more laz and allow it through by forcing time to max(time, prev time)
 
 Similarly, you can publish on topics using the following method:
 
@@ -136,30 +134,33 @@ KafkaAdapterManager.publish(
 ```
 
 - **`msg_mapper`**: same as above
-- **`topic`**: same as above 
+- **`topic`**: same as above
 - **`key`**: key to publish to
 - **`x`**: the timeseries to publish
 - **`field_map`**: dictionary of {struct_field: message_field} to define how the struct gets mapped onto the published message.
-    Note this dictionary is the opposite of the field_map in subscribe()
+  Note this dictionary is the opposite of the field_map in subscribe()
 
 ### Known Issues
 
-If you are having issues, such as not getting any output or the application simply locking up, start by ensuring that you are logging the adapter's `status()` with a `csp.print`/`log` call and set `debug=True`. 
+If you are having issues, such as not getting any output or the application simply locking up, start by ensuring that you are logging the adapter's `status()` with a `csp.print`/`log` call and set `debug=True`.
 Then follow the known issues below.
 
 - Reason: `GSSAPI Error: Unspecified GSS failure.  Minor code may provide more information (No Kerberos credentials available)`
-    - **Resolution**: Kafka uses kerberos tickets for authentication. Need to set-up kerberos token first
+
+  - **Resolution**: Kafka uses kerberos tickets for authentication. Need to set-up kerberos token first
 
 - `Message received on unknown topic: errcode: Broker: Group authorization failed error: FindCoordinator response error: Group authorization failed.`
-    - **Resolution**: Kafka broker running on windows are case sensitive to kerberos token. When creating Kerberos token with kinit, make sure to use principal name with case sensitive user id.
+
+  - **Resolution**: Kafka broker running on windows are case sensitive to kerberos token. When creating Kerberos token with kinit, make sure to use principal name with case sensitive user id.
 
 - `authentication: SASL handshake failed (start (-4)): SASL(-4): no mechanism available: No worthy mechs found (after 0ms in state AUTH_REQ)`
-    - **Resolution**: cyrus-sasl-gssapi needs to be installed on the box for Kafka kerberos authentication
+
+  - **Resolution**: cyrus-sasl-gssapi needs to be installed on the box for Kafka kerberos authentication
 
 - `Message error on topic "an-example-topic". errcode: Broker: Topic authorization failed error: Subscribed topic not available: an-example-topic: Broker: Topic authorization failed)`
-    - **Resolution**: The user account does not have access to the topic
-  
-   
+
+  - **Resolution**: The user account does not have access to the topic
+
 ## Parquet
 
 ### ParquetReader
@@ -207,7 +208,7 @@ def subscribe(
     that inherits from csp.Struct, in which case each instance of the struct will be constructed from the matching file columns.
     :param field_map: A map of the fields from parquet columns for the CSP time series. If typ is a primitive, then field_map should be
     a string specifying the column name, if typ is a csp Struct then field_map should be a str->str dictionary of the form
-    {column_name:struct_field_name}. For stucts field_map can be omitted in which case we expect a one to one match between the given Struct
+    {column_name:struct_field_name}. For structs field_map can be omitted in which case we expect a one to one match between the given Struct
     fields and the parquet files columns.
     :param push_mode: A push mode for the output adapter
     """
@@ -223,7 +224,7 @@ def subscribe_all(
     that inherits from csp.Struct, in which case each instance of the struct will be constructed from the matching file columns.
     :param field_map: A map of the fields from parquet columns for the CSP time series. If typ is a primitive, then field_map should be
     a string specifying the column name, if typ is a csp Struct then field_map should be a str->str dictionary of the form
-    {column_name:struct_field_name}. For stucts field_map can be omitted in which case we expect a one to one match between the given Struct
+    {column_name:struct_field_name}. For structs field_map can be omitted in which case we expect a one to one match between the given Struct
     fields and the parquet files columns.
     :param push_mode: A push mode for the output adapter
     """
@@ -231,14 +232,13 @@ def subscribe_all(
 
 Parquet reader provides two subscription methods.
 **`subscribe`** produces a time series only of the rows that correspond to the given symbol,
-**`subscribe_all`**produces a time series of all rows in the parquet files.
+\*\*`subscribe_all`\*\*produces a time series of all rows in the parquet files.
 
 ### ParquetWriter
 
 The ParquetWriter adapter is a generic user adapter to stream data from CSP time series to [Apache Parquet](https://parquet.apache.org/) files.
 `ParquetWriter` adapter supports only flat (non hierarchical) parquet files with all the primitive types that are supported by the `csp` framework.
 Any time series of Struct objects will be flattened to multiple columns.
-
 
 #### Construction
 
@@ -295,7 +295,7 @@ For the given row, any column that corresponds to a time series that didn't tick
 ## DBReader
 
 The DBReader adapter is a generic user adapter to stream data from a database as a reactive time series.
-It leverages sqlalchemy internally in order to be able to access various DB backends. 
+It leverages sqlalchemy internally in order to be able to access various DB backends.
 
 Please refer to the [SQLAlchemy Docs](https://docs.sqlalchemy.org/en/13/core/tutorial.html) for information on how to create sqlalchemy connections.
 
@@ -317,12 +317,12 @@ DBReader(self, connection, time_accessor, table_name=None, schema_name=None, que
 - **connection**: seqlalchemy engine or existing connection object.
 - **time_accessor**: see below
 - **table_name**: either table or query is required.
-    If passing a table_name then this table will be queried against for subscribe calls
-- **query**: (optional) if table isnt supplied user can provide a direct query string or sqlalchemy query object.
-    This is useful if you want to run a join call.
-    For basic single-table queries passing table_name is preferred
+  If passing a table_name then this table will be queried against for subscribe calls
+- **query**: (optional) if table isn't supplied user can provide a direct query string or sqlalchemy query object.
+  This is useful if you want to run a join call.
+  For basic single-table queries passing table_name is preferred
 - **symbol_column**: (optional) in order to be able to demux rows bysome column, pass `symbol_column`.
-    Example case for this is if database has data stored for many symbols in a single table, and you want to have a timeseries tick per symbol.
+  Example case for this is if database has data stored for many symbols in a single table, and you want to have a timeseries tick per symbol.
 - **constraint**: (optional) additional sqlalchemy constraints for query. Ex: `constraint = db.text('PRICE>:price').bindparams(price= 100.0)`
 
 ### TimeAccessor
@@ -332,9 +332,9 @@ All data fed into `csp` must be time based.
 Users can define their own `TimeAccessor` implementation or use pre-canned ones:
 
 - `TimestampAccessor( self, time_column, tz=None)`: use this if there exists a single datetime column already.
-    Provide the column name and optionally the timezone of the column (if its timezone-less in the db)
+  Provide the column name and optionally the timezone of the column (if its timezone-less in the db)
 - `DateTimeAccessor(self, date_column, time_column, tz=None)`: use this if there are two separate columns for date and time, this accessor will combine the two columns to create a single datetime.
-    Optionally pass tz if time column is timezone-less in the db
+  Optionally pass tz if time column is timezone-less in the db
 
 User implementations would have to extend `TimeAccessor` interface.
 In addition to defining how to convert db columns to timestamps, accessors are also used to augment the query to limit the data for the graph's start and end times.
@@ -344,7 +344,7 @@ Once you have a DBReader object created, you can subscribe to time_series from i
 - `subscribe(self, symbol, typ, field_map=None)`
 - `subscribe_all(self, typ, field_map=None)`
 
-Both of these calls expect `typ` to be a `csp.Struct` type. 
+Both of these calls expect `typ` to be a `csp.Struct` type.
 `field_map` is a dictionary of `{ db_column : struct_column }` mappings that define how to map the database column names to the fields on the struct.
 
 `subscribe` is used to subscribe to a stream for the given symbol (symbol_column is required when creating DBReader)

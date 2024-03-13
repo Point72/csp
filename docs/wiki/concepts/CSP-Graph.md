@@ -27,7 +27,7 @@ def calc_symbol_pnl(symbol: str, trades: ts[Trade]) -> ts[float]:
 def calc_portfolio_pnl(symbols: [str]) -> ts[float]:
     symbol_pnl = []
     for symbol in symbols:
-        symbol_trades = trade_adapter.subcribe(symbol)
+        symbol_trades = trade_adapter.subscribe(symbol)
         symbol_pnl.append(calc_symbol_pnl(symbol, symbol_trades))
 
     return csp.sum(symbol_pnl)
@@ -39,15 +39,14 @@ In this simple example we have a csp.graph component `calc_symbol_pnl` which enc
 ## Graph Propagation and Single-dispatch
 
 The `csp` graph propagation algorithm ensures that all nodes are executed *once* per engine cycle, and in the correct order.
-Correct order means, that all input dependencies of a given node are gauranteed to have been evaluated before a given node is executed.
+Correct order means, that all input dependencies of a given node are guaranteed to have been evaluated before a given node is executed.
 Take this graph for example:
 
 ![359407953](https://github.com/Point72/csp/assets/3105306/d9416353-6755-4e37-8467-01da516499cf)
 
-
 On a given cycle lets say the `bid` input ticks.
 The `csp` engine will ensure that **`mid`** is executed, followed by **`spread`** and only once **`spread`**'s output is updated will **`quote`** be called.
-When **`quote`** executes it will have the latest values of the `mid` and `spread` calc for this cycle.  
+When **`quote`** executes it will have the latest values of the `mid` and `spread` calc for this cycle.
 
 ## Graph Pruning
 
@@ -55,7 +54,7 @@ One should note a subtle optimization technique in `csp` graphs.
 Any part of a graph that is created at graph building time, but is NOT connected to any output nodes, will be pruned from the graph and will not exist during runtime.
 An output is defined as either an output adapter or a `csp.node` without any outputs of its own.
 The idea here is that we can avoid doing work if it doesn't result in any output being generated.
-In general its best practice for all csp.nodes to be ***side-effect free**, in other words they shouldn't mutate any state outside of the node.
+In general its best practice for all csp.nodes to be \***side-effect free**, in other words they shouldn't mutate any state outside of the node.
 Assuming all nodes are side-effect free, pruning the graph would not have any noticeable effects.
 
 ## Collecting Graph Outputs
@@ -85,7 +84,7 @@ result:
 
 Note that the result is a list of `(datetime, value)` tuples.
 
-You can also use [csp.add_graph_output](https://github.com/Point72/csp/wiki/1.-Generic-Nodes-(csp.baselib)#adapters) to add outputs.
+You can also use [csp.add_graph_output](<https://github.com/Point72/csp/wiki/1.-Generic-Nodes-(csp.baselib)#adapters>) to add outputs.
 These do not need to be in the top-level graph called directly from `csp.run`.
 
 This gives the same result:
@@ -112,4 +111,4 @@ result:
 {0: (array(['2021-11-08T00:00:00.000000000', '2021-11-08T00:00:01.000000000'], dtype='datetime64[ns]'), array([1, 2], dtype=int64))}
 ```
 
-Note that the result there is a tuple per output, containing two numpy arrays, one with the datetimes and one with the values.  
+Note that the result there is a tuple per output, containing two numpy arrays, one with the datetimes and one with the values.

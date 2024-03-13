@@ -12,8 +12,8 @@ The next engine cycle will execute with the same engine time as the cycle that g
 
 - **`csp.feedback(ts_type)`**: `ts_type` is the type of the timeseries (ie int, str).
   This returns an instance of a feedback object
-    - **`out()`**: this method returns the timeseries edge which can be passed as an input to your node
-    - **`bind(ts)`**: this method is called to bind an edge as the source of the feedback after the fact
+  - **`out()`**: this method returns the timeseries edge which can be passed as an input to your node
+  - **`bind(ts)`**: this method is called to bind an edge as the source of the feedback after the fact
 
 A simple example should help demonstrate a possible usage.
 Lets say we want to simulate acking orders that are generated from a node called `my_algo`.

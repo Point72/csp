@@ -1,5 +1,5 @@
 `csp` graphs are somewhat limiting in that they cannot change shape once the process starts up.
-`csp` dynamic graphs addresses this issue by introducing a construct to allow applications to dynamically add / remove sub-graphs from a running graph. 
+`csp` dynamic graphs addresses this issue by introducing a construct to allow applications to dynamically add / remove sub-graphs from a running graph.
 
 `csp.DynamicBasket`s are a pre-requisite construct needed for dynamic graphs.
 csp.DynamicBaskets work just like regular static `csp` baskets, however dynamic baskets can change their shape over time.
@@ -27,7 +27,7 @@ def dynamic_demultiplex_example(data : ts[ 'T' ], key : ts['K']) -> csp.DynamicB
         csp.output({ key : data })
 
 
-        ## To remove a key, which wouldnt be done in this example node:
+        ## To remove a key, which wouldn't be done in this example node:
         ## csp.remove_dynamic_key(key)
 ```
 
@@ -37,7 +37,7 @@ For named outputs, the arguments would be `csp.remove_dynamic_key(output_name, 
 
 ## Consuming dynamic basket input
 
-Taking dynamic baskets as input is exactly the same as static baskets. 
+Taking dynamic baskets as input is exactly the same as static baskets.
 There is one additional bit of information available on dynamic basket inputs though, which is the .shape property.
 As keys are added or removed, the `basket.shape` property will tick the the change events.
 The `.shape` property behaves effectively as a `ts[csp.DynamicBasketEvents]`:

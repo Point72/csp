@@ -15,7 +15,7 @@ For clarity of this distinction, in the descriptions below we will denote graph 
 
 ### Historical Adapters
 
-There are two flavors of historical input adapters that can be written. 
+There are two flavors of historical input adapters that can be written.
 The simplest one is a PullInputAdapter.
 A PullInputAdapter can be used to convert a single source into a single timeseries.
 The csp.curve implementation is a good example of this.
@@ -28,11 +28,11 @@ To write a Python based PullInputAdapter one must write a class that derives fro
 The derived type should the define two methods:
 
 - `def start(self, start_time, end_time)`: this will be called at the start of the engine with the start/end times of the engine.
-    start_Time and end_time will be tz-unaware datetime objects in UTC time.
-    At this point the adapter should open its resource and seek to the requested starttime.
+  start_Time and end_time will be tz-unaware datetime objects in UTC time.
+  At this point the adapter should open its resource and seek to the requested starttime.
 - `def next(self)`: this method will be repeatedly called by the engine.
-    The adapter should return the next event as a time,value tuple.
-    If there are no more events, then the method should return None
+  The adapter should return the next event as a time,value tuple.
+  If there are no more events, then the method should return None
 
 The PullInputAdapter that you define will be used as the runtime *--impl–-*.
 You also need to define a *--graph--* time representation of the time series edge.
@@ -99,9 +99,7 @@ x = csp.curve(int, [ (t1, v1), (t2, v2), .. ])
 csp.print('x', x)
 ```
 
-See example "e_14_user_adapters_01_pullinput.py for 
-
-
+See example "e_14_user_adapters_01_pullinput.py for
 
 #### PullInputAdapter - C++
 
@@ -112,10 +110,10 @@ The *--impl--* is very similar to python pull adapter.
 One should derive from `PullInputAdapter<T>`, a templatized base class (templatized on the type of the timeseries) and define these methods:
 
 - **`start(DateTime start, DateTime end)`**: similar to python API start, called when engine starts.
-    Open resource and seek to start time here
+  Open resource and seek to start time here
 - **`stop()`**: called on engine shutdown, cleanup resource
 - **`bool next(DateTime & t, T & value)`**: if there is data to provide, sets the next time and value for the adapter and returns true.
-    Otherwise, return false
+  Otherwise, return false
 
 **Step 2)** Expose creator func to python
 
@@ -134,7 +132,7 @@ csp::InputAdapter * create_my_adapter(
 - **`manager`**: will be nullptr for pull adapters
 - **`pyengine `**: PyEngine engine wrapper object
 - **`pyType`**: this is the type of the timeseries input adapter to be created as a PyTypeObject.
-    one can switch on this type using switchPyType to create the properly typed instance
+  one can switch on this type using switchPyType to create the properly typed instance
 - **`pushMode`**: the csp PushMode for the adapter (pass through to base InputAdapter)
 - **`args`**: arguments to pass to the adapter impl
 
@@ -157,7 +155,7 @@ my_adapter = input_adapter_def('my_adapter', my_module._my_adapter, ts[int], arg
 my_adapter can now be called with arg1, arg2 to create adapters in your graph.
 Note that the arguments are typed using v=t syntax.  v=(t,default) is used to define arguments with defaults.
 
-Also note that all input adapters implicity get a push_mode argument that is defaulted to csp.PushMode.LAST_VALUE.
+Also note that all input adapters implicitly get a push_mode argument that is defaulted to csp.PushMode.LAST_VALUE.
 
 #### ManagedSimInputAdapter - Python
 
@@ -202,12 +200,11 @@ class CSVReader:
 
 - **`__init__`**: as you can see, all `__init__` does is keep the parameters that the impl will need.
 - **`subscribe`**: API to create an individual timeseries / edge from this file for the given symbol.
-    typ denotes the type of the timeseries to create (ie `ts[int]`) and field_map is used for mapping columns onto csp.Struct types.
-    Note that subscribe returns a CSVReadAdapter instance.
-    CSVReadAdapter is the *--graph--* time representation of the edge (similar to how we defined csp.curve above).
-    We pass it `self` as its first argument, which will be used to create the AdapterManager *--impl--*
+  typ denotes the type of the timeseries to create (ie `ts[int]`) and field_map is used for mapping columns onto csp.Struct types.
+  Note that subscribe returns a CSVReadAdapter instance.
+  CSVReadAdapter is the *--graph--* time representation of the edge (similar to how we defined csp.curve above).
+  We pass it `self` as its first argument, which will be used to create the AdapterManager *--impl--*
 - **`\_create`**: the method to create the *--impl--* object from the given *--graph--* time representation of the manager
-
 
 The CSVReader would then be used in graph building code like so:
 
@@ -221,36 +218,36 @@ aapl = reader.subscribe('AAPL', PriceQuantity)
 ##### AdapterManager - **--impl-- runtime**
 
 The AdapterManager *--impl--* is responsible for opening the data source, parsing and processing through all the data and managing all the adapters it needs to feed.
-The impl class should derive from csp.impl.adaptermanager.AdapterManagerImpl and implement the followin methods:
+The impl class should derive from csp.impl.adaptermanager.AdapterManagerImpl and implement the following methods:
 
 - **`start(self,starttime,endtime)`**: this is called when the engine starts up.
-    At this point the impl should open the resource providing the data and seek to starttime.
-    starttime/endtime will be tz-unaware datetime objects in UTC time
+  At this point the impl should open the resource providing the data and seek to starttime.
+  starttime/endtime will be tz-unaware datetime objects in UTC time
 - **`stop(self)`**: this is called at the end of the run, resources should be cleaned up at this point
 - **`process_next_sim_timeslice(self, now)`**: this method will be called multiple times through the run.
-    The initial call will provide now with starttime.
-    The impl's responsibility is to process all data at the given timestamp (more on how to do this below). 
-    The method should return the next time in the data source, or None if there is no more data to process.
-    The method will be called again with the provided timestamp as "now" in the next iteration.
-    **NOTE** that process_next_sim_timeslice is required to move ahead in time.
-    In most cases the resource data can be supplied in time order, if not it would have to be sorted up front.
+  The initial call will provide now with starttime.
+  The impl's responsibility is to process all data at the given timestamp (more on how to do this below).
+  The method should return the next time in the data source, or None if there is no more data to process.
+  The method will be called again with the provided timestamp as "now" in the next iteration.
+  **NOTE** that process_next_sim_timeslice is required to move ahead in time.
+  In most cases the resource data can be supplied in time order, if not it would have to be sorted up front.
 
 process_next_sim_timeslice should parse data for a given time/row of data and then push it through to any registered ManagedSimInputAdapter that matches on the given row
 
 ##### ManagedSimInputAdapter - **--impl-- runtime**
 
 Users will need to define ManagedSimInputAdapter derived types to represent the individual timeseries adapter *--impl--* objects.
-Objects should derive from csp.impl.adaptermanager.ManagedSimInputAdapter.  
+Objects should derive from csp.impl.adaptermanager.ManagedSimInputAdapter.
 
 ManagedSimInputAdapter.`__init__` takes two arguments:
 
 - **`typ`**: this is the type of the timeseries, ie int for a `ts[int]`
-- **`field_map`**: Optional, field_map is a dictionary used to map source column names → csp.Struct field names. 
+- **`field_map`**: Optional, field_map is a dictionary used to map source column names → csp.Struct field names.
 
 ManagedSimInputAdapter defines a method `push_tick()` which takes the value to feed the input for given timeslice (as defined by "now" at the adapter manager level).
 There is also a convenience method called `process_dict()` which will take a dictionary of `{column : value}` entries and convert it properly into the right value based on the given **field_map.**
 
-##### **ManagedSimInputAdapter - **--graph-- time**
+##### \*\*ManagedSimInputAdapter - **--graph-- time**
 
 As with the csp.curve example, we need to define a graph-time construct that represents a ManagedSimInputAdapter edge.
 In order to define this we use py_managed_adapter_def.
@@ -273,7 +270,7 @@ the first argument to the implementation will be the adapter manager impl instan
 ##### Example - CSVReader
 
 Putting this all together lets take a look at a CSVReader implementation
-and step through whats going on:
+and step through what's going on:
 
 ```python
 import csv as pycsv
@@ -301,8 +298,6 @@ class CSVReader:
 Here we define CSVReader, our AdapterManager *--graph--* time representation.
 It holds the parameters that will be used for the impl, it implements a `subscribe()` call for users to create timeseries and defines a \_create method to create a runtime *--impl–-* instance from the graphtime representation.
 Note how on line 17 we pass self to the CSVReadAdapter, this is what binds the input adapter to this AdapterManager
-
-
 
 ```python
 # RUN TIME
@@ -358,23 +353,23 @@ class CSVReaderImpl(AdapterManagerImpl):                     # 1
 ```
 
 CSVReaderImpl is the runtime *--impl–-*.
-It gets created when the engine is being built from the described graph.  
+It gets created when the engine is being built from the described graph.
 
 - **lines 10-21 - start()**: this is the start method that gets called with the time range the graph will be run against.
-    Here we open our resource (pycsv.DictReader) and scan t hrough the data until we reach the requested starttime.
+  Here we open our resource (pycsv.DictReader) and scan t through the data until we reach the requested starttime.
 
 - **lines 23-24 - stop()**: this is the stop call that gets called when the engine is done running and is shutdown, we free our resource here
 
 - **lines 26-29**: the CSVReader allows one to subscribe to many symbols from one file.
-    symbols are keyed by a provided SYMBOL column.
-    The individual adapters will self-register with the CSVReaderImpl when they are created with the requested symbol.
-    CSVReaderImpl keeps track of what adapters have been registered for what symbol in its self.\_inputs map
+  symbols are keyed by a provided SYMBOL column.
+  The individual adapters will self-register with the CSVReaderImpl when they are created with the requested symbol.
+  CSVReaderImpl keeps track of what adapters have been registered for what symbol in its self.\_inputs map
 
 - **lines 31-43**: this is main method that gets invoked repeatedly throughout the run.
-    For every distinct timestamp in the file, this method will get invoked once and the method is expected to go through the resource data for all points with time now, process the row and push the data to any matching adapters.
-    The method returns the next timestamp when its done processing all data for "now", or None if there is no more data.
-    **NOTE** that the csv impl expects the data to be in time order.
-    process_next_sim_timeslice must advance time forward.
+  For every distinct timestamp in the file, this method will get invoked once and the method is expected to go through the resource data for all points with time now, process the row and push the data to any matching adapters.
+  The method returns the next timestamp when its done processing all data for "now", or None if there is no more data.
+  **NOTE** that the csv impl expects the data to be in time order.
+  process_next_sim_timeslice must advance time forward.
 
 - **lines 45-49**: this method takes a row of data (provided as a dict from DictReader), extracts the symbol and pushes the row through to all input adapters that match
 
@@ -400,9 +395,6 @@ CSVReadAdapter = py_managed_adapter_def(                     # 6
 
 See example "e_14_user_adapters_02_adaptermanager_siminput" for another example of how to write a managed sim adapter manager.
 
-
-
-
 ### Realtime Adapters
 
 #### PushInputAdapter - python
@@ -411,10 +403,10 @@ To write a Python based PushInputAdapter one must write a class that derives fro
 The derived type should the define two methods:
 
 - `def start(self, start_time, end_time)`: this will be called at the start of the engine with the start/end times of the engine.
-    start_time and end_time will be tz-unaware datetime objects in UTC time (generally these arent needed for realtime adapters).
-    At this point the adapter should open its resource / connect the data source / start any driver threads that are needed.
+  start_time and end_time will be tz-unaware datetime objects in UTC time (generally these aren't needed for realtime adapters).
+  At this point the adapter should open its resource / connect the data source / start any driver threads that are needed.
 - `def stop(self)`: This method well be called when the engine is done running.
-    At this point any open threads should be stopped and resources cleaned up.
+  At this point any open threads should be stopped and resources cleaned up.
 
 The PushInputAdapter that you define will be used as the runtime *--impl–-*.
 You also need to define a *--graph--* time representation of the time series edge.
@@ -425,15 +417,15 @@ The py_push_adapter_def creates a *--graph--* time representation of your ada
 
 - **`name`**: string name for the adapter
 - **`adapterimpl`**: a derived implementation of
-    csp.impl.pushadapter.PushInputAdapter
+  csp.impl.pushadapter.PushInputAdapter
 - **`out_type`**: the type of the output, should be a ts\[\] type.
-    Note this can use tvar types if a subsequent argument defines the
-    tvar
+  Note this can use tvar types if a subsequent argument defines the
+  tvar
 - **`kwargs`**: \*\*kwargs here be passed through as arguments to the
-    PushInputAdapter implementation
+  PushInputAdapter implementation
 
 Note that the \*\*kwargs passed to py_push_adapter_def should be the names and types of the variables, like arg1=type1, arg2=type2.
-These are the names of the kwargs that the returned input adapter will take and pass through to the PushInputAdapter implementation, and the types expected for the values of those args.  
+These are the names of the kwargs that the returned input adapter will take and pass through to the PushInputAdapter implementation, and the types expected for the values of those args.
 
 Example e_14_user_adapters_03_pushinput.py demonstrates a simple example of this
 
@@ -504,7 +496,7 @@ def my_graph():
 
 #### GenericPushAdapter
 
-If you dont need as much control as PushInputAdapter provides, or if you have some existing source of data on a thread you cant control, another option is to use the higher-level abstraction csp.GenericPushAdapter.
+If you dont need as much control as PushInputAdapter provides, or if you have some existing source of data on a thread you can't control, another option is to use the higher-level abstraction csp.GenericPushAdapter.
 csp.GenericPushAdapter wraps a csp.PushInputAdapter implementation internally and provides a simplified interface.
 The downside of csp.GenericPushAdapter is that you lose some control of when the input feed starts and stop.
 
@@ -533,7 +525,7 @@ class Driver:
         counter = 0
         # Optionally, we can wait for the adapter to start before proceeding
         # Alternatively we can start pushing data, but push_tick may fail and return False if
-        # the csp engine isnt ready yet
+        # the csp engine isn't ready yet
         self._adapter.wait_for_start()
 
         while self._active and not self._adapter.stopped():
@@ -546,21 +538,19 @@ def my_graph():
     adapter = csp.GenericPushAdapter(int)
     driver = Driver(adapter)
     # Note that the driver thread starts *before* the engine is started here, which means some ticks may potentially get dropped if the
-    # data source doesnt wait for the adapter to start. This may be ok for some feeds, but not others
+    # data source doesn't wait for the adapter to start. This may be ok for some feeds, but not others
     driver.start()
 
     # Lets be nice and shutdown the driver thread when the engine is done
     csp.schedule_on_engine_stop(driver.stop)
 ```
 
-In this example we have this dummy Driver class which simply represents some external source of data which arrives on a thread thats completely independent of the engine.
+In this example we have this dummy Driver class which simply represents some external source of data which arrives on a thread that's completely independent of the engine.
 We pass along a csp.GenericInputAdapter instance to this thread, which can then call adapter.push_tick to get data into the engine (see line 27).
 
 On line 24 we can also see an optional feature which allows the unrelated thread to wait for the adapter to be ready to accept data before ticking data onto it.
 If push_tick is called before the engine starts / the adapter is ready to receive data, it will simply drop the data.
 Note that GenericPushAadapter.push_tick will return a bool to indicate whether the data was successfully pushed to the engine or not.
-
-
 
 ### Realtime AdapterManager
 
@@ -577,7 +567,7 @@ Graph time components can be pruned and/or memoized into a single instance, open
 #### AdapterManager - **graph-- time**
 
 The graph time AdapterManager doesn't need to derive from any interface.
-It should be initialized with any information the impl needs in order to open/process the data source (ie activemq connection information, server host port, mutlicast channels, config files, etc etc).
+It should be initialized with any information the impl needs in order to open/process the data source (ie activemq connection information, server host port, multicast channels, config files, etc etc).
 It should also have an API to create individual timeseries adapters.
 These adapters will then get passed the adapter manager *--impl--* as an argument when they are created, so that they can register themselves for processing.
 The AdapterManager also needs to define a **\_create** method.
@@ -615,12 +605,10 @@ class MyAdapterManager:
 
 - **\_\_init\_\_** - as you can see, all \_\_init\_\_ does is keep the parameters that the impl will need.
 - **subscribe** - API to create an individual timeseries / edge from this file for the given symbol.
-    The interface defined here is up to the adapter writer, but generally "subscribe" is recommended, and it should take any number of arguments needed to define a single stream of data.
-    *MyPushAdapter* is the *--graph--* time representation of the edge, which will be described below.
-    We pass it *self* as its first argument, which will be used to create the AdapterManager *--impl--*
+  The interface defined here is up to the adapter writer, but generally "subscribe" is recommended, and it should take any number of arguments needed to define a single stream of data.
+  *MyPushAdapter* is the *--graph--* time representation of the edge, which will be described below.
+  We pass it *self* as its first argument, which will be used to create the AdapterManager *--impl--*
 - **\_create** - the method to create the *--impl--* object from the given *--graph--* time representation of the manager
-
-
 
 MyAdapterManager would then be used in graph building code like so:
 
@@ -633,11 +621,11 @@ csp.print(symbol + " last_value", data)
 ## AdapterManager - **impl-- runtime**
 
 The AdapterManager *--impl--* is responsible for opening the data source, parsing and processing all the data and managing all the adapters it needs to feed.
-The impl class should derive fro csp.impl.adaptermanager.AdapterManagerImpl and implement the followin methods:
+The impl class should derive from csp.impl.adaptermanager.AdapterManagerImpl and implement the following methods:
 
 - **start(self,starttime,endtime)**: this is called when the engine starts up.
-    At this point the impl should open the resource providing the data and start up any thread(s) needed to listen to and react to external data.
-    starttime/endtime will be tz-unaware datetime objects in UTC time, though typically these arent needed for realtime adapters
+  At this point the impl should open the resource providing the data and start up any thread(s) needed to listen to and react to external data.
+  starttime/endtime will be tz-unaware datetime objects in UTC time, though typically these aren't needed for realtime adapters
 - **`stop(self)`**: this is called at the end of the run, resources should be cleaned up at this point
 - **`process_next_sim_timeslice(self, now)`**: this is used by sim adapters, for realtime adapter managers we simply return None
 
@@ -648,13 +636,13 @@ Data is passed to a given adapter by calling **push_tick**()
 #### PushInputAdapter - **--impl-- runtime**
 
 Users will need to define PushInputAdapter derived types to represent the individual timeseries adapter *--impl--* objects.
-Objects should derive from csp.impl.pushadapter.PushInputAdapter.  
+Objects should derive from csp.impl.pushadapter.PushInputAdapter.
 
 PushInputAdapter defines a method `push_tick()` which takes the value to feed the input timeseries.
 
 #### PushInputAdapter - **--graph-- time**
 
-Similar to the stand alone PushInputAdapter described above, we need to define a graph-time construct that represents a PushInputAdapter edge. 
+Similar to the stand alone PushInputAdapter described above, we need to define a graph-time construct that represents a PushInputAdapter edge.
 In order to define this we use py_push_adapter_def again, but this time we pass the adapter manager *--graph--* time type so that it gets constructed properly.
 When the PushInputAdapter instance is created it will also receive an instance of the adapter manager *--impl–-*, which it can then self-register on/
 
@@ -695,7 +683,7 @@ class MyAdapterManagerImpl(AdapterManagerImpl):
         self._thread = None
 
     def start(self, starttime, endtime):
-        """ start wil get called at the start of the engine run. At this point
+        """ start will get called at the start of the engine run. At this point
             one would start up the realtime data source / spawn the driving thread(s) and
             subscribe to the needed data """
         self._running = True
@@ -794,7 +782,7 @@ Do note that realtime adapters will only run in realtime engines (note the `real
 ## Output Adapters
 
 Output adapters are used to define graph outputs, and they differ from input adapters in a number of important ways.
-Output adapters also differ from terminal nodes, e.g. regular `csp.node` instances that do not define outputs, and instead consume and emit their inputs inside their `csp.ticked`  blocks. 
+Output adapters also differ from terminal nodes, e.g. regular `csp.node` instances that do not define outputs, and instead consume and emit their inputs inside their `csp.ticked`  blocks.
 
 For many use cases, it will be sufficient to omit writing an output adapter entirely.
 Consider the following example of a terminal node that writes an input dictionary timeseries to a file.
@@ -807,20 +795,13 @@ def write_to_file(x: ts[Dict], filename: str):
             fp.write(json.dumps(x))
 ```
 
-
-
 This is a perfectly fine node, and serves its purpose.
 Unlike input adapters, output adapters do not need to differentiate between *historical* and *realtime* mode.
 Input adapters drive the execution of the graph, whereas output adapters are reactive to their input nodes and subject to the graph's execution.
 
-
-
 However, there are a number of reasons why you might want to define an output adapter instead of using a vanilla node.
 The most important of these is when you want to share resources across a number of output adapters (e.g. with a Manager), or between an input and an output node, e.g. reading data from a websocket, routing it through your csp graph, and publishing data *to the same websocket connection*.
 For most use cases, a vanilla csp node will suffice, but let's explore some anyway.
-
-
-
 
 ### OutputAdapter - Python
 
@@ -913,23 +894,17 @@ def dump_json(data: ts['T'], filename: str):
 
 TODO
 
-
-
 ### OutputAdapter with Manager
 
-Adapter managers function the same way for output adapters as for input adapters, i.e. to manage a single shared resource from the manager across a variety of discrete output adapters. 
+Adapter managers function the same way for output adapters as for input adapters, i.e. to manage a single shared resource from the manager across a variety of discrete output adapters.
 
 ### InputOutputAdapter - Python
 
 As a as last example, lets tie everything together and implement a managed push input adapter combined with a managed output adapter.
 This example is available in `e_14_user_adapters_05_adaptermanager_inputoutput` .
 
-
-
 First, we will define our adapter manager.
 In this example, we're going to cheat a little bit and combine our adapter manager (graph time) and our adapter manager impl (run time).
-
-
 
 ```python
 class MyAdapterManager(AdapterManagerImpl):
@@ -1008,13 +983,9 @@ class MyAdapterManager(AdapterManagerImpl):
         print("{}:{}".format(self._publications[symbol], value))
 ```
 
-
-
 This adapter manager is a bit of a silly example, but it demonstrates the core concepts.
 The adapter manager will demultiplex a shared stream (in this case, the stream defined in `_run`  is a random sequence of `MyData` structs) between all the input adapters it manages.
 The input adapter itself will do nothing more than let the adapter manager know that it exists:
-
-
 
 ```python
 class MyInputAdapterImpl(PushInputAdapter):
@@ -1027,16 +998,12 @@ class MyInputAdapterImpl(PushInputAdapter):
         super().__init__()
 ```
 
-
-
 Similarly, the adapter manager will multiplex the output adapter streams, in this case combining them into streams of print statements.
 And similar to the input adapter, the output adapter does relatively little more than letting the adapter manager know that it has work available, using its triggered `on_tick` method to call the adapter manager's `_on_tick` method.
 
-
-
 ```
 class MyOutputAdapterImpl(OutputAdapter):
-    '''Similarly, our output adpter is simple as well, defering
+    '''Similarly, our output adapter is simple as well, deferring
     its functionality to the manager
     '''
     def __init__(self, manager, symbol):
@@ -1049,8 +1016,6 @@ class MyOutputAdapterImpl(OutputAdapter):
         self._manager._on_tick(self._symbol, value)
 ```
 
-
-
 As a last step, we need to ensure that the runtime adapter implementations are registered with our graph:
 
 ```python
@@ -1058,16 +1023,12 @@ _my_input_adapter = py_push_adapter_def(name='MyInputAdapter', adapterimpl=MyInp
 _my_output_adapter = py_output_adapter_def(name='MyOutputAdapter', adapterimpl=MyOutputAdapterImpl, manager_type=MyAdapterManager, input=ts['T'], symbol=str)
 ```
 
-
-
 To test this example, we will:
 
 - instantiate our manager
 - subscribe to a certain number of input adapter "streams" (which the adapter manager will demultiplex out of a single random node)
 - print the data
 - sink each stream into a smaller number of output adapters (which the adapter manager will multiplex into print statements)
-
-
 
 ```python
 @csp.graph
@@ -1087,8 +1048,6 @@ def my_graph():
     adapter_manager.publish(data_2, "data_1")
     adapter_manager.publish(data_3, "data_3")
 ```
-
-
 
 Here is the result of a single run:
 
@@ -1127,4 +1086,4 @@ closing asset publication_data_3
 
 Although simple, this examples demonstrates the utility of the adapters and adapter managers.
 An input resource is managed by one entity, distributed across a variety of downstream subscribers.
-Then a collection of streams is piped back into a single entity.  
+Then a collection of streams is piped back into a single entity.

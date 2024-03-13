@@ -29,11 +29,11 @@ In this example, we use **`csp.set_buffering_policy(input, tick_count=bin_size)`
 Note that an input can be shared by multiple nodes, if multiple nodes provide size requirements, the buffer size would be resolved to the maximum size to support all requests.
 
 Alternatively, **`csp.set_buffering_policy`** supports a **`timedelta`** parameter **`tick_history`** instead of **`tick_count`.**
-If **`tick_history`** is provided, the buffer will scale dynamically to ensure that any period of length **`tick_history`** will fit into the history buffer. 
+If **`tick_history`** is provided, the buffer will scale dynamically to ensure that any period of length **`tick_history`** will fit into the history buffer.
 
 To identify when there are enough samples to construct a bin we use **`csp.num_ticks(input) % bin_size == 0`**.
 The function **`csp.num_ticks`** returns the number or total ticks for a given time series.
-NOTE: The actual size of the history buffer is usually less than **`csp.num_ticks`** as buffer is dynamically truncated to satisfy the set policy. 
+NOTE: The actual size of the history buffer is usually less than **`csp.num_ticks`** as buffer is dynamically truncated to satisfy the set policy.
 
 The past values in this example are accessed using **`csp.value_at`**.
 The various historical access methods take the same arguments and return the value, time and tuple of `(time,value)` respectively:
@@ -41,19 +41,19 @@ The various historical access methods take the same arguments and return the val
 - **`csp.value_at`**`(ts, index_or_time, duplicate_policy=DuplicatePolicy.LAST_VALUE, default=UNSET)`: returns **value** at requested `index_or_time`
 - **`csp.time_at`**`(ts, index_or_time, duplicate_policy=DuplicatePolicy.LAST_VALUE, default=UNSET)`: returns **datetime** at requested `index_or_time`
 - **`csp.item_at`**`(ts, index_or_time, duplicate_policy=DuplicatePolicy.LAST_VALUE, default=UNSET)`: returns tuple of `(datetime,value)` at requested `index_or_time`
-    - **`ts`**: the name of the input
-    - **`index_or_time`**:
-        -   If providing an **index**, this represents how many ticks back to rereieve **and should be \<= 0**.
-            0 indicates the current value, -1 is the previous value, etc. 
-        -   If providing **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
-            **NOTE** that timedelta must be negative to represent time in the past..
-    - **`duplicate_policy`**: when requesting history by datetime or timedelta, its possible that there could be multiple values that match the given time.
-        **`duplicate_policy`** can be provided to control the behavior of what to return in this case.
-        The default policy is to return the LAST_VALUE that exists at the given time.
-    - **`default`**: value to be returned if the requested time is out of the history bounds (if default is not provided and a request is out of bounds an exception will be raised).
+  - **`ts`**: the name of the input
+  - **`index_or_time`**:
+    - If providing an **index**, this represents how many ticks back to rereieve **and should be \<= 0**.
+      0 indicates the current value, -1 is the previous value, etc.
+    - If providing **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
+      **NOTE** that timedelta must be negative to represent time in the past..
+  - **`duplicate_policy`**: when requesting history by datetime or timedelta, its possible that there could be multiple values that match the given time.
+    **`duplicate_policy`** can be provided to control the behavior of what to return in this case.
+    The default policy is to return the LAST_VALUE that exists at the given time.
+  - **`default`**: value to be returned if the requested time is out of the history bounds (if default is not provided and a request is out of bounds an exception will be raised).
 
 To illustrate the usage of history access using the **timedelta** indexing, consider a possible implementation of a function that sums up samples taken every second for each periods of **n_seconds** of the input time series.
-If the value ticks slower than every second then this implementation could sample the same value more than once (this is just an illustration, it's NOT recommended to use such implementation in real application as it could be implemented more efficiently): 
+If the value ticks slower than every second then this implementation could sample the same value more than once (this is just an illustration, it's NOT recommended to use such implementation in real application as it could be implemented more efficiently):
 
 ```python
 @csp.node
@@ -97,35 +97,35 @@ The past values in this example are accessed using **`csp.values_at`**.
 The various historical access methods take the same arguments and return the value, time and tuple of `(times,values)` respectively:
 
 - **`csp.values_at`**`(ts, start_index_or_time, end_index_or_time, start_index_policy=TimeIndexPolicy.INCLUSIVE, end_index_policy=TimeIndexPolicy.INCLUSIVE)`:
-    returns values in specified range as a numpy array
+  returns values in specified range as a numpy array
 - **`csp.times_at`**`(ts, start_index_or_time, end_index_or_time, start_index_policy=TimeIndexPolicy.INCLUSIVE, end_index_policy=TimeIndexPolicy.INCLUSIVE)`:
-    returns times in specified range as a numpy array
+  returns times in specified range as a numpy array
 - **`csp.items_at`**`(ts, start_index_or_time, end_index_or_time, start_index_policy=TimeIndexPolicy.INCLUSIVE, end_index_policy=TimeIndexPolicy.INCLUSIVE)`:
-    returns a tuple of (times, values) numpy arrays
-    - **`ts`** - the name of the input
-    - **`start_index_or_time`**:
-        - If providing an **index**, this represents how many ticks back to retrieve **and should be \<= 0**.
-          0 indicates the current value, -1 is the previous value, etc. 
-        - If providing  **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
-          **NOTE that timedelta must be negative** to represent time in the past..
-        - If **None** is provided, the range will begin "from the beginning" - i.e., the oldest tick in the buffer.
-    - **end_index_or_time:** same as start_index_or_time
-        - If **None** is provided, the range will go "until the end" - i.e., the newest tick in the buffer.
-    - **`start_index_policy`**: only for use with datetime/timedelta as the start and end parameters.
-        - **`TimeIndexPolicy.INCLUSIVE**: if there is a tick exactly at the requested time, include it
-        - **TimeIndexPolicy.EXCLUSIVE**: if there is a tick exactly at the requested time, exclude it
-        - **TimeIndexPolicy.EXTRAPOLATE**: if there is a tick at the beginning timestamp, include it.
-          Otherwise, if there is a tick before the beginning timestamp, force a tick at the beginning timestamp with the prevailing value at the time.
-    - **end_index_policy** only for use with datetime/timedelta and the start and end parameters.
-        - **TimeIndexPolicy.INCLUSIVE**: if there is a tick exactly at the requested time, include it
-        - **TimeIndexPolicy.EXCLUSIVE**: if there is a tick exactly at the requested time, exclude it
-        - **TimeIndexPolicy.EXTRAPOLATE**: if there is a tick at the end timestamp, include it.
-          Otherwise, if there is a tick before the end timestamp, force a tick at the end timestamp with the prevailing value at the time
+  returns a tuple of (times, values) numpy arrays
+  - **`ts`** - the name of the input
+  - **`start_index_or_time`**:
+    - If providing an **index**, this represents how many ticks back to retrieve **and should be \<= 0**.
+      0 indicates the current value, -1 is the previous value, etc.
+    - If providing  **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
+      **NOTE that timedelta must be negative** to represent time in the past..
+    - If **None** is provided, the range will begin "from the beginning" - i.e., the oldest tick in the buffer.
+  - **end_index_or_time:** same as start_index_or_time
+    - If **None** is provided, the range will go "until the end" - i.e., the newest tick in the buffer.
+  - **`start_index_policy`**: only for use with datetime/timedelta as the start and end parameters.
+    - **\`TimeIndexPolicy.INCLUSIVE**: if there is a tick exactly at the requested time, include it
+    - **TimeIndexPolicy.EXCLUSIVE**: if there is a tick exactly at the requested time, exclude it
+    - **TimeIndexPolicy.EXTRAPOLATE**: if there is a tick at the beginning timestamp, include it.
+      Otherwise, if there is a tick before the beginning timestamp, force a tick at the beginning timestamp with the prevailing value at the time.
+  - **end_index_policy** only for use with datetime/timedelta and the start and end parameters.
+    - **TimeIndexPolicy.INCLUSIVE**: if there is a tick exactly at the requested time, include it
+    - **TimeIndexPolicy.EXCLUSIVE**: if there is a tick exactly at the requested time, exclude it
+    - **TimeIndexPolicy.EXTRAPOLATE**: if there is a tick at the end timestamp, include it.
+      Otherwise, if there is a tick before the end timestamp, force a tick at the end timestamp with the prevailing value at the time
 
 Range access is optimized at the C++ layer and for this reason its far more efficient than calling the single value access methods in a loop, and they should be substituted in where possible.
 
 Below is a rolling average example to illustrate the use of timedelta indexing.
-Note that `timedelta(seconds=-n_seconds)` is equivalent to `csp.now() - timedelta(seconds=n_seconds)`, since datetime indexing is supported. 
+Note that `timedelta(seconds=-n_seconds)` is equivalent to `csp.now() - timedelta(seconds=n_seconds)`, since datetime indexing is supported.
 
 ```python
 @csp.node

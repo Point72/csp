@@ -39,7 +39,6 @@ In order to help visualize this graph, you can call `csp.show_graph`:
 
 ![359407708](https://github.com/Point72/csp/assets/3105306/8cc50ad4-68f9-4199-9695-11c136e3946c)
 
-
 The result of this would be:
 
 ```

@@ -27,7 +27,6 @@ The variables `a`, `b`, `c` here define the struct members (similar to `__slots_
 
 **Methods**: Note that you can define methods on structs just like any other python object.
 
-
 ## Special handling at graph time
 
 While building your graph, if you have an edge that represents a `csp.Struct` type you can access a member of that struct at graph time. What this means is that when you do `edge.field` in your graph code, you will get a new edge that will tick with the value of that field. `csp` will implicitly inject a `csp.node` that will extract that field whenever the struct timeseries ticks. Note that if the struct ticks and the field is unset, the field's edge will not tick. Here's an example of this in practice:
@@ -66,6 +65,7 @@ csp.run( my_graph, starttime = datetime( 2020, 1, 1 ))
 `trades` is defined as a timeseries of `Trade` objects. On line 13 we access the `size` field of the `trades` timeseries, then accumulate the sizes to get `cumqty` edge.
 
 ## Available methods
+
 - **`clear(self)`** clear all fields on the struct
 - **`collectts(self, **kwargs)`**: `kwargs` expects key/values of struct fields and time series to populate the struct. This will return an Edge representing a ticking struct created from all the ticking inputs provided. Structs will only be generated from inputs that actively ticked in the given engine cycle (see `fromts` to create struct from all valid inputs)
 - **`copy(self)`**: return a shallow copy of the struct
@@ -79,4 +79,5 @@ csp.run( my_graph, starttime = datetime( 2020, 1, 1 ))
 - **`all_fields_set(self)`**: returns `True` if all the fields on the struct are set. Note that this will not recursively check sub-struct fields
 
 # Note on inheritance
+
 `csp.Struct` types may inherit from each other, but **multiple inheritance is not supported**. Composition is usually a good choice in absence of multiple inheritance.

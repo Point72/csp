@@ -1,4 +1,3 @@
-
 The `csp.profiler` library allows users to time cycle/node executions during a graph run. There are two available utilities.
 
 One can use these metrics to identify bottlenecks/inefficiencies in their graphs.
@@ -8,7 +7,7 @@ One can use these metrics to identify bottlenecks/inefficiencies in their graphs
 - [Table of Contents](#table-of-contents)
 - [Profiling a real-time csp.graph](#profiling-a-real-time-cspgraph)
 - [Saving raw profiling data to a file](#saving-raw-profiling-data-to-a-file)
-- [graph\_info: build-time information](#graph_info-build-time-information)
+- [graph_info: build-time information](#graph_info-build-time-information)
 
 ## Profiling a real-time csp.graph
 
@@ -33,7 +32,6 @@ with profiler.Profiler(http_port=8888, display_graphs=True) as p:
 ```
 
 <img width="466" alt="new_profiler" src="https://github.com/Point72/csp/assets/3105306/6ef692d2-16c3-4adb-ad46-a72e1017aa79">
-
 
 ## Saving raw profiling data to a file
 
@@ -82,18 +80,17 @@ info = profiler.graph_info(graph)
 - **`node_count`**: the total number of nodes in the graph (including input/output adapters)
 - **`edge_count`**: the total number of edges in the graph
 - **`nodetype_counts`**: the number of each type of node in the graph
-    i.e. nodetype_counts\['filter'\] = 3 means there are 3 filter nodes in the graph
+  i.e. nodetype_counts\['filter'\] = 3 means there are 3 filter nodes in the graph
 - **`longest_path`**: the longest path in the graph, represented as a list that contains all nodes in the path from start to end
 
 GraphInfo additionally comes with some useful utilities. These are:
 
 - **`GraphInfo.print_info(self, sort_by: str="count", max_nodes: int=100)`**
-    - Prints graph info in a table format for each node
-        - **`sort_by`**: key to sort node data by. Valid keys are: "name", "count".
-            Sorting by name is ascending (alphabetical) and sorting by count is descending.
-        - **`max_nodes`**: the maximum number of nodes to display in the node data table.
+  - Prints graph info in a table format for each node
+    - **`sort_by`**: key to sort node data by. Valid keys are: "name", "count".
+      Sorting by name is ascending (alphabetical) and sorting by count is descending.
+    - **`max_nodes`**: the maximum number of nodes to display in the node data table.
 - **`GraphInfo.most_common_node(self)`**
-    - Returns the most common node type in the graph as a tuple: `(name, count)`
-
+  - Returns the most common node type in the graph as a tuple: `(name, count)`
 
 One can use these metrics to identify critical paths/design flaws in their graphs.

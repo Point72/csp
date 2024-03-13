@@ -56,7 +56,7 @@ Lets review line by line
 
 2\) `csp` nodes are fully typed and type-checking is strictly enforced.
 All arguments must be typed, as well as all outputs.
-Outputs are typed using function annotation syntax. 
+Outputs are typed using function annotation syntax.
 
 Single outputs can be unnamed, for multiple outputs they must be named.
 When using multiple outputs, annotate the type using **`def my_node(inputs) → csp.Outputs(name1=ts[<T>], name2=ts[<V>])`** where `T` and `V` are the respective types of `name1` and `name2`.
@@ -73,7 +73,7 @@ All alarms must be declared within the alarms context.
 Note that variables declared in state will live across invocations of the method.
 
 9\) An example declaration and initialization of state variable `s_sum`.
-It is good practice to name state variables prefixed with `s_`, which is the convention in the `csp` codebase. 
+It is good practice to name state variables prefixed with `s_`, which is the convention in the `csp` codebase.
 
 11\) **`with csp.start()`**: an optional block to execute code at the start of the engine.
 Generally this is used to setup initial timers or set input timeseries properties such as buffer sizes, or to make inputs passive
@@ -81,7 +81,7 @@ Generally this is used to setup initial timers or set input timeseries propertie
 14-15) **`csp.set_buffering_policy`**: nodes can request a certain amount of history be kept on the incoming time series, this can be denoted in number of ticks or in time.
 By setting a buffering policy, nodes can access historical values of the timeseries (by default only the last value is kept)
 
-16\) **`csp.make_passive`** / **`csp.make_active`**: Nodes may not need to react to all of their inputs, they may just need their latest value. 
+16\) **`csp.make_passive`** / **`csp.make_active`**: Nodes may not need to react to all of their inputs, they may just need their latest value.
 For performance purposes the node can mark an input as passive to avoid triggering the node unnecessarily.
 `make_active` can be called to reactivate an input.
 
@@ -141,13 +141,13 @@ The convention is the same as passing multiple inputs to `csp.ticked`, `csp.tick
 
 8\) baskets have various iterators to access their inputs:
 
--   **`tickedvalues`**: iterator of values of all ticked inputs
--   **`tickedkeys`**: iterator of keys of all ticked inputs (keys are list index for list baskets)
--   **`tickeditems`**: iterator of (key,value) tuples of ticked inputs
--   **`validvalues`**: iterator of values of all valid inputs
--   **`validkeys`**: iterator of keys of all valid inputs
--   **`validitems`**: iterator of (key,value) tuples of valid inputs
--   **`keys`**: list of keys on the basket (**dictionary baskets only** )
+- **`tickedvalues`**: iterator of values of all ticked inputs
+- **`tickedkeys`**: iterator of keys of all ticked inputs (keys are list index for list baskets)
+- **`tickeditems`**: iterator of (key,value) tuples of ticked inputs
+- **`validvalues`**: iterator of values of all valid inputs
+- **`validkeys`**: iterator of keys of all valid inputs
+- **`validitems`**: iterator of (key,value) tuples of valid inputs
+- **`keys`**: list of keys on the basket (**dictionary baskets only** )
 
 10-11) This demonstrates the ability to access an individual element of a
 basket and react to it as well as access its current value
@@ -234,7 +234,7 @@ def demo_basket_output_node(           # 7
         # csp.output(list_basket={in_.index: in_.value})
 ```
 
-11-20\) Note the output declaration syntax.
+11-20) Note the output declaration syntax.
 A basket output can be either named or unnamed (both examples here are named), and its shape can be specified two ways.
 The `shape` parameter is used with a scalar value that defines the shape of the basket, or the name of the scalar argument (a dict basket expects shape to be a list of keys. lists basket expects `shape` to be an `int`).
 `shape_of` is used to take the shape of an input basket and apply it to the output basket.
@@ -242,9 +242,9 @@ The `shape` parameter is used with a scalar value that defines the shape of the 
 23+) There are several choices for output syntax.
 The following work for both list and dict baskets:
 
--   `csp.output(basket={key: value, key2: value2, ...})` 
--   `csp.output(basket[key], value)` 
--   `csp.output({key: value}) # only works if the basket is the only output` 
+- `csp.output(basket={key: value, key2: value2, ...})`
+- `csp.output(basket[key], value)`
+- `csp.output({key: value}) # only works if the basket is the only output`
 
 ## Generic Types
 

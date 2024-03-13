@@ -30,33 +30,33 @@ where the version number indicates the sorts of changes to expect.
 With semver, There are three kinds of releases, each of which have a
 different potential impact on users.
 
-* #### Patch release
+- #### Patch release
 
-    This is the most common kind of release. A patch release should only
-    include fixes for bugs or other changes that cannot impact code a
-    user writes with the `csp` package. A user should be able to safely
-    upgrade `csp` from the previous version to a new patch release with
-    no changes to the output of their code and no new errors being
-    raised, except for fixed bugs. Whether or not a bug fix is
-    sufficiently impactful to break backward compatibility is a
-    judgement call. It is best to err on the side of safety and do a
-    major release if you are unsure.
+  This is the most common kind of release. A patch release should only
+  include fixes for bugs or other changes that cannot impact code a
+  user writes with the `csp` package. A user should be able to safely
+  upgrade `csp` from the previous version to a new patch release with
+  no changes to the output of their code and no new errors being
+  raised, except for fixed bugs. Whether or not a bug fix is
+  sufficiently impactful to break backward compatibility is a
+  judgement call. It is best to err on the side of safety and do a
+  major release if you are unsure.
 
-* #### Minor releases
+- #### Minor releases
 
-    This indicates a new feature has been added to the library in a
-    backward incompatible. Minor releases can include bugfixes as well
-    but should not include backward incompatible changes. For example,
-    adding a new keyword argument to a Python function is a backward
-    compatible change but removing an argument or changing its name is
-    backwards incompatible.
+  This indicates a new feature has been added to the library in a
+  backward incompatible. Minor releases can include bugfixes as well
+  but should not include backward incompatible changes. For example,
+  adding a new keyword argument to a Python function is a backward
+  compatible change but removing an argument or changing its name is
+  backwards incompatible.
 
-* #### Major releases
+- #### Major releases
 
-    A major release indicates that there are changes in the release that
-    are not backward compatible, and users may need to update their code
-    to accomadate the change. When possible, efforts should be made to
-    communicate to users how to migrate their code.
+  A major release indicates that there are changes in the release that
+  are not backward compatible, and users may need to update their code
+  to accommodate the change. When possible, efforts should be made to
+  communicate to users how to migrate their code.
 
 Note that the primary concern is user impact. Sometimes a bug fix is so
 disruptive to users that fixing it qualifies as a major
@@ -68,66 +68,64 @@ ignored in practice. It is best to use your good judgement when choosing
 a new version number and not slavishly follow rules. Be empathetic to
 your users.
 
-
 ### Preparing and tagging a release
 
 Follow these steps when it's time to tag a new release. Before doing
 this, you will need to ensure `bump2version` is installed into your
 development environment.
 
-
 1. Ensure your local clone of `csp` is synced up with GitHub, including
    any tags that have been pushed since you last synced:
 
-    ```bash
-    git pull upstream main --tags
-    ```
-2. Make a branch and update version numbers in your local clone using
+   ```bash
+   git pull upstream main --tags
+   ```
+
+1. Make a branch and update version numbers in your local clone using
    the `bump2version` integration in the Makefile.
 
-    First, make a branch that will be pushed to the main `csp`
-    repository. Using a name like `release/v0.3.4` should avoid any
-    conflicts and make it clear what the branch is for.
+   First, make a branch that will be pushed to the main `csp`
+   repository. Using a name like `release/v0.3.4` should avoid any
+   conflicts and make it clear what the branch is for.
 
-    ```bash
-    git checkout -b relese/v0.x.x
-    ```
+   ```bash
+   git checkout -b release/v0.x.x
+   ```
 
-    For example, for a bugfix release, `bump2version` will automatically
-    update the codebase to use the next bugfix version number if you do:
+   For example, for a bugfix release, `bump2version` will automatically
+   update the codebase to use the next bugfix version number if you do:
 
-    ```bash
-    make patch
-    ```
+   ```bash
+   make patch
+   ```
 
-    Similarly, `make minor` and `make major` will update the version
-    numbers for minor and major releases, respectively. Double-check
-    that the version numbers have been updated correctly with `git
-    diff`, and then `git commit` the change.
+   Similarly, `make minor` and `make major` will update the version
+   numbers for minor and major releases, respectively. Double-check
+   that the version numbers have been updated correctly with `git  diff`, and then `git commit` the change.
 
-3. Push your branch to GitHub, and trigger a "full" test run on the branch.
+1. Push your branch to GitHub, and trigger a "full" test run on the branch.
 
-    Navigate to the [GitHub Actions "build status"
-    workflow](https://github.com/Point72/csp/actions/workflows/build.yml). Click
-    the white "Run workflow" button, make sure the "Run full CI" radio
-    button is selected, and click the green "Run workflow" button to
-    launch the test run.
+   Navigate to the [GitHub Actions "build status"
+   workflow](https://github.com/Point72/csp/actions/workflows/build.yml). Click
+   the white "Run workflow" button, make sure the "Run full CI" radio
+   button is selected, and click the green "Run workflow" button to
+   launch the test run.
 
-4. Propose a pull request from the branch containing the version number updated. Add a link to the successful full test run for reviewers.
+1. Propose a pull request from the branch containing the version number updated. Add a link to the successful full test run for reviewers.
 
-5. Review and merge the pull request. Make sure you delete the branch
+1. Review and merge the pull request. Make sure you delete the branch
    afterwards.
 
-6. Tag the release
+1. Tag the release
 
-    Use the version number `bump2version` generated and make sure the
-    tag name begins with a `v`.
+   Use the version number `bump2version` generated and make sure the
+   tag name begins with a `v`.
 
-    ```bash
-    git tag v0.2.0
-    ```
+   ```bash
+   git tag v0.2.0
+   ```
 
-7. Push the tag to GitHub
+1. Push the tag to GitHub
 
    ```bash
    git push upstream main --follow-tags
@@ -182,7 +180,6 @@ content:
 
 #### Doing the release
 
-
 #### Download release artifacts from github actions
 
 Make sure you are in the root of the `csp` repository and execute the
@@ -208,7 +205,6 @@ twine check --strict dist/*
 ```
 
 This happens as part of the CI so this should only be a double-check.
-
 
 #### Optionally upload to testpypi to test "pip install"
 
@@ -251,13 +247,14 @@ Sometimes releases go wrong. Here is what to do when that happens. This
 Cannon](https://snarky.ca/what-to-do-when-you-botch-a-release-on-pypi/)
 covers how to deal with various kinds of release mistakes on PyPI.
 Some things to remember after reading that post:
-* Completely broken releases should be yanked.
-    * A yanked release is *not permanently deleted*
-* Problems with metadata (e.g. the readme or metadata in
+
+- Completely broken releases should be yanked.
+  - A yanked release is *not permanently deleted*
+- Problems with metadata (e.g. the readme or metadata in
   `pyproject.toml`) can be dealt with by creating a `post` release.
-* A problem with a wheel binary can be fixed by simply replacing the
+- A problem with a wheel binary can be fixed by simply replacing the
   wheel file with a new wheel that has an incremented [build
   number](https://packaging.python.org/en/latest/specifications/binary-distribution-format/#file-name-convention)
   with `twine upload`.
-* If private data is published accidentally, a release can be
+- If private data is published accidentally, a release can be
   permanently deleted. This should only be used as a last resort option.

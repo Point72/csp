@@ -53,6 +53,7 @@ The easiest way to get started on a Linux machine is by installing the necessary
 Tweak this script to create a conda environment, install the build dependencies, build, and install a development version of `csp` into the environment.
 
 ### Install conda
+
 ```bash
 mkdir ~/github
 cd ~/github
@@ -75,6 +76,7 @@ conda activate base
 ```
 
 ### Clone
+
 ```bash
 git clone https://github.com/Point72/csp.git
 cd csp
@@ -82,6 +84,7 @@ git submodule update --init --recursive
 ```
 
 ### Install build dependencies
+
 ```bash
 mamba env create -n csp -f dev-environment.yml
 
@@ -98,6 +101,7 @@ conda activate csp
 ```
 
 ### Build
+
 ```bash
 make build
 
@@ -122,6 +126,7 @@ make test
 ## Building with a system package manager
 
 ### Clone
+
 Clone the repo and submodules with:
 
 ```bash
@@ -131,6 +136,7 @@ git submodule update --init --recursive
 ```
 
 ### Install build dependencies
+
 #### Linux
 
 **Debian/Ubuntu/etc**
@@ -172,6 +178,7 @@ brew install gcc
 ```
 
 ### Install Python dependencies
+
 Python build and develop dependencies are specified in the `pyproject.toml`, but you can manually install them:
 
 ```bash
@@ -184,7 +191,6 @@ make requirements
 ```
 
 Note that these dependencies would otherwise be installed normally as part of [PEP517](https://peps.python.org/pep-0517/) / [PEP518](https://peps.python.org/pep-0518/).
-
 
 ### Build
 
@@ -230,6 +236,7 @@ VCPKG_FORCE_SYSTEM_BINARIES=1 make build
 ```
 
 ## Lint and Autoformat
+
 `csp` has listing and auto formatting.
 
 | Language | Linter | Autoformatter | Description |
@@ -239,6 +246,7 @@ VCPKG_FORCE_SYSTEM_BINARIES=1 make build
 | Python   | `isort`         | `isort` | Imports |
 
 **C++ Linting**
+
 ```bash
 make lint-cpp
 # or
@@ -246,6 +254,7 @@ make lint-cpp
 ```
 
 **C++ Autoformatting**
+
 ```bash
 make fix-cpp
 # or
@@ -253,6 +262,7 @@ make fix-cpp
 ```
 
 **Python Linting**
+
 ```bash
 make lint-py
 # or
@@ -261,6 +271,7 @@ make lint-py
 ```
 
 **Python Autoformatting**
+
 ```bash
 make fix-py
 # or
@@ -269,6 +280,7 @@ make fix-py
 ```
 
 ## Testing
+
 `csp` has both Python and C++ tests. The bulk of the functionality is tested in Python, which can be run via `pytest`. First, install the Python development dependencies with
 
 ```bash
@@ -334,6 +346,7 @@ CSP_TEST_KAFKA=1 make test
 ```
 
 There are a few test flags available:
+
 - **`CSP_TEST_KAFKA`**
 - **`CSP_TEST_SKIP_EXAMPLES`**: skip tests of examples folder
 

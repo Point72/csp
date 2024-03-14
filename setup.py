@@ -15,6 +15,7 @@ CMAKE_OPTIONS = (
     ("CSP_MANYLINUX", "0"),
     ("CSP_BUILD_KAFKA_ADAPTER", "1"),
     ("CSP_BUILD_PARQUET_ADAPTER", "1"),
+    ("CSP_BUILD_WS_CLIENT_ADAPTER", "1"),
     # NOTE:
     # - omit vcpkg, need to test for presence
     # - omit ccache, need to test for presence
@@ -58,7 +59,7 @@ else:
 
 if "CXX" in os.environ:
     cmake_args.append(f"-DCMAKE_CXX_COMPILER={os.environ['CXX']}")
-    
+
 if "DEBUG" in os.environ:
     cmake_args.append("-DCMAKE_BUILD_TYPE=Debug")
 

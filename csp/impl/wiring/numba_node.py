@@ -67,17 +67,17 @@ class NumbaNodeDef(NodeDef):
         exposed_utility_values = {}
         cache_key = [self._impl]
         for (ts_idx, basket_idx), input in self.ts_inputs():
-            exposed_utility_values[
-                NumbaNodeParser.get_ts_input_value_getter_name(ts_idx)
-            ] = NumbaTSTypedFunctionResolver.get_value_getter_function(input.tstype.typ)
+            exposed_utility_values[NumbaNodeParser.get_ts_input_value_getter_name(ts_idx)] = (
+                NumbaTSTypedFunctionResolver.get_value_getter_function(input.tstype.typ)
+            )
             cache_key.append(input.tstype)
 
         for output in self._outputs:
             assert output.kind.is_single_ts()
             ts_idx = output.ts_idx
-            exposed_utility_values[
-                NumbaNodeParser.get_ts_out_value_return_name(ts_idx)
-            ] = NumbaTSTypedFunctionResolver.get_value_returner_function(output.typ.typ)
+            exposed_utility_values[NumbaNodeParser.get_ts_out_value_return_name(ts_idx)] = (
+                NumbaTSTypedFunctionResolver.get_value_returner_function(output.typ.typ)
+            )
 
         numba_scalar_types = []
         for i in self._signature.raw_inputs():

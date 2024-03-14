@@ -11,7 +11,9 @@ static_assert( alignof( csp::DialectGenericType ) == alignof( csp::python::PyObj
 //hook in fromCtype conversion
 namespace csp
 {
+#ifdef __clang__
 template<>
+#endif
 template<>
 struct CspType::Type::fromCType<csp::python::PyObjectPtr>
 {

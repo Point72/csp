@@ -179,8 +179,11 @@ endif()
 # Flags #
 #########
 # Compiler version flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-
+if(WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+endif()
 
 # Optimization Flags
 if(WIN32)

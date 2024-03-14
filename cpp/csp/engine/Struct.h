@@ -315,7 +315,9 @@ class ArrayStructField : public NonNativeStructField
 
     //template<typename T, std::enable_if_t<CspType::isNative(CspType::fromCType<T>::type), bool> = true>
     template<typename T>
-    static std::enable_if_t<CspType::isNative(CspType::Type::fromCType<T>::type), void> deepcopy( const std::vector<T> & src, std::vector<T> & dest )
+    // NOTE: cannot use CspType:isNative due to msvc bug
+    // static std::enable_if_t<CspType::isNative(CspType::Type::fromCType<T>::type), void> deepcopy( const std::vector<T> & src, std::vector<T> & dest )
+    static std::enable_if_t<CspType::Type::fromCType<T>::type <= CspType::Type::MAX_NATIVE_TYPE, void> deepcopy( const std::vector<T> & src, std::vector<T> & dest )
     {
         dest = src;
     }

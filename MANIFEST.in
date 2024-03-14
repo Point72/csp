@@ -1,6 +1,6 @@
 # Text files
 include LICENSE
-include NOTICE 
+include NOTICE
 include README.md
 
 # Python files
@@ -22,6 +22,7 @@ prune .git
 prune .github
 prune .vscode
 prune ci
+prune conda
 prune examples
 exclude .clang-format
 exclude .gitattributes

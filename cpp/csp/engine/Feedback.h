@@ -14,7 +14,7 @@ template<typename T>
 class FeedbackOutputAdapter final : public OutputAdapter
 {
 public:
-    FeedbackOutputAdapter( csp::Engine * engine, 
+    FeedbackOutputAdapter( csp::Engine * engine,
                            InputAdapter * boundInput );
     ~FeedbackOutputAdapter() {}
 
@@ -40,7 +40,7 @@ public:
 
     void pushTick( const T & value )
     {
-        m_timerHandle = rootEngine() -> scheduleCallback( TimeDelta::ZERO(), [this,value]() 
+        m_timerHandle = rootEngine() -> scheduleCallback( TimeDelta::ZERO(), [this,value]()
                                                           {
                                                               return this -> consumeTick( value ) ? nullptr : this;
                                                           } );
@@ -50,7 +50,7 @@ private:
 };
 
 template<typename T>
-inline FeedbackOutputAdapter<T>::FeedbackOutputAdapter( csp::Engine * engine, 
+inline FeedbackOutputAdapter<T>::FeedbackOutputAdapter( csp::Engine * engine,
                                                         InputAdapter * boundInput ) : OutputAdapter( engine )
 {
     m_boundInput = dynamic_cast<FeedbackInputAdapter<T> *>( boundInput );
@@ -62,7 +62,7 @@ inline FeedbackOutputAdapter<T>::FeedbackOutputAdapter( csp::Engine * engine,
 template<typename T>
 inline void FeedbackOutputAdapter<T>::executeImpl()
 {
-    m_boundInput -> pushTick( input() -> lastValueTyped<T>() );
+    m_boundInput -> pushTick( input() -> template lastValueTyped<T>() );
 }
 
 }

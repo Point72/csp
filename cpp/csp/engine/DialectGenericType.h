@@ -19,6 +19,8 @@ public:
     DialectGenericType & operator=( const DialectGenericType & rhs );
     DialectGenericType & operator=( DialectGenericType && rhs );
 
+    DialectGenericType deepcopy() const;
+
     bool operator==( const DialectGenericType & rhs ) const;
     bool operator!=( const DialectGenericType & rhs ) const { return !( (*this)==rhs); }
 

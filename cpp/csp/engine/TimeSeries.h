@@ -76,7 +76,7 @@ public:
 
 public:
     TimeSeries();
-    virtual ~TimeSeries() 
+    virtual ~TimeSeries()
     {
     }
 
@@ -127,13 +127,13 @@ public:
     std::pair<int32_t, int32_t> getValueIndexRange(
             DateTime time, DuplicatePolicyEnum duplicatePolicy = DuplicatePolicyEnum::LAST_VALUE) const;
 
-    
+
     virtual void setTickCountPolicy( int32_t tickCount ) = 0;
     virtual void setTickTimeWindowPolicy( TimeDelta window ) = 0;
 
     int32_t   tickCountPolicy() const      { return m_bufferTickCountPolicy; }
     TimeDelta tickTimeWindowPolicy() const { return m_bufferTimeWindowPolicy; }
-    
+
 protected:
     int32_t    m_bufferTickCountPolicy;
     uint32_t   m_count;
@@ -189,7 +189,7 @@ public:
         timeBuffer -> push_back( timestamp );
         return dataBuffer -> prepare_write();
     }
-    
+
     void addTick( DateTime timestamp, const T & value )
     {
         reserveSpaceForTick( timestamp ) = value;
@@ -208,7 +208,7 @@ public:
     const T & lastValue() const                   { return const_cast<TimeSeriesTyped<T>*>( this ) -> lastValue(); }
     const T & valueAtIndex( int32_t index ) const { return const_cast<TimeSeriesTyped<T>*>( this ) -> valueAtIndex( index ); }
     const TickBuffer<T> * dataline() const        { return m_dataline.buffer(); }
-    
+
     void setTickCountPolicy( int32_t tickCount )
     {
         if( tickCount > 1 )
@@ -237,11 +237,11 @@ public:
         m_timeline.setBuffer( capacity, ( bool )m_count );
         m_dataline.setBuffer( capacity, ( bool )m_count );
     }
-    
+
 private:
-    /* 
+    /*
         We only need to use a tick buffer if the buffering policy is greater than 1 or time-based.
-        Since most of the time we only use the last/current value, don't bother allocating the tick buffer until 
+        Since most of the time we only use the last/current value, don't bother allocating the tick buffer until
         we know we actually need it, and instead just store the value in TickBufferAccess.
     */
     TickBufferAccess<T>  m_dataline;
@@ -251,7 +251,7 @@ private:
 TimeSeries
 */
 
-inline TimeSeries::TimeSeries() : 
+inline TimeSeries::TimeSeries() :
     m_bufferTickCountPolicy( 1 ),
     m_count( 0 )
 {
@@ -296,7 +296,7 @@ inline const T & TimeSeries::valueAtIndex( int32_t index ) const
 }
 
 inline DateTime TimeSeries::timeAtIndex( uint32_t index ) const
-{ 
+{
     return m_timeline.valueAtIndex( index );
 }
 
@@ -383,8 +383,6 @@ TimeSeries::getValueIndexRange(DateTime time, DuplicatePolicyEnum duplicatePolic
 
     return std::make_pair(startI.index, endI.index);
 }
-
-
 
 };
 #endif

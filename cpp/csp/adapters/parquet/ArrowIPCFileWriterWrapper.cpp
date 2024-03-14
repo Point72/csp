@@ -19,7 +19,7 @@ void ArrowIPCFileWriterWrapper::openImpl( const std::string &fileName, const std
     writeOptions.codec  = resolveCompressionCodec( compression );
 
     STATUS_OK_OR_THROW_RUNTIME(
-            ::arrow::ipc::NewStreamWriter( m_outputStream.get(), getSchema(), writeOptions ).Value(&m_fileWriter),
+            ::arrow::ipc::MakeStreamWriter( m_outputStream.get(), getSchema(), writeOptions ).Value(&m_fileWriter),
             "Failed to open arrow file writer" );
 }
 

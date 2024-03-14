@@ -11,7 +11,7 @@ endif
 #########
 # BUILD #
 #########
-.PHONY: develop build-py build install
+.PHONY: requirements develop build build-conda install
 
 requirements:  ## install python dev and runtime dependencies
 	python -m pip install toml
@@ -21,10 +21,11 @@ requirements:  ## install python dev and runtime dependencies
 develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
-build-py:  ## build the python library
+build:  ## build the library
 	python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
-build: build-py  ## build the library
+build-conda:  ## build the library in Conda
+	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
 install:  ## install library
 	python -m pip install .
@@ -42,8 +43,12 @@ lint-cpp:
 	# clang-format --dry-run -Werror -i -style=file `find ./cpp/ -name "*.*pp"`
 	echo "C++ linting disabled for now"
 
+lint-docs:
+	python -m mdformat --check docs/wiki/ README.md examples/README.md
+	python -m codespell_lib docs/wiki/ README.md examples/README.md
+
 # lint: lint-py lint-cpp  ## run lints
-lint: lint-py  ## run lints
+lint: lint-py lint-docs ## run lints
 
 # Alias
 lints: lint
@@ -56,7 +61,11 @@ fix-cpp:
 	# clang-format -i -style=file `find ./cpp/ -name "*.*pp"`
 	echo "C++ autoformatting disabled for now"
 
-fix: fix-py fix-cpp  ## run autofixers
+fix-docs:
+	python -m mdformat docs/wiki/ README.md examples/README.md
+	python -m codespell_lib --write docs/wiki/ README.md examples/README.md
+
+fix: fix-py fix-cpp fix-docs ## run autofixers
 
 # alias
 format: fix
@@ -70,16 +79,19 @@ checks: check
 #########
 # TESTS #
 #########
-.PHONY: test-py coverage-py test tests
+.PHONY: test-py test-cpp coverage-py test tests
 
 TEST_ARGS :=
 test-py: ## Clean and Make unit tests
 	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
 
+test-cpp:  ## Make C++ unit tests
+	for f in ./csp/tests/bin/*; do $$f; done || (echo "TEST FAILED" && exit 1)
+
 coverage-py:
 	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
 
-test: test-py  ## run the tests
+test: test-cpp test-py  ## run the tests
 
 # Alias
 tests: test

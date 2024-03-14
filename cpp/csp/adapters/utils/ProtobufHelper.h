@@ -1,3 +1,4 @@
+#include <mutex>
 #include <csp/core/System.h>
 #include <csp/engine/CspType.h>
 #include <csp/engine/Dictionary.h>
@@ -5,6 +6,7 @@
 #include <google/protobuf/compiler/importer.h>
 #include <google/protobuf/dynamic_message.h>
 #include <memory>
+#include <mutex>
 #include <string>
 
 namespace csp::adapters::utils
@@ -46,7 +48,7 @@ class ProtobufStructMapper
 public:
     ProtobufStructMapper() {}
 
-    void init( const CspTypePtr & type, const Dictionary & fieldMap, 
+    void init( const CspTypePtr & type, const Dictionary & fieldMap,
                const google::protobuf::Descriptor * protoDesc );
 
     void mapProtoToStruct( StructPtr & struct_, const google::protobuf::Message & protoMsg )

@@ -1263,7 +1263,6 @@ class Quantile
         }
 
     private:
-    
     #ifdef __linux__
         ost<std::less_equal<double>> m_tree;
     #else

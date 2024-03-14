@@ -134,7 +134,7 @@ public:
 
     bool isMissingColumn() const override{ return true; }
 
-    virtual CspTypePtr getNativeCspType() const
+    virtual CspTypePtr getNativeCspType() const override
     {
         CSP_THROW( csp::RuntimeException, "Trying to get native type of a missing column " << getColumnName() );
     }
@@ -190,8 +190,7 @@ template< typename ValueType, typename ArrowArrayType >
 class NativeTypeColumnAdapter : public BaseTypedColumnAdapter<ValueType, ArrowArrayType>
 {
 public:
-    using BASE = BaseTypedColumnAdapter<ValueType, ArrowArrayType>;
-    using BASE::BaseTypedColumnAdapter;
+    using BaseTypedColumnAdapter<ValueType, ArrowArrayType>::BaseTypedColumnAdapter;
     virtual CspTypePtr getNativeCspType() const override {return CspType::fromCType<ValueType>::type();}
 
 protected:

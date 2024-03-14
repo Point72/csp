@@ -12,6 +12,7 @@
 #include <csp/engine/Struct.h>
 #include <arrow/type.h>
 #include <arrow/table.h>
+#include <arrow/type_traits.h>
 #include <memory>
 #include <parquet/arrow/reader.h>
 #include <string>
@@ -240,7 +241,7 @@ public:
                         using ArrowArrayType = typename arrow::TypeTraits<typename arrow::CTypeTraits<T>::ArrowType>::ArrayType;
                         auto &listAdapter = dynamic_cast<ListColumnAdapter<ArrowArrayType> &>(*columnAdapterReference);
                         listAdapter.addSubscriber( inputAdapter, symbol,
-                                                     listReaderInterface );
+                                                    listReaderInterface );
                     } );
         }
     }
@@ -376,7 +377,7 @@ public:
                                     const std::optional<utils::Symbol> &symbol, const DialectGenericListReaderInterface::Ptr &listReaderInterface ) override
     {
         ParquetReader::addListSubscriber( column, inputAdapter, symbol, listReaderInterface);
-        m_columnSubscriptionContainer.m_listColumnSubscriptions[column].push_back(ListColumnSubscriberInfo{inputAdapter, symbol, listReaderInterface});
+        m_columnSubscriptionContainer.m_listColumnSubscriptions[column].push_back(ListColumnSubscriberInfo{{inputAdapter, symbol}, listReaderInterface});
     }
 
 protected:

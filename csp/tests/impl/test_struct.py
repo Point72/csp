@@ -113,6 +113,17 @@ class StructWithStruct(csp.Struct):
     s: BaseNative
 
 
+class StructWithMutableStruct(csp.Struct):
+    a: int
+    s: BaseNonNative
+
+
+class StructWithLists(csp.Struct):
+    # native_list: [int]
+    struct_list: [BaseNative]
+    dialect_generic_list: [list]
+
+
 class AllTypes(csp.Struct):
     b: bool = False
     i: int = 123
@@ -297,6 +308,87 @@ class TestCspStruct(unittest.TestCase):
         base.copy_from(derived)
         self.assertEqual(base.i, derived.i)
 
+    def test_deepcopy(self):
+        values = {
+            "i": 123,
+            "f": 123.456,
+            "b": True,
+            "i2": 111,
+            "f2": 111.222,
+            "b2": False,
+            "s": "str",
+            "o": {},
+            "l": [1, 2, 3],
+            "s2": "str2",
+            "o2": None,
+            "l2": [4, 5, 6],
+            "a1": list(range(20)),
+            "a2": list(str(x) for x in range(30)),
+            "a3": [[], "hey", {}, lambda x: 1],
+            "i3": 333,
+            "l3": list(str(x * x) for x in range(5)),
+            "native_list": [1, 2, 3],
+            "struct_list": [BaseNative(i=1), BaseNative(i=2)],
+            "dialect_generic_list": [[1], [2], (4, 5, 6)],
+        }
+
+        for typ in (
+            BaseNative,
+            BaseNonNative,
+            BaseMixed,
+            DerivedFullyNative,
+            DerivedPartialNative,
+            DerivedMixed,
+            DerivedMixedNoop,
+            DerivedMixedAfterNoop,
+        ):
+            self.assertEqual(typ(), typ().deepcopy())
+            o = typ()
+            for key in typ.metadata().keys():
+                setattr(o, key, values[key])
+            self.assertEqual(o, o.deepcopy())
+            # Compare with unset field
+            delattr(o, list(typ.metadata().keys())[0])
+            self.assertEqual(o, o.deepcopy())
+
+        o = StructWithMutableStruct()
+        o.s = BaseNonNative()
+        o.s.l = [1, 2, 3]
+
+        o_deepcopy = o.deepcopy()
+        self.assertEqual(o, o_deepcopy)
+
+        o.s.l[0] = -1
+        self.assertNotEqual(o, o_deepcopy)
+
+        o = StructWithLists(struct_list=[BaseNative(i=123)], dialect_generic_list=[{"a": 1}])
+
+        o_deepcopy = o.deepcopy()
+        o.struct_list[0].i = -1
+        o.dialect_generic_list[0]["b"] = 2
+
+        self.assertEqual(o.struct_list[0].i, -1)
+        self.assertEqual(o.dialect_generic_list[0], {"a": 1, "b": 2})
+        self.assertEqual(o_deepcopy.struct_list[0].i, 123)
+        self.assertEqual(o_deepcopy.dialect_generic_list[0], {"a": 1})
+
+        # TODO struct deepcopy doesnt actually account for this case right now, which relies on memo passing
+        # deepcopy supports ensuring that object instances that appear multiple times in a container will remain
+        # the same ( copied ) instance in the copy.  Uncomment final assert if/when this is fixed
+        class Inner(csp.Struct):
+            v: int
+
+        class Outer(csp.Struct):
+            a3: [object]
+
+        i = Inner(v=5)
+        s = Outer(a3=[i, i, i])
+        s.a3[0].v = 1
+        self.assertTrue(all(x.v == 1 for x in s.a3))
+        sd = s.deepcopy()
+        sd.a3[0].v = 2
+        # self.assertTrue(all(x == 1 for x in sd.a3))
+
     def test_derived_defaults(self):
         s1 = StructWithDefaults()
         s2 = DerivedStructWithDefaults()
@@ -451,7 +543,7 @@ class TestCspStruct(unittest.TestCase):
 
                     blank.copy_from(source)
                     for key in blank.metadata().keys():
-                        self.assertEqual(getattr(blank, key), getattr(source, key))
+                        self.assertEqual(getattr(blank, key), getattr(source, key), (typ, typ2, key))
 
     def test_copy_from_unsets(self):
         source = DerivedMixed(i=1, f=2.3, i2=4, s2="woodchuck")
@@ -472,6 +564,20 @@ class TestCspStruct(unittest.TestCase):
         self.assertTrue(dest2.f == 2.3)  # adds
         self.assertFalse(hasattr(dest2, "s"))  # unsets
         self.assertFalse(hasattr(dest2, "a1"))
+
+    def test_deepcopy_from(self):
+        source = StructWithLists(struct_list=[BaseNative(i=123)], dialect_generic_list=[{"a": 1}])
+
+        blank = StructWithLists()
+        blank.deepcopy_from(source)
+
+        source.struct_list[0].i = -1
+        source.dialect_generic_list[0]["b"] = 2
+
+        self.assertEqual(source.struct_list[0].i, -1)
+        self.assertEqual(source.dialect_generic_list[0], {"a": 1, "b": 2})
+        self.assertEqual(blank.struct_list[0].i, 123)
+        self.assertEqual(blank.dialect_generic_list[0], {"a": 1})
 
     def test_update_from(self):
         source = DerivedMixed(i=1, f=2.3, i2=4, s2="woodchuck")
@@ -548,7 +654,13 @@ class TestCspStruct(unittest.TestCase):
 
     def test_from_dict_loop_with_defaults(self):
         looped = StructWithDefaults.from_dict(StructWithDefaults().to_dict())
-        self.assertEqual(looped, StructWithDefaults())
+        # Note that we cant compare numpy arrays, so we check them independently
+        comp = StructWithDefaults()
+        self.assertTrue(np.array_equal(looped.np_arr, comp.np_arr))
+
+        del looped.np_arr
+        del comp.np_arr
+        self.assertEqual(looped, comp)
 
     def test_from_dict_loop_with_generic_typing(self):
         class MyStruct(csp.Struct):
@@ -589,16 +701,16 @@ class TestCspStruct(unittest.TestCase):
                 i: 2
                 f: 2.5
                 b: false
-        ls:
-            - 1
-            - 2
+        ls: 
+            - 1 
+            - 2 
             - 3
         lc:
             -
                 value: [1,2,3]
                 set_value: ["x","y","z"]
             -
-                value:
+                value: 
                     - 4
         """
 

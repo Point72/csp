@@ -12,4 +12,4 @@ include_directories(${RapidJSON_INCLUDE_DIRS})
 find_path(EXPRTK_INCLUDE_DIRS "exprtk.hpp")
 
 # For adapter utils
-find_package(protobuf CONFIG REQUIRED)
+find_package(Protobuf REQUIRED)

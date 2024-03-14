@@ -2,7 +2,7 @@
 # Project Configuration #
 #########################
 cmake_minimum_required(VERSION 3.20.0)
-project(csp VERSION "0.0.1")
+project(csp VERSION "0.0.2")
 set(CMAKE_CXX_STANDARD 17)
 
 ###################################################################################################################################################
@@ -170,18 +170,16 @@ endif()
 # RPath #
 #########
 if(MACOS)
-    set(CMAKE_INSTALL_RPATH "@loader_path/:@loader_path/../lib")
+    set(CMAKE_INSTALL_RPATH "@loader_path/")
 elseif(LINUX)
-    set(CMAKE_INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../lib")
+    set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 endif()
 
 ###################################################################################################################################################
 # Flags #
 #########
 # Compiler version flags
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 
 
 # Optimization Flags
@@ -230,9 +228,13 @@ else()
         -Wall \
         -Wno-deprecated-declarations \
         -Wno-deprecated \
-        -Wno-maybe-uninitialized \
         ")
         add_definitions(-DNDEBUG)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+            -Wno-maybe-uninitialized \
+            ")
+        endif()
     endif()
 endif()
 

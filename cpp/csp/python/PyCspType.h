@@ -12,6 +12,7 @@ static_assert( alignof( csp::DialectGenericType ) == alignof( csp::python::PyObj
 namespace csp
 {
 template<>
+template<>
 struct CspType::Type::fromCType<csp::python::PyObjectPtr>
 {
     static constexpr csp::CspType::Type type = csp::CspType::Type::DIALECT_GENERIC;

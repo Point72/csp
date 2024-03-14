@@ -304,7 +304,7 @@ public:
 protected:
     void pushValueToArray()
     {
-        this -> m_builderPtr -> Append( *this -> m_value );
+        (void) this -> m_builderPtr -> Append( *this -> m_value );
     }
 };
 

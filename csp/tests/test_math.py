@@ -122,7 +122,7 @@ class TestMath(unittest.TestCase):
             csp.log2: lambda x: math.log2(x),
             csp.log10: lambda x: math.log10(x),
             csp.exp: lambda x: math.exp(x),
-            csp.exp2: lambda x: math.exp2(x),
+            csp.exp2: lambda x: 2**x,
             csp.sin: lambda x: math.sin(x),
             csp.cos: lambda x: math.cos(x),
             csp.tan: lambda x: math.tan(x),

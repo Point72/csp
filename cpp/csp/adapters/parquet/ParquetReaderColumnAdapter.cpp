@@ -777,14 +777,14 @@ void ListColumnAdapter<arrow::StringArray, std::string>::readCurValue()
         for( int64_t i = 0; i < typedValues -> length(); ++i )
         {
 
-            maxStringLength = std::max( ( uint32_t ) ArrayValidValueProvider<arrow::util::string_view>::getValue(typedValues, i).length(), maxStringLength );
+            maxStringLength = std::max( ( uint32_t ) ArrayValidValueProvider<std::string_view>::getValue(typedValues, i).length(), maxStringLength );
         }
 
         auto arrayValue = m_listReader -> create( typedValues -> length(), maxStringLength );
 
         for( int64_t i = 0; i < typedValues -> length(); ++i )
         {
-            m_listReader -> setValue( arrayValue, i, typedValues -> GetView( i ).to_string() );
+            m_listReader -> setValue( arrayValue, i, std::string(typedValues -> GetView( i )));
         }
         this -> m_curValue = std::move( arrayValue );
     }

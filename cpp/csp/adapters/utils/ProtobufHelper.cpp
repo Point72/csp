@@ -2,6 +2,7 @@
 #include <csp/core/Exception.h>
 #include <csp/core/Platform.h>
 #include <csp/core/System.h>
+#include <csp/engine/CspType.h>
 #include <csp/engine/PartialSwitchCspType.h>
 
 //# Oh windows...
@@ -36,7 +37,7 @@ public:
     {
         CSP_THROW( RuntimeException, "Failed to load proto schema " << filename << ":" << line << ":" << column << ": " << message );
     }
-    
+
 private:
     proto::DescriptorPoolDatabase                 m_wellKnownTypesDatabase;
     proto::compiler::SourceTreeDescriptorDatabase m_database;
@@ -87,7 +88,7 @@ proto::FieldDescriptor::CppType ProtobufHelper::cspToProtoCppType( const CspType
         case CspType::Type::DOUBLE: return proto::FieldDescriptor::CPPTYPE_DOUBLE;
         case CspType::Type::STRING: return proto::FieldDescriptor::CPPTYPE_STRING;
         case CspType::Type::STRUCT: return proto::FieldDescriptor::CPPTYPE_MESSAGE;
-        case CspType::Type::ARRAY: 
+        case CspType::Type::ARRAY:
         {
             auto elemType = static_cast<const CspArrayType &>( type ).elemType();
             return cspToProtoCppType( *elemType );
@@ -272,8 +273,7 @@ ProtobufStructMapper::Fields ProtobufStructMapper::buildFields( const CspTypePtr
     return fields;
 }
 
-using SupportedArrayCspTypeSwitch = PartialSwitchCspType<csp::CspType::Type::BOOL,
-                                                         csp::CspType::Type::INT32,
+using SupportedArrayCspTypeSwitch = PartialSwitchCspType<csp::CspType::Type::INT32,
                                                          csp::CspType::Type::UINT32,
                                                          csp::CspType::Type::INT64,
                                                          csp::CspType::Type::UINT64,
@@ -370,15 +370,27 @@ void ProtobufStructMapper::mapProtoToStruct( StructPtr & struct_, const proto::M
                 int count = protoAccess -> FieldSize( protoMsg, pField );
 
                 auto elemType = static_cast<const CspArrayType &>( *sField -> type() ).elemType();
+#ifdef __clang__
+                if (elemType.get()->type() == CspType::Type::BOOL) {
+                    boost::container::vector<bool> data;
+                    data.reserve( count );
+                    for( int i = 0; i < count; ++i )
+                        data.emplace_back( extractRepeatedValue<bool>( protoMsg, pField, i ) );
+
+                    sField -> setValue<boost::container::vector<bool>>( struct_.get(), std::move( data ) );
+                    break;
+                }
+#endif
                 SupportedArrayCspTypeSwitch::invoke( elemType.get(), [&count,&protoMsg,&pField,&sField,&struct_]( auto tag )
-                                                     {
-                                                         using T = typename decltype(tag)::type;
-                                                         std::vector<T> data;
-                                                         data.reserve( count );
-                                                         for( int i = 0; i < count; ++i )
-                                                             data.emplace_back( extractRepeatedValue<T>( protoMsg, pField, i ) );
-                                                         sField -> setValue<std::vector<T>>( struct_.get(), std::move( data ) );
-                                                     } );
+                                                    {
+                                                        using T = typename decltype(tag)::type;
+                                                        std::vector<T> data;
+                                                        data.reserve( count );
+                                                        for( int i = 0; i < count; ++i )
+                                                            data.emplace_back( extractRepeatedValue<T>( protoMsg, pField, i ) );
+
+                                                        sField -> setValue<std::vector<T>>( struct_.get(), std::move( data ) );
+                                                    } );
                 break;
             }
 

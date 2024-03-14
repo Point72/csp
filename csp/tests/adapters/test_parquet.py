@@ -2,11 +2,9 @@ import math
 import numpy
 import os
 import pandas
-import platform
 import polars
 import pyarrow
 import pyarrow.parquet
-import pytest
 import pytz
 import tempfile
 import unittest
@@ -34,7 +32,6 @@ parquet_filename = os.path.join(os.path.dirname(__file__), "parquet_test_data.pa
 arrow_filename = os.path.join(os.path.dirname(__file__), "arrow_test_data.arrow")
 
 
-@pytest.mark.skipif(platform.system() == "Darwin", reason="Does not run on macOS")
 class TestParquetReader(unittest.TestCase):
     def do_test_body(self, filename, arrow=False):
         @csp.graph

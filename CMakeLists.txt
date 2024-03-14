@@ -195,7 +195,7 @@ if(WIN32)
         add_definitions(-DCSP_DEBUG)
     else()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
-            /NDEBUG \
+            /DNDEBUG \
             /O2 \
             ")
         add_definitions(-DNDEBUG)

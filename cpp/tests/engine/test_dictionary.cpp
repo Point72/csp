@@ -23,8 +23,8 @@ TEST( Dictionary, test_basic_functionality )
     ASSERT_TRUE( d1.insert( "bool", true ) );
     ASSERT_TRUE( d1.insert( "int32", (int32_t ) 456 ) );
     ASSERT_TRUE( d1.insert( "uint32", (uint32_t ) 789 ) );
-    ASSERT_TRUE( d1.insert( "int64", (int64_t ) 1UL << 45 ) );
-    ASSERT_TRUE( d1.insert( "uint64", (uint64_t ) ( 1UL << 63 ) + 1  ) );
+    ASSERT_TRUE( d1.insert( "int64", int64_t(1) << 45 ) );
+    ASSERT_TRUE( d1.insert( "uint64", ( uint64_t(1) << 63 ) + 1  ) );
     ASSERT_TRUE( d1.insert( "double", 123.456 ) );
     ASSERT_TRUE( d1.insert( "string", std::string( "HOWDY!" ) ) );
     ASSERT_TRUE( d1.insert( "string2", "HOWDY2!" ) );
@@ -37,9 +37,9 @@ TEST( Dictionary, test_basic_functionality )
     ASSERT_EQ( d1.get<int32_t>( "123" ), 123 );
     ASSERT_EQ( d1.get<bool>(    "bool" ), true );
     ASSERT_EQ( d1.get<int32_t>( "int32" ), 456 );
-    ASSERT_EQ( d1.get<int64_t>( "int64" ), 1UL << 45 );
+    ASSERT_EQ( d1.get<int64_t>( "int64" ), int64_t(1) << 45 );
     ASSERT_EQ( d1.get<uint32_t>( "uint32" ), 789 );
-    ASSERT_EQ( d1.get<uint64_t>( "uint64" ), ( 1UL << 63 ) + 1 );
+    ASSERT_EQ( d1.get<uint64_t>( "uint64" ), ( uint64_t(1) << 63 ) + 1 );
     ASSERT_EQ( d1.get<double>(  "double" ), 123.456 );
     ASSERT_EQ( d1.get<DateTime>(  "time" ), DateTime( 2020, 4, 22, 10, 26 ) );
     ASSERT_EQ( d1.get<TimeDelta>(  "timedelta" ), TimeDelta::fromMilliseconds( 123 ) );
@@ -63,7 +63,7 @@ TEST( Dictionary, test_comp_hash )
     d1.insert( "123", 0 );
     d1.insert( "bool", true );
     d1.insert( "int32", (int32_t ) 456 );
-    d1.insert( "int64", (int64_t ) 1UL << 45 );
+    d1.insert( "int64", int64_t(1) << 45 );
     d1.insert( "double", 123.456 );
     d1.insert( "string", std::string( "HOWDY!" ) );
     d1.insert( "string2", "HOWDY2!" );
@@ -82,7 +82,7 @@ TEST( Dictionary, test_comp_hash )
     d2.insert( "string2", "HOWDY2!" );
     d2.insert( "string", std::string( "HOWDY!" ) );
     d2.insert( "double", 123.456 );
-    d2.insert( "int64", (int64_t ) 1UL << 45 );
+    d2.insert( "int64", int64_t(1) << 45 );
     d2.insert( "int32", (int32_t ) 456 );
     d2.insert( "bool", true );
     d2.insert( "123", 123 );

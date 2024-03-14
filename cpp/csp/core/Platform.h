@@ -51,7 +51,7 @@ inline uint8_t clz(uint64_t n)
 {
 	unsigned long index = 0;
 	if (_BitScanReverse64(&index, n))
-		return 64 - index;
+		return 64 - index - 1;
 	return 0;
 }
 
@@ -59,7 +59,7 @@ inline uint8_t clz(uint32_t n)
 {
 	unsigned long index = 0;
 	if (_BitScanReverse(&index, n))
-		return 32 - index;
+		return 32 - index - 1;
 	return 0;
 }
 
@@ -71,7 +71,7 @@ inline uint8_t ffs(U n)
 { 
 	unsigned long index = 0;
 	if (_BitScanForward(&index, n))
-		return n + 1;
+		return index + 1;
 	return 0;
 }
 
@@ -79,7 +79,7 @@ inline uint8_t ffs(uint64_t n)
 {
 	unsigned long index = 0;
 	if (_BitScanForward64(&index, n))
-		return n + 1;
+		return index + 1;
 	return 0;
 }
 

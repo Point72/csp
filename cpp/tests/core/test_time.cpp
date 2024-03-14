@@ -159,6 +159,8 @@ TEST( DateTimeEx, test_basic_functionality )
     ASSERT_EQ( ex2.microseconds(), 123456 );
     ASSERT_EQ( ex2.nanoseconds(),  123456789 );
 
+    //Windows doesnt support time before EPOCH
+#ifndef WIN32
     dt = DateTime( 1888, 11, 15, 23, 15, 59, 999999999 );
     DateTimeEx ex3( dt );
 
@@ -172,6 +174,7 @@ TEST( DateTimeEx, test_basic_functionality )
     ASSERT_EQ( ex3.milliseconds(), 999 );
     ASSERT_EQ( ex3.microseconds(), 999999 );
     ASSERT_EQ( ex3.nanoseconds(),  999999999 );
+#endif
 }
 
 TEST( TimeTest, test_basic_functionality )

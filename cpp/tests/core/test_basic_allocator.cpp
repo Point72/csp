@@ -2,6 +2,10 @@
 #include <csp/core/BasicAllocator.h>
 #include <stdlib.h>
 
+#ifdef WIN32
+#define random rand
+#endif
+
 using namespace csp;
 
 struct Foo

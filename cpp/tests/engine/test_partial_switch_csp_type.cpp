@@ -4,6 +4,9 @@
 #include <iostream>
 #include <csp/engine/TypeCast.h>
 
+#ifdef WIN32
+bool csp::DialectGenericType::operator==( struct csp::DialectGenericType const & ) const { return false; }
+#endif
 
 template< typename T, typename B >
 auto getConverter( std::shared_ptr<const csp::CspType> curType )

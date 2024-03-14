@@ -18,8 +18,8 @@ if CSP_USE_VCPKG:
     if not os.path.exists("vcpkg/buildtrees"):
         subprocess.call(["git", "pull"], cwd="vcpkg")
         if os.name == "nt":
-            subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg")
-            subprocess.call(["vcpkg", "install"], cwd="vcpkg")
+            subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg", shell=True)
+            subprocess.call(["vcpkg.bat", "install"], cwd="vcpkg", shell=True)
         else:
             subprocess.call(["./bootstrap-vcpkg.sh"], cwd="vcpkg")
             subprocess.call(["./vcpkg", "install"], cwd="vcpkg")

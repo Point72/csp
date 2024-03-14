@@ -15,6 +15,7 @@ CMAKE_OPTIONS = (
     ("CSP_MANYLINUX", "0"),
     ("CSP_BUILD_KAFKA_ADAPTER", "1"),
     ("CSP_BUILD_PARQUET_ADAPTER", "1"),
+    ("CSP_BUILD_WS_CLIENT_ADAPTER", "1"),
     # NOTE:
     # - omit vcpkg, need to test for presence
     # - omit ccache, need to test for presence

@@ -138,8 +138,8 @@ StructPtr JSONMessageStructConverter::convertJSON( const char * fieldname, const
     return struct_;
 }
 
-template<typename T>
-std::vector<T> JSONMessageStructConverter::convertJSON( const char * fieldname, const CspType & type, const FieldEntry &, const rapidjson::Value & jValue, std::vector<T> * x )
+template<typename StorageT>
+std::vector<StorageT> JSONMessageStructConverter::convertJSON( const char * fieldname, const CspType & type, const FieldEntry &, const rapidjson::Value & jValue, std::vector<StorageT> * x )
 {
     if( !jValue.IsArray() )
         CSP_THROW( TypeError, "expected ARRAY type for json field " << fieldname );
@@ -148,12 +148,13 @@ std::vector<T> JSONMessageStructConverter::convertJSON( const char * fieldname, 
 
     const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
 
-    std::vector<T> out;
+    using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
+    std::vector<StorageT> out;
     out.reserve( jArray.Size() );
     for( auto & v : jArray )
     {
         //note that we dont pass FieldEntry to convert here, this doesnt support arrays of structs
-        out.emplace_back( convertJSON( fieldname, elemType, {}, v, ( T * ) nullptr) );
+        out.emplace_back( convertJSON( fieldname, elemType, {}, v, ( ElemT * ) nullptr) );
     }
 
     return out;

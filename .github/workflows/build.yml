@@ -10,6 +10,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
+      - "docs/wiki/**"
   pull_request:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
+      - "docs/wiki/**"
   workflow_dispatch:
     inputs:
       ci-full:
@@ -582,6 +584,7 @@ jobs:
           package:
             - "sqlalchemy>=2"
             - "sqlalchemy<2"
+            - "numpy==1.19.5"
 
       runs-on: ${{ matrix.os }}
 
@@ -619,6 +622,10 @@ jobs:
         - name: Python Test Steps
           run: make test TEST_ARGS="-k TestDBReader"
           if: ${{ contains( 'sqlalchemy', matrix.package )}}
+
+        - name: Python Test Steps
+          run: make test
+          if: ${{ contains( 'numpy', matrix.package )}}
 
     #############################
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -659,7 +666,7 @@ jobs:
           run: ls -R ./dist
 
         - name: Publish to github releases
-          uses: softprops/action-gh-release@v1
+          uses: softprops/action-gh-release@v2
           with:
             draft: true
             generate_release_notes: true

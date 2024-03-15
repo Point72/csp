@@ -32,7 +32,7 @@ from csp.showgraph import show_graph
 
 from . import cache_support, stats
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 def get_include_path():

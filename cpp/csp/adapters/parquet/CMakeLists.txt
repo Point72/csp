@@ -50,7 +50,15 @@ find_package(lz4 REQUIRED)
 find_package(utf8proc REQUIRED)
 find_package(Brotli REQUIRED)
 
-target_link_libraries(csp_parquet_adapter PRIVATE csp_adapter_utils parquet_static arrow_static thrift::thrift lz4::lz4 utf8proc::utf8proc ${BROTLI_STATIC_LIB})
+if(CSP_USE_VCPKG)
+  # use staic variants
+  set(ARROW_PACKAGES_TO_LINK parquet_static arrow_static)
+else()
+  # use dynamic variants
+  set(ARROW_PACKAGES_TO_LINK parquet arrow)
+endif()
+
+target_link_libraries(csp_parquet_adapter PRIVATE csp_adapter_utils thrift::thrift lz4::lz4 utf8proc::utf8proc ${BROTLI_STATIC_LIB} ${ARROW_PACKAGES_TO_LINK})
 
 install(TARGETS csp_parquet_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/parquet

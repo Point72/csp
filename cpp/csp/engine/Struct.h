@@ -54,6 +54,8 @@ public:
     //copy methods need not deal with mask set/unset, only copy values
     virtual void copyFrom( const Struct * src, Struct * dest ) const = 0;
 
+    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const = 0;
+
     template<typename T>
     struct upcast;
 
@@ -149,6 +151,11 @@ public:
         value( dest ) = value( src );
     }
 
+    void deepcopyFrom( const Struct * src, Struct * dest ) const override
+    {
+        value( dest ) = value( src );
+    }
+
 protected:
     NativeStructField( CspTypePtr type, const std::string & fieldname ) : StructField( type, fieldname, sizeof( T ), alignof( T ) )
     {}
@@ -196,6 +203,11 @@ public:
     }
 
     void copyFrom( const Struct * src, Struct * dest ) const override
+    {
+        CSP_THROW( NotImplemented, "Struct fields are not supported for type " << CspType::Type::fromCType<T>::type );
+    }
+
+    void deepcopyFrom( const Struct * src, Struct * dest ) const override
     {
         CSP_THROW( NotImplemented, "Struct fields are not supported for type " << CspType::Type::fromCType<T>::type );
     }
@@ -268,6 +280,11 @@ public:
         value( dest ) = value( src );
     }
 
+    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const override
+    {
+        value( dest ) = value( src );
+    }
+
     virtual bool isEqual( const Struct * x, const Struct * y ) const override
     {
         return value( x ) == value( y );
@@ -291,10 +308,33 @@ private:
     }
 };
 
-template<typename ElemT>
+template<typename CType>
 class ArrayStructField : public NonNativeStructField
 {
-    using CType = typename csp::CspType::Type::toCType<CspType::Type::ARRAY,ElemT>::type;
+    //using CType = typename csp::CspType::Type::toCType<CspType::Type::ARRAY,ElemT>::type;
+    using ElemT = typename CType::value_type;
+    
+    //template<typename T, std::enable_if_t<CspType::isNative(CspType::fromCType<T>::type), bool> = true>
+    template<typename T>
+    static std::enable_if_t<CspType::isNative(CspType::Type::fromCType<T>::type), void> deepcopy( const std::vector<T> & src, std::vector<T> & dest )
+    {
+        dest = src;
+    }
+
+    static void deepcopy( const std::vector<std::string> & src, std::vector<std::string> & dest )
+    {
+        dest = src;
+    }
+
+    //Declared at end of file since StructPtr isnt defined yet
+    static void deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest );
+
+    static void deepcopy( const std::vector<DialectGenericType> & src, std::vector<DialectGenericType> & dest )
+    {
+        dest.resize( src.size() );
+        for( size_t i = 0; i < src.size(); ++i )
+            dest[i] = src[i].deepcopy();
+    }
 
 public:
     ArrayStructField( CspTypePtr arrayType, const std::string & fieldname ) :
@@ -327,6 +367,11 @@ public:
         value( dest ) = value( src );
     }
 
+    void deepcopyFrom( const Struct * src, Struct * dest ) const override
+    {
+        //deepcopy( value( src ), value( dest ) );
+    }
+    
     bool isEqual( const Struct * x, const Struct * y ) const override
     {
         return value( x ) == value( y );
@@ -408,6 +453,11 @@ public:
     void copyFrom( const Struct * src, Struct * dest ) const override
     {
         value( dest ) = value( src );
+    }
+
+    void deepcopyFrom( const Struct * src, Struct * dest ) const override
+    {
+        *( ( DialectGenericType * ) valuePtr( dest ) ) = ( ( DialectGenericType * ) valuePtr( src ) ) -> deepcopy();
     }
 
     bool isEqual( const Struct * x, const Struct * y ) const override
@@ -568,6 +618,7 @@ public:
     bool   isEqual( const Struct * x, const Struct * y ) const;
     size_t hash( const Struct * x ) const;
     static void copyFrom( const Struct * src, Struct * dest );
+    static void deepcopyFrom( const Struct * src, Struct * dest );
     static void updateFrom( const Struct * src, Struct * dest );
     void   clear( Struct * s ) const;
     bool   allFieldsSet( const Struct * s ) const;
@@ -585,7 +636,7 @@ private:
     using FieldMap = std::unordered_map<const char *,StructFieldPtr, hash::CStrHash, hash::CStrEq >;
 
     size_t partialNativeSize()  const  { return m_size - m_nativeStart; }
-    void   copyFromImpl( const Struct * src, Struct * dest ) const;
+    void   copyFromImpl( const Struct * src, Struct * dest, bool deepcopy ) const;
     void updateFromImpl( const Struct * src, Struct * dest ) const;
 
     std::string                 m_name;
@@ -651,9 +702,21 @@ public:
         return copy;
     }
 
+    StructPtr deepcopy() const
+    {
+        StructPtr copy = meta() -> create();
+        copy -> deepcopyFrom( this );
+        return copy;
+    }
+
     void copyFrom( const Struct * rhs )
     {
         StructMeta::copyFrom( rhs, this );
+    }
+
+    void deepcopyFrom( const Struct * rhs )
+    {
+        StructMeta::deepcopyFrom( rhs, this );
     }
 
     void updateFrom( const Struct * rhs )
@@ -666,7 +729,6 @@ public:
         return meta() -> allFieldsSet( this );
     }
 
-    //void deepcopyFrom( StructMeta * meta, Struct * rhs );
 
     //used to cache dialect representations of this struct, if needed
     void * dialectPtr() const      { return hidden() -> dialectPtr; }
@@ -786,6 +848,11 @@ public:
         value( dest ) = value( src );
     }
 
+    virtual void deepcopyFrom( const Struct * src, Struct * dest ) const override
+    {
+        value( dest ) = value(src) -> deepcopy();
+    }
+
     virtual bool isEqual( const Struct * x, const Struct * y ) const override
     {
         return ( *value( x ).get() ) == ( *value( y ).get() );
@@ -804,6 +871,15 @@ private:
 
     StructMetaPtr m_meta;
 };
+
+//Defined here to break decl dep
+template<typename CType>
+void ArrayStructField<CType>::deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest )
+{
+    dest.resize( src.size() );
+    for( size_t i = 0; i < src.size(); ++i )
+        dest[i] = src[i] -> deepcopy();
+}
 
 template<typename T> struct StructField::upcast  { using type = NotImplementedStructField<T>; };
 
@@ -826,8 +902,8 @@ template<> struct StructField::upcast<CspEnum>   { using type = CspEnumStructFie
 template<> struct StructField::upcast<typename StringStructField::CType> { using type = StringStructField; };
 template<> struct StructField::upcast<StructPtr>                         { using type = StructStructField; };
 
-template<typename T> struct StructField::upcast<std::vector<T>>          { using type = ArrayStructField<T>; };
-template<> struct StructField::upcast<csp::DialectGenericType> { using type = DialectGenericStructField; };
+template<typename T> struct StructField::upcast<std::vector<T>>          { using type = ArrayStructField<std::vector<T>>; };
+template<> struct StructField::upcast<csp::DialectGenericType>           { using type = DialectGenericStructField; };
 
 }
 

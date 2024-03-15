@@ -2,17 +2,33 @@ import argparse
 import importlib
 import importlib.util
 import importlib.machinery
+import os
 import os.path
 import sys
 import types
 
-# We need to patch mock modules into sys.modules to avoid pulling in csp/__init__.py and all of its baggage, which include imports of
-# _cspimpl, which would be a circular dep
+# We need to patch mock modules into sys.modules to avoid pulling in csp/__init__.py and all of its baggage,
+# which include imports of _cspimpl, which would be a circular dep
 spec = importlib.util.find_spec("csp")
+exception_msg = f"""
+Could not run csp autogen! Tried with:
+    Command: {' '.join(sys.argv)}
+    PATH: {os.environ.get('PATH', '')}
+    PYTHONPATH: {os.environ.get('PYTHONPATH', '')}
+    LD_LIBRARY_PATH: {os.environ.get('LD_LIBRARY_PATH', '')}
+"""
+if spec is None:
+    raise Exception(exception_msg)
+
 loader = importlib.machinery.SourceFileLoader(spec.name, spec.origin)
 spec = importlib.util.spec_from_loader("csp", loader)
 csp_mod = importlib.util.module_from_spec(spec)
 sys.modules["csp"] = csp_mod
+try:
+    import _csptypesimpl
+except ImportError:
+    print(exception_msg)
+    raise
 
 from csp.impl.struct import Struct  # noqa: E402
 from csp.impl.enum import Enum  # noqa: E402

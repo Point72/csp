@@ -2,10 +2,10 @@ EXTRA_ARGS :=
 
 UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)
-NPROC = $(shell nproc)
+NPROC = -j$(shell nproc)
 endif
 ifeq ($(UNAME), Darwin)
-NPROC = $(shell sysctl -n hw.physicalcpu)
+NPROC = -j$(shell sysctl -n hw.physicalcpu)
 endif
 
 #########
@@ -25,7 +25,7 @@ build:  ## build the library
 	python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
 build-conda:  ## build the library in Conda
-	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- -j$(NPROC)
+	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- $(NPROC)
 
 install:  ## install library
 	python -m pip install .

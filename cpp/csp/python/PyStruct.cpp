@@ -539,7 +539,7 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
             auto const * arrayType = static_cast<const CspArrayType*>( field -> type().get() );
             const CspType * elemType = arrayType -> elemType().get();
 
-            switchCspType( elemType, [ field, struct_, &arrayType, &tl_repr, show_unset ]( auto tag )
+            ArraySubTypeSwitch::invoke( elemType, [ field, struct_, &arrayType, &tl_repr, show_unset ]( auto tag )
             {
                 using CElemType = typename decltype( tag )::type;
                 #ifdef __clang__

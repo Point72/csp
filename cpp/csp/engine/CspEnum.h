@@ -1,20 +1,21 @@
 #ifndef _IN_CSP_ENGINE_CSPENUM_H
 #define _IN_CSP_ENGINE_CSPENUM_H
 
+#include <csp/core/Exports.h>
 #include <csp/core/Exception.h>
 #include <csp/core/Hash.h>
 #include <limits>
-#include <string>
-#include <vector>
-#include <unordered_map>
 #include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace csp
 {
 
-class CspEnumMeta;
+class CSP_CORE_EXPORT CspEnumMeta;
 
-class CspEnumInstance
+class CSP_CORE_EXPORT CspEnumInstance
 {
 public:
     CspEnumInstance( std::string name, int64_t value, csp::CspEnumMeta * meta ) : m_name( name ), m_value( value ), m_meta( meta ) {}
@@ -34,11 +35,12 @@ private:
 
 //As an optimization we do NOT attach meta or value to every instance of an enum.  Instead, the enum
 //holds only a pointer to a singleton CspEnumInstance, which holds the value, name, and meta pointer.
-class CspEnum
+class CSP_CORE_EXPORT CspEnum
 {
 public:
     CspEnum();
     CspEnum( const CspEnum & other ) { m_instance = other.m_instance; }
+    // CspEnum & operator=( CspEnum o ) = delete;
 
     const int64_t value() const { return m_instance -> value(); }
     const CspEnumMeta * meta() const { return m_instance -> meta(); }
@@ -58,7 +60,7 @@ protected:
 
 std::ostream &operator<<( std::ostream &os, const CspEnum & rhs );
 
-class CspEnumMeta
+class CSP_CORE_EXPORT CspEnumMeta
 {
 public:
     using ValueDef = std::unordered_map<std::string,int64_t>;
@@ -66,6 +68,9 @@ public:
 
     CspEnumMeta( const std::string & name, const ValueDef & def );
     virtual ~CspEnumMeta();
+
+    CspEnumMeta( const CspEnumMeta & o ) = delete;
+    CspEnumMeta operator=( const CspEnumMeta & o ) = delete;
 
     const std::string & name() const { return m_name; }
     size_t size() const              { return m_mapping.size(); }
@@ -89,11 +94,10 @@ public:
 
 private:
     using InstanceMapping = std::unordered_map<int64_t, CspEnumInstance>;
-    using Mapping        = std::unordered_map<const char *,InstanceMapping::iterator, hash::CStrHash, hash::CStrEq >;
+    using Mapping        = std::unordered_map<const char *, InstanceMapping::iterator, hash::CStrHash, hash::CStrEq >;
 
     std::string    m_name;
-    Mapping        m_mapping;
-
+    Mapping m_mapping;
     InstanceMapping m_instanceMap;
 };
 
@@ -103,7 +107,7 @@ namespace std
 {
 
 template<>
-struct hash<csp::CspEnum>
+struct CSP_CORE_EXPORT hash<csp::CspEnum>
 {
     size_t operator()( csp::CspEnum e ) const
     {

@@ -1,17 +1,18 @@
 #ifndef _IN_CSP_PYTHON_CSPENUM_H
 #define _IN_CSP_PYTHON_CSPENUM_H
 
-#include <csp/core/Platform.h>
+#include <csp/core/Exports.h>
 #include <csp/engine/CspEnum.h>
 #include <csp/python/PyObjectPtr.h>
 #include <memory>
+#include <unordered_map>
 #include <string>
 
 namespace csp::python
 {
 
 //This is the base class of csp.Enum
-struct DLL_PUBLIC PyCspEnumMeta : public PyHeapTypeObject
+struct CSP_TYPES_EXPORT PyCspEnumMeta : public PyHeapTypeObject
 {
     //convert to PyObject ( new ref )
     PyObject * toPyEnum( CspEnum e ) const;
@@ -27,15 +28,18 @@ struct DLL_PUBLIC PyCspEnumMeta : public PyHeapTypeObject
     static PyTypeObject PyType;
 };
 
-//TODO Windows - need to figure out why adding DLL_PUBLIC to this class leads to weird compilation errors on CspEnumMeta's unordered_map...
+//TODO Windows - need to figure out why adding CSP_TYPES_EXPORT to this class leads to weird compilation errors on CspEnumMeta's unordered_map...
 
 //This is an extension of csp::CspEnumMeta for python dialect, we need it in order to 
 //keep a reference to the python enum type from conversion to/from csp::CspEnumMeta <-> PyObject properly
-class DialectCspEnumMeta : public CspEnumMeta
+class CSP_TYPES_EXPORT DialectCspEnumMeta : public CspEnumMeta
 {
 public:
     DialectCspEnumMeta( PyTypeObjectPtr pyType, const std::string & name, 
                         const CspEnumMeta::ValueDef & def );
+    // DialectCspEnumMeta( const DialectCspEnumMeta & o ) = delete;
+    // DialectCspEnumMeta operator=( DialectCspEnumMeta & o ) = delete;
+
     ~DialectCspEnumMeta() {}
 
     const PyTypeObjectPtr & pyType() const { return m_pyType; }
@@ -47,7 +51,7 @@ private:
     PyTypeObjectPtr m_pyType;
 };
 
-struct DLL_PUBLIC PyCspEnum : public PyObject
+struct CSP_TYPES_EXPORT PyCspEnum : public PyObject
 {
     PyCspEnum( const CspEnum & e ) : enum_( e ) {}
     ~PyCspEnum() {}

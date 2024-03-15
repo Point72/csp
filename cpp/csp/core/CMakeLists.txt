@@ -1,6 +1,6 @@
 set(CORE_PUBLIC_HEADERS
       BasicAllocator.h
-      Config.h.in
+      ${CMAKE_CURRENT_BINARY_DIR}/cpp/csp/core/Config.h
       DynamicBitSet.h
       Enum.h
       EnumBitSet.h

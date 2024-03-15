@@ -1,6 +1,8 @@
+#include <csp/core/Exports.h>
 #include <csp/python/InitHelper.h>
 #include <frameobject.h>
 #include <traceback.h>
+#include "Python.h"
 
 namespace csp::python
 {
@@ -13,7 +15,7 @@ static PyModuleDef _csptypesimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__csptypesimpl(void)
+extern "C" CSP_TYPES_EXPORT PyObject* PyInit__csptypesimpl(void)
 {
     PyObject* m;
 

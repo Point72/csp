@@ -295,12 +295,10 @@ function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OU
     cmake_path(SET CSP_AUTOGEN_SOURCE_DIR NORMALIZE ${CSP_AUTOGEN_CMAKE_SOURCE_DIR})
 
     if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-        message("\n${Green}Running Autogen Windows${ColorReset}")
         set(CSP_AUTOGEN_PYTHONPATH "${CSP_AUTOGEN_LIB_DIR}$<SEMICOLON>${CSP_AUTOGEN_SOURCE_DIR}$<SEMICOLON>%PYTHONPATH%")
         set(CSP_AUTOGEN_LDPATH "${CSP_AUTOGEN_LIB_DIR}$<SEMICOLON>%LD_LIBRARY_PATH%")
         set(CSP_AUTOGEN_PATH "${CSP_AUTOGEN_LIB_DIR}$<SEMICOLON>%PATH%")
     else()
-        message("\n${Green}Running Autogen *nix${ColorReset}")
         set(CSP_AUTOGEN_PYTHONPATH "${CSP_AUTOGEN_LIB_DIR}:${CSP_AUTOGEN_SOURCE_DIR}:$PYTHONPATH")
         set(CSP_AUTOGEN_LDPATH "${CSP_AUTOGEN_LIB_DIR}:$LD_LIBRARY_PATH")
         set(CSP_AUTOGEN_PATH "${CSP_AUTOGEN_LIB_DIR}:$PATH")
@@ -384,13 +382,10 @@ set(CMAKE_SHARED_LIBRARY_PREFIX _)
 if(WIN32)
     # shared suffix is .pyd for windows
     set(CMAKE_SHARED_LIBRARY_SUFFIX .pyd)
-
+    add_definitions(-DBOOST_UUID_FORCE_AUTO_LINK)
 else()
     # shared suffix is .so for both linux and mac
     set(CMAKE_SHARED_LIBRARY_SUFFIX .so)
-
-    # static suffix is _static.a # TODO decide if we want this
-    set(CMAKE_STATIC_LIBRARY_SUFFIX _static.a)
 endif()
 
 

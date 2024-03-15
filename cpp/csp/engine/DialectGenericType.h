@@ -1,14 +1,14 @@
 #ifndef _IN_CSP_CORE_DIALECTGENERICTYPE_H
 #define _IN_CSP_CORE_DIALECTGENERICTYPE_H
 
-#include <csp/core/Platform.h>
+#include <csp/core/Exports.h>
 #include <cstddef>
 #include <functional>
 
 namespace csp
 {
 
-struct DLL_PUBLIC DialectGenericType
+struct CSP_CORE_EXPORT DialectGenericType
 {
 public:
     DialectGenericType();
@@ -38,7 +38,7 @@ namespace std
 {
 
 template<>
-struct hash<csp::DialectGenericType>
+struct CSP_CORE_EXPORT hash<csp::DialectGenericType>
 {
     size_t operator()( const csp::DialectGenericType & obj ) const
     {

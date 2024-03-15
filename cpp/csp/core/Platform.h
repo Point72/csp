@@ -20,9 +20,6 @@ typedef int64_t binding_int_t;
 
 #undef ERROR
 
-#define DLL_PUBLIC __declspec(dllexport)
-#define DLL_LOCAL
-
 #define START_PACKED __pragma( pack(push, 1) )
 #define END_PACKED   __pragma( pack(pop))
 
@@ -84,9 +81,6 @@ inline uint8_t ffs(uint64_t n)
 }
 
 #else
-#define DLL_PUBLIC 
-#define DLL_LOCAL __attribute__ ((visibility ("hidden")))
-
 #define START_PACKED
 #define END_PACKED __attribute__((packed))
 

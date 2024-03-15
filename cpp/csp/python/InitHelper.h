@@ -1,7 +1,7 @@
 #ifndef _IN_CSP_PYTHON_INITHELPER_H
 #define _IN_CSP_PYTHON_INITHELPER_H
 
-#include <csp/core/Platform.h>
+#include <csp/core/Exports.h>
 #include <Python.h>
 #include <functional>
 #include <string>
@@ -10,7 +10,7 @@
 namespace csp::python
 {
 
-class DLL_LOCAL InitHelper
+class CSP_LOCAL InitHelper
 {
 public:
     ~InitHelper() {}

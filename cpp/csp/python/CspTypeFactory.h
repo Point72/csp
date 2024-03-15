@@ -1,7 +1,7 @@
 #ifndef _IN_CSP_PYTHON_CSPTYPEFACTORY_H
 #define _IN_CSP_PYTHON_CSPTYPEFACTORY_H
 
-#include <csp/core/Platform.h>
+#include <csp/core/Exports.h>
 #include <csp/engine/CspType.h>
 #include <unordered_map>
 #include <Python.h>
@@ -9,7 +9,7 @@
 namespace csp::python
 {
 
-class DLL_PUBLIC CspTypeFactory
+class CSP_TYPES_EXPORT CspTypeFactory
 {
 public:
     static CspTypeFactory & instance();

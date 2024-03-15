@@ -11,7 +11,7 @@ namespace csp::python { class PyObjectStructField; }
 namespace csp::python
 {
 
-class PyObjectStructField final : public DialectGenericStructField
+class CSP_TYPES_EXPORT PyObjectStructField final : public DialectGenericStructField
 {
 public:
     using BASE = DialectGenericStructField;
@@ -231,14 +231,14 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
     CSP_RETURN_NULL;
 }
 
-void PyStructMeta_dealloc( PyStructMeta * m )
+CSP_TYPES_EXPORT void PyStructMeta_dealloc( PyStructMeta * m )
 {
     CspTypeFactory::instance().removeCachedType( reinterpret_cast<PyTypeObject*>( m ) );
     m -> ~PyStructMeta();
     Py_TYPE( m ) -> tp_free( m );
 }
 
-PyObject * PyStructMeta_layout( PyStructMeta * m )
+CSP_TYPES_EXPORT PyObject * PyStructMeta_layout( PyStructMeta * m )
 {
     CSP_BEGIN_METHOD;
 
@@ -391,7 +391,7 @@ PyTypeObject PyStructMeta::PyType = {
 
 
 //PyStruct
-PyObject * getattr_( const StructField* field, const Struct * struct_ )
+CSP_TYPES_EXPORT PyObject * getattr_( const StructField* field, const Struct * struct_ )
 {
     PyObject *v = switchCspType( field -> type(), [ field, struct_ ]( auto tag )
     {
@@ -403,7 +403,7 @@ PyObject * getattr_( const StructField* field, const Struct * struct_ )
     return v;
 }
 
-PyObject * PyStruct::getattr( PyObject * attr )
+CSP_TYPES_EXPORT PyObject * PyStruct::getattr( PyObject * attr )
 {
     auto * field = structMeta() -> field( attr );
 
@@ -423,7 +423,7 @@ PyObject * PyStruct::getattr( PyObject * attr )
     return getattr_( field, ( const Struct *)struct_.get() );
 }
 
-void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
+CSP_TYPES_EXPORT void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
 {
     auto * field = static_cast<const DialectStructMeta *>( s -> meta() ) -> field( attr );
 
@@ -453,24 +453,24 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
 // Struct printing code
 
 // forward declarations
-void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset );
+CSP_TYPES_EXPORT void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset );
 
 template<typename ElemT>
-void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset );
+CSP_TYPES_EXPORT void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset );
 
 #ifdef __clang__
 void repr_array( const boost::container::vector<bool> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset );
 #endif
 
 // helper functions for formatting to Python standard
-void format_bool( const bool val, std::string & tl_repr ) {  tl_repr += ( ( val ? "True" : "False" ) ); }
-void format_double( const double val, std::string & tl_repr )
+CSP_TYPES_EXPORT void format_bool( const bool val, std::string & tl_repr ) {  tl_repr += ( ( val ? "True" : "False" ) ); }
+CSP_TYPES_EXPORT void format_double( const double val, std::string & tl_repr )
 {
     char * data = PyOS_double_to_string( val, 'r', 0, Py_DTSF_ADD_DOT_0, NULL);
     tl_repr += std::string( data );
     PyMem_Free( data );
 }
-void format_pyobject( const PyObjectPtr & pyptr, std::string & tl_repr )
+CSP_TYPES_EXPORT void format_pyobject( const PyObjectPtr & pyptr, std::string & tl_repr )
 {
     auto repr = PyObjectPtr::check( PyObject_Repr( pyptr.get() ) );
     tl_repr += ( char * ) PyUnicode_DATA(repr.get() );
@@ -478,17 +478,17 @@ void format_pyobject( const PyObjectPtr & pyptr, std::string & tl_repr )
 
 // type checkers to remove switches and do everything at compile-time
 template<class T>
-struct is_vector { static bool const value = false; };
+struct CSP_TYPES_EXPORT is_vector { static bool const value = false; };
 
 template<class T>
-struct is_vector<std::vector<T> > { static bool const value = true; };
+struct CSP_TYPES_EXPORT is_vector<std::vector<T> > { static bool const value = true; };
 
 #ifdef __clang__
 template<>
 struct is_vector<boost::container::vector<bool>> { static bool const value = true; };
 #endif
 
-void repr_field( const Struct * struct_, const StructFieldPtr & field, std::string & tl_repr, bool show_unset )
+CSP_TYPES_EXPORT void repr_field( const Struct * struct_, const StructFieldPtr & field, std::string & tl_repr, bool show_unset )
 {
     // Helper function to convert the values contained in a struct to strings
     auto type = field -> type() -> type();
@@ -578,7 +578,7 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
 }
 
 template<typename ElemT>
-void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset )
+CSP_TYPES_EXPORT void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset )
 {
     tl_repr += "[";
 
@@ -632,7 +632,7 @@ void repr_array( const boost::container::vector<bool> & val, const CspArrayType 
 }
 #endif
 
-void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset )
+CSP_TYPES_EXPORT void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset )
 {
     static thread_local std::unordered_set<const Struct *> tl_structReprsVisited;
 
@@ -671,7 +671,7 @@ void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset
     tl_structReprsVisited.erase( struct_ );
 }
 
-PyObject * PyStruct::repr( bool show_unset ) const
+CSP_TYPES_EXPORT PyObject * PyStruct::repr( bool show_unset ) const
 {
     static thread_local std::string tl_repr;
 
@@ -700,7 +700,7 @@ twice, ie [ S1, S2 ] where S1 and S2 point to the same StructPtr and hold a ref 
 refcount would stay at 2 and this would never clean up
 ****************************/
 
-PyObject * PyStruct_new( PyTypeObject * type, PyObject *args, PyObject *kwds )
+CSP_TYPES_EXPORT PyObject * PyStruct_new( PyTypeObject * type, PyObject *args, PyObject *kwds )
 {
     CSP_BEGIN_METHOD;
 
@@ -721,7 +721,7 @@ PyObject * PyStruct_new( PyTypeObject * type, PyObject *args, PyObject *kwds )
     CSP_RETURN_NULL;
 }
 
-int PyStruct_tp_clear( PyStruct * self )
+CSP_TYPES_EXPORT int PyStruct_tp_clear( PyStruct * self )
 {
     //important to only invoke cleanup if we are the actual last refcount holder
     if( self -> struct_ -> refcount() != 1 )
@@ -742,7 +742,7 @@ int PyStruct_tp_clear( PyStruct * self )
     return 0;
 }
 
-int PyStruct_traverse( PyStruct * self, visitproc visit, void * arg )
+CSP_TYPES_EXPORT int PyStruct_traverse( PyStruct * self, visitproc visit, void * arg )
 {
     //important to only traverse the actual last refcount holder
     if( self -> struct_ -> refcount() != 1 )
@@ -760,7 +760,7 @@ int PyStruct_traverse( PyStruct * self, visitproc visit, void * arg )
     return 0;
 }
 
-void PyStruct_dealloc( PyStruct * self )
+CSP_TYPES_EXPORT void PyStruct_dealloc( PyStruct * self )
 {
     PyObject_GC_UnTrack( self );
     PyStruct_tp_clear( self );
@@ -772,7 +772,7 @@ void PyStruct_dealloc( PyStruct * self )
     Py_TYPE( self ) -> tp_free( self );
 }
 
-void PyStruct_setattrs( PyStruct * self, PyObject * args, PyObject * kwargs, const char * methodName )
+CSP_TYPES_EXPORT void PyStruct_setattrs( PyStruct * self, PyObject * args, PyObject * kwargs, const char * methodName )
 {
     if( PyTuple_GET_SIZE( args ) > 0 )
         CSP_THROW( TypeError, "'" << self -> ob_type -> tp_name << '.' << methodName << "' takes 0 positional arguments but " << PyTuple_GET_SIZE( args ) << " were given" );
@@ -791,7 +791,7 @@ void PyStruct_setattrs( PyStruct * self, PyObject * args, PyObject * kwargs, con
     }
 }
 
-int PyStruct_init( PyStruct * self, PyObject * args, PyObject * kwargs )
+CSP_TYPES_EXPORT int PyStruct_init( PyStruct * self, PyObject * args, PyObject * kwargs )
 {
     CSP_BEGIN_METHOD;
 
@@ -800,7 +800,7 @@ int PyStruct_init( PyStruct * self, PyObject * args, PyObject * kwargs )
     CSP_RETURN_INT;
 }
 
-PyObject * PyStruct_update( PyStruct * self, PyObject * args, PyObject * kwargs )
+CSP_TYPES_EXPORT PyObject * PyStruct_update( PyStruct * self, PyObject * args, PyObject * kwargs )
 {
     CSP_BEGIN_METHOD;
 
@@ -809,7 +809,7 @@ PyObject * PyStruct_update( PyStruct * self, PyObject * args, PyObject * kwargs 
     CSP_RETURN_NONE;
 }
 
-PyObject * PyStruct_richcompare( PyStruct * self, PyObject * other, int op )
+CSP_TYPES_EXPORT PyObject * PyStruct_richcompare( PyStruct * self, PyObject * other, int op )
 {
     CSP_BEGIN_METHOD;
 
@@ -829,7 +829,7 @@ PyObject * PyStruct_richcompare( PyStruct * self, PyObject * other, int op )
     CSP_RETURN_NONE;
 }
 
-Py_hash_t PyStruct_hash( PyStruct * self )
+CSP_TYPES_EXPORT Py_hash_t PyStruct_hash( PyStruct * self )
 {
     CSP_BEGIN_METHOD;
 
@@ -843,7 +843,7 @@ Py_hash_t PyStruct_hash( PyStruct * self )
     CSP_RETURN_INT;
 }
 
-PyObject * PyStruct_str( PyStruct * self )
+CSP_TYPES_EXPORT PyObject * PyStruct_str( PyStruct * self )
 {
     CSP_BEGIN_METHOD;
 
@@ -852,7 +852,7 @@ PyObject * PyStruct_str( PyStruct * self )
     CSP_RETURN_NULL;
 }
 
-PyObject * PyStruct_repr( PyStruct * self )
+CSP_TYPES_EXPORT PyObject * PyStruct_repr( PyStruct * self )
 {
     CSP_BEGIN_METHOD;
 
@@ -862,7 +862,7 @@ PyObject * PyStruct_repr( PyStruct * self )
 }
 
 
-PyObject * PyStruct_getattro( PyStruct * self, PyObject * attr )
+CSP_TYPES_EXPORT PyObject * PyStruct_getattro( PyStruct * self, PyObject * attr )
 {
     CSP_BEGIN_METHOD;
 
@@ -871,7 +871,7 @@ PyObject * PyStruct_getattro( PyStruct * self, PyObject * attr )
     CSP_RETURN_NULL;
 }
 
-int PyStruct_setattro( PyStruct * self, PyObject * attr, PyObject * value )
+CSP_TYPES_EXPORT int PyStruct_setattro( PyStruct * self, PyObject * attr, PyObject * value )
 {
     CSP_BEGIN_METHOD;
 
@@ -880,7 +880,7 @@ int PyStruct_setattro( PyStruct * self, PyObject * attr, PyObject * value )
     CSP_RETURN_INT;
 }
 
-PyObject * PyStruct_copy( PyStruct * self )
+CSP_TYPES_EXPORT PyObject * PyStruct_copy( PyStruct * self )
 {
     CSP_BEGIN_METHOD;
     PyObject * copy = self -> ob_type -> tp_alloc( self -> ob_type, 0 );
@@ -889,7 +889,7 @@ PyObject * PyStruct_copy( PyStruct * self )
     CSP_RETURN_NULL;
 }
 
-PyObject * PyStruct_deepcopy( PyStruct * self )
+CSP_TYPES_EXPORT PyObject * PyStruct_deepcopy( PyStruct * self )
 {
     CSP_BEGIN_METHOD;
     //Note that once tp_alloc is called, the object will get added to GC
@@ -902,14 +902,14 @@ PyObject * PyStruct_deepcopy( PyStruct * self )
     CSP_RETURN_NULL;
 }
 
-PyObject * PyStruct_clear( PyStruct * self )
+CSP_TYPES_EXPORT PyObject * PyStruct_clear( PyStruct * self )
 {
     CSP_BEGIN_METHOD;
     self -> struct_ -> clear();
     CSP_RETURN_NONE;
 }
 
-PyObject * PyStruct_copy_from( PyStruct * self, PyObject * o )
+CSP_TYPES_EXPORT PyObject * PyStruct_copy_from( PyStruct * self, PyObject * o )
 {
     CSP_BEGIN_METHOD;
 
@@ -920,7 +920,7 @@ PyObject * PyStruct_copy_from( PyStruct * self, PyObject * o )
     CSP_RETURN_NONE;
 }
 
-PyObject * PyStruct_deepcopy_from( PyStruct * self, PyObject * o )
+CSP_TYPES_EXPORT PyObject * PyStruct_deepcopy_from( PyStruct * self, PyObject * o )
 {
     CSP_BEGIN_METHOD;
 
@@ -931,7 +931,7 @@ PyObject * PyStruct_deepcopy_from( PyStruct * self, PyObject * o )
     CSP_RETURN_NONE;
 }
 
-PyObject * PyStruct_update_from( PyStruct * self, PyObject * o )
+CSP_TYPES_EXPORT PyObject * PyStruct_update_from( PyStruct * self, PyObject * o )
 {
     CSP_BEGIN_METHOD;
 
@@ -942,7 +942,7 @@ PyObject * PyStruct_update_from( PyStruct * self, PyObject * o )
     CSP_RETURN_NONE;
 }
 
-PyObject * PyStruct_all_fields_set( PyStruct * self )
+CSP_TYPES_EXPORT PyObject * PyStruct_all_fields_set( PyStruct * self )
 {
     return toPython( self -> struct_ -> allFieldsSet() );
 }

@@ -887,6 +887,7 @@ class TestBaselib(unittest.TestCase):
             st: MyStruct
             o: MyObject
             l: [int]
+            lb: [bool]
 
         @csp.node
         def random_gen(trigger: ts[object], typ: "T") -> ts["T"]:
@@ -909,7 +910,8 @@ class TestBaselib(unittest.TestCase):
                 if typ is MyEnum:
                     return MyEnum(int(v) % 5)
                 if isinstance(typ, list):
-                    return [int(v), int(v * 2)]
+                    elem_type = typ[0]
+                    return [elem_type(v), elem_type(v * 2)]
                 return typ(v)
 
         @csp.node

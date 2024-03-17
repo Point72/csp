@@ -50,8 +50,8 @@ private:
         return convertJSON( fieldname, v, foo );
     }
 
-    template<typename T>
-    std::vector<T> convertJSON( const char * fieldname, const CspType & type, const FieldEntry & entry, const rapidjson::Value & v, std::vector<T> * );
+    template<typename StorageT>
+    std::vector<StorageT> convertJSON( const char * fieldname, const CspType & type, const FieldEntry & entry, const rapidjson::Value & v, std::vector<StorageT> * );
 
     
     Fields           m_fields;

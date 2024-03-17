@@ -33,7 +33,6 @@ except ImportError:
 from csp.impl.struct import Struct  # noqa: E402
 from csp.impl.enum import Enum  # noqa: E402
 
-
 def struct_type(type_info):
     return f"""csp::autogen::{type_info['pytype'].__name__}::Ptr"""
 

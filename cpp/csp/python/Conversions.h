@@ -460,10 +460,17 @@ inline CspEnum fromPython( PyObject * o, const CspType & type )
     return static_cast<PyCspEnum *>( o ) -> enum_;
 }
 
+#ifdef WIN32
+#define _lazyInitPyDateTimeAPI() if (!PyDateTimeAPI) { PyDateTime_IMPORT; }
+#else
+#define _lazyInitPyDateTimeAPI() ;
+#endif
+
 //TimeDelta
 template<>
 inline PyObject * toPython( const TimeDelta & td )
 {
+    _lazyInitPyDateTimeAPI();
     if( td == TimeDelta::NONE() )
         Py_RETURN_NONE;
 
@@ -473,6 +480,7 @@ inline PyObject * toPython( const TimeDelta & td )
 template<>
 inline TimeDelta fromPython( PyObject * o )
 {
+    _lazyInitPyDateTimeAPI();
     if( o == Py_None )
         return TimeDelta::NONE();
 
@@ -498,6 +506,7 @@ inline TimeDelta fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const Date & d )
 {
+    _lazyInitPyDateTimeAPI();
     if ( d == Date::NONE())
         Py_RETURN_NONE;
 
@@ -507,6 +516,7 @@ inline PyObject * toPython( const Date & d )
 template<>
 inline Date fromPython( PyObject * o )
 {
+    _lazyInitPyDateTimeAPI();
     if( o == Py_None )
         return Date::NONE();
 
@@ -524,6 +534,7 @@ inline Date fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const Time & t )
 {
+    _lazyInitPyDateTimeAPI();
     if( t == Time::NONE())
         Py_RETURN_NONE;
 
@@ -533,6 +544,7 @@ inline PyObject * toPython( const Time & t )
 template<>
 inline Time fromPython( PyObject * o )
 {
+    _lazyInitPyDateTimeAPI();
     if( o == Py_None )
         return Time::NONE();
 
@@ -554,6 +566,7 @@ inline Time fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const DateTime & dt )
 {
+    _lazyInitPyDateTimeAPI();
     DateTimeEx dtEx( dt );
     return toPythonCheck( PyDateTime_FromDateAndTime( dtEx.year(), dtEx.month(), dtEx.day(), dtEx.hour(), dtEx.minute(), dtEx.second(), dtEx.microseconds() ) );
 }
@@ -561,6 +574,7 @@ inline PyObject * toPython( const DateTime & dt )
 template<>
 inline DateTime fromPython( PyObject * o )
 {
+    _lazyInitPyDateTimeAPI();
     if( o == Py_None )
         return DateTime::NONE();
 
@@ -608,6 +622,7 @@ inline DateTime fromPython( PyObject * o )
 template<>
 inline DateTimeOrTimeDelta fromPython( PyObject * o )
 {
+    _lazyInitPyDateTimeAPI();
     if( PyDateTime_Check( o ) )
         return fromPython<DateTime>( o );
 
@@ -896,12 +911,14 @@ PyObject * valueAtIndexToPython( const csp::TimeSeriesProvider * ts, int32_t ind
 
 static bool _initPyDateTimeAPI()
 {
+#ifdef WIN32
+    // Do nothing on Windows, see _lazyInitPyDateTimeAPI macro above
+#else
+    PyDateTime_IMPORT;
+#endif
     PyDateTime_IMPORT;
     return true;
 }
-
-//init datetime API once up front for this cpp object
-static bool _initDateTimeAPI = _initPyDateTimeAPI();
 
 }
 

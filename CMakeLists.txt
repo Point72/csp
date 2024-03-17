@@ -194,6 +194,7 @@ if(WIN32)
             /Zi \
             ")
         add_definitions(-DCSP_DEBUG)
+        add_definitions(-D_DEBUG)
     else()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
             /DNDEBUG \
@@ -312,7 +313,7 @@ function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OU
     add_custom_command(OUTPUT "${CSP_AUTOTGEN_CPP_OUT}" "${CSP_AUTOTGEN_H_OUT}"
         COMMAND ${CSP_AUTOGEN_CMAKE_COMMAND} -E env PYTHONPATH=${CSP_AUTOGEN_PYTHONPATH} LD_LIBRARY_PATH=${CSP_AUTOGEN_LDPATH} PATH=${CSP_AUTOGEN_PATH} ${CSP_AUTOGEN_PYTHON_EXECUTABLE} ${CSP_AUTOGEN_MODULE_PATH} -m ${MODULE_NAME} -d ${CSP_AUTOGEN_DESTINATION_FOLDER} -o ${DEST_FILENAME} ${CSP_AUTOGEN_EXTRA_ARGS}
         VERBATIM
-        COMMENT "generating csp c++ types from module ${MODULE_NAME}"
+        COMMENT "generating csp c++ types from module ${MODULE_NAME} with command: ${CSP_AUTOGEN_CMAKE_COMMAND} -E env PYTHONPATH=${CSP_AUTOGEN_PYTHONPATH} LD_LIBRARY_PATH=${CSP_AUTOGEN_LDPATH} PATH=${CSP_AUTOGEN_PATH} ${CSP_AUTOGEN_PYTHON_EXECUTABLE} ${CSP_AUTOGEN_MODULE_PATH} -m ${MODULE_NAME} -d ${CSP_AUTOGEN_DESTINATION_FOLDER} -o ${DEST_FILENAME} ${CSP_AUTOGEN_EXTRA_ARGS}"
         DEPENDS mkdir_autogen_${MODULE_NAME} csptypesimpl
     )
     set(${SOURCE_NAME_OUTVAR} "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.cpp" PARENT_SCOPE )
@@ -381,7 +382,11 @@ set(CMAKE_SHARED_LIBRARY_PREFIX _)
 
 if(WIN32)
     # shared suffix is .pyd for windows
-    set(CMAKE_SHARED_LIBRARY_SUFFIX .pyd)
+    if(CMAKE_BUILD_TYPE_LOWER STREQUAL debug)
+        set(CMAKE_SHARED_LIBRARY_SUFFIX _d.pyd)
+    else()
+        set(CMAKE_SHARED_LIBRARY_SUFFIX .pyd)
+    endif()
     add_definitions(-DBOOST_UUID_FORCE_AUTO_LINK)
 else()
     # shared suffix is .so for both linux and mac

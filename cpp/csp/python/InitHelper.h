@@ -2,6 +2,7 @@
 #define _IN_CSP_PYTHON_INITHELPER_H
 
 #include <csp/core/Exports.h>
+#include <csp/core/Platform.h>
 #include <Python.h>
 #include <functional>
 #include <string>

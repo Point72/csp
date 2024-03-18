@@ -51,7 +51,6 @@ Notes for editors:
   - [`csp.profiler` API](csp.profiler-API)
 - [Examples](Examples)
 - [Glossary of Terms](Glosarry)
-- [Release Notes](https://github.com/Point72/csp/releases)
 
 **Developer Guide**
 

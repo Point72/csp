@@ -8,7 +8,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
-      - docs
+      - "docs/wiki/**"
   pull_request:
     branches:
       - main

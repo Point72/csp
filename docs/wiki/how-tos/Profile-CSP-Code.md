@@ -7,7 +7,7 @@ One can use these metrics to identify bottlenecks/inefficiencies in their graphs
 - [Table of Contents](#table-of-contents)
 - [Profiling a real-time csp.graph](#profiling-a-real-time-cspgraph)
 - [Saving raw profiling data to a file](#saving-raw-profiling-data-to-a-file)
-- [graph\_info: build-time information](#graph_info-build-time-information)
+- [graph_info: build-time information](#graph_info-build-time-information)
 
 ## Profiling a real-time csp.graph
 

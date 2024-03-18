@@ -41,3 +41,34 @@ ProfilerInfo additionally comes with some useful utilities. These are:
   - Returns the node type which had the largest total execution time as a tuple: `(name, node_stat)` where node_stat is a dictionary with the same keys as `node_stats[elem]`
 - **`ProfilerInfo.max_exec_node(self)`**
   - Returns the node type which had the most total executions as a tuple: `(name, node_stat)` where node_stat is a dictionary with the same keys as `node_stats[elem]`
+
+## `profiler.graph_info()`
+
+Users can also extract build-time information about the graph without running it by calling profiler.graph_info.
+The code snippet below shows how to call graph_info.
+
+```python
+from csp import profiler
+
+info = profiler.graph_info(graph)
+```
+
+`info` is a GraphInfo object which contains the following attributes:
+
+- **`node_count`**: the total number of nodes in the graph (including input/output adapters)
+- **`edge_count`**: the total number of edges in the graph
+- **`nodetype_counts`**: the number of each type of node in the graph
+  i.e. nodetype_counts\['filter'\] = 3 means there are 3 filter nodes in the graph
+- **`longest_path`**: the longest path in the graph, represented as a list that contains all nodes in the path from start to end
+
+GraphInfo additionally comes with some useful utilities. These are:
+
+- **`GraphInfo.print_info(self, sort_by: str="count", max_nodes: int=100)`**
+  - Prints graph info in a table format for each node
+    - **`sort_by`**: key to sort node data by. Valid keys are: "name", "count".
+      Sorting by name is ascending (alphabetical) and sorting by count is descending.
+    - **`max_nodes`**: the maximum number of nodes to display in the node data table.
+- **`GraphInfo.most_common_node(self)`**
+  - Returns the most common node type in the graph as a tuple: `(name, count)`
+
+One can use these metrics to identify critical paths/design flaws in their graphs.

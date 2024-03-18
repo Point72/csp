@@ -30,7 +30,10 @@ Notes for editors:
 - Use Adapters (coming soon)
 - [Add Cycles in Graphs](Add-Cycles-in-Graphs)
 - [Create Dynamic Graphs](Create-Dynamic-Graphs)
-- [Write Adapters](Write-IO-Adapters)
+- Write Adapters:
+  - [Write Historical Input Adapters](Write-Historical-Input-Adapters)
+  - [Write Realtime Input Adapters](Write-Realtime-Input-Adapters)
+  - [Write Output Adapters](Write-Output-Adapters)
 - [Profile CSP Code](Profile-CSP-Code)
 
 **References**

@@ -368,12 +368,13 @@ void ProtobufStructMapper::mapProtoToStruct( StructPtr & struct_, const proto::M
                 auto elemType = static_cast<const CspArrayType &>( *sField -> type() ).elemType();
                 SupportedArrayCspTypeSwitch::invoke( elemType.get(), [&count,&protoMsg,&pField,&sField,&struct_]( auto tag )
                                                      {
-                                                         using T = typename decltype(tag)::type;
-                                                         std::vector<T> data;
+                                                         using ElemT    = typename decltype(tag)::type;
+                                                         using StorageT = typename CspType::Type::toCArrayStorageType<ElemT>::type;
+                                                         std::vector<StorageT> data;
                                                          data.reserve( count );
                                                          for( int i = 0; i < count; ++i )
-                                                             data.emplace_back( extractRepeatedValue<T>( protoMsg, pField, i ) );
-                                                         sField -> setValue<std::vector<T>>( struct_.get(), std::move( data ) );
+                                                             data.emplace_back( extractRepeatedValue<ElemT>( protoMsg, pField, i ) );
+                                                         sField -> setValue<std::vector<StorageT>>( struct_.get(), std::move( data ) );
                                                      } );
                 break;
             }

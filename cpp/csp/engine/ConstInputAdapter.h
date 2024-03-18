@@ -1,4 +1,4 @@
-#ifndef _IN_CSP_ENGINE_ALARMINPUTADAPTER_H
+#ifndef _IN_CSP_ENGINE_CONSTINPUTADAPTER_H
 #define _IN_CSP_ENGINE_CONSTINPUTADAPTER_H
 
 #include <csp/engine/InputAdapter.h>

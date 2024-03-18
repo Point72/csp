@@ -706,20 +706,6 @@ inline PyObject * toPython( const Dictionary::Vector & v )
     return pylist;
 }
 
-template<typename T>
-inline PyObject * toPython( const std::vector<T> & v, const CspType & type )
-{
-    assert( type.type() == CspType::Type::ARRAY );
-
-    const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
-    size_t size = v.size();
-    PyObjectPtr list = PyObjectPtr::check( PyList_New( size ) );
-
-    for( size_t idx = 0; idx < size; ++idx )
-        PyList_SET_ITEM( list.ptr(), idx, toPython<T>( v[idx], elemType ) );
-    return list.release();
-}
-
 template<>
 inline PyObject * toPython( const Dictionary::Value & value )
 {
@@ -759,29 +745,48 @@ inline PyObject * toPython( const DictionaryPtr & value)
     return pydict;
 }
 
-template<typename T>
-struct FromPython<std::vector<T>>
+template<typename StorageT>
+inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & type )
 {
-    static std::vector<T> impl( PyObject * o, const CspType & type )
+    assert( type.type() == CspType::Type::ARRAY );
+
+    const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+    size_t size = v.size();
+    PyObjectPtr list = PyObjectPtr::check( PyList_New( size ) );
+
+    for( size_t idx = 0; idx < size; ++idx )
+    {
+        using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
+        PyList_SET_ITEM( list.ptr(), idx, toPython<ElemT>( v[idx], elemType ) );
+    }
+    return list.release();
+}
+
+template<typename StorageT>
+struct FromPython<std::vector<StorageT>>
+{
+    static std::vector<StorageT> impl( PyObject * o, const CspType & type )
     {
         assert( type.type() == CspType::Type::ARRAY );
         const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
 
-        std::vector<T> out;
+        using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
+
+        std::vector<StorageT> out;
         //fast path list and tuples since we can size up front
         if( PyList_Check( o ) )
         {
             size_t size = PyList_GET_SIZE( o );
             out.reserve( size );
             for( size_t i = 0; i < size; ++i )
-                out.emplace_back( fromPython<T>( PyList_GET_ITEM( o, i ), elemType ) );
+                out.emplace_back( fromPython<ElemT>( PyList_GET_ITEM( o, i ), elemType ) );
         }
         else if( PyTuple_Check( o ) )
         {
             size_t size = PyTuple_GET_SIZE( o );
             out.reserve( size );
             for( size_t i = 0; i < size; ++i )
-                out.emplace_back( fromPython<T>( PyTuple_GET_ITEM( o, i ), elemType ) );
+                out.emplace_back( fromPython<ElemT>( PyTuple_GET_ITEM( o, i ), elemType ) );
         }
         //allow iteratables
         else if( o -> ob_type -> tp_iter )
@@ -790,7 +795,7 @@ struct FromPython<std::vector<T>>
             PyObject * value;
             while( ( value = iter -> ob_type -> tp_iternext( iter.get() ) ) )
             {
-                out.emplace_back( fromPython<T>( value, elemType ) );
+                out.emplace_back( fromPython<ElemT>( value, elemType ) );
                 Py_DECREF( value );
             }
             if( PyErr_Occurred() )

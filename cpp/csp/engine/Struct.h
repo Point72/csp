@@ -311,9 +311,8 @@ private:
 template<typename CType>
 class ArrayStructField : public NonNativeStructField
 {
-    //using CType = typename csp::CspType::Type::toCType<CspType::Type::ARRAY,ElemT>::type;
     using ElemT = typename CType::value_type;
-    
+
     //template<typename T, std::enable_if_t<CspType::isNative(CspType::fromCType<T>::type), bool> = true>
     template<typename T>
     static std::enable_if_t<CspType::isNative(CspType::Type::fromCType<T>::type), void> deepcopy( const std::vector<T> & src, std::vector<T> & dest )
@@ -901,9 +900,12 @@ template<> struct StructField::upcast<CspEnum>   { using type = CspEnumStructFie
 
 template<> struct StructField::upcast<typename StringStructField::CType> { using type = StringStructField; };
 template<> struct StructField::upcast<StructPtr>                         { using type = StructStructField; };
-
-template<typename T> struct StructField::upcast<std::vector<T>>          { using type = ArrayStructField<std::vector<T>>; };
 template<> struct StructField::upcast<csp::DialectGenericType>           { using type = DialectGenericStructField; };
+template<typename StorageT> struct StructField::upcast<std::vector<StorageT>>
+{ 
+    static_assert( !std::is_same<StorageT,bool>::value, "vector<bool> should not be getting instantiated" );
+    using type = ArrayStructField<std::vector<StorageT>>;
+};
 
 }
 

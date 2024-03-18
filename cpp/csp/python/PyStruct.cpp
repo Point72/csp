@@ -136,7 +136,8 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                     field = ArraySubTypeSwitch::invoke( arrayType.elemType(), [csptype,keystr]( auto tag ) -> std::shared_ptr<StructField>
                     {
                         using CElemType = typename decltype(tag)::type;
-                        return std::make_shared<ArrayStructField<CElemType>>( csptype, keystr );
+                        using CType = typename CspType::Type::toCArrayType<CElemType>::type;
+                        return std::make_shared<ArrayStructField<CType>>( csptype, keystr );
                     } );
 
                     break;
@@ -533,7 +534,7 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
             switchCspType( elemType, [ field, struct_, &arrayType, &tl_repr, show_unset ]( auto tag )
             {
                 using CElemType = typename decltype( tag )::type;
-                using ArrayType = typename std::vector<CElemType>;
+                using ArrayType = typename CspType::Type::toCArrayType<CElemType>::type;
                 const ArrayType & val = field -> value<ArrayType>( struct_ );
                 repr_array( val, *arrayType, tl_repr, show_unset );
             } );
@@ -557,9 +558,10 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
     }
 }
 
-template<typename ElemT>
-void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset )
+template<typename StorageT>
+void repr_array( const std::vector<StorageT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset )
 {
+    using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
     tl_repr += "[";
 
     bool first = true;

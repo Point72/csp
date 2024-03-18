@@ -102,7 +102,7 @@ public:
     static Ptr & BYTES();
     static Ptr & DIALECT_GENERIC() { static auto s_type = std::make_shared<const CspType>( Type::DIALECT_GENERIC ); return s_type; }
 
-    static constexpr bool isNative( Type t ) { return t <= Type::MAX_NATIVE_TYPE; }
+    static constexpr bool isNative( TypeTraits::_enum t ) { return t <= TypeTraits::MAX_NATIVE_TYPE; }
 
     bool isNative() const { return isNative( m_type ); }
 

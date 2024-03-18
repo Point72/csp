@@ -319,7 +319,7 @@ class ArrayStructField : public NonNativeStructField
     {
         dest = src;
     }
-
+        
     static void deepcopy( const std::vector<std::string> & src, std::vector<std::string> & dest )
     {
         dest = src;
@@ -368,7 +368,7 @@ public:
 
     void deepcopyFrom( const Struct * src, Struct * dest ) const override
     {
-        //deepcopy( value( src ), value( dest ) );
+        deepcopy( value( src ), value( dest ) );
     }
     
     bool isEqual( const Struct * x, const Struct * y ) const override
@@ -872,8 +872,8 @@ private:
 };
 
 //Defined here to break decl dep
-template<typename CType>
-void ArrayStructField<CType>::deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest )
+template<typename ElemT>
+void ArrayStructField<ElemT>::deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest )
 {
     dest.resize( src.size() );
     for( size_t i = 0; i < src.size(); ++i )

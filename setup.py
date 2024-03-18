@@ -60,8 +60,8 @@ if platform.system() == "Darwin":
     os.environ["OSX_DEPLOYMENT_TARGET"] = os.environ.get("OSX_DEPLOYMENT_TARGET", "10.13")
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = os.environ.get("OSX_DEPLOYMENT_TARGET", "10.13")
 
-if hasattr(platform, "mac_ver") and platform.mac_ver()[0].startswith("14"):
-    cmake_args.append("-DCSP_USE_LD_CLASSIC_MAC=ON")
+#if hasattr(platform, "mac_ver") and platform.mac_ver()[0].startswith("14"):
+#    cmake_args.append("-DCSP_USE_LD_CLASSIC_MAC=ON")
 
 if which("ccache"):
     cmake_args.append("-DCSP_USE_CCACHE=On")

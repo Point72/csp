@@ -24,7 +24,6 @@
 // cspimpl is imported by all downstream libs
 #ifdef CSP_IMPL_EXPORTS
 #define CSP_IMPL_EXPORT __declspec(dllexport)
-#define CSP_CORE_EXPORT __declspec(dllimport)
 #else
 #define CSP_IMPL_EXPORT __declspec(dllimport)
 #endif
@@ -32,7 +31,6 @@
 // all other libs are terminal
 #ifdef CSP_EXPORTS
 #define CSP_EXPORT __declspec(dllexport)
-#define CSP_CORE_EXPORT __declspec(dllimport)
 #else
 #define CSP_EXPORT __declspec(dllimport)
 #endif

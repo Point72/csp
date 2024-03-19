@@ -59,7 +59,8 @@ size_t DialectGenericType::hash() const
     return reinterpret_cast<const csp::python::PyObjectPtr *>(this) -> hash();
 }
 
-std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj )
+// NOTE: this is intentionally declared as CSP_CORE_EXPORT and implemented with CSP_TYPES_EXPORT
+CSP_TYPES_EXPORT std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj )
 {
     o << reinterpret_cast<const python::PyObjectPtr &>( obj );
     return o;

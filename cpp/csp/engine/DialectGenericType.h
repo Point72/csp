@@ -30,7 +30,7 @@ private:
     void* m_data;
 };
 
-std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj );
+CSP_CORE_EXPORT std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj );
 
 }
 

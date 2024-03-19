@@ -42,7 +42,7 @@ CspTypePtr & CspTypeFactory::typeFromPyType( PyObject * pyTypeObj )
             rv.first -> second = csp::CspType::STRING();
         else if( pyType == &PyBytes_Type )
             rv.first -> second = csp::CspType::BYTES();
-        if( PyType_IsSubtype( pyType, &PyStruct::PyType ) )
+        else if( PyType_IsSubtype( pyType, &PyStruct::PyType ) )
         {
             auto meta = ( ( PyStructMeta * ) pyType ) -> structMeta;
             rv.first -> second = std::make_shared<csp::CspStructType>( meta );

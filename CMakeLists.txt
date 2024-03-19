@@ -134,16 +134,6 @@ if(MACOS)
     # Support cross build
     check_c_compiler_flag("-arch x86_64" x86_64Supported)
     check_c_compiler_flag("-arch arm64" arm64Supported)
-
-    #if(x86_64Supported AND arm64Supported)
-    #    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Build universal architecture for OSX" FORCE)
-    #elseif(x86_64Supported)
-    #    set(CMAKE_REQUIRED_LINK_OPTIONS "-arch;x86_64")
-    #    set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "Build universal architecture for OSX" FORCE)
-    #elseif(arm64Supported)
-        set(CMAKE_REQUIRED_LINK_OPTIONS "-arch;arm64")
-        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build universal architecture for OSX" FORCE)
-    #endif()
 endif()
 
 

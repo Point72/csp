@@ -1403,7 +1403,7 @@ class TestEngine(unittest.TestCase):
         time.sleep(1)
         runner.stop_engine()
         res = runner.join()[0]
-        self.assertLess(len(res), 1000)
+        self.assertLess(len(res), 20)
 
         # exception handling
         @csp.node

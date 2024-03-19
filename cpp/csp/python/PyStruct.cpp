@@ -140,7 +140,6 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                     } );
                     break;
                 }
-
                 case csp::CspType::Type::DIALECT_GENERIC: field = std::make_shared<PyObjectStructField>( keystr, PyTypeObjectPtr::incref( ( PyTypeObject * ) type ) ); break;
                 default:
                     CSP_THROW( ValueError, "Unexpected csp type " << csptype -> type() << " on struct " << name );

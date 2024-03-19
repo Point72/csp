@@ -1,5 +1,5 @@
 # utils for dealing with typing types
-import numpy
+# import numpy
 import typing
 
 import csp.typing
@@ -7,7 +7,8 @@ import csp.typing
 
 class CspTypingUtils37:
     _ORIGIN_COMPAT_MAP = {list: typing.List, set: typing.Set, dict: typing.Dict, tuple: typing.Tuple}
-    _ARRAY_ORIGINS = (csp.typing.Numpy1DArray, csp.typing.NumpyNDArray)
+    _ARRAY_ORIGINS = ()
+    # _ARRAY_ORIGINS = (csp.typing.Numpy1DArray, csp.typing.NumpyNDArray)
 
     @classmethod
     def is_type_spec(cls, val):

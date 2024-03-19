@@ -1,4 +1,4 @@
-import numpy
+# import numpy
 import typing
 
 import csp.typing
@@ -17,8 +17,8 @@ class ContainerTypeNormalizer:
         typing.Set: set,
         typing.List: list,
         typing.Tuple: tuple,
-        csp.typing.Numpy1DArray: numpy.ndarray,
-        csp.typing.NumpyNDArray: numpy.ndarray,
+        # csp.typing.Numpy1DArray: numpy.ndarray,
+        # csp.typing.NumpyNDArray: numpy.ndarray,
     }
 
     @classmethod

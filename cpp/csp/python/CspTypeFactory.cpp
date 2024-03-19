@@ -14,6 +14,7 @@ CspTypeFactory & CspTypeFactory::instance()
 
 CspTypePtr & CspTypeFactory::typeFromPyType( PyObject * pyTypeObj )
 {
+    _lazyInitPyDateTimeAPI();
     // List objects shouldn't be cached since they are temporary objects
     if( PyList_Check( pyTypeObj ) )
     {
@@ -41,7 +42,7 @@ CspTypePtr & CspTypeFactory::typeFromPyType( PyObject * pyTypeObj )
             rv.first -> second = csp::CspType::STRING();
         else if( pyType == &PyBytes_Type )
             rv.first -> second = csp::CspType::BYTES();
-        else if( PyType_IsSubtype( pyType, &PyStruct::PyType ) )
+        if( PyType_IsSubtype( pyType, &PyStruct::PyType ) )
         {
             auto meta = ( ( PyStructMeta * ) pyType ) -> structMeta;
             rv.first -> second = std::make_shared<csp::CspStructType>( meta );

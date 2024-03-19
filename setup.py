@@ -46,7 +46,7 @@ else:
 
 if "CXX" in os.environ:
     cmake_args.append(f"-DCMAKE_CXX_COMPILER={os.environ['CXX']}")
-
+    
 if "DEBUG" in os.environ:
     cmake_args.append("-DCMAKE_BUILD_TYPE=Debug")
 

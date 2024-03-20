@@ -13,6 +13,8 @@
 # CSP_BASELIB_STATIC_LIBRARY
 # CSP_BASKETLIB_LIBRARY
 # CSP_BASKETLIB_STATIC_LIBRARY
+# CSP_MATH_LIBRARY
+# CSP_MATH_STATIC_LIBRARY
 # CSP_STATS_LIBRARY
 # CSP_STATS_STATIC_LIBRARY
 # CSP_NPSTATS_LIBRARY
@@ -71,6 +73,9 @@ find_library(CSP_BASELIB_STATIC_LIBRARY NAMES libbaselibimpl_static.a PATHS "${_
 
 find_library(CSP_BASKETLIB_LIBRARY NAMES _cspbasketlibimpl.so PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)
 find_library(CSP_BASKETLIB_STATIC_LIBRARY NAMES libbasketlibimpl_static.a PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)
+
+find_library(CSP_MATH_LIBRARY NAMES _cspmathimpl.so PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)
+find_library(CSP_MATH_STATIC_LIBRARY NAMES libmathimpl_static.a PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)
 
 find_library(CSP_STATS_LIBRARY NAMES _cspstatsimpl.so PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)
 find_library(CSP_STATS_STATIC_LIBRARY NAMES libstatsimpl_static.a PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)

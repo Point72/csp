@@ -29,7 +29,7 @@ Notes for editors:
 - [Use Statistical Nodes](Use-Statistical-Nodes)
 - Use Adapters (coming soon)
 - [Add Cycles in Graphs](Add-Cycles-in-Graphs)
-- [Create Dynamic Graphs](Create-Dynamic-Graphs)
+- [Create Dynamic Baskets](Create-Dynamic-Baskets)
 - Write Adapters:
   - [Write Historical Input Adapters](Write-Historical-Input-Adapters)
   - [Write Realtime Input Adapters](Write-Realtime-Input-Adapters)
@@ -46,7 +46,7 @@ Notes for editors:
   - [Functional Methods API](Functional-Methods-API)
   - [Adapters (Kafka, Parquet, DBReader) API](Input-Output-Adapters-API)
   - [Random Time Series Generators API](Random-Time-Series-Generators-API)
-  - [`csp.Struct` API.md](csp.Struct-API)
+  - [`csp.Struct` API](csp.Struct-API)
   - [`csp.dynamic` API](csp.dynamic-API)
   - [`csp.profiler` API](csp.profiler-API)
 - [Examples](Examples)

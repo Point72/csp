@@ -1,9 +1,10 @@
 import threading
 from logging import getLogger
 from queue import Queue
+from ssl import SSLContext
 from threading import Thread
 from time import sleep
-from typing import Dict, List, TypeVar
+from typing import Dict, List, Optional, TypeVar
 
 import csp
 from csp.impl.adaptermanager import AdapterManagerImpl
@@ -53,7 +54,7 @@ def mention_user(userid: str) -> str:
 
 
 class SlackAdapterManager(AdapterManagerImpl):
-    def __init__(self, app_token: str, bot_token: str):
+    def __init__(self, app_token: str, bot_token: str, ssl: Optional[SSLContext] = None):
         if not _HAVE_SLACK_SDK:
             raise RuntimeError("Could not find slack-sdk installation")
         if not app_token.startswith("xapp-") or not bot_token.startswith("xoxb-"):
@@ -61,7 +62,7 @@ class SlackAdapterManager(AdapterManagerImpl):
 
         self._slack_client = SocketModeClient(
             app_token=app_token,
-            web_client=WebClient(token=bot_token),
+            web_client=WebClient(token=bot_token, ssl=ssl),
         )
         self._slack_client.socket_mode_request_listeners.append(self._process_slack_message)
 

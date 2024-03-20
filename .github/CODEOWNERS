@@ -2,16 +2,16 @@
 * @robambalu @AdamGlustein @svatasoiu @alexddobkin
 
 # Packaging code
-CMakeLists.txt @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine
-setup.py @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine
-pyproject.toml @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine
-Makefile @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine
-MANIFEST.in @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine
-.bumpversion.cfg @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine
+CMakeLists.txt @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+setup.py @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+pyproject.toml @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+Makefile @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+MANIFEST.in @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+.bumpversion.cfg @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
 
 # CI/CD
-.github @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine
-ci @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine
+.github @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+ci @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
 
 # Administrative
 .github/CODEOWNERS @robambalu

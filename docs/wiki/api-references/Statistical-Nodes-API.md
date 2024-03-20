@@ -4,54 +4,53 @@ series data over rolling windows.
 
 ## Table of Contents
 
-1. **Base Statistics**
+**Base Statistics**:
+* [count](#count): counts the number of data ticks within a given interval
+* [unique](#unique): counts the number of unique values within a given interval
+* [sum](#sum): rolling sum of values within a given interval
+* [prod](#product): rolling product of values within a given interval
+* [first](#first): the earliest value still within the interval
+* [last](#last): the last value of the interval
+* [mean](#mean): the mean of values within the interval
+* [gmean](#geometric-mean): the geometric mean of values within the interval
 
-   1. [count](#count): counts the number of data ticks within a given interval
-   1. [unique](#unique): counts the number of unique values within a given interval
-   1. [sum](#sum): rolling sum of values within a given interval
-   1. [prod](#product): rolling product of values within a given interval
-   1. [first](#first): the earliest value still within the interval
-   1. [last](#last): the last value of the interval
-   1. [mean](#mean): the mean of values within the interval
-   1. [gmean](#geometric-mean): the geometric mean of values within the interval
+**Order Statistics**:
 
-1. **Order Statistics**
+* [max](#maximum): the maximum value within the interval
+* [min](#minimum): the minimum value within the interval
+* [median](#median): the median value within the interval
+* [quantile](#quantile): the quantile value within the interval
+* [argmin](#argmin): the time at which the minimum interval value ticked
+* [argmax](#argmax): the time at which the maximum interval value ticked
+* [rank](#rank): the time series rank of the most recent tick in the interval
 
-   1. [max](#maximum): the maximum value within the interval
-   1. [min](#minimum): the minimum value within the interval
-   1. [median](#median): the median value within the interval
-   1. [quantile](#quantile): the quantile value within the interval
-   1. [argmin](#argmin): the time at which the minimum interval value ticked
-   1. [argmax](#argmax): the time at which the maximum interval value ticked
-   1. [rank](#rank): the time series rank of the most recent tick in the interval
+**Moment-Based Statistics**:
 
-1. **Moment-Based Statistics**
+* [var](#variance): variance of the time series within the interval
+* [stddev](#standard-deviation): standard deviation within the interval
+* [sem](#standard-error): standard error within the interval
+* [cov](#covariance): covariance between two in-sequence time series within the interval
+* [corr](#correlation): correlation between two in-sequence time series within the interval
+* [skew](#skewness): skewness of the time series within the interval
+* [kurt](#kurtosis): kurtosis (or excess kurtosis) of the time series within the interval
 
-   1. [var](#variance): variance of the time series within the interval
-   1. [stddev](#standard-deviation): standard deviation within the interval
-   1. [sem](#standard-error): standard error within the interval
-   1. [cov](#covariance): covariance between two in-sequence time series within the interval
-   1. [corr](#correlation): correlation between two in-sequence time series within the interval
-   1. [skew](#skewness): skewness of the time series within the interval
-   1. [kurt](#kurtosis): kurtosis (or excess kurtosis) of the time series within the interval
+**Exponential Moving Statistics**:
 
-1. **Exponential Moving Statistics**
+* [ema](#exponential-moving-average): exponential moving average, with numerous different variations available
+* [ema_var](#exponential-moving-variance): exponential moving variance
+* [ema_std](#exponential-moving-standard-deviation): exponential moving standard deviation
+* [ema_cov](#exponential-moving-covariance): exponential moving covariance between two in-sequence time series
 
-   1. [ema](#exponential-moving-average): exponential moving average, with numerous different variations available
-   1. [ema_var](#exponential-moving-variance): exponential moving variance
-   1. [ema_std](#exponential-moving-standard-deviation): exponential moving standard deviation
-   1. [ema_cov](#exponential-moving-covariance): exponential moving covariance between two in-sequence time series
+**NumPy Specific Statistics**:
 
-1. **NumPy Specific Statistics**
+* [cov_matrix](#covariance-matrix): covariance matrix between *N* time-series (in a NumPy array) over a rolling time interval
+* [corr_matrix](#correlation-matrix): normalized correlation matrix between *N* time-series (in a NumPy array) a rolling time interval
+* [list_to_numpy](#numpy-conversions): converts a listbasket of time-series into a NumPy array
+* [numpy_to_list](#numpy-conversions): converts a NumPy array time-series into a listbasket
 
-   1. [cov_matrix](#covariance-matrix): covariance matrix between *N* time-series (in a NumPy array) over a rolling time interval
-   1. [corr_matrix](#correlation-matrix): normalized correlation matrix between *N* time-series (in a NumPy array) a rolling time interval
-   1. [list_to_numpy](#numpy-conversions): converts a listbasket of time-series into a NumPy array
-   1. [numpy_to_list](#numpy-conversions): converts a NumPy array time-series into a listbasket
+**Cross-Sectional Statistics**:
 
-1. **Cross-Sectional Statistics**
-
-   1. [cross_sectional](#cross-sectional): receive all data within the current window for a cross-sectional calculation
+* [cross_sectional](#cross-sectional): receive all data within the current window for a cross-sectional calculation
 
 ## Base Statistics
 

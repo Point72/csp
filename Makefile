@@ -11,7 +11,7 @@ endif
 #########
 # BUILD #
 #########
-.PHONY: develop build-py build install
+.PHONY: requirements develop build build-conda install
 
 requirements:  ## install python dev and runtime dependencies
 	python -m pip install toml
@@ -21,10 +21,11 @@ requirements:  ## install python dev and runtime dependencies
 develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
-build-py:  ## build the python library
+build:  ## build the library
 	python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
-build: build-py  ## build the library
+build-conda:  ## build the library in Conda
+	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
 install:  ## install library
 	python -m pip install .

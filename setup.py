@@ -7,19 +7,22 @@ import sys
 from shutil import which
 from skbuild import setup
 
+CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1") == "1"
+
 # This will be used for e.g. the sdist
-if not os.path.exists("vcpkg"):
-    subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
-if not os.path.exists("vcpkg/ports"):
-    subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
-if not os.path.exists("vcpkg/buildtrees"):
-    subprocess.call(["git", "pull"], cwd="vcpkg")
-    if os.name == "nt":
-        subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg")
-        subprocess.call(["vcpkg", "install"], cwd="vcpkg")
-    else:
-        subprocess.call(["./bootstrap-vcpkg.sh"], cwd="vcpkg")
-        subprocess.call(["./vcpkg", "install"], cwd="vcpkg")
+if CSP_USE_VCPKG:
+    if not os.path.exists("vcpkg"):
+        subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
+    if not os.path.exists("vcpkg/ports"):
+        subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
+    if not os.path.exists("vcpkg/buildtrees"):
+        subprocess.call(["git", "pull"], cwd="vcpkg")
+        if os.name == "nt":
+            subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg")
+            subprocess.call(["vcpkg", "install"], cwd="vcpkg")
+        else:
+            subprocess.call(["./bootstrap-vcpkg.sh"], cwd="vcpkg")
+            subprocess.call(["./vcpkg", "install"], cwd="vcpkg")
 
 
 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -31,22 +34,15 @@ vcpkg_toolchain_file = os.path.abspath(
     )
 )
 
-if os.path.exists(vcpkg_toolchain_file):
+if CSP_USE_VCPKG and os.path.exists(vcpkg_toolchain_file):
     cmake_args.extend(
         [
             "-DCMAKE_TOOLCHAIN_FILE={}".format(vcpkg_toolchain_file),
             "-DCSP_USE_VCPKG=ON",
-            "-DSnappy_LIB=snappy",
-            "-DARROW_WITH_UTF8PROC=Off",
         ]
     )
-
-# if "CONDA_PREFIX" in os.environ:
-#     cmake_args.append(f"-DCMAKE_MODULE_PATH={os.environ['CONDA_PREFIX']}/lib/cmake/absl;{os.environ['CONDA_PREFIX']}/lib/cmake/arrow")
-
-if "CMAKE_ARGS" in os.environ:
-    # conda
-    cmake_args.extend(os.environ["CMAKE_ARGS"].split(" "))
+else:
+    cmake_args.append("-DCSP_USE_VCPKG=OFF")
 
 if "CXX" in os.environ:
     cmake_args.append(f"-DCMAKE_CXX_COMPILER={os.environ['CXX']}")
@@ -74,7 +70,7 @@ print(f"CMake Args: {cmake_args}")
 
 setup(
     name="csp",
-    version="0.0.1",
+    version="0.0.2",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,

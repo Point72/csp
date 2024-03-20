@@ -67,7 +67,7 @@ bool InputAdapter::consumeTick( const T & value )
             CSP_ASSERT( type() -> type() == CspType::Type::ARRAY );
             CSP_ASSERT( static_cast<const CspArrayType * >( type() ) -> elemType() -> type() == CspType::Type::fromCType<T>::type );
 
-            using ArrayT = typename CspType::Type::toCType<CspType::Type::ARRAY,T>::type;
+            using ArrayT = typename CspType::Type::toCArrayType<T>::type;
             if( likely( rootEngine() -> cycleCount() != lastCycleCount() ) )
             {
                 //ensure we reuse vector memory in our buffer by using reserve api and 

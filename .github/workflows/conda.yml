@@ -1,0 +1,61 @@
+name: Conda End-to-end Test
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - "docs/wiki/**"
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - "docs/wiki/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  checks: write
+
+jobs:
+    build:
+      runs-on: ubuntu-22.04
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - uses: mamba-org/setup-micromamba@v1
+          with:
+            micromamba-version: '1.5.7-0'
+            environment-file: conda/dev-environment-linux.yml
+            init-shell: >-
+              bash
+            cache-environment: true
+            post-cleanup: 'all'
+
+        - name: Set up Caches
+          uses: ./.github/actions/setup-caches
+          with:
+            cibuildwheel: 'cp311'
+
+        - name: Python Lint Steps (Linux)
+          run: make lint
+          shell: micromamba-shell {0}
+
+        - name: Python Build Steps (Linux)
+          run: make build-conda
+          shell: micromamba-shell {0}
+
+        - name: Python Test Steps (Linux)
+          run: make test
+          shell: micromamba-shell {0}

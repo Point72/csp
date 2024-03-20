@@ -10,7 +10,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
-      - docs
+      - "docs/wiki/**"
   pull_request:
     branches:
       - main
@@ -18,7 +18,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
-      - docs
+      - "docs/wiki/**"
   workflow_dispatch:
     inputs:
       ci-full:
@@ -514,6 +514,8 @@ jobs:
 
       runs-on: ${{ matrix.os }}
 
+      if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
+
       steps:
         - name: Checkout
           uses: actions/checkout@v4
@@ -542,7 +544,6 @@ jobs:
 
         # Install sdist
         - name: Install sdist
-          if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           run: python -m pip install -U -vvv dist/csp*.tar.gz --target .
           env:
             CCACHE_DIR: /home/runner/work/csp/csp/.ccache
@@ -551,7 +552,6 @@ jobs:
 
         # Test sdist
         - name: Run tests against from-scratch sdist build
-          if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           run: make test
           env:
             CSP_TEST_SKIP_EXAMPLES: "1"
@@ -585,7 +585,7 @@ jobs:
             - "sqlalchemy>=2"
             - "sqlalchemy<2"
             - "numpy==1.19.5"
-            
+
       runs-on: ${{ matrix.os }}
 
       steps:
@@ -666,7 +666,7 @@ jobs:
           run: ls -R ./dist
 
         - name: Publish to github releases
-          uses: softprops/action-gh-release@v1
+          uses: softprops/action-gh-release@v2
           with:
             draft: true
             generate_release_notes: true

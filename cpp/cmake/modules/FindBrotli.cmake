@@ -49,17 +49,17 @@ find_path( BROTLI_INCLUDE_DIR
   message("Include: ${BROTLI_INCLUDE_DIR}")
 
 find_library( BROTLI_STATIC_LIB_ENC
-  NAMES libbrotlienc.a libbrotlienc-static.a
+  NAMES libbrotlienc.a libbrotlienc-static.a brotlienc
   PATHS ${_brotli_roots}
   PATH_SUFFIXES "" "lib" )
 
 find_library( BROTLI_STATIC_LIB_DEC
-  NAMES libbrotlidec.a libbrotlidec-static.a
+  NAMES libbrotlidec.a libbrotlidec-static.a brotlidec
   PATHS ${_brotli_roots}
   PATH_SUFFIXES "" "lib" )
 
 find_library( BROTLI_STATIC_LIB_COMMON
-  NAMES libbrotlicommon.a libbrotlicommon-static.a
+  NAMES libbrotlicommon.a libbrotlicommon-static.a brotlicommon
   PATHS ${_brotli_roots}
   PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
 

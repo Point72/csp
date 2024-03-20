@@ -19,15 +19,18 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
 
 ## Get Started
 
-- Tutorials: Go through the introductory tutorials to learn the basics of CSP
-- Examples: Check out various features and use cases
+- [Install `csp`](Installation) and [write your first CSP program](First-Steps)
+- Learn more about [nodes](CSP-Node), [graphs](CSP-Graph), and [execution modes](Execution-Modes)
+- Learn to extend CSP with [adapters](Adapters)
+<!-- - Check out the [examples](Examples) for various CSP features and use cases -->
 
-Tip: Find relevant docs with GitHub’s search function, use `repo:Point72/csp type:wiki <search terms>` to search the documentation Wiki Pages.
+> \[!TIP\]
+> Find relevant docs with GitHub’s search function, use `repo:Point72/csp type:wiki <search terms>` to search the documentation Wiki Pages.
 
 ## Community
 
-- Developer guide: Learn to build and develop CSP locally
-- Roadmap: Read what’s the development team is excited about
+- [Contribute](Contribute) to CSP and help improve the project
+- Read about future plans in the [project roadmap](Roadmap)
 
 ## License
 

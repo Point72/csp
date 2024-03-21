@@ -91,7 +91,7 @@ test-cpp: ## Make C++ unit tests
 coverage-py:
 	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
 
-test: test-py  ## run the tests
+test: test-cpp test-py  ## run the tests
 
 # Alias
 tests: test

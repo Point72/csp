@@ -162,7 +162,7 @@ endif()
 if(MACOS)
     set(CMAKE_INSTALL_RPATH "@loader_path/")
 elseif(LINUX)
-    set(CMAKE_INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../lib")
+    set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 endif()
 
 ###################################################################################################################################################

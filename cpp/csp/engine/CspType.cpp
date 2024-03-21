@@ -4,28 +4,30 @@
 namespace csp
 {
 
-INIT_CSP_ENUM( CspType::Type,
-           "UNKNOWN",
-           "BOOL",
-           "INT8",
-           "UINT8",
-           "INT16",
-           "UINT16",
-           "INT32",
-           "UINT32",
-           "INT64",
-           "UINT64",
-           "DOUBLE",
-           "DATETIME",
-           "TIMEDELTA",
-           "DATE",
-           "TIME",
-           "ENUM",
-           "STRING",
-           "STRUCT",
-           "ARRAY",
-           "DIALECT_GENERIC" 
-    );
+INIT_CSP_ENUM(
+    CspType::Type,
+    CSP_TYPES_EXPORT,
+    "UNKNOWN",
+    "BOOL",
+    "INT8",
+    "UINT8",
+    "INT16",
+    "UINT16",
+    "INT32",
+    "UINT32",
+    "INT64",
+    "UINT64",
+    "DOUBLE",
+    "DATETIME",
+    "TIMEDELTA",
+    "DATE",
+    "TIME",
+    "ENUM",
+    "STRING",
+    "STRUCT",
+    "ARRAY",
+    "DIALECT_GENERIC" 
+);
 
 CspTypePtr & CspArrayType::create( const CspTypePtr & elemType )
 {

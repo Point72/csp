@@ -494,17 +494,17 @@ static void assert_or_die( bool assertion, const char * error )
         return out
 
 
-class Test(Struct):
-    bl: bool
-    a: int
-    b: float
-    s: str
-    # o: object
+# class Test(Struct):
+#     bl: bool
+#     a: int
+#     b: float
+#     s: str
+#     # o: object
 
 
-class Derived(Test):
-    string: str
-    flt: float
+# class Derived(Test):
+#     string: str
+#     flt: float
 
 
 # Test2 = csp.impl.struct.defineStruct( 'Test2', { 'A' + str(i) : bool for i in range(25 )})

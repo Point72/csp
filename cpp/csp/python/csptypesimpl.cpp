@@ -3,6 +3,7 @@
 #include <frameobject.h>
 #include <traceback.h>
 #include "Python.h"
+#include "datetime.h"
 
 namespace csp::python
 {
@@ -15,8 +16,9 @@ static PyModuleDef _csptypesimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-extern "C" CSP_TYPES_EXPORT PyObject* PyInit__csptypesimpl(void)
+extern "C" CSP_PYTHON_TYPES_EXPORT PyObject* PyInit__csptypesimpl(void)
 {
+    PyDateTime_IMPORT;
     PyObject* m;
 
     m = PyModule_Create( &_csptypesimpl_module);

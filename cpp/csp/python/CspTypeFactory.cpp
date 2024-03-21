@@ -1,5 +1,6 @@
 #include <csp/python/Conversions.h>
 #include <csp/python/CspTypeFactory.h>
+#include <csp/python/PyCspEnum.h>
 #include <csp/python/PyStruct.h>
 #include <datetime.h>
 

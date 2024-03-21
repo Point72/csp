@@ -102,7 +102,7 @@ static PyObject * PyCspEnumMeta_new( PyTypeObject *subtype, PyObject *args, PyOb
     CSP_RETURN_NULL;
 }
 
-CSP_TYPES_EXPORT PyObject * PyCspEnumMeta::toPyEnum( CspEnum e ) const
+CSP_PYTHON_TYPES_EXPORT PyObject * PyCspEnumMeta::toPyEnum( CspEnum e ) const
 {
     auto it = enumsByCValue.find( e.value() );
     if( it == enumsByCValue.end() )
@@ -113,14 +113,14 @@ CSP_TYPES_EXPORT PyObject * PyCspEnumMeta::toPyEnum( CspEnum e ) const
     return rv;
 }
 
-CSP_TYPES_EXPORT void PyCspEnumMeta_dealloc( PyCspEnumMeta * m )
+CSP_PYTHON_TYPES_EXPORT void PyCspEnumMeta_dealloc( PyCspEnumMeta * m )
 {
     CspTypeFactory::instance().removeCachedType( reinterpret_cast<PyTypeObject*>( m ) );
     m -> ~PyCspEnumMeta();
     Py_TYPE( m ) -> tp_free( m );
 }
 
-CSP_TYPES_EXPORT PyObject * PyCspEnumMeta_subscript( PyCspEnumMeta * self, PyObject * key )
+CSP_PYTHON_TYPES_EXPORT PyObject * PyCspEnumMeta_subscript( PyCspEnumMeta * self, PyObject * key )
 {
     CSP_BEGIN_METHOD;
    
@@ -185,13 +185,13 @@ PyTypeObject PyCspEnumMeta::PyType = {
 
 
 //PyCspEnum
-CSP_TYPES_EXPORT void PyCspEnum_dealloc( PyCspEnum * self )
+CSP_PYTHON_TYPES_EXPORT void PyCspEnum_dealloc( PyCspEnum * self )
 {
     self -> ~PyCspEnum();
     Py_TYPE( self ) -> tp_free( self );
 }
 
-CSP_TYPES_EXPORT PyObject * PyCspEnum_new( PyTypeObject * type, PyObject *args, PyObject *kwds )
+CSP_PYTHON_TYPES_EXPORT PyObject * PyCspEnum_new( PyTypeObject * type, PyObject *args, PyObject *kwds )
 {
     CSP_BEGIN_METHOD;
 
@@ -214,13 +214,13 @@ CSP_TYPES_EXPORT PyObject * PyCspEnum_new( PyTypeObject * type, PyObject *args, 
     CSP_RETURN_NULL;
 }
 
-CSP_TYPES_EXPORT PyObject * PyCspEnum_name( PyCspEnum * self, void * )
+CSP_PYTHON_TYPES_EXPORT PyObject * PyCspEnum_name( PyCspEnum * self, void * )
 {
     Py_INCREF( self -> enumName.get() );
     return self -> enumName.get();
 }
 
-CSP_TYPES_EXPORT PyObject * PyCspEnum_value( PyCspEnum * self, void * )
+CSP_PYTHON_TYPES_EXPORT PyObject * PyCspEnum_value( PyCspEnum * self, void * )
 {
     Py_INCREF( self -> enumValue.get() );
     return self -> enumValue.get();

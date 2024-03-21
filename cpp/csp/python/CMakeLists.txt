@@ -11,8 +11,10 @@ add_library(csptypesimpl
             PyCspType.cpp
             PyStruct.cpp)
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
-target_compile_definitions(csptypesimpl PRIVATE CSP_TYPES_EXPORTS=1)
-target_link_libraries(csptypesimpl csp_core csp_types)
+target_compile_definitions(csptypesimpl PRIVATE CSP_PYTHON_TYPES_EXPORTS=1)
+# NOTE: welcome to hell, see note in csp/engine/CMakeLists.txt
+# target_link_options(csptypesimpl PRIVATE "/FORCE:UNRESOLVED")
+target_link_libraries(csptypesimpl csp_types csp_core)
 
 set(CSPIMPL_PUBLIC_HEADERS
         Common.h
@@ -70,14 +72,13 @@ add_library(cspimpl SHARED
         ${CSPIMPL_PUBLIC_HEADERS})
 
 set_target_properties(cspimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_PUBLIC_HEADERS}")
-target_compile_definitions(cspimpl PRIVATE CSP_IMPL_EXPORTS=1)
-
-target_link_libraries(cspimpl csptypesimpl csp_core csp_engine)
+target_compile_definitions(cspimpl PRIVATE CSP_PYTHON_IMPL_EXPORTS=1)
 target_compile_definitions(cspimpl PUBLIC NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
+target_link_libraries(cspimpl csptypesimpl csp_core csp_types csp_engine)
 
 ## Baselib c++ module
 add_library(cspbaselibimpl SHARED cspbaselibimpl.cpp)
-target_compile_definitions(cspbaselibimpl PRIVATE CSP_EXPORTS=1)
+target_compile_definitions(cspbaselibimpl PRIVATE CSP_PYTHON_BASELIBIMPL_EXPORTS=1)
 target_link_libraries(cspbaselibimpl cspimpl baselibimpl)
 
 # Include exprtk include directory for exprtk node
@@ -85,30 +86,32 @@ target_include_directories(cspbaselibimpl PRIVATE ${EXPRTK_INCLUDE_DIRS})
 
 ## Basketlib c++ module
 add_library(cspbasketlibimpl SHARED cspbasketlibimpl.cpp)
-target_compile_definitions(cspbasketlibimpl PRIVATE CSP_EXPORTS=1)
+target_compile_definitions(cspbasketlibimpl PRIVATE CSP_PYTHON_BASKETLIBIMPL_EXPORTS=1)
 target_link_libraries(cspbasketlibimpl cspimpl basketlibimpl)
 
 ## Math c++ module
 add_library(cspmathimpl SHARED cspmathimpl.cpp)
-set_target_properties(cspmathimpl PROPERTIES DEFINITIONS CSP_EXPORTS=1)
+set_target_properties(cspmathimpl PROPERTIES DEFINITIONS CSP_PYTHON_MATHIMPL_EXPORTS=1)
 target_link_libraries(cspmathimpl cspimpl mathimpl)
 
 ## Stats c++ module
 add_library(cspstatsimpl SHARED cspstatsimpl.cpp)
-target_compile_definitions(cspstatsimpl PRIVATE CSP_EXPORTS=1)
+target_compile_definitions(cspstatsimpl PRIVATE CSP_PYTHON_STATSIMPL_EXPORTS=1)
 target_link_libraries(cspstatsimpl cspimpl statsimpl)
 
 ## NumPy stats c++ module
-add_library(npstatsimpl STATIC npstatsimpl.cpp)
+add_library(npstatsimpl SHARED npstatsimpl.cpp)
 target_include_directories(npstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
+target_compile_definitions(cspstatsimpl PRIVATE CSP_NPSTATSIMPL_EXPORTS=1)
+target_link_libraries(npstatsimpl csp_engine csp_core csp_types)
 
 add_library(cspnpstatsimpl SHARED cspnpstatsimpl.cpp)
-target_compile_definitions(cspnpstatsimpl PRIVATE CSP_EXPORTS=1)
+target_compile_definitions(cspnpstatsimpl PRIVATE CSP_PYTHON_NPSTATSIMPL_EXPORTS=1)
 target_link_libraries(cspnpstatsimpl cspimpl npstatsimpl)
 target_include_directories(cspnpstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 
 install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl cspnpstatsimpl
         PUBLIC_HEADER DESTINATION include/csp/python
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION lib/
         LIBRARY DESTINATION lib/
        )

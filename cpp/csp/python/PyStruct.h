@@ -11,7 +11,7 @@ namespace csp::python
 {
 
 //This is the base class of csp.StructMeta
-struct CSP_TYPES_EXPORT PyStructMeta : public PyHeapTypeObject
+struct CSP_PYTHON_TYPES_EXPORT PyStructMeta : public PyHeapTypeObject
 {
     std::shared_ptr<StructMeta> structMeta;
     PyObjectPtr                 attrDict; //mapping of attribute key -> PyCapsule holding the StructField * 
@@ -21,7 +21,7 @@ struct CSP_TYPES_EXPORT PyStructMeta : public PyHeapTypeObject
 
 //This is an extension of csp::StructMeta for python dialect, we need it in order to 
 //keep a reference to the python struct type from conversion to/from csp::Struct <-> PyObject properly
-class CSP_TYPES_EXPORT DialectStructMeta : public StructMeta
+class CSP_PYTHON_TYPES_EXPORT DialectStructMeta : public StructMeta
 {
 public:
     DialectStructMeta( PyTypeObject * pyType, const std::string & name, 
@@ -43,7 +43,7 @@ private:
 };
 
 
-struct CSP_TYPES_EXPORT PyStruct : public PyObject
+struct CSP_PYTHON_TYPES_EXPORT PyStruct : public PyObject
 {
     PyStruct( const StructPtr & s ) : struct_( s ) {}
     PyStruct( StructPtr && s ) : struct_( std::move( s ) ) {}

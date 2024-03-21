@@ -4,11 +4,13 @@
 #include <csp/core/Exports.h>
 #include <cstddef>
 #include <functional>
+#include <iostream>
 
 namespace csp
 {
 
-struct CSP_CORE_EXPORT DialectGenericType
+// NOTE: DONT EXPORT
+struct DialectGenericType
 {
 public:
     DialectGenericType();
@@ -30,7 +32,7 @@ private:
     void* m_data;
 };
 
-CSP_CORE_EXPORT std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj );
+std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj );
 
 }
 
@@ -38,7 +40,7 @@ namespace std
 {
 
 template<>
-struct CSP_CORE_EXPORT hash<csp::DialectGenericType>
+struct hash<csp::DialectGenericType>
 {
     size_t operator()( const csp::DialectGenericType & obj ) const
     {

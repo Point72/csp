@@ -42,7 +42,7 @@ private:
 
 };
 
-CSP_DECLARE_EXCEPTION( AttributeError, ::csp::Exception );
+CSP_DECLARE_EXCEPTION( AttributeError, ::csp::Exception, CSP_PYTHON_TYPES_EXPORT );
 
 inline bool& capture_cpp_exception_trace_flag()
 {

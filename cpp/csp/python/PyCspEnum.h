@@ -12,7 +12,7 @@ namespace csp::python
 {
 
 //This is the base class of csp.Enum
-struct CSP_TYPES_EXPORT PyCspEnumMeta : public PyHeapTypeObject
+struct CSP_PYTHON_TYPES_EXPORT PyCspEnumMeta : public PyHeapTypeObject
 {
     //convert to PyObject ( new ref )
     PyObject * toPyEnum( CspEnum e ) const;
@@ -28,11 +28,11 @@ struct CSP_TYPES_EXPORT PyCspEnumMeta : public PyHeapTypeObject
     static PyTypeObject PyType;
 };
 
-//TODO Windows - need to figure out why adding CSP_TYPES_EXPORT to this class leads to weird compilation errors on CspEnumMeta's unordered_map...
+//TODO Windows - need to figure out why adding CSP_PYTHON_TYPES_EXPORT to this class leads to weird compilation errors on CspEnumMeta's unordered_map...
 
 //This is an extension of csp::CspEnumMeta for python dialect, we need it in order to 
 //keep a reference to the python enum type from conversion to/from csp::CspEnumMeta <-> PyObject properly
-class CSP_TYPES_EXPORT DialectCspEnumMeta : public CspEnumMeta
+class CSP_PYTHON_TYPES_EXPORT DialectCspEnumMeta : public CspEnumMeta
 {
 public:
     DialectCspEnumMeta( PyTypeObjectPtr pyType, const std::string & name, 
@@ -51,7 +51,7 @@ private:
     PyTypeObjectPtr m_pyType;
 };
 
-struct CSP_TYPES_EXPORT PyCspEnum : public PyObject
+struct CSP_PYTHON_TYPES_EXPORT PyCspEnum : public PyObject
 {
     PyCspEnum( const CspEnum & e ) : enum_( e ) {}
     ~PyCspEnum() {}

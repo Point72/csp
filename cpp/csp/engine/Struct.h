@@ -2,7 +2,9 @@
 #define _IN_CSP_ENGINE_STRUCT_H
 
 #include <csp/core/Hash.h>
+#include <csp/core/Exports.h>
 #include <csp/engine/CspType.h>
+#include <csp/engine/PartialSwitchCspType.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,7 +20,7 @@ class TypedStructPtr;
 
 using StructPtr = TypedStructPtr<Struct>;
 
-class StructField
+class CSP_TYPES_EXPORT StructField
 {
 public:
 
@@ -334,8 +336,12 @@ class ArrayStructField : public NonNativeStructField
         dest = src;
     }
 
-    //Declared at end of file since StructPtr isnt defined yet
-    static void deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest );
+    static void deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest )
+    {
+        dest.resize( src.size() );
+        for( size_t i = 0; i < src.size(); ++i )
+            dest[i] = src[i] -> deepcopy();
+    }
 
     static void deepcopy( const std::vector<DialectGenericType> & src, std::vector<DialectGenericType> & dest )
     {
@@ -343,6 +349,8 @@ class ArrayStructField : public NonNativeStructField
         for( size_t i = 0; i < src.size(); ++i )
             dest[i] = src[i].deepcopy();
     }
+
+
 
 public:
     ArrayStructField( CspTypePtr arrayType, const std::string & fieldname ) :
@@ -436,7 +444,7 @@ private:
     }
 };
 
-class DialectGenericStructField : public NonNativeStructField
+class CSP_TYPES_EXPORT DialectGenericStructField : public NonNativeStructField
 {
 public:
     DialectGenericStructField( const std::string & fieldname, size_t size, size_t alignment ) :
@@ -496,7 +504,7 @@ public:
 };
 
 template<typename T>
-class TypedStructPtr
+class CSP_TYPES_EXPORT TypedStructPtr
 {
 public:
     TypedStructPtr() : m_obj( nullptr ) {}
@@ -598,7 +606,7 @@ TypedStructPtr<T> structptr_cast( const TypedStructPtr<U> & r )
     return out;
 }
 
-class StructMeta : public std::enable_shared_from_this<StructMeta>
+class CSP_TYPES_EXPORT StructMeta : public std::enable_shared_from_this<StructMeta>
 {
 public:
     using Fields = std::vector<StructFieldPtr>;
@@ -702,7 +710,7 @@ std::shared_ptr<typename StructField::upcast<T>::type> StructMeta::getMetaField(
 
 using StructMetaPtr = std::shared_ptr<StructMeta>;
 
-class Struct
+class CSP_TYPES_EXPORT Struct
 {
 public:
 
@@ -830,7 +838,7 @@ bool TypedStructPtr<T>::operator==( const TypedStructPtr<T> & rhs ) const
 }
 
 //field that is another struct
-class StructStructField final : public NonNativeStructField
+class CSP_TYPES_EXPORT StructStructField final : public NonNativeStructField
 {
 public:
     StructStructField( CspTypePtr cspType, const std::string &fieldname ) :
@@ -897,15 +905,6 @@ private:
     StructMetaPtr m_meta;
 };
 
-//Defined here to break decl dep
-template<typename ElemT>
-void ArrayStructField<ElemT>::deepcopy( const std::vector<StructPtr> & src, std::vector<StructPtr> & dest )
-{
-    dest.resize( src.size() );
-    for( size_t i = 0; i < src.size(); ++i )
-        dest[i] = src[i] -> deepcopy();
-}
-
 template<typename T> struct StructField::upcast  { using type = NotImplementedStructField<T>; };
 
 template<> struct StructField::upcast<bool>      { using type = BoolStructField; };
@@ -939,7 +938,7 @@ namespace std
 {
 
 template<>
-struct hash<csp::StructPtr>
+struct CSP_TYPES_EXPORT hash<csp::StructPtr>
 {
     size_t operator()( const csp::StructPtr & s ) const
     {

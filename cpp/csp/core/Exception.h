@@ -4,13 +4,14 @@
 #include <exception>
 #include <sstream>
 #include <string.h>
+#include <csp/core/Exports.h>
 #include <csp/core/Likely.h>
 #include <csp/core/Platform.h>
 
 namespace csp
 {
 
-class Exception : public std::exception
+class CSP_CORE_EXPORT Exception : public std::exception
 {
 public:
     Exception( const char * exType, const std::string & description ) : m_exType( exType ), m_description( description ), m_line ( -1 ) { setbt(); }
@@ -54,23 +55,27 @@ private:
 };
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define CSP_DECLARE_EXCEPTION( DerivedException, BaseException ) class DerivedException : public BaseException { public: DerivedException( const char * exType, const std::string &r, const char * file, const char * func, int line ) : BaseException( exType, r, file, func, line ) {} };
+#define CSP_DECLARE_EXCEPTION( DerivedException, BaseException, EXPORT_FLAG ) class EXPORT_FLAG DerivedException : public BaseException { public: DerivedException( const char * exType, const std::string &r, const char * file, const char * func, int line ) : BaseException( exType, r, file, func, line ) {} };
 
-CSP_DECLARE_EXCEPTION( AssertionError,     Exception )
-CSP_DECLARE_EXCEPTION( RuntimeException,   Exception )
-CSP_DECLARE_EXCEPTION( InvalidArgument,    RuntimeException )
-CSP_DECLARE_EXCEPTION( NotImplemented,     RuntimeException )
-CSP_DECLARE_EXCEPTION( ValueError,         RuntimeException )
-CSP_DECLARE_EXCEPTION( KeyError,           RuntimeException )
-CSP_DECLARE_EXCEPTION( TypeError,          RuntimeException )
-CSP_DECLARE_EXCEPTION( RangeError,         RuntimeException )
-CSP_DECLARE_EXCEPTION( OverflowError,      RuntimeException )
-CSP_DECLARE_EXCEPTION( DivideByZero,       RuntimeException )
-CSP_DECLARE_EXCEPTION( RecursionError,     RuntimeException )
-CSP_DECLARE_EXCEPTION( IOError,            RuntimeException )
-CSP_DECLARE_EXCEPTION( OSError,            RuntimeException )
-CSP_DECLARE_EXCEPTION( OutOfMemoryError,   RuntimeException )
-CSP_DECLARE_EXCEPTION( FileNotFoundError,  IOError )
+CSP_DECLARE_EXCEPTION( AssertionError,     Exception,         CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( RuntimeException,   Exception,         CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( InvalidArgument,    RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( NotImplemented,     RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( ValueError,         RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( KeyError,           RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( TypeError,          RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( RangeError,         RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( OverflowError,      RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( DivideByZero,       RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( RecursionError,     RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( IOError,            RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( OSError,            RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( OutOfMemoryError,   RuntimeException,  CSP_CORE_EXPORT)
+CSP_DECLARE_EXCEPTION( FileNotFoundError,  IOError,           CSP_CORE_EXPORT)
+
+// Used in csp/engine/PartialSwitchCspType.cpp but declared here
+// due to usage of csptypesimpl in csp_autogen
+CSP_DECLARE_EXCEPTION( UnsupportedSwitchType, TypeError, CSP_CORE_EXPORT );
 
 template<typename T>
 [[noreturn]] NO_INLINE void throw_exc(T&& e);

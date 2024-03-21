@@ -69,8 +69,8 @@ option(CSP_USE_CCACHE "Build with ccache caching" OFF)
 option(CSP_USE_LD_CLASSIC_MAC "On macOS, link with ld_classic" OFF)
 
 # Extension options
-option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" ON)
-option(CSP_BUILD_PARQUET_ADAPTER "Build parquet adapter" ON)
+option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" OFF)
+option(CSP_BUILD_PARQUET_ADAPTER "Build parquet adapter" OFF)
 
 # Normalize build type for downstream comparisons
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)

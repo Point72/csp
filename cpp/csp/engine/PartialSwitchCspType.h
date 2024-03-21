@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_PartialSwitchCspType_H
 
 #include <csp/core/Exception.h>
+#include <csp/core/Exports.h>
 #include <csp/core/System.h>
 #include <csp/core/Time.h>
 #include <csp/engine/CspType.h>
@@ -12,7 +13,6 @@
 
 namespace csp
 {
-CSP_DECLARE_EXCEPTION( UnsupportedSwitchType, TypeError );
 
 template< csp::CspType::Type::_enum ...Vs >
 struct PartialSwitchCspType

@@ -12,10 +12,8 @@ set(CSP_TYPES_PUBLIC_HEADERS
 set(CSP_TYPES_SOURCE_FILES
         CspEnum.cpp
         CspType.cpp
-        DialectGenericType.h
-        PartialSwitchCspType.h
+        DialectGenericType.cpp
         Struct.cpp
-        TypeCast.h
 )
 
 set(ENGINE_PUBLIC_HEADERS
@@ -83,12 +81,21 @@ set(ENGINE_SOURCE_FILES
         ${ENGINE_PUBLIC_HEADERS}
         )
 
-add_library(csp_types STATIC ${CSP_TYPES_SOURCE_FILES})
+add_library(csp_types SHARED ${CSP_TYPES_SOURCE_FILES})
 set_target_properties(csp_types PROPERTIES PUBLIC_HEADER "${CSP_TYPES_PUBLIC_HEADERS}")
+target_compile_definitions(csp_types PRIVATE CSP_TYPES_EXPORTS=1)
+# NOTE: pain. when debugging issues, comment this out and you
+# should ONLY see 2 linker errors for DialectGenericType.
+# This is by design.
+target_link_options(csp_types PRIVATE "/FORCE:UNRESOLVED")
+target_link_libraries(csp_types csp_core)
 
-add_library(csp_engine STATIC ${ENGINE_SOURCE_FILES})
+
+add_library(csp_engine SHARED ${ENGINE_SOURCE_FILES})
 set_target_properties(csp_engine PROPERTIES PUBLIC_HEADER "${ENGINE_PUBLIC_HEADERS}")
+target_compile_definitions(csp_engine PRIVATE CSP_ENGINE_EXPORTS=1)
 target_link_libraries(csp_engine csp_core csp_types)
+
 
 install(FILES ${CSP_TYPES_PUBLIC_HEADERS} ${ENGINE_PUBLIC_HEADERS} DESTINATION include/csp/engine)
 

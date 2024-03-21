@@ -189,8 +189,12 @@ protected:
         }
     };
 
-    //This is defined by INIT macro
-    static const Mapping & mapping();
+    //This is specialized by INIT macro
+    // static const Mapping & mapping();
+    static const Mapping & mapping() {
+        static Mapping s_mapping( { } );
+        return s_mapping;
+    }
 
     static const ReverseMap & reverseMap() 
     { 
@@ -214,7 +218,7 @@ Enum<EnumTraits>::Enum( UType v )
 }
 
 template<typename EnumTraits>
-std::ostream &operator<<(std::ostream &o, Enum<EnumTraits> e) {
+inline std::ostream &operator<<(std::ostream &o, Enum<EnumTraits> e) {
     o << e.asString();
     return o;
 }
@@ -232,8 +236,8 @@ struct hash<csp::Enum<EnumTraits>> {
 
 }
 
-#define INIT_CSP_ENUM(ENUM, ...)                                \
-    template<> const ENUM::Mapping & ENUM::mapping() {      \
+#define INIT_CSP_ENUM(ENUM, EXPORT_FLAG, ...)                                \
+    template<> static const ENUM::Mapping & ENUM::mapping() {      \
         static ENUM::Mapping s_mapping( { __VA_ARGS__ } );  \
         return s_mapping;                                   \
     }

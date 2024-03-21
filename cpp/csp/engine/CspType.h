@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_CSPTYPE_H
 
 #include <csp/core/Enum.h>
+#include <csp/core/Exports.h>
 #include <csp/core/Time.h>
 #include <csp/engine/CspEnum.h>
 #include <csp/engine/DialectGenericType.h>
@@ -18,57 +19,59 @@ namespace csp
 
 class CspStringType;
 
-class CspType
+struct TypeTraits
 {
 public:
 
-    struct TypeTraits
+    enum _enum : uint8_t
     {
-    public:
+        UNKNOWN,
+        BOOL,
+        INT8,
+        UINT8,
+        INT16,
+        UINT16,
+        INT32,
+        UINT32,
+        INT64,
+        UINT64,
+        DOUBLE,
+        DATETIME,
+        TIMEDELTA,
+        DATE,
+        TIME,
+        ENUM,
 
-        enum _enum : uint8_t
-        {
-            UNKNOWN,
-            BOOL,
-            INT8,
-            UINT8,
-            INT16,
-            UINT16,
-            INT32,
-            UINT32,
-            INT64,
-            UINT64,
-            DOUBLE,
-            DATETIME,
-            TIMEDELTA,
-            DATE,
-            TIME,
-            ENUM,
+        //Native implied the data is memcpy-able
+        MAX_NATIVE_TYPE = ENUM,
 
-            //Native implied the data is memcpy-able
-            MAX_NATIVE_TYPE = ENUM,
+        STRING,
+        STRUCT,
+        ARRAY,
 
-            STRING,
-            STRUCT,
-            ARRAY,
+        //These types are currently all dialect specific, no native primitives
+        DIALECT_GENERIC,
 
-            //These types are currently all dialect specific, no native primitives
-            DIALECT_GENERIC,
-
-            NUM_TYPES
-        };
-
-        constexpr TypeTraits() : m_value(_enum::UNKNOWN) {}
-
-        template< typename T >
-        struct fromCType;
-
-        template< uint8_t T, typename ELEM_T=void >
-        struct toCType;
-
-    protected:
-        _enum m_value;
+        NUM_TYPES
     };
+
+    constexpr TypeTraits() : m_value(_enum::UNKNOWN) {}
+
+    template< typename T >
+    struct fromCType;
+
+    template< uint8_t T, typename ELEM_T=void >
+    struct toCType;
+
+protected:
+    _enum m_value;
+};
+
+using CspTypes = Enum<TypeTraits>;
+
+class CSP_TYPES_EXPORT CspType
+{
+public:
 
     using Type = Enum<TypeTraits>;
 
@@ -109,7 +112,7 @@ private:
     Type m_type;
 };
 
-class CspStringType:public CspType
+class CSP_TYPES_EXPORT CspStringType:public CspType
 {
 public:
     CspStringType(bool isBytes)
@@ -129,7 +132,7 @@ class CspEnum;
 
 class CspEnumMeta;
 
-class CspEnumType : public CspType
+class CSP_TYPES_EXPORT CspEnumType : public CspType
 {
 public:
     CspEnumType( std::shared_ptr<CspEnumMeta> & meta ) : CspType( CspType::Type::ENUM ),
@@ -149,7 +152,7 @@ using StructPtr = TypedStructPtr<Struct>;
 
 class StructMeta;
 
-class CspStructType : public CspType
+class CSP_TYPES_EXPORT CspStructType : public CspType
 {
 public:
     CspStructType( const std::shared_ptr<StructMeta> & meta ) : CspType( CspType::Type::STRUCT ),
@@ -162,7 +165,7 @@ private:
     std::shared_ptr<StructMeta> m_meta;
 };
 
-class CspArrayType : public CspType
+class CSP_TYPES_EXPORT CspArrayType : public CspType
 {
 public:
     CspArrayType( CspTypePtr elemType ) : CspType( CspType::Type::ARRAY ),

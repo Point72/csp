@@ -9,7 +9,7 @@
 namespace csp::python
 {
 
-class CSP_TYPES_EXPORT CspTypeFactory
+class CSP_PYTHON_TYPES_EXPORT CspTypeFactory
 {
 public:
     static CspTypeFactory & instance();

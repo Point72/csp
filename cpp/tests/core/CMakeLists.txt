@@ -16,7 +16,7 @@ add_executable(test_tagged_pointer_union test_tagged_pointer_union.cpp )
 target_link_libraries(test_tagged_pointer_union csp_core GTest::gtest GTest::gtest_main)
 
 add_executable(test_time test_time.cpp )
-target_link_libraries(test_time csp_core GTest::gtest GTest::gtest_main rt)
+target_link_libraries(test_time csp_core GTest::gtest GTest::gtest_main)
 
 
 install(TARGETS test_basic_allocator

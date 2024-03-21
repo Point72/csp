@@ -1,7 +1,7 @@
 find_package(GTest CONFIG REQUIRED)
 
 add_executable(test_dictionary test_dictionary.cpp )
-target_link_libraries(test_dictionary csp_engine GTest::gtest GTest::gtest_main rt)
+target_link_libraries(test_dictionary csp_engine GTest::gtest GTest::gtest_main)
 
 add_executable(test_tick_buffer test_tick_buffer.cpp)
 target_link_libraries(test_tick_buffer csp_engine GTest::gtest GTest::gtest_main)

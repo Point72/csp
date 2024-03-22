@@ -133,10 +133,11 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                 case csp::CspType::Type::ARRAY:
                 {
                     const CspArrayType & arrayType = static_cast<const CspArrayType&>( *csptype );
-                    field = switchCspType( arrayType.elemType(), [csptype,keystr]( auto tag ) -> std::shared_ptr<StructField>
+                    field = ArraySubTypeSwitch::invoke( arrayType.elemType(), [csptype,keystr]( auto tag ) -> std::shared_ptr<StructField>
                     {
                         using CElemType = typename decltype(tag)::type;
-                        return std::make_shared<ArrayStructField<CElemType>>( csptype, keystr );
+                        using CType = typename CspType::Type::toCArrayType<CElemType>::type;
+                        return std::make_shared<ArrayStructField<CType>>( csptype, keystr );
                     } );
 
                     break;
@@ -169,9 +170,9 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
 
     /*back reference to the struct type that will be accessible on the csp struct -> meta()
       DialectStructMeta will hold a borrowed reference to the type to avoid a circular dep
-
+      
       This is the layout of references between all these types
-                              StructMeta (shared_ptr) <-------- strong ref
+                              StructMeta (shared_ptr) <-------- strong ref 
                                   |                              |
                            DialectStructMeta ---> weak ref to PyStructMeta ( the PyType )
                                  /\                              /\
@@ -534,7 +535,7 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
             switchCspType( elemType, [ field, struct_, &arrayType, &tl_repr, show_unset ]( auto tag )
             {
                 using CElemType = typename decltype( tag )::type;
-                using ArrayType = typename std::vector<CElemType>;
+                using ArrayType = typename CspType::Type::toCArrayType<CElemType>::type;
                 const ArrayType & val = field -> value<ArrayType>( struct_ );
                 repr_array( val, *arrayType, tl_repr, show_unset );
             } );
@@ -558,9 +559,10 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
     }
 }
 
-template<typename ElemT>
-void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset )
+template<typename StorageT>
+void repr_array( const std::vector<StorageT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset )
 {
+    using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
     tl_repr += "[";
 
     bool first = true;
@@ -672,9 +674,9 @@ PyObject * PyStruct_new( PyTypeObject * type, PyObject *args, PyObject *kwds )
     if( ! ( (PyStructMeta * ) type ) -> structMeta )
         CSP_THROW( TypeError, "csp.Struct cannot be instantiated" );
 
-    PyStruct * pystruct = ( PyStruct * ) type -> tp_alloc( type, 0 );
-
     StructPtr struct_ =  ( (PyStructMeta * ) type ) -> structMeta -> create();
+
+    PyStruct * pystruct = ( PyStruct * ) type -> tp_alloc( type, 0 );
 
     //assign dialectptr, but we DO NOT incref the instance on the struct
     struct_ -> setDialectPtr( pystruct );
@@ -846,9 +848,24 @@ int PyStruct_setattro( PyStruct * self, PyObject * attr, PyObject * value )
 
 PyObject * PyStruct_copy( PyStruct * self )
 {
+    CSP_BEGIN_METHOD;
     PyObject * copy = self -> ob_type -> tp_alloc( self -> ob_type, 0 );
     new ( copy ) PyStruct( self -> struct_ -> copy() );
     return copy;
+    CSP_RETURN_NULL;
+}
+
+PyObject * PyStruct_deepcopy( PyStruct * self )
+{
+    CSP_BEGIN_METHOD;
+    //Note that once tp_alloc is called, the object will get added to GC
+    //deepcopy traversal may kick in a GC collect, so we have to call that first before the PyStruct is created
+    //of it may traverse a partially consturcted object and crash 
+    auto deepcopy = self -> struct_ -> deepcopy();
+    PyObject * pyDeepcopy = self -> ob_type -> tp_alloc( self -> ob_type, 0 );
+    new ( pyDeepcopy ) PyStruct( deepcopy );
+    return pyDeepcopy;
+    CSP_RETURN_NULL;
 }
 
 PyObject * PyStruct_clear( PyStruct * self )
@@ -869,6 +886,17 @@ PyObject * PyStruct_copy_from( PyStruct * self, PyObject * o )
     CSP_RETURN_NONE;
 }
 
+PyObject * PyStruct_deepcopy_from( PyStruct * self, PyObject * o )
+{
+    CSP_BEGIN_METHOD;
+
+    if( !PyType_IsSubtype( Py_TYPE( o ), &PyStruct::PyType ) )
+        CSP_THROW( TypeError, "Attempting to deepcopy from non-struct type " << Py_TYPE( o ) -> tp_name );
+
+    self -> struct_ -> deepcopyFrom( ( ( PyStruct * ) o ) -> struct_.get() );
+    CSP_RETURN_NONE;
+}
+
 PyObject * PyStruct_update_from( PyStruct * self, PyObject * o )
 {
     CSP_BEGIN_METHOD;
@@ -886,11 +914,13 @@ PyObject * PyStruct_all_fields_set( PyStruct * self )
 }
 
 static PyMethodDef PyStruct_methods[] = {
-    { "copy",        (PyCFunction) PyStruct_copy,        METH_NOARGS, "make a shallow copy of the struct" },
-    { "clear",       (PyCFunction) PyStruct_clear,       METH_NOARGS, "clear all fields" },
-    { "copy_from",   (PyCFunction) PyStruct_copy_from,   METH_O,      "copy from struct. struct must be same type or a derived type. unset fields will copy over" },
-    { "update_from", (PyCFunction) PyStruct_update_from, METH_O,      "update from struct. struct must be same type or a derived type. unset fields will be not be copied" },
-    { "update",      (PyCFunction) PyStruct_update,      METH_VARARGS | METH_KEYWORDS, "update from key=val.  given fields will be set on struct.  other fields will remain as is in struct" },
+    { "copy",           (PyCFunction) PyStruct_copy,           METH_NOARGS, "make a shallow copy of the struct" },
+    { "deepcopy",       (PyCFunction) PyStruct_deepcopy,       METH_NOARGS, "make a deep copy of the struct" },
+    { "clear",          (PyCFunction) PyStruct_clear,          METH_NOARGS, "clear all fields" },
+    { "copy_from",      (PyCFunction) PyStruct_copy_from,      METH_O,      "copy from struct. struct must be same type or a derived type. unset fields will copy over" },
+    { "deepcopy_from",  (PyCFunction) PyStruct_deepcopy_from,  METH_O,      "deepcopy from struct. struct must be same type or a derived type. unset fields will copy over" },
+    { "update_from",    (PyCFunction) PyStruct_update_from,    METH_O,      "update from struct. struct must be same type or a derived type. unset fields will be not be copied" },
+    { "update",         (PyCFunction) PyStruct_update,         METH_VARARGS | METH_KEYWORDS, "update from key=val.  given fields will be set on struct.  other fields will remain as is in struct" },
     { "all_fields_set", (PyCFunction) PyStruct_all_fields_set, METH_NOARGS, "return true if all fields on the struct are set" },
     { NULL}
 };

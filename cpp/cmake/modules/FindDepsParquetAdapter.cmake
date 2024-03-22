@@ -11,6 +11,7 @@ include_directories(${PARQUET_INCLUDE_DIR})
 # Other deps
 find_package(Thrift REQUIRED)
 find_package(Brotli REQUIRED)
+find_package(Snappy REQUIRED)
 # find_package(unofficial-brotli CONFIG REQUIRED)
 find_package(utf8proc REQUIRED)
 # find_package(unofficial-utf8proc CONFIG REQUIRED)

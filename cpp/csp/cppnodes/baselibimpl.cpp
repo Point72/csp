@@ -369,7 +369,7 @@ DECLARE_CPPNODE( unroll )
         switchCspType( elemType, [this]( auto tag )
         {
             using ElemT  = typename decltype(tag)::type;
-            using ArrayT = typename CspType::Type::toCType<CspType::Type::ARRAY,ElemT>::type;
+            using ArrayT = typename CspType::Type::toCArrayType<ElemT>::type;
 
             if( csp.ticked( x ) )
             {
@@ -446,7 +446,7 @@ DECLARE_CPPNODE( collect )
         switchCspType( elemType, [this]( auto tag )
                        {
                            using ElemT  = typename decltype(tag)::type;
-                           using ArrayT = typename CspType::Type::toCType<CspType::Type::ARRAY,ElemT>::type;
+                           using ArrayT = typename CspType::Type::toCArrayType<ElemT>::type;
 
                            ArrayT & out = unnamed_output().reserveSpace<ArrayT>();
                            out.clear();

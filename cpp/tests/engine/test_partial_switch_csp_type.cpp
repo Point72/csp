@@ -237,11 +237,11 @@ TEST( ArraySwitchTest, test_basic_switch )
     } );
     csp::PartialSwitchCspType<csp::CspType::Type::ARRAY>::invoke( boolArrayType.get(), []( auto tag )
     {
-        verifySameTypes<typename decltype(tag)::type, std::vector<bool>>();
+        verifySameTypes<typename decltype(tag)::type, std::vector<uint8_t>>();
     } );
 
     csp::PartialSwitchCspType<csp::CspType::Type::ARRAY>::invoke<csp::PartialSwitchCspType<csp::CspType::Type::BOOL>>(
-            boolArrayType.get(), []( auto tag ) { verifySameTypes<typename decltype(tag)::type, std::vector<bool>>(); } );
+            boolArrayType.get(), []( auto tag ) { verifySameTypes<typename decltype(tag)::type, std::vector<uint8_t>>(); } );
     csp::PartialSwitchCspType<csp::CspType::Type::ARRAY>::invoke<csp::PartialSwitchCspType<csp::CspType::Type::UINT64>>(
             uint64ArrayType.get(), []( auto tag ) { verifySameTypes<typename decltype(tag)::type, std::vector<std::uint64_t>>(); } );
 

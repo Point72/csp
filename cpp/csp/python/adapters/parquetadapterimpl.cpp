@@ -190,7 +190,10 @@ public:
         std::shared_ptr<arrow::io::BufferReader> bufferReader = std::make_shared<arrow::io::BufferReader>(
                 reinterpret_cast<const uint8_t *>(data), size );
         std::shared_ptr<arrow::ipc::RecordBatchStreamReader> reader = arrow::ipc::RecordBatchStreamReader::Open(bufferReader.get()).ValueOrDie();
-        STATUS_OK_OR_THROW_RUNTIME(reader->ReadAll(&value), "Failed read arrow table from buffer");
+        auto result = reader->ToTable();
+        if (!(result.ok()))
+            CSP_THROW(csp::RuntimeException, "Failed read arrow table from buffer");
+        value = std::move(result.ValueUnsafe());
         return true;
     }
 private:
@@ -634,7 +637,7 @@ csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, co
     {
         PyObjectPtr pyFilenameVisitor = PyObjectPtr::own( toPython( pyFilenameVisitorDG ) );
         fileVisitor = [pyFilenameVisitor]( const std::string & filename )
-            { 
+            {
                 PyObjectPtr rv =  PyObjectPtr::own( PyObject_CallFunction( pyFilenameVisitor.get(), "O", PyObjectPtr::own( toPython( filename ) ).get() ) );
                 if( !rv.get() )
                     CSP_THROW( PythonPassthrough, "" );

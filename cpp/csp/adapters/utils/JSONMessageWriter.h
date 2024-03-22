@@ -81,8 +81,8 @@ private:
     }
 
 
-    template<typename T>
-    auto convertValue( const std::vector<T> & value, const CspType & type, const FieldEntry & entry );
+    template<typename StorageT>
+    auto convertValue( const std::vector<StorageT> & value, const CspType & type, const FieldEntry & entry );
 
     rapidjson::Document     m_doc;
     rapidjson::StringBuffer m_stringBuffer;
@@ -132,8 +132,8 @@ inline auto JSONMessageWriter::convertValue( const csp::CspEnum & value, const C
     return rapidjson::StringRef( value.name().c_str() );
 }
 
-template<typename T>
-inline auto JSONMessageWriter::convertValue( const std::vector<T> & value, const CspType & type, const FieldEntry & entry )
+template<typename StorageT>
+inline auto JSONMessageWriter::convertValue( const std::vector<StorageT> & value, const CspType & type, const FieldEntry & entry )
 {
     auto & allocator = m_doc.GetAllocator();
     rapidjson::Value array( rapidjson::kArrayType );
@@ -141,11 +141,13 @@ inline auto JSONMessageWriter::convertValue( const std::vector<T> & value, const
 
     const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
 
+    using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
+
     //iterating by index for vector<bool> support
     for( size_t index = 0; index < sz; ++index )
     {
         //Note this passes an empty FieldEntry / wont work on vector of structs
-        array.PushBack( convertValue( value[index], elemType, {} ), allocator );
+        array.PushBack( convertValue<ElemT>( value[index], elemType, {} ), allocator );
     }
     return array;
 }

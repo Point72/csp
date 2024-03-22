@@ -14,7 +14,7 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.0.1"
+version = "0.0.2"
 requires-python = ">=3.8"
 
 dependencies = [
@@ -59,6 +59,8 @@ develop = [
     "isort>=5,<6",
     "ruamel.yaml",
     "ruff>=0.3,<0.4",
+    "mdformat",
+    "codespell",
     "scikit-build",
     "twine",
     "wheel",

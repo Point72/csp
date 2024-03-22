@@ -11,18 +11,34 @@ engine can be seamlessly run in simulation mode using historical input
 adapters or in realtime mode using realtime input adapters.
 
 # Contents
+
 - [0. Introduction](https://github.com/Point72/csp/wiki/0.-Introduction)
-- [1. Generic Nodes (csp.baselib)](https://github.com/Point72/csp/wiki/1.-Generic-Nodes-(csp.baselib))
-- [2. Math Nodes (csp.math)](https://github.com/Point72/csp/wiki/2.-Math-Nodes-(csp.math))
-- [3. Statistics Nodes (csp.stats)](https://github.com/Point72/csp/wiki/3.-Statistics-Nodes-(csp.stats))
-- [4. Random Time Series Generation](https://github.com/Point72/csp/wiki/4.-Random-Time-Series-Generation-(csp.random))
+- [1. Generic Nodes (csp.baselib)](<https://github.com/Point72/csp/wiki/1.-Generic-Nodes-(csp.baselib)>)
+- [2. Math Nodes (csp.math)](<https://github.com/Point72/csp/wiki/2.-Math-Nodes-(csp.math)>)
+- [3. Statistics Nodes (csp.stats)](<https://github.com/Point72/csp/wiki/3.-Statistics-Nodes-(csp.stats)>)
+- [4. Random Time Series Generation](<https://github.com/Point72/csp/wiki/4.-Random-Time-Series-Generation-(csp.random)>)
 - [5. Adapters](https://github.com/Point72/csp/wiki/5.-Adapters)
 - [6. Dynamic Graphs](https://github.com/Point72/csp/wiki/6.-Dynamic-Graphs)
 - [7. csp.Struct](https://github.com/Point72/csp/wiki/7.-csp.Struct)
 - [8. Profiler](https://github.com/Point72/csp/wiki/8.-Profiler)
 - [9. Caching](https://github.com/Point72/csp/wiki/9.-Caching)
 
+# Installation
+
+We ship binary wheels to install `csp`  on MacOS and Linux via `pip`:
+
+```bash
+pip install csp
+```
+
+Other platforms will need to see the instructions to [build `csp` from
+source](https://github.com/Point72/csp/wiki/98.-Building-From-Source).
+
+We plan to create conda packages on conda-forge and ship binaries for Windows in
+the near future.
+
 # Contributing
+
 Contributions are welcome on this project. We distribute under the terms of the [Apache 2.0 license](https://github.com/Point72/csp/blob/main/LICENSE).
 
 For **bug reports** or **small feature requests**, please open an issue on our [issues page](https://github.com/Point72/csp/issues).
@@ -34,6 +50,7 @@ For **contributions**, please see our [developer documentation](https://github.c
 For **documentation updates**, make PRs that update the pages in `/docs/wiki`. The documentation is pushed to the GitHub wiki automatically through a GitHub workflow. Note that direct updates to this wiki will be overwritten.
 
 # Roadmap
+
 We do not have a formal roadmap, but we're happy to discuss features, improvements, new adapters, etc, in our [discussions area](https://github.com/Point72/csp/discussions). Here are some high level items we hope to accomplish in the next few months:
 
 - Support `clang` compiler ([#33](https://github.com/Point72/csp/issues/33))

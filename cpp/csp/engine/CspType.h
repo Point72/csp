@@ -57,8 +57,20 @@ public:
         template< typename T >
         struct fromCType;
 
-        template< uint8_t T, typename ELEM_T=void >
+        template< uint8_t T >
         struct toCType;
+
+        //We store bool vectors as vector<uint8_t> to account for oddities with vector<bool> across build environments
+        //toCArrayElemType means from the array's storage type to csp element type ( ie uint8_t -> bool ), otherwise its just Storage.
+        //toCArrayStorageType is the inverse
+        template< typename StorageT >
+        struct toCArrayElemType;
+
+        template< typename ElemT >
+        struct toCArrayStorageType;
+
+        template< typename ElemT >
+        struct toCArrayType;
 
     protected:
         _enum m_value;
@@ -89,6 +101,10 @@ public:
     static Ptr & STRING();
     static Ptr & BYTES();
     static Ptr & DIALECT_GENERIC() { static auto s_type = std::make_shared<const CspType>( Type::DIALECT_GENERIC ); return s_type; }
+
+    static constexpr bool isNative( Type t ) { return t <= Type::MAX_NATIVE_TYPE; }
+
+    bool isNative() const { return isNative( m_type ); }
 
     template<typename T>
     struct fromCType;
@@ -169,9 +185,6 @@ private:
     CspTypePtr m_elemType;
 };
 
-#ifdef __linux__
-template<> struct CspType::Type::fromCType<std::_Bit_reference>      { static constexpr CspType::Type type = CspType::Type::BOOL;            };
-#endif
 
 template<> struct CspType::TypeTraits::fromCType<bool>                     { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::BOOL;            };
 template<> struct CspType::TypeTraits::fromCType<int8_t>                   { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::INT8;            };
@@ -192,27 +205,43 @@ template<> struct CspType::TypeTraits::fromCType<CspType::StringCType>     { sta
 template<> struct CspType::TypeTraits::fromCType<StructPtr>                { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::STRUCT;          };
 template<typename T> struct CspType::TypeTraits::fromCType<TypedStructPtr<T>> { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::STRUCT;       };
 template<> struct CspType::TypeTraits::fromCType<DialectGenericType>       { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::DIALECT_GENERIC; };
-template<typename T> struct CspType::TypeTraits::fromCType<std::vector<T>> { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::ARRAY; };
 
-template<> struct CspType::Type::toCType<CspType::Type::BOOL,void>            { using type = bool;      };
-template<> struct CspType::Type::toCType<CspType::Type::INT8,void>            { using type = int8_t;    };
-template<> struct CspType::Type::toCType<CspType::Type::UINT8,void>           { using type = uint8_t;   };
-template<> struct CspType::Type::toCType<CspType::Type::INT16,void>           { using type = int16_t;   };
-template<> struct CspType::Type::toCType<CspType::Type::UINT16,void>          { using type = uint16_t;  };
-template<> struct CspType::Type::toCType<CspType::Type::INT32,void>           { using type = int32_t;   };
-template<> struct CspType::Type::toCType<CspType::Type::UINT32,void>          { using type = uint32_t;  };
-template<> struct CspType::Type::toCType<CspType::Type::INT64,void>           { using type = int64_t;   };
-template<> struct CspType::Type::toCType<CspType::Type::UINT64,void>          { using type = uint64_t;  };
-template<> struct CspType::Type::toCType<CspType::Type::DOUBLE,void>          { using type = double;    };
-template<> struct CspType::Type::toCType<CspType::Type::DATETIME,void>        { using type = DateTime;  };
-template<> struct CspType::Type::toCType<CspType::Type::TIMEDELTA,void>       { using type = TimeDelta; };
-template<> struct CspType::Type::toCType<CspType::Type::DATE,void>            { using type = Date; };
-template<> struct CspType::Type::toCType<CspType::Type::TIME,void>            { using type = Time; };
-template<> struct CspType::Type::toCType<CspType::Type::ENUM,void>            { using type = CspEnum; };
-template<> struct CspType::Type::toCType<CspType::Type::STRING,void>          { using type = CspType::StringCType; };
-template<> struct CspType::Type::toCType<CspType::Type::STRUCT,void>          { using type = StructPtr; };
-template<> struct CspType::Type::toCType<CspType::Type::DIALECT_GENERIC,void> { using type = DialectGenericType; };
-template<typename T> struct CspType::Type::toCType<CspType::Type::ARRAY,T> { using type = std::vector<T>; };
+template<typename StorageT> struct CspType::TypeTraits::fromCType<std::vector<StorageT>>
+{ 
+    static_assert( !std::is_same<StorageT,bool>::value, "vector<bool> should not be getting instantiated" );
+    static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::ARRAY;
+};
+
+template<> struct CspType::TypeTraits::fromCType<std::vector<bool>>
+{ 
+};
+
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::BOOL>            { using type = bool;      };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::INT8>            { using type = int8_t;    };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::UINT8>           { using type = uint8_t;   };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::INT16>           { using type = int16_t;   };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::UINT16>          { using type = uint16_t;  };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::INT32>           { using type = int32_t;   };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::UINT32>          { using type = uint32_t;  };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::INT64>           { using type = int64_t;   };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::UINT64>          { using type = uint64_t;  };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::DOUBLE>          { using type = double;    };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::DATETIME>        { using type = DateTime;  };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::TIMEDELTA>       { using type = TimeDelta; };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::DATE>            { using type = Date; };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::TIME>            { using type = Time; };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::ENUM>            { using type = CspEnum; };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::STRING>          { using type = CspType::StringCType; };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::STRUCT>          { using type = StructPtr; };
+template<> struct CspType::TypeTraits::toCType<CspType::TypeTraits::DIALECT_GENERIC> { using type = DialectGenericType; };
+
+template<typename ElemT> struct CspType::TypeTraits::toCArrayStorageType       { using type = ElemT; };
+template<> struct CspType::TypeTraits::toCArrayStorageType<bool>               { using type = uint8_t; };
+
+template<typename StorageT> struct CspType::TypeTraits::toCArrayElemType       { using type = StorageT; };
+template<> struct CspType::TypeTraits::toCArrayElemType<uint8_t>               { using type = bool; };
+
+template<typename T> struct CspType::TypeTraits::toCArrayType    { using type = std::vector<typename CspType::TypeTraits::toCArrayStorageType<T>::type>; };
 
 template<> struct CspType::fromCType<bool>                 { static CspTypePtr & type() { return CspType::BOOL();      } };
 template<> struct CspType::fromCType<int8_t>               { static CspTypePtr & type() { return CspType::INT8();      } };

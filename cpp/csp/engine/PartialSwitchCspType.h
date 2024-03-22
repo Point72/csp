@@ -57,7 +57,7 @@ struct SwitchCTypeResolver
 template< csp::CspType::Type::_enum U1 >
 struct SwitchCTypeResolver<csp::CspType::Type::ARRAY, U1>
 {
-    using TagType = CspType::Type::toCType<csp::CspType::Type::ARRAY, typename CspType::Type::toCType<U1>::type>;
+    using TagType = CspType::Type::toCArrayType<typename CspType::Type::toCType<U1>::type>;
 };
 
 template< csp::CspType::Type::_enum V1, csp::CspType::Type::_enum ...Vs >
@@ -152,7 +152,7 @@ private:
 
         return ArraySubTypeSwitchT::invoke( arrayType -> elemType().get(), [ &f ]( auto tag )
         {
-            return f( CspType::Type::toCType<T, typename decltype(tag)::type>());
+            return f( CspType::Type::toCArrayType<typename decltype(tag)::type>());
         } );
     }
 
@@ -334,8 +334,8 @@ struct ConstructibleTypeSwitchAux<std::string>
     using type = PartialSwitchCspType<csp::CspType::Type::STRING>;
 };
 
-template< typename T >
-struct ConstructibleTypeSwitchAux<std::vector<T>>
+template< typename StorageT >
+struct ConstructibleTypeSwitchAux<std::vector<StorageT>>
 {
     using type = PartialSwitchCspType<csp::CspType::Type::ARRAY>;
 };

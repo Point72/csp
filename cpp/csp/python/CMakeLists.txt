@@ -94,8 +94,9 @@ add_library(cspstatsimpl SHARED cspstatsimpl.cpp)
 target_link_libraries(cspstatsimpl cspimpl statsimpl)
 
 ## Testlib c++ module
+add_library(testlibimpl STATIC testlibimpl.cpp)
 add_library(csptestlibimpl SHARED csptestlibimpl.cpp)
-target_link_libraries(csptestlibimpl cspimpl)
+target_link_libraries(csptestlibimpl cspimpl testlibimpl)
 
 ## NumPy stats c++ module
 add_library(npstatsimpl STATIC npstatsimpl.cpp)

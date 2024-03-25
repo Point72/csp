@@ -13,6 +13,7 @@ dependencies:
  - exprtk
  - flex
  - python-graphviz
+ - gtest
  - httpx
  - isort
  - libarrow=15

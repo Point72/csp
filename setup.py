@@ -11,7 +11,7 @@ from skbuild import setup
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
 CMAKE_OPTIONS = (
     ("CSP_BUILD_NO_CXX_ABI", "0"),
-    ("CSP_BUILD_TESTS", "0"),
+    ("CSP_BUILD_TESTS", "1"),
     ("CSP_MANYLINUX", "0"),
     ("CSP_BUILD_KAFKA_ADAPTER", "1"),
     ("CSP_BUILD_PARQUET_ADAPTER", "1"),

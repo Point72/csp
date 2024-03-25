@@ -35,6 +35,9 @@ public:
 
     PushMode pushMode() const { return m_pushMode; }
 
+    void setStarted()         { m_started = true; }
+    bool started() const      { return m_started; }
+
     //if adapter is BURST this will return the type of the data, rather than the BURST vector<Data>
     const CspType * dataType() const
     {
@@ -46,6 +49,7 @@ public:
 protected:
     RootEngine * m_rootEngine;
     PushMode     m_pushMode;
+    bool         m_started;
 };
 
 template<typename T>

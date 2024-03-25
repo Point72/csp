@@ -115,25 +115,9 @@ if(MACOS)
     set(CMAKE_USE_PTHREADS_INIT 1)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-    # for exception unwinding on macOS
-    # TODO this does not work, which would be the
-    # proper cmake way of doing it, so instead we
-    # use a vanilla option
-    # check_linker_flag(CXX "-Wl,-ld_classic" CSP_USE_LD_CLASSIC_MAC)
-    if(CSP_USE_LD_CLASSIC_MAC)
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-ld_classic")
-      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-ld_classic")
-    endif()
-
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
-
     # don't link against build python
     # https://blog.tim-smith.us/2015/09/python-extension-modules-os-x/
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
-
-    # Support cross build
-    check_c_compiler_flag("-arch x86_64" x86_64Supported)
-    check_c_compiler_flag("-arch arm64" arm64Supported)
 endif()
 
 

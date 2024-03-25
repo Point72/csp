@@ -118,6 +118,9 @@ public:
 
     DateTime starttime() const      { return m_starttime; }
     DateTime endtime() const        { return m_endtime; }
+    
+    void setStarted()               { m_started = true; }
+    bool started() const            { return m_started; }
 
     StatusAdapter *createStatusAdapter( CspTypePtr &type, PushMode pushMode );
     void pushStatus( int64_t level, int64_t errCode, const std::string &errMsg, PushBatch *batch = nullptr ) const;
@@ -134,6 +137,7 @@ protected:
     DateTime        m_starttime;
     DateTime        m_endtime;
     StatusAdapter * m_statusAdapter;
+    bool            m_started;
 };
 
 inline void AdapterManager::scheduleTimerCB( DateTime next )

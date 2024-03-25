@@ -514,6 +514,8 @@ jobs:
 
       runs-on: ${{ matrix.os }}
 
+      if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
+
       steps:
         - name: Checkout
           uses: actions/checkout@v4
@@ -542,7 +544,6 @@ jobs:
 
         # Install sdist
         - name: Install sdist
-          if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           run: python -m pip install -U -vvv dist/csp*.tar.gz --target .
           env:
             CCACHE_DIR: /home/runner/work/csp/csp/.ccache
@@ -551,7 +552,6 @@ jobs:
 
         # Test sdist
         - name: Run tests against from-scratch sdist build
-          if: ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           run: make test
           env:
             CSP_TEST_SKIP_EXAMPLES: "1"

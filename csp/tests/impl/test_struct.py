@@ -1206,16 +1206,17 @@ class TestCspStruct(unittest.TestCase):
             my_a.a = None
 
     def test_bool_array(self):
-        ''' Test [bool] specific functionality since its special cased as vector<uint8> in C++'''
-        class A(csp.Struct):
-            l : [bool]
+        """Test [bool] specific functionality since its special cased as vector<uint8> in C++"""
 
-        raw = [True,False,True]
-        a = A( l = raw )
-        self.assertTrue( all( a.l[i] is raw[i] for i in range(3)) )
+        class A(csp.Struct):
+            l: [bool]
+
+        raw = [True, False, True]
+        a = A(l=raw)
+        self.assertTrue(all(a.l[i] is raw[i] for i in range(3)))
 
         r = repr(a)
-        self.assertTrue( repr(raw) in r )
+        self.assertTrue(repr(raw) in r)
 
 
 if __name__ == "__main__":

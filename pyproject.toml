@@ -122,7 +122,7 @@ profile = "black"
 default_section = "THIRDPARTY"
 sections = "FUTURE,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
 
-known_first_party = "nbprint"
+known_first_party = "csp"
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"

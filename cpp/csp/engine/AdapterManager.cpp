@@ -13,7 +13,7 @@ ManagedSimInputAdapter::ManagedSimInputAdapter( csp::Engine * engine,
 {
 }
 
-AdapterManager::AdapterManager( csp::Engine * engine ) : m_engine( engine ), m_statusAdapter( nullptr )
+AdapterManager::AdapterManager( csp::Engine * engine ) : m_engine( engine ), m_statusAdapter( nullptr ), m_started( false )
 {
     if( !m_engine -> isRootEngine() )
         CSP_THROW( NotImplemented, "AdapterManager support is not currently available in dynamic graphs" );

@@ -1,22 +1,23 @@
-name: Publish Wiki
+name: Publish Docs
 
 on:
   push:
     branches:
       - main
     paths:
-      - "docs/wiki/**"
+      - "docs/**"
+      - "README.md"
   workflow_dispatch:
 
 concurrency:
-  group: publish-wiki
+  group: docs
   cancel-in-progress: true
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

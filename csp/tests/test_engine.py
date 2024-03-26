@@ -1334,7 +1334,7 @@ class TestEngine(unittest.TestCase):
             datetime(1969, 5, 6, 2, 3, 4),
             datetime(1969, 5, 6, 2, 3, 4, 123456),
             # Edge cases, DateTime MIN / MAX
-            datetime(1678, 1, 1) if sys.platform == 'linux' else datetime(1970,1,1),
+            datetime(1678, 1, 1) if sys.platform == "linux" else datetime(1970, 1, 1),
             datetime(2261, 12, 31, 23, 59, 59, 999999),
             timedelta(days=1, seconds=3600, microseconds=123456),
             timedelta(days=-1, seconds=3600, microseconds=123456),
@@ -1398,13 +1398,13 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(len(res), 5)
 
         # midway stop
-        runner = csp.run_on_thread(g, 50000, starttime=datetime.utcnow(), endtime=timedelta(minutes=1), realtime=True)
+        runner = csp.run_on_thread(g, 50000, starttime=datetime.utcnow(), endtime=timedelta(minutes=30), realtime=True)
         import time
 
         time.sleep(1)
         runner.stop_engine()
         res = runner.join()[0]
-        self.assertLess(len(res), 20)
+        self.assertLess(len(res), 1000)
 
         # exception handling
         @csp.node

@@ -1398,13 +1398,13 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(len(res), 5)
 
         # midway stop
-        runner = csp.run_on_thread(g, 50000, starttime=datetime.utcnow(), endtime=timedelta(minutes=30), realtime=True)
+        runner = csp.run_on_thread(g, 50000, starttime=datetime.utcnow(), endtime=timedelta(minutes=1), realtime=True)
         import time
 
         time.sleep(1)
         runner.stop_engine()
         res = runner.join()[0]
-        self.assertLess(len(res), 1000)
+        self.assertLess(len(res), 20)
 
         # exception handling
         @csp.node

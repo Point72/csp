@@ -251,7 +251,7 @@ jobs:
           with:
             submodules: recursive
             fetch-depth: 0
-
+      
         - name: Set up Python ${{ matrix.python-version }}
           uses: ./.github/actions/setup-python
           with:
@@ -298,6 +298,10 @@ jobs:
             CIBW_BUILD_VERBOSITY: 3
           if: ${{ matrix.os == 'macos-14' }}
 
+        - name: Setup tmate session macos-14
+          uses: mxschmitt/action-tmate@v3
+          if: ${{ matrix.os == 'macos-14' }}
+          
         ##########
         # Windows
         - name: Python Build Steps (Windows vc14.3)

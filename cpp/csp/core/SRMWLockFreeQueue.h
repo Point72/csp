@@ -1,10 +1,11 @@
 #ifndef _IN_CSP_CORE_SRMWLOCKFREEQUEUE_H
 #define _IN_CSP_CORE_SRMWLOCKFREEQUEUE_H
 
-#include <csp/core/QueueWaiter.h>
 #include <csp/core/System.h>
 #include <csp/core/Time.h>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 
 namespace csp
 {
@@ -51,16 +52,15 @@ public:
         friend class SRMWLockFreeQueue;
     };
 
-    SRMWLockFreeQueue( bool blocking = false ) : m_head( nullptr ),
-            m_wait( blocking ? new QueueWaiter : nullptr ), m_curItems( nullptr ) {}
-    ~SRMWLockFreeQueue() { delete( m_wait ); }
+    SRMWLockFreeQueue( bool blocking = false ) : m_blocking( blocking ), m_head( nullptr )
+    {}
+    
+    ~SRMWLockFreeQueue() {}
 
     bool empty() const { return m_head == nullptr && m_curItems == nullptr; }
     void push( T * );
     //atomic push, batch will be cleared after this call
     void push( Batch & batch ); 
-
-    bool wait( TimeDelta maxWait );
 
     //pop calls can return NULL if empty
     //pop a single item
@@ -71,9 +71,24 @@ public:
     //pop all pending items, need to iterate over T -> next
     T * popAll( TimeDelta maxWait = TimeDelta() );
 
+    void wait( TimeDelta maxWait )
+    {
+        if( !m_blocking || maxWait.asNanoseconds() <= 0 )
+            return;
+
+        std::unique_lock<std::mutex> lock( m_lock );
+        if( !m_head.load( std::memory_order_relaxed ) )
+            m_condition.wait_for( lock, std::chrono::nanoseconds( maxWait.asNanoseconds() ), [this]() { return m_head.load() != nullptr ; } );
+    }
+
 private:
+
+    //These arent used if we are busy looping
+    bool                        m_blocking;
+    std::mutex                  m_lock;
+    std::condition_variable     m_condition;
+    
     std::atomic<T *>            m_head;
-    QueueWaiter *               m_wait;
     alignas(CACHELINE_SIZE) T * m_curItems;
 };
 
@@ -82,12 +97,13 @@ inline void SRMWLockFreeQueue<T>::push( T * item )
 {
     //ABA problem?  Not sure, even if head pointer did go through an ABA cycle
     //it seems like the queue will still stay stable
-    item -> next = m_head.load( std::memory_order_relaxed );
+    T * old_head = m_head.load( std::memory_order_relaxed );
+    item -> next = old_head;
     while( !m_head.compare_exchange_weak( item -> next, item, std::memory_order_release ) ) 
     {}
 
-    if( unlikely( m_wait != nullptr ) )
-        m_wait -> notify();
+    if( m_blocking && old_head == nullptr )
+        m_condition.notify_one();
 }
 
 template< typename T >
@@ -95,14 +111,15 @@ inline void SRMWLockFreeQueue<T>::push( Batch & batch )
 {
     //Batch already gaurantees events are in the correct reverse ordering
     //so we just set m_head to batch head and link batch tail to previous head
-    batch.m_tail -> next = m_head.load( std::memory_order_relaxed );
+    T * old_head = m_head.load( std::memory_order_relaxed );
+    batch.m_tail -> next = old_head;
     while( !m_head.compare_exchange_weak( batch.m_tail -> next, batch.m_head, std::memory_order_release ) ) 
     {}
 
     batch.clear();
 
-    if( unlikely( m_wait != nullptr ) )
-        m_wait -> notify();
+    if( m_blocking && old_head == nullptr )
+        m_condition.notify_one();
 }
 
 template< typename T >
@@ -135,22 +152,14 @@ inline T * SRMWLockFreeQueue<T>::peek()
 }
 
 template< typename T >
-inline bool SRMWLockFreeQueue<T>::wait( TimeDelta maxWait )
-{
-    if( m_wait == nullptr || maxWait.asNanoseconds() <= 0 )
-        return false;
-
-    return m_wait -> wait( maxWait );
-}
-
-template< typename T >
 inline T * SRMWLockFreeQueue<T>::popAll( TimeDelta maxWait )
 {
-    if( unlikely( m_wait != nullptr && maxWait.asNanoseconds() > 0 && m_head == nullptr ) )
-        m_wait -> wait( maxWait );
+    if( m_blocking )
+        wait( maxWait );
 
     T * head = m_head.exchange( nullptr );
     T * prev = nullptr;
+
     while( head )
     {
         T * next = head -> next;

@@ -12,18 +12,15 @@ __all__ = ["run_on_thread"]
 
 class _EngineStopSignalImpl(PushInputAdapter):
     def __init__(self, pusher):
-        print("_EngineStopSignalImpl init with ", pusher)
         self._pusher = pusher
 
     def start(self, starttime, endtime):
-        print("_EngineStopSignalImpl registering ", self._pusher)
         self._pusher.register_impl(self)
 
     def stop(self):
         self._pusher.unregister_impl()
 
     def signal_stop(self):
-        print("_EngineStopSignalImpl signal_stop, pushing to ", self._pusher)
         self.push_tick(True)
 
 
@@ -45,7 +42,6 @@ class _EngineStopper:
         self._pushimpl = None
 
     def stop_engine(self):
-        print("_EngineStopper.stop_engine wtih ", self._pushimpl)
         if self._pushimpl is not None:
             self._pushimpl.signal_stop()
         else:
@@ -76,21 +72,18 @@ class ThreadRunner:
     @staticmethod
     def _wrapped_graph(graph, stopper, *args, **kwargs):
         stop_signal = _EngineStopSignal(stopper)
-        csp.print( "stop_signal", stop_signal )
         csp.stop_engine(stop_signal)
         return graph(*args, **kwargs)
 
     @staticmethod
     def _run(output, graph, stopper, *args, **kwargs):
         try:
-            print("ThreadRunner::_run")
             output["result"] = csp.run(ThreadRunner._wrapped_graph, graph, stopper, *args, **kwargs)
         except Exception as e:
             output["exc_info"] = e
 
     def stop_engine(self):
         """request engine to stop ( async )"""
-        print("ThreadRunner::stop_engine with ", self._stopper)
         if self._stopper:
             self._stopper.stop_engine()
 

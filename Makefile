@@ -83,7 +83,7 @@ checks: check
 
 TEST_ARGS :=
 test-py: ## Clean and Make unit tests
-	python -m pytest -sv csp/tests --junitxml=junit.xml $(TEST_ARGS)
+	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
 
 test-cpp: ## Make C++ unit tests
 	for f in ./csp/tests/bin/*; do $$f; done || (echo "TEST FAILED" && exit 1)

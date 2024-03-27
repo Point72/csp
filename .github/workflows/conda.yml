@@ -62,9 +62,6 @@ jobs:
           run: make build-conda
           shell: micromamba-shell {0}
 
-        - name: Setup remote debugging session
-          uses: mxschmitt/action-tmate@v3
-
         - name: Python Test Steps
           run: make test
           shell: micromamba-shell {0}

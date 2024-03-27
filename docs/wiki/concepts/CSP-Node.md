@@ -10,7 +10,7 @@
 ## Anatomy of a `csp.node`
 
 The heart of a calculation graph are the csp.nodes that run the computations.
-`csp.node` methods can take any number of scalar and timeseries arguments, and can return 0 → N timeseries outputs.
+`csp.node` methods can take any number of scalar and timeseries arguments, and can return 0 → N timeseries outputs.
 Timeseries inputs/outputs should be thought of as the edges that connect components of the graph.
 These "edges" can tick whenever they have a new value.
 Every tick is associated with a value and the time of the tick.
@@ -52,7 +52,7 @@ def demo_node(n: int, xs: ts[float], ys: ts[float]) -> ts[float]:        # 2
 
 Lets review line by line
 
-1\) Every csp node must start with the **`@csp.node`** decorator
+1\) Every csp node must start with the **`@csp.node`** decorator
 
 2\) `csp` nodes are fully typed and type-checking is strictly enforced.
 All arguments must be typed, as well as all outputs.
@@ -75,7 +75,7 @@ Note that variables declared in state will live across invocations of the method
 9\) An example declaration and initialization of state variable `s_sum`.
 It is good practice to name state variables prefixed with `s_`, which is the convention in the `csp` codebase.
 
-11\) **`with csp.start()`**: an optional block to execute code at the start of the engine.
+11\) **`with csp.start()`**: an optional block to execute code at the start of the engine.
 Generally this is used to setup initial timers or set input timeseries properties such as buffer sizes, or to make inputs passive
 
 14-15) **`csp.set_buffering_policy`**: nodes can request a certain amount of history be kept on the incoming time series, this can be denoted in number of ticks or in time.
@@ -92,8 +92,8 @@ Note that `schedule_alarm` can be called multiple times on the same alarm to sch
 19\) **`with csp.stop()`** is an optional block that can be called when the engine is done running.
 
 22\) all nodes will have if conditions to react to different inputs.
-**`csp.ticked()`** takes any number of inputs and returns true if **any** of the inputs ticked.
-**`csp.valid`** similar takes any number of inputs however it only returns true if **all** inputs are valid.
+**`csp.ticked()`** takes any number of inputs and returns true if **any** of the inputs ticked.
+**`csp.valid`** similar takes any number of inputs however it only returns true if **all** inputs are valid.
 Valid means that an input has had at least one tick and so it has a "current value".
 
 23\) One of the benefits of `csp` is that you always have easy access to the latest value of all inputs.
@@ -105,7 +105,7 @@ Valid means that an input has had at least one tick and so it has a "current val
 
 ## Basket inputs
 
-In addition to single time-series inputs, a node can also accept a **basket** of time series as an argument.
+In addition to single time-series inputs, a node can also accept a **basket** of time series as an argument.
 A basket is essentially a collection of timeseries which can be passed in as a single argument.
 Baskets can either be list baskets or dict baskets.
 Individual timeseries in a basket can tick independently, and they can be looked at and reacted to individually or as a collection.
@@ -147,7 +147,7 @@ The convention is the same as passing multiple inputs to `csp.ticked`, `csp.tick
 - **`validvalues`**: iterator of values of all valid inputs
 - **`validkeys`**: iterator of keys of all valid inputs
 - **`validitems`**: iterator of (key,value) tuples of valid inputs
-- **`keys`**: list of keys on the basket (**dictionary baskets only** )
+- **`keys`**: list of keys on the basket (**dictionary baskets only** )
 
 10-11) This demonstrates the ability to access an individual element of a
 basket and react to it as well as access its current value
@@ -155,10 +155,11 @@ basket and react to it as well as access its current value
 ## **Node Outputs**
 
 Nodes can return any number of outputs (including no outputs, in which case it is considered an "output" or sink node,
-see [Graph Pruning](https://github.com/Point72/csp/wiki/0.-Introduction#graph-pruning)).
+see [Graph Pruning](https://github.com/Point72/csp/wiki/0.-Introduction#graph-pruning)).
 Nodes with single outputs can return the output as an unnamed output.
 Nodes returning multiple outputs must have them be named.
-When a node is called at graph building time, if its is a single unnamed node the return variable is an edge representing the output which can be passed into other nodes.
+When a node is called at graph building time, if it is a single unnamed node the return variable is an edge representing the output which can be passed into other nodes.
+An output timeseries cannot be ticked more than once in a given node invocation.
 If the outputs are named, the return value is an object with the outputs available as attributes.
 For example (examples below demonstrate various ways to output the data as well)
 
@@ -202,44 +203,38 @@ Similarly to inputs, a node can also produce a basket of timeseries as an output
 For example:
 
 ```python
-class MyStruct(csp.Struct):            # 1
-    symbol: str                        # 2
-    index: int                         # 3
-    value: float                       # 4
-                                       # 5
-@csp.node                              # 6
-def demo_basket_output_node(           # 7
-    in_: ts[MyStruct],                 # 8
-    symbols: [str],                    # 9
-    num_symbols: int                   # 10
-) -> csp.Outputs(                      # 11
-    dict_basket=csp.OutputBasket(      # 12
-        Dict[str, ts[float]],          # 13
-        shape="symbols",               # 14
-    ),                                 # 15
-    list_basket=csp.OutputBasket(      # 16
-        List[ts[float]],               # 17
-        shape="num_symbols"            # 18
-    ),                                 # 19
-):                                     # 20
-                                       # 21
-    if csp.ticked(in_):                # 22
-        # output to dict basket        # 23
-        csp.output(dict_basket[in_.symbol], in_.value)
-        # alternate output syntax, can output multiple keys at once
-        # csp.output(dict_basket={in_.symbol: in_.value})
-        # output to list basket
-        csp.output(list_basket[in_.index], in_.value)
-        # alternate output syntax, can output multiple keys at once
-        # csp.output(list_basket={in_.index: in_.value})
+class MyStruct(csp.Struct):                                               # 1
+    symbol: str                                                           # 2
+    index: int                                                            # 3
+    value: float                                                          # 4
+                                                                          # 5
+@csp.node                                                                 # 6
+def demo_basket_output_node(                                              # 7
+    in_: ts[MyStruct],                                                    # 8
+    symbols: [str],                                                       # 9
+    num_symbols: int                                                      # 10
+) -> csp.Outputs(                                                         # 11
+    dict_basket=csp.OutputBasket(Dict[str, ts[float]], shape="symbols"),  # 15
+    list_basket=csp.OutputBasket(List[ts[float]], shape="num_symbols"),   # 16
+):                                                                        # 17
+                                                                          # 18
+    if csp.ticked(in_):                                                   # 19
+        # output to dict basket                                           # 20
+        csp.output(dict_basket[in_.symbol], in_.value)                    # 21
+        # alternate output syntax, can output multiple keys at once       # 22
+        # csp.output(dict_basket={in_.symbol: in_.value})                 # 23
+        # output to list basket                                           # 24
+        csp.output(list_basket[in_.index], in_.value)                     # 25
+        # alternate output syntax, can output multiple keys at once       # 26
+        # csp.output(list_basket={in_.index: in_.value})                  # 27
 ```
 
-11-20) Note the output declaration syntax.
+11-17) Note the output declaration syntax.
 A basket output can be either named or unnamed (both examples here are named), and its shape can be specified two ways.
-The `shape` parameter is used with a scalar value that defines the shape of the basket, or the name of the scalar argument (a dict basket expects shape to be a list of keys. lists basket expects `shape` to be an `int`).
+The `shape` parameter is used with a scalar value that defines the shape of the basket, or the name of the scalar argument (a dict basket expects shape to be a list of keys. lists basket expects `shape` to be an `int`).
 `shape_of` is used to take the shape of an input basket and apply it to the output basket.
 
-23+) There are several choices for output syntax.
+20+) There are several choices for output syntax.
 The following work for both list and dict baskets:
 
 - `csp.output(basket={key: value, key2: value2, ...})`
@@ -272,5 +267,5 @@ def const(value: '~T') -> ts['T']:
 `sample` takes a timeseries of type `'T'` as an input, and returns a timeseries of type `'T'`.
 This allows us to pass in a `ts[int]` for example, and get a `ts[int]` as an output, or `ts[bool]` → `ts[bool]`
 
-`const` takes value as an *instance* of type `T`, and returns a timeseries of type `T`.
-So we can call `const(5)` and get a `ts[int]` output, or `const('hello!')` and get a `ts[str]` output, etc...
+`const` takes value as an *instance* of type `T`, and returns a timeseries of type `T`.
+So we can call `const(5)` and get a `ts[int]` output, or `const('hello!')` and get a `ts[str]` output, etc...

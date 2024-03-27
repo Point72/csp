@@ -6,10 +6,10 @@
 
 ## Historical Buffers
 
-`csp` provides access to historical input data as well.
-By default only the last value of an input is kept in memory, however one can request history to be kept on an input either by number of ticks or by time using **csp.set_buffering_policy.**
+`csp` can provide access to historical input data as well.
+By default only the last value of an input is kept in memory, however one can request history to be kept on an input either by number of ticks or by time using **csp.set_buffering_policy.**
 
-The methods **csp.value_at**, **csp.time_at** and **csp.item_at** can be used to retrieve historical input values.
+The methods **csp.value_at**, **csp.time_at** and **csp.item_at** can be used to retrieve historical input values.
 Each node should call **csp.set_buffering_policy** to make sure that its inputs are configured to store sufficiently long history for correct implementation.
 For example, let's assume that we have a stream of data and we want to create equally sized buckets from the data.
 A possible implementation of such a node would be:
@@ -29,7 +29,7 @@ In this example, we use **`csp.set_buffering_policy(input, tick_count=bin_size)`
 Note that an input can be shared by multiple nodes, if multiple nodes provide size requirements, the buffer size would be resolved to the maximum size to support all requests.
 
 Alternatively, **`csp.set_buffering_policy`** supports a **`timedelta`** parameter **`tick_history`** instead of **`tick_count`.**
-If **`tick_history`** is provided, the buffer will scale dynamically to ensure that any period of length **`tick_history`** will fit into the history buffer.
+If **`tick_history`** is provided, the buffer will scale dynamically to ensure that any period of length **`tick_history`** will fit into the history buffer.
 
 To identify when there are enough samples to construct a bin we use **`csp.num_ticks(input) % bin_size == 0`**.
 The function **`csp.num_ticks`** returns the number or total ticks for a given time series.
@@ -38,21 +38,21 @@ NOTE: The actual size of the history buffer is usually less than **`csp.num_tick
 The past values in this example are accessed using **`csp.value_at`**.
 The various historical access methods take the same arguments and return the value, time and tuple of `(time,value)` respectively:
 
-- **`csp.value_at`**`(ts, index_or_time, duplicate_policy=DuplicatePolicy.LAST_VALUE, default=UNSET)`: returns **value** at requested `index_or_time`
-- **`csp.time_at`**`(ts, index_or_time, duplicate_policy=DuplicatePolicy.LAST_VALUE, default=UNSET)`: returns **datetime** at requested `index_or_time`
-- **`csp.item_at`**`(ts, index_or_time, duplicate_policy=DuplicatePolicy.LAST_VALUE, default=UNSET)`: returns tuple of `(datetime,value)` at requested `index_or_time`
+- **`csp.value_at`**`(ts, index_or_time, duplicate_policy=DuplicatePolicy.LAST_VALUE, default=UNSET)`: returns **value** of the timeseries at requested `index_or_time`
+- **`csp.time_at`**`(ts, index_or_time, duplicate_policy=DuplicatePolicy.LAST_VALUE, default=UNSET)`: returns **datetime** of the timeseries at requested `index_or_time`
+- **`csp.item_at`**`(ts, index_or_time, duplicate_policy=DuplicatePolicy.LAST_VALUE, default=UNSET)`: returns tuple of `(datetime,value)` of the timeseries at requested `index_or_time`
   - **`ts`**: the name of the input
   - **`index_or_time`**:
     - If providing an **index**, this represents how many ticks back to rereieve **and should be \<= 0**.
       0 indicates the current value, -1 is the previous value, etc.
-    - If providing **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
+    - If providing **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
       **NOTE** that timedelta must be negative to represent time in the past..
   - **`duplicate_policy`**: when requesting history by datetime or timedelta, its possible that there could be multiple values that match the given time.
     **`duplicate_policy`** can be provided to control the behavior of what to return in this case.
     The default policy is to return the LAST_VALUE that exists at the given time.
-  - **`default`**: value to be returned if the requested time is out of the history bounds (if default is not provided and a request is out of bounds an exception will be raised).
+  - **`default`**: value to be returned if the requested time is out of the history bounds (if default is not provided and a request is out of bounds an exception will be raised).
 
-To illustrate the usage of history access using the **timedelta** indexing, consider a possible implementation of a function that sums up samples taken every second for each periods of **n_seconds** of the input time series.
+To illustrate the usage of history access using the **timedelta** indexing, consider a possible implementation of a function that sums up samples taken every second for each periods of **n_seconds** of the input time series.
 If the value ticks slower than every second then this implementation could sample the same value more than once (this is just an illustration, it's NOT recommended to use such implementation in real application as it could be implemented more efficiently):
 
 ```python
@@ -79,7 +79,7 @@ def sample_sum(n_seconds: int, input: ts[int], default_sample_value: int = 0) ->
 
 ## Historical Range Access
 
-In similar fashion, the methods **`csp.values_at`**, **`csp.times_at`** and **`csp.items_at`** can be used to retrieve a range of historical input values as numpy arrays.
+In similar fashion, the methods **`csp.values_at`**, **`csp.times_at`** and **`csp.items_at`** can be used to retrieve a range of historical input values as numpy arrays.
 The bin generator example above can be accomplished more efficiently with range access:
 
 ```python
@@ -93,7 +93,7 @@ def data_bin_generator(bin_size: int, input: ts['T']) -> ts[['T']]:
         return csp.values_at(input, -bin_size + 1, 0).tolist()
 ```
 
-The past values in this example are accessed using **`csp.values_at`**.
+The past values in this example are accessed using **`csp.values_at`**.
 The various historical access methods take the same arguments and return the value, time and tuple of `(times,values)` respectively:
 
 - **`csp.values_at`**`(ts, start_index_or_time, end_index_or_time, start_index_policy=TimeIndexPolicy.INCLUSIVE, end_index_policy=TimeIndexPolicy.INCLUSIVE)`:
@@ -104,13 +104,13 @@ The various historical access methods take the same arguments and return the val
   returns a tuple of (times, values) numpy arrays
   - **`ts`** - the name of the input
   - **`start_index_or_time`**:
-    - If providing an **index**, this represents how many ticks back to retrieve **and should be \<= 0**.
+    - If providing an **index**, this represents how many ticks back to retrieve **and should be \<= 0**.
       0 indicates the current value, -1 is the previous value, etc.
-    - If providing  **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
-      **NOTE that timedelta must be negative** to represent time in the past..
-    - If **None** is provided, the range will begin "from the beginning" - i.e., the oldest tick in the buffer.
+    - If providing  **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
+      **NOTE that timedelta must be negative** to represent time in the past..
+    - If **None** is provided, the range will begin "from the beginning" - i.e., the oldest tick in the buffer.
   - **end_index_or_time:** same as start_index_or_time
-    - If **None** is provided, the range will go "until the end" - i.e., the newest tick in the buffer.
+    - If **None** is provided, the range will go "until the end" - i.e., the newest tick in the buffer.
   - **`start_index_policy`**: only for use with datetime/timedelta as the start and end parameters.
     - **\`TimeIndexPolicy.INCLUSIVE**: if there is a tick exactly at the requested time, include it
     - **TimeIndexPolicy.EXCLUSIVE**: if there is a tick exactly at the requested time, exclude it

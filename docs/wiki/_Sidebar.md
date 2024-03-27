@@ -19,7 +19,7 @@ Notes for editors:
 
 - [CSP Node](CSP-Node)
 - [CSP Graph](CSP-Graph)
-- [Historical Data](Historical-Data)
+- [Historical Buffers](Historical-Buffers)
 - [Execution Modes](Execution-Modes)
 - [Adapters](Adapters)
 - [Caching](Caching)

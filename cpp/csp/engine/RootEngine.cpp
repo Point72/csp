@@ -174,7 +174,7 @@ void RootEngine::runRealtime( DateTime end )
 
         if( !haveEvents )
         {
-            //We keep the ahveEvents flag in case there were events, but we only decided to execute
+            //We keep the haveEvents flag in case there were events, but we only decided to execute
             //timers in the previous cycle, then we shouldnt wait again ( which can actually lead to cases
             //where we miss triggers )
             DialectReleaseGIL release( this );

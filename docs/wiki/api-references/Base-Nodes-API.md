@@ -1,112 +1,41 @@
-# Intro
-
 CSP comes with some basic constructs readily available and commonly used.
-The latest set of baselib nodes / adapters can be found in the csp.baselib module.
+The latest set of base nodes can be found in the `csp.baselib` module.
 
-All of the nodes / adapters noted here are imported directly into the csp namespace when importing csp.
+All of the nodes noted here are imported directly into the csp namespace when importing csp.
+
 These are all graph-time constructs.
 
-# Adapters
+## Table of Contents
 
-## `timer`
-
-```python
-csp.timer(
-    interval: timedelta,
-    value: '~T' = True,
-    allow_deviation: bool = False
-)
-```
-
-This will create a repeating timer edge that will tick on the given `timedelta` with the given value (value defaults to `True`, returning a `ts[bool]`)
-
-Args:
-
-- **`interval`**: how often to tick value
-- **`value`**: the actual value that will tick every interval (defaults to the value `True`)
-- **`allow_deviation`**: When running in realtime the engine will ensure timers execute exactly when they requested on their intervals.
-  If your engine begins to lag, timers will still execute at the expected time "in the past" as the engine catches up
-  (imagine having a `csp.timer` fire every 1/2 second but the engine becomes delayed for 1 second.
-  By default the half seconds will still execute until time catches up to wallclock).
-  When `allow_deviation` is `True`, and the engine is in realtime mode, subsequent timers will always be scheduled from the current wallclock + interval,
-  so they won't end up lagging behind at the expensive of the timer skewing.
-
-## `const`
-
-```python
-csp.const(
-    value: '~T',
-    delay: timedelta = timedelta()
-)
-```
-
-This will create an edge that ticks one time with the value provided.
-By default this will tick at the start of the engine, delta can be provided to delay the tick
-
-## `curve`
-
-```python
-csp.curve(
-    typ: 'T',
-    data: typing.Union[list, tuple]
-)
-```
-
-This allows you to convert a list of non-csp data into a ticking edge in csp
-
-Args:
-
-- **`typ`**: is the type of the value of the data of this edge
-- **`data`**: is either a list of tuples of `(datetime, value)`, or a tuple of two equal-length numpy ndarrays, the first with datetimes and the second with values.
-  In either case, that will tick on the returned edge into the engine, and the data must be in time order.
-  Note that for the list of tuples case, you can also provide tuples of (timedelta, value) where timedelta will be the offset from the engine's start time.
-
-## `add_graph_output`
-
-```python
-csp.add_graph_output(
-    key: object,
-    input: ts['T'],
-    tick_count: int = -1,
-    tick_history: timedelta = timedelta()
-)
-```
-
-This allows you to connect an edge as a "graph output".
-All edges added as outputs will be returned to the caller from `csp.run` as a dictionary of `key: [(datetime, value)]`
-(list of datetime, values that ticked on the edge) or if `csp.run` is passed `output_numpy=True`, as a dictionary of
-`key: (array, array)` (tuple of two numpy arrays, one with datetimes and one with values).
-See [Collecting Graph Outputs](https://github.com/Point72/csp/wiki/0.-Introduction#collecting-graph-outputs)
-
-Args:
-
-- **`key`**: key to return the results as from csp.run
-- **`input`**: edge to connect
-- **`tick_count`**: number of ticks to keep in the buffer (defaults to -1 - all ticks)
-- **`tick_history`**: amount of ticks to keep by time window (defaults to keeping all history)
-
-## `feedback`
-
-```python
-csp.feedback(typ)
-```
-
-`csp.feedback` is a construct that can be used to create artificial loops in the graph.
-Use feedbacks in order to delay bind an input to a node in order to be able to create a loop
-(think of writing a simulated exchange that takes orders in and needs to feed responses back to the originating node).
-
-`csp.feedback` itself is not an edge, its a construct that allows you to access the delayed edge / bind a delayed input.
-
-Args:
-
-- **`typ`**: type of the edge's data to be bound
-
-Methods:
-
-- **`out()`**: call this method on the feedback object to get the edge which can be wired as an input
-- **`bind(x: ts[object])`**: call this to bind an edge to the feedback
-
-# Basic Nodes
+- [Table of Contents](#table-of-contents)
+- [`print`](#print)
+- [`log`](#log)
+- [`sample`](#sample)
+- [`firstN`](#firstn)
+- [`count`](#count)
+- [`delay`](#delay)
+- [`diff`](#diff)
+- [`merge`](#merge)
+- [`split`](#split)
+- [`filter`](#filter)
+- [`drop_dups`](#drop_dups)
+- [`unroll`](#unroll)
+- [`collect`](#collect)
+- [`flatten`](#flatten)
+- [`default`](#default)
+- [`gate`](#gate)
+- [`apply`](#apply)
+- [`null_ts`](#null_ts)
+- [`stop_engine`](#stop_engine)
+- [`multiplex`](#multiplex)
+- [`demultiplex`](#demultiplex)
+- [`dynamic_demultiplex`](#dynamic_demultiplex)
+- [`dynamic_collect`](#dynamic_collect)
+- [`drop_nans`](#drop_nans)
+- [`times`](#times)
+- [`times_ns`](#times_ns)
+- [`accum`](#accum)
+- [`exprtk`](#exprtk)
 
 ## `print`
 
@@ -413,71 +342,6 @@ csp.accum(x: ts["T"], start: "~T" = 0) -> ts["T"]
 ```
 
 Given a timeseries, accumulate via `+=` with starting value `start`.
-
-# Math and Logic nodes
-
-See [Math Nodes](<https://github.com/Point72/csp/wiki/XX.-(Draft)-Math-Nodes-(csp.math)>).
-
-# Functional Methods
-
-Edges in csp contain some methods to serve as syntactic sugar for stringing nodes together in a pipeline. This makes it easier to read/modify workflows and avoids the need for nested brackets.
-
-## `apply`
-
-```python
-Edge.apply(self, func, *args, **kwargs)
-```
-
-Calls `csp.apply` on the edge with the provided python `func`.
-
-Args:
-
-- **`func`**: A scalar function that will be applied on each value of the Edge. If a different output type is returned, pass a tuple `(f, typ)`, where `typ` is the output type of f
-- **`args`**: Positional arguments passed into `func`
-- **`kwargs`**: Dictionary of keyword arguments passed into func
-
-## `pipe`
-
-```python
-Edge.pipe(self, node, *args, **kwargs)
-```
-
-Calls the `node` on the edge.
-
-Args:
-
-- **`node`**: A graph node that will be applied to the Edge, which is passed into node as the first argument.
-  Alternatively, a `(node, edge_keyword)` tuple where `edge_keyword` is a string indicating the keyword of node that expects the edge.
-- **`args`**: Positional arguments passed into `node`
-- **`kwargs`**: Dictionary of keyword arguments passed into `node`
-
-## `run`
-
-```python
-Edge.run(self, node, *args, **kwargs)
-```
-
-Alias for `csp.run(self, *args, **kwargs)`
-
-## Example of functional methods
-
-```python
-import csp
-from datetime import datetime, timedelta
-import math
-
-(csp.timer(timedelta(minutes=1))
-    .pipe(csp.count)
-    .pipe(csp.delay, timedelta(seconds=1))
-    .pipe((csp.sample, 'x'), trigger=csp.timer(timedelta(minutes=2)))
-    .apply((math.sin, float))
-    .apply(math.pow, 3)
-    .pipe(csp.firstN, 10)
-    .run(starttime=datetime(2000,1,1), endtime=datetime(2000,1,2)))
-
-```
-
-# Other nodes
 
 ## `exprtk`
 

@@ -1,5 +1,34 @@
 `csp` is written in Python and C++ with Python and C++ build dependencies. While prebuilt wheels are provided for end users, it is also straightforward to build `csp` from either the Python [source distribution](https://packaging.python.org/en/latest/specifications/source-distribution-format/) or the GitHub repository.
 
+## Table of Contents
+
+- [Table of Contents](#table-of-contents)
+- [Make commands](#make-commands)
+- [Prerequisites](#prerequisites)
+- [Building with Conda on Linux](#building-with-conda-on-linux)
+  - [Install conda](#install-conda)
+  - [Clone](#clone)
+  - [Install build dependencies](#install-build-dependencies)
+  - [Build](#build)
+- [Building with a system package manager](#building-with-a-system-package-manager)
+  - [Clone](#clone-1)
+  - [Install build dependencies](#install-build-dependencies-1)
+    - [Linux](#linux)
+    - [MacOS](#macos)
+  - [Install Python dependencies](#install-python-dependencies)
+  - [Build](#build-1)
+    - [Building on `macOS`](#building-on-macos)
+    - [Building on `aarch64` Linux](#building-on-aarch64-linux)
+- [Lint and Autoformat](#lint-and-autoformat)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+  - [MacOS](#macos-1)
+    - [vcpkg install failed](#vcpkg-install-failed)
+    - [Building thrift:arm64-osx/thrift:x64-osx failed](#building-thriftarm64-osxthriftx64-osx-failed)
+    - [CMake was unable to find a build program corresponding to "Unix Makefiles".](#cmake-was-unable-to-find-a-build-program-corresponding-to-unix-makefiles)
+
+## Make commands
+
 As a convenience, `csp` uses a `Makefile` for commonly used commands. You can print the main available commands by running `make` with no arguments
 
 ```bash
@@ -13,27 +42,40 @@ lint                           run lints
 test                           run the tests
 ```
 
-# Prerequisites
+## Prerequisites
 
 `csp` has a few system-level dependencies which you can install from your machine package manager. Other package managers like `conda`, `nix`, etc, should also work fine. Currently, `csp` relies on the `GNU` compiler toolchain only.
 
-# Building with Conda on Linux
+## Building with Conda on Linux
 
 The easiest way to get started on a Linux machine is by installing the necessary dependencies in a self-contained conda environment.
 
-Tweak this script to create a conda environment, install the build dependencies, build, and install a development version of `csp` into the environment. Note that we use [micromamba](https://mamba.readthedocs.io/en/latest/index.html) in this example, but [Anaconda](https://www.anaconda.com/download), [Miniconda](https://docs.anaconda.com/free/miniconda/index.html), [Miniforge](https://github.com/conda-forge/miniforge), etc, should all work fine.
+Tweak this script to create a conda environment, install the build dependencies, build, and install a development version of `csp` into the environment.
 
-## Install Conda
+### Install conda
 
 ```bash
-# download and install micromamba for Linux/Mac
-"${SHELL}" <(curl -L micro.mamba.pm/install.sh)
+mkdir ~/github
+cd ~/github
 
-# on windows powershell
-# Invoke-Expression ((Invoke-WebRequest -Uri https://micro.mamba.pm/install.ps1).Content)
+# this downloads a Linux x86_64 build, change your architecture to match your development machine
+# see https://conda-forge.org/miniforge/ for alternate download links
+
+wget https://github.com/conda-forge/miniforge/releases/download/23.3.1-1/Mambaforge-23.3.1-1-Linux-x86_64.sh
+chmod 755 Mambaforge-23.3.1-1-Linux-x86_64.sh
+./Mambaforge-23.3.1-1-Linux-x86_64.sh -b -f -u -p csp_venv
+
+. ~/github/csp_venv/etc/profile.d/conda.sh
+
+# optionally, run this if you want to set up conda in your .bashrc
+# conda init bash
+
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+conda activate base
 ```
 
-## Clone
+### Clone
 
 ```bash
 git clone https://github.com/Point72/csp.git
@@ -41,30 +83,49 @@ cd csp
 git submodule update --init --recursive
 ```
 
-## Install build dependencies
+### Install build dependencies
 
 ```bash
-# Note the operating system, change as needed
-micromamba create -n csp -f conda/dev-environment-linux.yml
-micromamba activate csp
+mamba env create -n csp -f dev-environment.yml
+
+# uncomment below if the build fails because git isn't new enough
+#
+# mamba install -y -n csp git
+
+# uncomment below if the build fails because perl-ipc-system is missing
+# (this happens on some RHEL7 systems)
+#
+# mamba install -y -n csp perl-ipc-system-simple
+
+conda activate csp
 ```
 
-## Build
+### Build
 
 ```bash
-make build-conda
+make build
 
-# finally install into the csp conda environment
+# on aarch64 linux, comment the above command and use this instead
+# VCPKG_FORCE_SYSTEM_BINARIES=1 make build
+
+# finally install into the csp_venv conda environment
 make develop
 ```
 
-## A note about dependencies
+If you didn’t do `conda init bash` you’ll need to re-add conda to your shell environment and activate the `csp` environment to use it:
 
-In Conda, we pull our dependencies from the Conda environment by setting the environment variable `CSP_USE_VCPKG=0`. This will force the build to not pull dependencies from vcpkg. This may or may not work in other environments or with packages provided by other package managers or built from source, but there is too much variability for us to support alternative patterns.
+```bash
+. ~/github/csp_venv/etc/profile.d/conda.sh
+conda activate csp
 
-# Building with a system package manager
+# make sure everything works
+cd ~/github/csp
+make test
+```
 
-## Clone
+## Building with a system package manager
+
+### Clone
 
 Clone the repo and submodules with:
 
@@ -74,9 +135,9 @@ cd csp
 git submodule update --init --recursive
 ```
 
-## Install build dependencies
+### Install build dependencies
 
-### Linux
+#### Linux
 
 **Debian/Ubuntu/etc**
 
@@ -102,7 +163,7 @@ sudo make dependencies-fedora
 sudo dnf group install "Development Tools"
 ```
 
-### MacOS
+#### MacOS
 
 **Homebrew**
 
@@ -116,7 +177,7 @@ make dependencies-mac
 brew install gcc
 ```
 
-## Install Python dependencies
+### Install Python dependencies
 
 Python build and develop dependencies are specified in the `pyproject.toml`, but you can manually install them:
 
@@ -131,21 +192,18 @@ make requirements
 
 Note that these dependencies would otherwise be installed normally as part of [PEP517](https://peps.python.org/pep-0517/) / [PEP518](https://peps.python.org/pep-0518/).
 
-## Build
+### Build
 
 Build the python project in the usual manner:
 
 ```bash
 make build
 
-# on aarch64 linux, comment the above command and use this instead
-# VCPKG_FORCE_SYSTEM_BINARIES=1 make build
-
 # or
 # python setup.py build build_ext --inplace
 ```
 
-### Building on `macOS`
+#### Building on `macOS`
 
 **NOTE** On `macOS`, we need to use `g++`. Complicating this, `g++` is often aliased to `clang++`, so we need to be explicit:
 
@@ -169,7 +227,7 @@ CXX=/usr/local/bin/g++-13 make build
 
 Substitute your installed version of `g++` as necessary.
 
-### Building on `aarch64` Linux
+#### Building on `aarch64` Linux
 
 On `aarch64` Linux the VCPKG_FORCE_SYSTEM_BINARIES environment variable must be set before running `make build`:
 
@@ -177,11 +235,7 @@ On `aarch64` Linux the VCPKG_FORCE_SYSTEM_BINARIES environment variable must be 
 VCPKG_FORCE_SYSTEM_BINARIES=1 make build
 ```
 
-## Using System Dependencies
-
-By default, we pull and build dependencies with [vcpkg](https://vcpkg.io/en/). We only support non-vendored dependencies via Conda (see [A note about dependencies](#A-note-about-dependencies) above).
-
-# Lint and Autoformat
+## Lint and Autoformat
 
 `csp` has listing and auto formatting.
 
@@ -190,7 +244,6 @@ By default, we pull and build dependencies with [vcpkg](https://vcpkg.io/en/). W
 | C++      | `clang-format` | `clang-format` | Style |
 | Python   | `ruff`         | `ruff` | Style |
 | Python   | `isort`         | `isort` | Imports |
-| Markdown | `mdformat` / `codespell` | `mdformat` / `codespell` | Style/Spelling |
 
 **C++ Linting**
 
@@ -214,7 +267,7 @@ make fix-cpp
 make lint-py
 # or
 # python -m isort --check csp/ setup.py
-# python -m ruff check csp/ setup.py
+# python -m ruff csp/ setup.py
 ```
 
 **Python Autoformatting**
@@ -226,25 +279,7 @@ make fix-py
 # python -m ruff format csp/ setup.py
 ```
 
-**Documentation Linting**
-
-```bash
-make lint-docs
-# or
-# python -m mdformat --check docs/wiki/ README.md examples/README.md
-# python -m codespell_lib docs/wiki/ README.md examples/README.md
-```
-
-**Documentation Autoformatting**
-
-```bash
-make fix-docs
-# or
-# python -m mdformat docs/wiki/ README.md examples/README.md
-# python -m codespell_lib --write docs/wiki/ README.md examples/README.md
-```
-
-# Testing
+## Testing
 
 `csp` has both Python and C++ tests. The bulk of the functionality is tested in Python, which can be run via `pytest`. First, install the Python development dependencies with
 
@@ -315,17 +350,17 @@ There are a few test flags available:
 - **`CSP_TEST_KAFKA`**
 - **`CSP_TEST_SKIP_EXAMPLES`**: skip tests of examples folder
 
-# Troubleshooting
+## Troubleshooting
 
-## MacOS
+### MacOS
 
-### vcpkg install failed
+#### vcpkg install failed
 
 Check the `vcpkg-manifest-install.log` files, and install the corresponding packages if needed.
 
 For example, you may need to `brew install pkg-config`.
 
-### Building thrift:arm64-osx/thrift:x64-osx failed
+#### Building thrift:arm64-osx/thrift:x64-osx failed
 
 ```
 Thrift requires bison > 2.5, but the default `/usr/bin/bison` is version 2.3.
@@ -337,7 +372,7 @@ On ARM: `export PATH="/opt/homebrew/opt/bison/bin:$PATH"`
 
 On Intel: `export PATH="/usr/local/opt/bison/bin:$PATH"`
 
-### CMake was unable to find a build program corresponding to "Unix Makefiles".
+#### CMake was unable to find a build program corresponding to "Unix Makefiles".
 
 Complete error message:
 

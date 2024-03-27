@@ -161,9 +161,9 @@ protected:
         using InputWrapper::InputWrapper;
 
         operator const T &() { return lastValue(); }
-        const T & lastValue() const { return ts() -> lastValueTyped<T>(); }
+        const T & lastValue() const { return ts() -> template lastValueTyped<T>(); }
 
-        const T & valueAtIndex( int32_t index ) const { return ts() -> valueAtIndex<T>( index ); }
+        const T & valueAtIndex( int32_t index ) const { return ts() -> template valueAtIndex<T>( index ); }
     };
 
     template<typename ElemWrapperT>
@@ -379,7 +379,7 @@ protected:
 
         T & reserveSpace()
         {
-            return ts() -> reserveTickTyped<T>( m_node.cycleCount(), m_node.now() );
+            return ts() -> template reserveTickTyped<T>( m_node.cycleCount(), m_node.now() );
         }
     };
 
@@ -644,7 +644,7 @@ struct csp::CppNode::AlarmTypeHelper<csp::CppNode::Generic>
     }
 
 #define INIT_CPPNODE_WITH_NAME( Class, Name )       \
-    CSP csp; \
+    [[maybe_unused]] CSP csp; \
 public:                                                      \
     const char * name() const override { return #Name; } \
     _STATIC_CREATE_METHOD( Class ) \

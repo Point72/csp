@@ -29,7 +29,13 @@ permissions:
 
 jobs:
     build:
-      runs-on: ubuntu-22.04
+      strategy:
+        matrix:
+          os:
+            - ubuntu-22.04
+            - macos-14
+            - macos-12
+      runs-on: ${{ matrix.os }}
       steps:
         - name: Checkout
           uses: actions/checkout@v4
@@ -37,7 +43,7 @@ jobs:
         - uses: mamba-org/setup-micromamba@v1
           with:
             micromamba-version: '1.5.7-0'
-            environment-file: conda/dev-environment-linux.yml
+            environment-file: conda/dev-environment-unix.yml
             init-shell: >-
               bash
             cache-environment: true
@@ -48,14 +54,16 @@ jobs:
           with:
             cibuildwheel: 'cp311'
 
-        - name: Python Lint Steps (Linux)
+        - name: Python Lint Steps
           run: make lint
           shell: micromamba-shell {0}
 
-        - name: Python Build Steps (Linux)
+        - name: Python Build Steps
           run: make build-conda
           shell: micromamba-shell {0}
 
-        - name: Python Test Steps (Linux)
+        - name: Python Test Steps
           run: make test
           shell: micromamba-shell {0}
+
+       

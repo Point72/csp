@@ -376,7 +376,7 @@ public:
                                     const std::optional<utils::Symbol> &symbol, const DialectGenericListReaderInterface::Ptr &listReaderInterface ) override
     {
         ParquetReader::addListSubscriber( column, inputAdapter, symbol, listReaderInterface);
-        m_columnSubscriptionContainer.m_listColumnSubscriptions[column].push_back(ListColumnSubscriberInfo{inputAdapter, symbol, listReaderInterface});
+        m_columnSubscriptionContainer.m_listColumnSubscriptions[column].push_back(ListColumnSubscriberInfo{{inputAdapter, symbol}, listReaderInterface});
     }
 
 protected:

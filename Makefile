@@ -182,7 +182,7 @@ clean: ## clean the repository
 .PHONY: dependencies-mac dependencies-debian dependencies-fedora dependencies-vcpkg dependencies-win
 
 dependencies-mac:  ## install dependencies for mac
-	HOMEBREW_NO_AUTO_UPDATE=1 brew install bison cmake flex make ninja # gcc@13
+	HOMEBREW_NO_AUTO_UPDATE=1 brew install bison cmake flex make ninja
 	brew unlink bison flex && brew link --force bison flex
 
 dependencies-debian:  ## install dependencies for linux

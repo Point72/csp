@@ -159,8 +159,8 @@ TEST( DateTimeEx, test_basic_functionality )
     ASSERT_EQ( ex2.microseconds(), 123456 );
     ASSERT_EQ( ex2.nanoseconds(),  123456789 );
 
-    //Windows doesnt support time before EPOCH
-#ifndef WIN32
+    //Only linux supports time before EPOCH
+#ifdef __linux__
     dt = DateTime( 1888, 11, 15, 23, 15, 59, 999999999 );
     DateTimeEx ex3( dt );
 

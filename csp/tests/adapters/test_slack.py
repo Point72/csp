@@ -1,5 +1,6 @@
 import pytest
 from datetime import timedelta
+from ssl import create_default_context
 from unittest.mock import MagicMock, call, patch
 
 import csp
@@ -155,7 +156,7 @@ class TestSlack:
             clientmock.return_value.web_client.conversations_list.return_value = mock_list_response
 
             def graph():
-                am = SlackAdapterManager("xapp-1-dummy", "xoxb-dummy")
+                am = SlackAdapterManager("xapp-1-dummy", "xoxb-dummy", ssl=create_default_context())
 
                 # send a fake slack message to the app
                 stop = send_fake_message(clientmock, reqmock, am)

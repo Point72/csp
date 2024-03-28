@@ -166,6 +166,7 @@ void RootEngine::runRealtime( DateTime end )
     std::vector<PushGroup *> dirtyGroups;
 
     m_inRealtime = true;
+    bool haveEvents = false;
     while( m_state == State::RUNNING && !g_SIGNALED )
     {
         TimeDelta waitTime;
@@ -177,9 +178,13 @@ void RootEngine::runRealtime( DateTime end )
                 waitTime = std::min( m_scheduler.nextTime() - DateTime::now(), waitTime );
         }
 
+        if( !haveEvents )
         {
+            //We keep the haveEvents flag in case there were events, but we only decided to execute
+            //timers in the previous cycle, then we shouldnt wait again ( which can actually lead to cases
+            //where we miss triggers )
             DialectReleaseGIL release( this );
-            m_pushEventQueue.wait( waitTime );
+            haveEvents = m_pushEventQueue.wait( waitTime );
         }
 
         //grab time after waitForEvents so that we dont grab events with time > now
@@ -207,6 +212,7 @@ void RootEngine::runRealtime( DateTime end )
                 group -> state = PushGroup::NONE;
             
             dirtyGroups.clear();
+            haveEvents = false;
         }
 
         m_cycleStepTable.executeCycle( m_profiler.get() );

@@ -93,6 +93,10 @@ target_link_libraries(cspmathimpl cspimpl mathimpl)
 add_library(cspstatsimpl SHARED cspstatsimpl.cpp)
 target_link_libraries(cspstatsimpl cspimpl statsimpl)
 
+## Testlib c++ module
+add_library(csptestlibimpl SHARED csptestlibimpl.cpp)
+target_link_libraries(csptestlibimpl cspimpl)
+
 ## NumPy stats c++ module
 add_library(npstatsimpl STATIC npstatsimpl.cpp)
 add_library(cspnpstatsimpl SHARED cspnpstatsimpl.cpp)
@@ -100,7 +104,7 @@ target_link_libraries(cspnpstatsimpl cspimpl npstatsimpl)
 target_include_directories(npstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 target_include_directories(cspnpstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 
-install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl cspnpstatsimpl
+install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl csptestlibimpl cspnpstatsimpl
         PUBLIC_HEADER DESTINATION include/csp/python
         RUNTIME DESTINATION bin/
         LIBRARY DESTINATION lib/

@@ -27,7 +27,7 @@ public:
     size_t hash() const;
 
 private:
-    void* m_data;
+    [[maybe_unused]] void* m_data;
 };
 
 std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj );

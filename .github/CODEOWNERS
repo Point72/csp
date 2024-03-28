@@ -1,5 +1,17 @@
+# Team Review
 * @robambalu @AdamGlustein @svatasoiu @alexddobkin
 
-.github @robambalu @timkpaine @ngoldbaum @alexddobkin @AdamGlustein @svatasoiu
-.github/CODEOWNERS @robambalu
+# Packaging code
+CMakeLists.txt @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+setup.py @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+pyproject.toml @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+Makefile @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+MANIFEST.in @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+.bumpversion.cfg @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
 
+# CI/CD
+.github @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+ci @robambalu @AdamGlustein @svatasoiu @alexddobkin @timkpaine @czgdp1807
+
+# Administrative
+.github/CODEOWNERS @robambalu

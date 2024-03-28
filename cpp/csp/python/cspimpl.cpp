@@ -124,7 +124,7 @@ static PyMethodDef _cspimpl_methods[] = {
     {"create_traceback",            (PyCFunction) _create_traceback,          METH_VARARGS,   "internal"},
     {"_csp_engine_stats",           (PyCFunction) _engine_stats,              METH_O, "engine statistics"},
     {"set_capture_cpp_backtrace",   (PyCFunction) _set_capture_cpp_backtrace, METH_VARARGS,   "internal"},
-    nullptr
+    {nullptr}
 };
 
 static PyModuleDef _cspimpl_module = {

@@ -31,10 +31,10 @@ public:
         std::unique_lock<std::mutex> lock( m_lock );
         bool rv = false;
         if( !m_eventsPending && maxWaitTime.asNanoseconds() > 0 )
-        {
-            rv = ( m_condition.wait_for( lock, std::chrono::nanoseconds( maxWaitTime.asNanoseconds() ) ) == std::cv_status::no_timeout );
-        }
-        m_eventsPending = false;
+            rv = m_condition.wait_for( lock, std::chrono::nanoseconds( maxWaitTime.asNanoseconds() ), [this]() { return m_eventsPending; } );
+
+        if( rv )
+            m_eventsPending = false;
         return rv;
     }
 

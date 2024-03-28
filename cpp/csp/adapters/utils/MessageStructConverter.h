@@ -17,6 +17,8 @@ class MessageStructConverter
 {
 public:
     MessageStructConverter( const CspTypePtr & type, const Dictionary & properties );
+    virtual ~MessageStructConverter() {}
+    
     virtual csp::StructPtr asStruct( void * bytes, size_t size ) = 0;
 
     virtual MsgProtocol protocol() const = 0;

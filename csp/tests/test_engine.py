@@ -18,6 +18,7 @@ from csp import PushMode, ts
 from csp.impl.types.instantiation_type_resolver import ArgTypeMismatchError, TSArgTypeMismatchError
 from csp.impl.wiring.delayed_node import DelayedNodeWrapperDef
 from csp.impl.wiring.runtime import build_graph
+from csp.lib import _csptestlibimpl
 
 
 @csp.graph
@@ -1333,7 +1334,7 @@ class TestEngine(unittest.TestCase):
             datetime(1969, 5, 6, 2, 3, 4),
             datetime(1969, 5, 6, 2, 3, 4, 123456),
             # Edge cases, DateTime MIN / MAX
-            datetime(1678, 1, 1),
+            datetime(1678, 1, 1) if sys.platform == "linux" else datetime(1970, 1, 1),
             datetime(2261, 12, 31, 23, 59, 59, 999999),
             timedelta(days=1, seconds=3600, microseconds=123456),
             timedelta(days=-1, seconds=3600, microseconds=123456),
@@ -1977,6 +1978,91 @@ class TestEngine(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "all good"):
             csp.run(g, starttime=datetime(2023, 1, 1), endtime=timedelta(1))
+
+    def test_stop_cannot_be_called_without_start(self):
+        """
+        Was a BUG where one node raising an exception during its start block led to other nodes exeucting their stop block without ever starting
+        """
+        status = {"foo_started": False, "foo_stopped": False, "bar_started": False, "bar_stopped": False}
+
+        # Python nodes (use try-finally logic for stopping)
+
+        @csp.node
+        def foo():
+            with csp.start():
+                status["foo_started"] = True
+                raise RuntimeError("foo!")
+
+            with csp.stop():
+                status["foo_stopped"] = True
+
+        @csp.node
+        def bar():
+            with csp.start():
+                status["bar_started"] = True
+
+            with csp.stop():
+                status["bar_stopped"] = True
+
+        @csp.graph
+        def my_graph():
+            foo()
+            bar()
+
+        with self.assertRaises(RuntimeError):
+            csp.run(my_graph, realtime=True)
+
+        self.assertTrue(status["foo_started"] and not status["foo_stopped"])
+        self.assertFalse(status["bar_started"] or status["bar_stopped"])
+
+        # C++ nodes (stop is initiated by the engine)
+
+        class RunInfo:
+            def __init__(self):
+                self.n1_started = False
+                self.n2_started = False
+                self.n1_stopped = False
+                self.n2_stopped = False
+
+        @csp.node(cppimpl=_csptestlibimpl.start_n1_set_value)
+        def n1(obj_: RunInfo):
+            return
+
+        @csp.node(cppimpl=_csptestlibimpl.start_n2_throw)
+        def n2(obj_: RunInfo):
+            return
+
+        myd = RunInfo()
+
+        @csp.graph
+        def g():
+            n1(myd)
+            n2(myd)
+
+        with self.assertRaises(ValueError):
+            csp.run(g, realtime=True)
+
+        self.assertTrue(myd.n1_started and myd.n1_stopped)
+        self.assertFalse(myd.n2_started or myd.n2_stopped)
+
+        # Test case where node starts, never ticks, and then stops
+        status = {"started": False, "stopped": False}
+
+        @csp.node
+        def n3(x: ts[int]) -> ts[int]:
+            with csp.start():
+                status["started"] = True
+            with csp.stop():
+                status["stopped"] = True
+
+            return 0
+
+        @csp.graph
+        def g() -> ts[int]:
+            return n3(csp.null_ts(int))
+
+        csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta())
+        self.assertTrue(status["started"] and status["stopped"])
 
 
 if __name__ == "__main__":

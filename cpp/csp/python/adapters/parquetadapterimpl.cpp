@@ -256,8 +256,7 @@ private:
 class NumpyUnicodeArrayWriter : public TypedDialectGenericListWriterInterface<std::string>
 {
 public:
-    NumpyUnicodeArrayWriter( PyArray_Descr *expectedArrayDesc )
-            : m_expectedArrayDesc( expectedArrayDesc )
+    NumpyUnicodeArrayWriter()
     {
     }
 
@@ -330,8 +329,7 @@ static inline DialectGenericListWriterInterface::Ptr create_numpy_array_writer_i
 
                     if( numpy_dtype -> type_num == NPY_UNICODE )
                     {
-                        return std::make_shared<NumpyUnicodeArrayWriter>(
-                                numpy_dtype );
+                        return std::make_shared<NumpyUnicodeArrayWriter>();
                     }
                     else
                     {
@@ -383,7 +381,7 @@ public:
         return reinterpret_cast<V *>(PyArray_DATA( arrayObject ));
     }
 
-    virtual void setValue(const csp::DialectGenericType& list, int index, const V& value)
+    virtual void setValue(const csp::DialectGenericType& list, int index, const V& value) override
     {
         getRawDataBuffer(list)[index] = value;
     }
@@ -395,8 +393,7 @@ private:
 class NumpyUnicodeReaderImpl final : public TypedDialectGenericListReaderInterface<std::string>
 {
 public:
-    NumpyUnicodeReaderImpl( PyArray_Descr *expectedArrayDesc )
-            : m_expectedArrayDesc( expectedArrayDesc )
+    NumpyUnicodeReaderImpl()
     {
     }
 
@@ -437,9 +434,6 @@ public:
         auto nElementsToCopy = std::min( int(elementSize / sizeof(wchar_t)), int( wideValue.size() + 1 ) );
         std::copy_n( wideValue.c_str(), nElementsToCopy, reinterpret_cast<wchar_t *>(PyArray_GETPTR1( arrayObject, index )) );
     }
-
-private:
-    PyArray_Descr *m_expectedArrayDesc;
 };
 
 
@@ -458,8 +452,7 @@ inline DialectGenericListReaderInterface::Ptr create_numpy_array_reader_impl( co
 
                                                                                    if( numpy_dtype -> type_num == NPY_UNICODE )
                                                                                    {
-                                                                                       return std::make_shared<NumpyUnicodeReaderImpl>(
-                                                                                               numpy_dtype );
+                                                                                       return std::make_shared<NumpyUnicodeReaderImpl>();
                                                                                    }
                                                                                    else
                                                                                    {

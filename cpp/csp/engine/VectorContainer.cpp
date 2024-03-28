@@ -29,7 +29,7 @@ std::unique_ptr<VectorContainer> VectorContainer::createForCspType(CspTypePtr &t
 
 std::unique_ptr<VectorContainer> VectorContainer::createForCspType( const CspType *type, bool optionalValues )
 {
-    return AllCspTypeSwitch::invoke(type, [type, optionalValues]( auto tag )
+    return AllCspTypeSwitch::invoke(type, [optionalValues]( auto tag )
     {
         if(optionalValues)
         {

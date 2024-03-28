@@ -156,24 +156,36 @@ void Engine::start()
     auto start = std::max( m_rootEngine -> now(), m_rootEngine -> startTime() );
     auto end   = m_rootEngine -> endTime();
 
-
     //start up managers
     for( auto & manager : m_adapterManagers )
+    {
         manager -> start( start, end );
+        manager -> setStarted();
+    }
 
     //start up output adapters
     for( auto & adapter : m_outputAdapters )
+    {
         adapter -> start();
+        adapter -> setStarted();
+    }
 
     for( auto & entry : m_graphOutputs )
     {
-        if( entry.second -> engine() == this )
-            entry.second -> start();
+        auto & graphOutputAdapter = entry.second;
+        if( graphOutputAdapter -> engine() == this )
+        {
+            graphOutputAdapter -> start();
+            graphOutputAdapter -> setStarted();
+        }
     }
 
     //start up input adapters
     for( auto & adapter : m_inputAdapters )
+    {
         adapter -> start( start, end );
+        adapter -> setStarted();
+    }
 
     //see registerOwnedObject( AdapterManager ) above, we register adapter managers with root.  At this point we dont
     //need the list of mgrs created in a dynamic engine anymore, so we clear out the mem ( and effetively take them out of the stop() list for dynamic shutdown )
@@ -182,28 +194,45 @@ void Engine::start()
 
     //startup nodes
     for( auto & node : m_nodes )
+    {
         node -> start();
+        node -> setStarted();
+    }
 }
 
 void Engine::stop()
 {
+    // Ensure we only stop nodes/adapters that have started in the case an exception occurs during startup
     for( auto & node : m_nodes )
-        node -> stop();
+    {
+        if( node -> started() )
+            node -> stop();
+    }
 
     for( auto & adapter : m_inputAdapters )
-        adapter -> stop();
+    {
+        if( adapter -> started() )
+            adapter -> stop();
+    }
 
     for( auto & entry : m_graphOutputs )
     {
-        if( entry.second -> engine() == this )
-            entry.second -> stop();
+        auto & graphOutputAdapter = entry.second;
+        if( graphOutputAdapter -> started() && graphOutputAdapter -> engine() == this )
+            graphOutputAdapter -> stop();
     }
 
     for( auto & adapter : m_outputAdapters )
-        adapter -> stop();
+    {
+        if( adapter -> started() )
+            adapter -> stop();
+    }
 
     for( auto & manager : m_adapterManagers )
-        manager -> stop();
+    {
+        if( manager -> started() )
+            manager -> stop();
+    }
 }
 
 }

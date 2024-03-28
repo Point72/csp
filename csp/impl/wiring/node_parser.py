@@ -841,17 +841,23 @@ class NodeParser(BaseParser):
         self._startblock = [self.visit(node) for node in self._startblock]
 
         init_block = node_proxy + ts_in_proxies + ts_out_proxies + ts_vars
-
-        # Yield before start block so we can setup stack frame before executing
-        startblock = [ast.Expr(value=ast.Yield(value=None))] + self._stateblock + self._startblock
-
-        start_and_body = startblock + [ast.While(test=ast.NameConstant(value=True), orelse=[], body=innerbody)]
+        startblock = self._stateblock + self._startblock
+        body = [ast.While(test=ast.NameConstant(value=True), orelse=[], body=innerbody)]
 
         if self._stopblock:
             self._stopblock = [self.visit(node) for node in self._stopblock]
-            # For stop we wrap start and body in a try / finally ( not the init block, if that fails it's unrecoverable )
-            start_and_body = [ast.Try(body=start_and_body, finalbody=self._stopblock, handlers=[], orelse=[])]
 
+            # For stop we wrap the body of a node in a try / finally
+            # If the init block fails it's unrecoverable, and if the start block raises we don't want to stop that specific node
+            start_and_body = startblock + [ast.Try(body=body, finalbody=self._stopblock, handlers=[], orelse=[])]
+
+        else:
+            start_and_body = startblock + body
+
+        # Yield before start block so we can setup stack frame before executing
+        # However, this initial yield shouldn't be within the try-finally block, since if a node does not start, it's stop() logic should not be invoked
+        # This avoids an issue where one node raises an exception upon start(), and then other nodes execute their stop() without having ever started
+        start_and_body = [ast.Expr(value=ast.Yield(value=None))] + start_and_body
         newbody = init_block + start_and_body
 
         newfuncdef = ast.FunctionDef(name=self._name, body=newbody, returns=None)

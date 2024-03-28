@@ -63,7 +63,7 @@ public:
     }
 
 private:
-    void processTickImpl( const OutputDataMapper & dataMapper, const TimeSeriesProvider * sourcets )
+    void processTickImpl( const OutputDataMapper & dataMapper, const TimeSeriesProvider * sourcets ) override
     {
         dataMapper.apply( *this, sourcets );
     }

@@ -170,7 +170,7 @@ DECLARE_CPPNODE( exprtk_impl )
             {
                 PartialSwitchCspType<CspType::Type::STRING, CspType::Type::DOUBLE>::invoke(
                         typ,
-                        [ this, &inputName ]( auto tag )
+                        [ this ]( auto tag )
                         {
                             s_valuesContainer.push_back( std::make_unique<ValueContainer<typename decltype(tag)::type>>() );
                         } );

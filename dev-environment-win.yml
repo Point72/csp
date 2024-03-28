@@ -1,0 +1,31 @@
+name: csp-dev
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+ - compilers
+ - cmake
+ - numpy
+ - pyarrow>=7.0.0
+ - ruamel.yaml
+ - scikit-build
+ - psutil
+ - sqlalchemy
+ - bump2version>=1.0.0
+ - python-graphviz
+ - httpx
+ - isort
+ - ruff
+ - twine
+ - wheel
+ - pandas
+ - polars
+ - pytz
+ - pytest
+ - pytest-cov
+ - pytest-sugar
+ - pytest-asyncio
+ - python<3.12
+ - tornado
+ - python-rapidjson
+ - pillow

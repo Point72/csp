@@ -62,9 +62,6 @@ bool PushPullInputAdapter::processNextPullEvent()
 
     if( consumed && m_nextPullEvent )
     {
-        if( m_adjustOutOfOrderTime )
-            m_nextPullEvent->time = std::max( m_nextPullEvent -> time, rootEngine() -> now() );
-
         m_timerHandle = rootEngine() -> scheduleCallback( m_nextPullEvent->time,
                                                           [this]() { return processNextPullEvent() ? nullptr : this; } );
     }
@@ -83,6 +80,10 @@ PushPullInputAdapter::PullDataEvent * PushPullInputAdapter::nextPullEvent()
 
     auto * event = m_poppedPullEvents.front();
     m_poppedPullEvents.pop();
+
+    if( m_adjustOutOfOrderTime )
+        event -> time = std::max( event -> time, rootEngine() -> now() );
+
     return event;    
 }
 

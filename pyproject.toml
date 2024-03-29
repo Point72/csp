@@ -65,6 +65,7 @@ develop = [
     "twine",
     "wheel",
     # Test dependencies
+    "pillow",
     "polars",
     "psutil",
     "pytest",

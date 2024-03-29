@@ -3,6 +3,7 @@ from typing import Dict, Optional
 
 import csp.baselib
 from csp.impl.wiring.edge import Edge
+from csp.showgraph import show_graph
 
 # Lazy declaration below to avoid perspective import
 RealtimePerspectiveWidget = None
@@ -143,12 +144,7 @@ class DataFrame:
         return csp.run(self._eval_graph, starttime=starttime, endtime=endtime, realtime=realtime)
 
     def show_graph(self):
-        from PIL import Image
-
-        import csp.showgraph
-
-        buffer = csp.showgraph.generate_graph(self._eval_graph)
-        return Image.open(buffer)
+        show_graph(self._eval_graph, graph_filename=None)
 
     def to_pandas(self, starttime: datetime, endtime: datetime):
         import pandas
@@ -222,7 +218,9 @@ class DataFrame:
                         self._runner.join()
 
         except ImportError:
-            raise ImportError("eval_perspective requires perspective-python installed")
+            raise ModuleNotFoundError(
+                "eval_perspective requires perspective-python installed. See https://perspective.finos.org for installation instructions."
+            )
 
         if not realtime:
             df = self.to_pandas(starttime, endtime)

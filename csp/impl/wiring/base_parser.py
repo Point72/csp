@@ -99,9 +99,8 @@ def _get_source_from_interpreter_function(raw_func):
     current_interpreter_history = readline.get_current_history_length()
 
     try:
-        search_pattern = re.compile(r"^(\s*def\s)")
+        search_pattern = re.compile(r"^(\s*def\s*" + raw_func.__name__ + r"\s*\()")
         decorator_pattern = re.compile(r"^(\s*@)")
-        func_name = raw_func.__name__
         code_object = raw_func.__func__ if inspect.ismethod(raw_func) else raw_func.__code__
     except Exception:
         raise OSError("Could not get source code for interpreter-defined function.")
@@ -118,21 +117,23 @@ def _get_source_from_interpreter_function(raw_func):
 
         # if its a def name_of_function(...
         if search_pattern.match(line):
-            # go through to get decorators
-            if func_name in line:
-                # reassemble function
-                for i in range(starting_index_of_function, current_interpreter_history + 1):
-                    reassembled_function += f"{readline.get_history_item(i)}\n"
+            # reassemble function
+            for i in range(starting_index_of_function, current_interpreter_history + 1):
+                reassembled_function += f"{readline.get_history_item(i)}\n"
 
-                for line_number_with_decorator in range(starting_index_of_function - 1, -1, -1):
-                    if decorator_pattern.match(readline.get_history_item(line_number_with_decorator)):
-                        reassembled_function = (
-                            f"{readline.get_history_item(line_number_with_decorator)}\n" + reassembled_function
-                        )
-                    else:
-                        break
-                break
+            for line_number_with_decorator in range(starting_index_of_function - 1, -1, -1):
+                if decorator_pattern.match(readline.get_history_item(line_number_with_decorator)):
+                    reassembled_function = (
+                        f"{readline.get_history_item(line_number_with_decorator)}\n" + reassembled_function
+                    )
+                else:
+                    break
+            break
         starting_index_of_function -= 1
+
+    if reassembled_function == "":
+        raise OSError("Could not find function definition for interpreter-defined function.")
+
     return reassembled_function
 
 

@@ -1,4 +1,4 @@
-The `csp.profiler` library allows users to time cycle/node executions during a graph run. There are two available utilities.
+The `csp.profiler` library allows users to time cycle/node executions during a graph run. There are two available utilities.
 
 One can use these metrics to identify bottlenecks/inefficiencies in their graphs.
 
@@ -9,10 +9,10 @@ One can use these metrics to identify bottlenecks/inefficiencies in their graphs
 - [Saving raw profiling data to a file](#saving-raw-profiling-data-to-a-file)
 - [graph_info: build-time information](#graph_info-build-time-information)
 
-## Profiling a real-time csp.graph
+## Profiling a real-time `csp.graph`
 
-The `csp.profiler` library provides a GUI for profiling real-time csp graphs.
-One can access this GUI by adding a `http_port`  argument to their profiler call.
+The `csp.profiler` library provides a GUI for profiling real-time CSP graphs.
+One can access this GUI by adding a `http_port`  argument to their profiler call.
 
 ```python
 with profiler.Profiler(http_port=8888) as p:
@@ -21,9 +21,9 @@ with profiler.Profiler(http_port=8888) as p:
 
 This will open up the GUI on `localhost:8888` (as http_port=8888) which will display real-time node timing, cycle timing and memory snapshots.
 Profiling stats will be calculated whenever you refresh the page or call a GET request.
-Additionally, you can add the `format=json`argument (`localhost:8888?format=json`) to your request to receive the ProfilerInfo as a `JSON`  object rather than the `HTML` display.
+Additionally, you can add the `format=json`argument (`localhost:8888?format=json`) to your request to receive the ProfilerInfo as a `JSON` object rather than the `HTML` display.
 
-Users can add the `display_graphs=True` flag to include bar/pie charts of node execution times in the web UI.
+Users can add the `display_graphs=True` flag to include bar/pie charts of node execution times in the web UI.
 The matplotlib package is required to use the flag.
 
 ```python
@@ -44,7 +44,7 @@ with profiler.Profiler(cycle_file="cycle_data.csv", node_file="node_data.csv") a
     ...
 ```
 
-After the graph is run, the file `node_data.csv`  contains:
+After the graph is run, the file `node_data.csv`  contains:
 
 ```
 Node Type,Execution Time
@@ -54,7 +54,7 @@ _time_window_updates,4.759e-06
 ...
 ```
 
-After the graph is run, the file `cycle_data.csv`  contains:
+After the graph is run, the file `cycle_data.csv`  contains:
 
 ```
 Execution Time

@@ -1,4 +1,4 @@
-When writing csp code there will be runtime components in the form of `csp.node` methods, as well as graph-building components in the form of `csp.graph` components.
+When writing CSP code there will be runtime components in the form of `csp.node` methods, as well as graph-building components in the form of `csp.graph` components.
 
 It is important to understand that `csp.graph` components will only be executed once at application startup in order to construct the graph.
 Once the graph is constructed, `csp.graph` code is no longer needed.

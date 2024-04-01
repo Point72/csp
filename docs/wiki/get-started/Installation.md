@@ -1,6 +1,6 @@
 ## `pip`
 
-We ship binary wheels to install `csp`  on MacOS and Linux via `pip`:
+We ship binary wheels to install CSP on MacOS and Linux via `pip`:
 
 ```bash
 pip install csp
@@ -13,5 +13,5 @@ the near future.
 
 ## Source installation
 
-For other platforms, follow the instructions to [build `csp` from
+For other platforms, follow the instructions to [build CSP from
 source](Build-CSP-from-Source).

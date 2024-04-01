@@ -56,5 +56,5 @@
 
 ### Engine time
 
-The `csp` engine always maintains its current view of time.
-The current time of the engine can be accessed at any time within a csp.node by calling `csp.now()`
+The CSP engine always maintains its current view of time.
+The current time of the engine can be accessed at any time within a `csp.node` by calling `csp.now()`

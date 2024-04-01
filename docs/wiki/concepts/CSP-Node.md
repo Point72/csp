@@ -9,12 +9,12 @@
 
 ## Anatomy of a `csp.node`
 
-The heart of a calculation graph are the csp.nodes that run the computations.
+The heart of a calculation graph are the `csp.nodes` that run the computations.
 `csp.node` methods can take any number of scalar and timeseries arguments, and can return 0 → N timeseries outputs.
 Timeseries inputs/outputs should be thought of as the edges that connect components of the graph.
 These "edges" can tick whenever they have a new value.
 Every tick is associated with a value and the time of the tick.
-csp.nodes can have various other features, here is a an example of a csp.node that demonstrates many of the features.
+`csp.nodes` can have various other features, here is a an example of a `csp.node` that demonstrates many of the features.
 Keep in mind that nodes will execute repeatedly as inputs tick with new data.
 They may (or may not) generate an output as a result of an input tick.
 
@@ -52,9 +52,9 @@ def demo_node(n: int, xs: ts[float], ys: ts[float]) -> ts[float]:        # 2
 
 Lets review line by line
 
-1\) Every csp node must start with the **`@csp.node`** decorator
+1\) Every CSP node must start with the **`@csp.node`** decorator
 
-2\) `csp` nodes are fully typed and type-checking is strictly enforced.
+2\) CSP nodes are fully typed and type-checking is strictly enforced.
 All arguments must be typed, as well as all outputs.
 Outputs are typed using function annotation syntax.
 
@@ -73,7 +73,7 @@ All alarms must be declared within the alarms context.
 Note that variables declared in state will live across invocations of the method.
 
 9\) An example declaration and initialization of state variable `s_sum`.
-It is good practice to name state variables prefixed with `s_`, which is the convention in the `csp` codebase.
+It is good practice to name state variables prefixed with `s_`, which is the convention in the CSP codebase.
 
 11\) **`with csp.start()`**: an optional block to execute code at the start of the engine.
 Generally this is used to setup initial timers or set input timeseries properties such as buffer sizes, or to make inputs passive
@@ -96,7 +96,7 @@ Note that `schedule_alarm` can be called multiple times on the same alarm to sch
 **`csp.valid`** similar takes any number of inputs however it only returns true if **all** inputs are valid.
 Valid means that an input has had at least one tick and so it has a "current value".
 
-23\) One of the benefits of `csp` is that you always have easy access to the latest value of all inputs.
+23\) One of the benefits of CSP is that you always have easy access to the latest value of all inputs.
 `xs` and `ys` on line 22,23 will always have the latest value of both inputs, even if only one of them just ticked.
 
 25\) This demonstrates how an alarm can be treated like any other input.
@@ -243,7 +243,7 @@ The following work for both list and dict baskets:
 
 ## Generic Types
 
-`csp` supports syntax for generic types as well.
+CSP supports syntax for generic types as well.
 To denote a generic type we use a string (typically `'T'` is used) to denote a generic type.
 When a node is called the type of the argument will get bound to the given type variable, and further inputs / outputs will be checked and bound to said typevar.
 Note that the string syntax `'~T'` denotes the argument expects the *value* of a type, rather than a type itself:

@@ -1,4 +1,4 @@
-`csp` is written in Python and C++ with Python and C++ build dependencies. While prebuilt wheels are provided for end users, it is also straightforward to build `csp` from either the Python [source distribution](https://packaging.python.org/en/latest/specifications/source-distribution-format/) or the GitHub repository.
+CSP is written in Python and C++ with Python and C++ build dependencies. While prebuilt wheels are provided for end users, it is also straightforward to build CSP from either the Python [source distribution](https://packaging.python.org/en/latest/specifications/source-distribution-format/) or the GitHub repository.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@
 
 ## Make commands
 
-As a convenience, `csp` uses a `Makefile` for commonly used commands. You can print the main available commands by running `make` with no arguments
+As a convenience, CSP uses a `Makefile` for commonly used commands. You can print the main available commands by running `make` with no arguments
 
 ```bash
 > make
@@ -44,13 +44,13 @@ test                           run the tests
 
 ## Prerequisites
 
-`csp` has a few system-level dependencies which you can install from your machine package manager. Other package managers like `conda`, `nix`, etc, should also work fine. Currently, `csp` relies on the `GNU` compiler toolchain only.
+CSP has a few system-level dependencies which you can install from your machine package manager. Other package managers like `conda`, `nix`, etc, should also work fine. Currently, CSP relies on the `GNU` compiler toolchain only.
 
 ## Building with Conda on Linux
 
 The easiest way to get started on a Linux machine is by installing the necessary dependencies in a self-contained conda environment.
 
-Tweak this script to create a conda environment, install the build dependencies, build, and install a development version of `csp` into the environment.
+Tweak this script to create a conda environment, install the build dependencies, build, and install a development version of CSP into the environment.
 
 ### Install conda
 
@@ -237,7 +237,7 @@ VCPKG_FORCE_SYSTEM_BINARIES=1 make build
 
 ## Lint and Autoformat
 
-`csp` has listing and auto formatting.
+CSP has listing and auto formatting.
 
 | Language | Linter | Autoformatter | Description |
 | :------- | :----- | :------------ | :---------- |
@@ -281,7 +281,7 @@ make fix-py
 
 ## Testing
 
-`csp` has both Python and C++ tests. The bulk of the functionality is tested in Python, which can be run via `pytest`. First, install the Python development dependencies with
+CSP has both Python and C++ tests. The bulk of the functionality is tested in Python, which can be run via `pytest`. First, install the Python development dependencies with
 
 ```bash
 make develop

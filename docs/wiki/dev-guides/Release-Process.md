@@ -35,7 +35,7 @@ different potential impact on users.
   This is the most common kind of release. A patch release should only
   include fixes for bugs or other changes that cannot impact code a
   user writes with the `csp` package. A user should be able to safely
-  upgrade `csp` from the previous version to a new patch release with
+  upgrade CSP from the previous version to a new patch release with
   no changes to the output of their code and no new errors being
   raised, except for fixed bugs. Whether or not a bug fix is
   sufficiently impactful to break backward compatibility is a
@@ -148,12 +148,12 @@ page](https://github.com/Point72/csp/releases).
 #### A developer's first release
 
 If this is your first release, you will need an account on pypi.org and
-your account will need to be added as a maintainer to the `csp` project
-on pypi. You will also need to have two factor authentication enabled on
+your account will need to be added as a maintainer to the CSP project
+on PyPI. You will also need to have two factor authentication enabled on
 your PyPI account.
 
 Once that is set up, navigate to the API token page in your PyPI
-settings and generate an API token scoped to the `csp` project. **Do not**
+settings and generate an API token scoped to the CSP project. **Do not**
 navigate away from the page displaying the API token before the next
 step.
 

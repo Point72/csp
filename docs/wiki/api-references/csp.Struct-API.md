@@ -1,4 +1,4 @@
-`csp.Struct` is a native, first-class `csp` type that should be used for struct-like data ( key, values ). `csp.Struct` is implemented as a high performant C++ object and `csp` C++ adapters are able to create / access them efficiently from C++.
+`csp.Struct` is a native, first-class CSP type that should be used for struct-like data ( key, values ). `csp.Struct` is implemented as a high performant C++ object and CSP C++ adapters are able to create / access them efficiently from C++.
 
 In general its recommended to use `csp.Struct` for any object-like data required on your timeseries rather than plain old python object unless there is good reason not to.
 
@@ -29,7 +29,7 @@ The variables `a`, `b`, `c` here define the struct members (similar to `__slots_
 
 ## Special handling at graph time
 
-While building your graph, if you have an edge that represents a `csp.Struct` type you can access a member of that struct at graph time. What this means is that when you do `edge.field` in your graph code, you will get a new edge that will tick with the value of that field. `csp` will implicitly inject a `csp.node` that will extract that field whenever the struct timeseries ticks. Note that if the struct ticks and the field is unset, the field's edge will not tick. Here's an example of this in practice:
+While building your graph, if you have an edge that represents a `csp.Struct` type you can access a member of that struct at graph time. What this means is that when you do `edge.field` in your graph code, you will get a new edge that will tick with the value of that field. CSP will implicitly inject a `csp.node` that will extract that field whenever the struct timeseries ticks. Note that if the struct ticks and the field is unset, the field's edge will not tick. Here's an example of this in practice:
 
 ```python
 import csp

@@ -6,7 +6,7 @@
 
 ## Historical Buffers
 
-`csp` can provide access to historical input data as well.
+CSP can provide access to historical input data as well.
 By default only the last value of an input is kept in memory, however one can request history to be kept on an input either by number of ticks or by time using **csp.set_buffering_policy.**
 
 The methods **csp.value_at**, **csp.time_at** and **csp.item_at** can be used to retrieve historical input values.

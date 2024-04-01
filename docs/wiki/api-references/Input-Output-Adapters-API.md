@@ -47,7 +47,7 @@ KafkaAdapterManager(
 ):
 ```
 
-- **`broker`**: name of the Kafka broker, such as `protocol://host:port`
+- **`broker`**: name of the Kafka broker, such as `protocol://host:port`
 
 - **`start_offset`**: signify where to start the stream playback from (defaults to `KafkaStartOffset.LATEST`).
   Can be one of the`KafkaStartOffset` enum types or:
@@ -56,9 +56,9 @@ KafkaAdapterManager(
   - `timedelta`: this will be taken as an absolute offset from starttime to playback from
 
 - **`group_id`**: if set, this adapter will behave as a consume-once consumer.
-  `start_offset` may not be set in this case since adapter will always replay from the last consumed offset.
+  `start_offset` may not be set in this case since adapter will always replay from the last consumed offset.
 
-- **\`group_id_prefix**: when not passing an explicit group_id, a prefix can be supplied that will be use to prefix the UUID generated for the group_id
+- **\`group_id_prefix**: when not passing an explicit group_id, a prefix can be supplied that will be use to prefix the UUID generated for the group_id
 
 - **`max_threads`**: maximum number of threads to create for consumers.
   The topics are round-robin'd onto threads to balance the load.
@@ -109,7 +109,7 @@ KafkaAdapterManager.subscribe(
 - **`msg_mapper`**: the `MsgMapper` object discussed above
 - **`topic`**: the topic to subscribe to
 - **`key`**: The key to subscribe to. If `None`, then this will subscribe to all messages on the topic. Note that in this "wildcard" mode, all messages will tick as "live" as replay in engine time cannot be supported
-- **`field_map`**: dictionary of `{message_field: struct_field}` to define how the subscribed message gets mapped onto the struct
+- **`field_map`**: dictionary of `{message_field: struct_field}` to define how the subscribed message gets mapped onto the struct
 - **`meta_field_map`**: to extract meta information from the kafka message, provide a meta_field_map dictionary of meta field info → struct field name to place it into.
   The following meta fields are currently supported:
   - **`"partition"`**: which partition the message came from
@@ -137,7 +137,7 @@ KafkaAdapterManager.publish(
 - **`topic`**: same as above
 - **`key`**: key to publish to
 - **`x`**: the timeseries to publish
-- **`field_map`**: dictionary of {struct_field: message_field} to define how the struct gets mapped onto the published message.
+- **`field_map`**: dictionary of {struct_field: message_field} to define how the struct gets mapped onto the published message.
   Note this dictionary is the opposite of the field_map in subscribe()
 
 ### Known Issues
@@ -145,7 +145,7 @@ KafkaAdapterManager.publish(
 If you are having issues, such as not getting any output or the application simply locking up, start by ensuring that you are logging the adapter's `status()` with a `csp.print`/`log` call and set `debug=True`.
 Then follow the known issues below.
 
-- Reason: `GSSAPI Error: Unspecified GSS failure.  Minor code may provide more information (No Kerberos credentials available)`
+- Reason: `GSSAPI Error: Unspecified GSS failure.  Minor code may provide more information (No Kerberos credentials available)`
 
   - **Resolution**: Kafka uses kerberos tickets for authentication. Need to set-up kerberos token first
 
@@ -165,7 +165,7 @@ Then follow the known issues below.
 
 ### ParquetReader
 
-The `ParquetReader` adapter is a generic user adapter to stream data from [Apache Parquet](https://parquet.apache.org/) files as a CSP time series.
+The `ParquetReader` adapter is a generic user adapter to stream data from [Apache Parquet](https://parquet.apache.org/) files as a CSP time series.
 `ParquetReader` adapter supports only flat (non hierarchical) parquet files with all the primitive types that are supported by the CSP framework.
 
 #### API
@@ -207,7 +207,7 @@ def subscribe(
     :param typ: The type of the CSP time series subscription. Can either be a primitive type like int or alternatively a type
     that inherits from csp.Struct, in which case each instance of the struct will be constructed from the matching file columns.
     :param field_map: A map of the fields from parquet columns for the CSP time series. If typ is a primitive, then field_map should be
-    a string specifying the column name, if typ is a csp Struct then field_map should be a str->str dictionary of the form
+    a string specifying the column name, if typ is a csp.Struct then field_map should be a str->str dictionary of the form
     {column_name:struct_field_name}. For structs field_map can be omitted in which case we expect a one to one match between the given Struct
     fields and the parquet files columns.
     :param push_mode: A push mode for the output adapter
@@ -223,7 +223,7 @@ def subscribe_all(
     :param typ: The type of the CSP time series subscription. Can either be a primitive type like int or alternatively a type
     that inherits from csp.Struct, in which case each instance of the struct will be constructed from the matching file columns.
     :param field_map: A map of the fields from parquet columns for the CSP time series. If typ is a primitive, then field_map should be
-    a string specifying the column name, if typ is a csp Struct then field_map should be a str->str dictionary of the form
+    a string specifying the column name, if typ is a csp.Struct then field_map should be a str->str dictionary of the form
     {column_name:struct_field_name}. For structs field_map can be omitted in which case we expect a one to one match between the given Struct
     fields and the parquet files columns.
     :param push_mode: A push mode for the output adapter
@@ -236,8 +236,8 @@ Parquet reader provides two subscription methods.
 
 ### ParquetWriter
 
-The ParquetWriter adapter is a generic user adapter to stream data from CSP time series to [Apache Parquet](https://parquet.apache.org/) files.
-`ParquetWriter` adapter supports only flat (non hierarchical) parquet files with all the primitive types that are supported by the `csp` framework.
+The ParquetWriter adapter is a generic user adapter to stream data from CSP time series to [Apache Parquet](https://parquet.apache.org/) files.
+`ParquetWriter` adapter supports only flat (non hierarchical) parquet files with all the primitive types that are supported by the CSP framework.
 Any time series of Struct objects will be flattened to multiple columns.
 
 #### Construction
@@ -287,7 +287,7 @@ def publish(
 ```
 
 Parquet writer provides two publishing methods.
-**`publish_struct`** is used to publish time series of **`csp.Struct`** objects while **`publish`** is used to publish primitive time series.
+**`publish_struct`** is used to publish time series of **`csp.Struct`** objects while **`publish`** is used to publish primitive time series.
 The columns in the written parquet file is a union of all columns that were published (the order is preserved).
 A new row is written to parquet file whenever any of the inputs ticks.
 For the given row, any column that corresponds to a time series that didn't tick, will have null values.
@@ -297,7 +297,7 @@ For the given row, any column that corresponds to a time series that didn't tick
 The DBReader adapter is a generic user adapter to stream data from a database as a reactive time series.
 It leverages sqlalchemy internally in order to be able to access various DB backends.
 
-Please refer to the [SQLAlchemy Docs](https://docs.sqlalchemy.org/en/13/core/tutorial.html) for information on how to create sqlalchemy connections.
+Please refer to the [SQLAlchemy Docs](https://docs.sqlalchemy.org/en/13/core/tutorial.html) for information on how to create sqlalchemy connections.
 
 The DBReader instance represents a single connection to a database.
 From a single reader you can subscribe to various streams, either the entire stream of data (which would basically represent the result of a single join) or if a symbol column is declared, subscribe by symbol which will then demultiplex rows to the right adapter.
@@ -315,7 +315,7 @@ DBReader(self, connection, time_accessor, table_name=None, schema_name=None, que
 ```
 
 - **connection**: seqlalchemy engine or existing connection object.
-- **time_accessor**: see below
+- **time_accessor**: see below
 - **table_name**: either table or query is required.
   If passing a table_name then this table will be queried against for subscribe calls
 - **query**: (optional) if table isn't supplied user can provide a direct query string or sqlalchemy query object.
@@ -327,16 +327,16 @@ DBReader(self, connection, time_accessor, table_name=None, schema_name=None, que
 
 ### TimeAccessor
 
-All data fed into `csp` must be time based.
+All data fed into CSP must be time based.
 `TimeAccessor` is a helper class that defines how to extract timestamp information from the results of the data.
 Users can define their own `TimeAccessor` implementation or use pre-canned ones:
 
-- `TimestampAccessor( self, time_column, tz=None)`: use this if there exists a single datetime column already.
+- `TimestampAccessor( self, time_column, tz=None)`: use this if there exists a single datetime column already.
   Provide the column name and optionally the timezone of the column (if its timezone-less in the db)
 - `DateTimeAccessor(self, date_column, time_column, tz=None)`: use this if there are two separate columns for date and time, this accessor will combine the two columns to create a single datetime.
   Optionally pass tz if time column is timezone-less in the db
 
-User implementations would have to extend `TimeAccessor` interface.
+User implementations would have to extend `TimeAccessor` interface.
 In addition to defining how to convert db columns to timestamps, accessors are also used to augment the query to limit the data for the graph's start and end times.
 
 Once you have a DBReader object created, you can subscribe to time_series from it using the following methods:
@@ -344,8 +344,8 @@ Once you have a DBReader object created, you can subscribe to time_series from i
 - `subscribe(self, symbol, typ, field_map=None)`
 - `subscribe_all(self, typ, field_map=None)`
 
-Both of these calls expect `typ` to be a `csp.Struct` type.
-`field_map` is a dictionary of `{ db_column : struct_column }` mappings that define how to map the database column names to the fields on the struct.
+Both of these calls expect `typ` to be a `csp.Struct` type.
+`field_map` is a dictionary of `{ db_column : struct_column }` mappings that define how to map the database column names to the fields on the struct.
 
 `subscribe` is used to subscribe to a stream for the given symbol (symbol_column is required when creating DBReader)
 

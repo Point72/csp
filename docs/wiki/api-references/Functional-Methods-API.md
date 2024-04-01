@@ -1,4 +1,4 @@
-Edges in csp contain some methods to serve as syntactic sugar for stringing nodes together in a pipeline. This makes it easier to read/modify workflows and avoids the need for nested brackets.
+Edges in CSP contain some methods to serve as syntactic sugar for stringing nodes together in a pipeline. This makes it easier to read/modify workflows and avoids the need for nested brackets.
 
 ## Table of Contents
 

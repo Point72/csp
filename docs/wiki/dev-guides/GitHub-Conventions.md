@@ -38,7 +38,7 @@ docs](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/
    ```
 
    where `<ID>` is the PR ID number and `LOCAL_BRANCH_NAME` is a name
-   chosen for the PR branch in your local checkout of `csp`.
+   chosen for the PR branch in your local checkout of CSP.
 
 1. Switch to the PR branch
 
@@ -46,7 +46,7 @@ docs](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/
    git switch LOCAL_BRANCH_NAME
    ```
 
-1. Rebuild `csp`
+1. Rebuild CSP
 
 ## Pushing Fixups to Pull Requests
 

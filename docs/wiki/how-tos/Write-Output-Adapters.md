@@ -10,7 +10,7 @@
 ## Output Adapters
 
 Output adapters are used to define graph outputs, and they differ from input adapters in a number of important ways.
-Output adapters also differ from terminal nodes, e.g. regular `csp.node` instances that do not define outputs, and instead consume and emit their inputs inside their `csp.ticked`  blocks.
+Output adapters also differ from terminal nodes, e.g. regular `csp.node` instances that do not define outputs, and instead consume and emit their inputs inside their `csp.ticked`  blocks.
 
 For many use cases, it will be sufficient to omit writing an output adapter entirely.
 Consider the following example of a terminal node that writes an input dictionary timeseries to a file.
@@ -24,12 +24,12 @@ def write_to_file(x: ts[Dict], filename: str):
 ```
 
 This is a perfectly fine node, and serves its purpose.
-Unlike input adapters, output adapters do not need to differentiate between *historical* and *realtime* mode.
+Unlike input adapters, output adapters do not need to differentiate between *historical* and *realtime* mode.
 Input adapters drive the execution of the graph, whereas output adapters are reactive to their input nodes and subject to the graph's execution.
 
 However, there are a number of reasons why you might want to define an output adapter instead of using a vanilla node.
-The most important of these is when you want to share resources across a number of output adapters (e.g. with a Manager), or between an input and an output node, e.g. reading data from a websocket, routing it through your csp graph, and publishing data *to the same websocket connection*.
-For most use cases, a vanilla csp node will suffice, but let's explore some anyway.
+The most important of these is when you want to share resources across a number of output adapters (e.g. with a Manager), or between an input and an output node, e.g. reading data from a websocket, routing it through your CSP graph, and publishing data *to the same websocket connection*.
+For most use cases, a vanilla CSP node will suffice, but let's explore some anyway.
 
 ### OutputAdapter - Python
 
@@ -38,9 +38,9 @@ The derived type should define the method:
 
 - `def on_tick(self, time: datetime, value: object)`: this will be called when the input to the output adapter ticks.
 
-The OutputAdapter that you define will be used as the runtime *--impl–-*.  You also need to define a *--graph--* time representation of the time series edge.
-In order to do this you should define a csp.impl.wiring.py_output_adapter_def.
-The py_output_adapter_def creates a *--graph--* time representation of your adapter:
+The OutputAdapter that you define will be used as the runtime *--impl–-*.  You also need to define a *--graph--* time representation of the time series edge.
+In order to do this you should define a `csp.impl.wiring.py_output_adapter_def`.
+The `py_output_adapter_def` creates a *--graph--* time representation of your adapter:
 
 **def py_output_adapter_def(name, adapterimpl, \*\*kwargs)**
 
@@ -68,12 +68,12 @@ class MyFileWriterAdapterImpl(OutputAdapter):
         self._filename = filename
 
     def start(self):
-        self._fp = open(self._filename, "a")
+        self._fp = open(self._filename, "a")
 
      def stop(self):
-        self._fp.close()
+        self._fp.close()
 
-    def on_tick(self, time, value):
+    def on_tick(self, time, value):
         self._fp.write(dumps(value) + "\n")
 
 
@@ -129,7 +129,7 @@ Adapter managers function the same way for output adapters as for input adapters
 ### InputOutputAdapter - Python
 
 As a as last example, lets tie everything together and implement a managed push input adapter combined with a managed output adapter.
-This example is available in `e_14_user_adapters_05_adaptermanager_inputoutput` .
+This example is available in [e_14_user_adapters_06_adaptermanager_inputoutput.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_user_adapters_06_adaptermanager_inputoutput.py).
 
 First, we will define our adapter manager.
 In this example, we're going to cheat a little bit and combine our adapter manager (graph time) and our adapter manager impl (run time).
@@ -212,7 +212,7 @@ class MyAdapterManager(AdapterManagerImpl):
 ```
 
 This adapter manager is a bit of a silly example, but it demonstrates the core concepts.
-The adapter manager will demultiplex a shared stream (in this case, the stream defined in `_run`  is a random sequence of `MyData` structs) between all the input adapters it manages.
+The adapter manager will demultiplex a shared stream (in this case, the stream defined in `_run`  is a random sequence of `MyData` structs) between all the input adapters it manages.
 The input adapter itself will do nothing more than let the adapter manager know that it exists:
 
 ```python
@@ -227,7 +227,7 @@ class MyInputAdapterImpl(PushInputAdapter):
 ```
 
 Similarly, the adapter manager will multiplex the output adapter streams, in this case combining them into streams of print statements.
-And similar to the input adapter, the output adapter does relatively little more than letting the adapter manager know that it has work available, using its triggered `on_tick` method to call the adapter manager's `_on_tick` method.
+And similar to the input adapter, the output adapter does relatively little more than letting the adapter manager know that it has work available, using its triggered `on_tick` method to call the adapter manager's `_on_tick` method.
 
 ```
 class MyOutputAdapterImpl(OutputAdapter):

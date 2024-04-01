@@ -1,4 +1,4 @@
-`csp.baselib` defines some generally useful adapters, which are also imported directly into the csp namespace when importing csp.
+`csp.baselib` defines some generally useful adapters, which are also imported directly into the CSP namespace when importing CSP.
 
 These are all graph-time constructs.
 
@@ -55,7 +55,7 @@ csp.curve(
 )
 ```
 
-This allows you to convert a list of non-csp data into a ticking edge in csp
+This allows you to convert a list of non-CSP data into a ticking edge in CSP
 
 Args:
 
@@ -76,14 +76,14 @@ csp.add_graph_output(
 ```
 
 This allows you to connect an edge as a "graph output".
-All edges added as outputs will be returned to the caller from `csp.run` as a dictionary of `key: [(datetime, value)]`
+All edges added as outputs will be returned to the caller from `csp.run` as a dictionary of `key: [(datetime, value)]`
 (list of datetime, values that ticked on the edge) or if `csp.run` is passed `output_numpy=True`, as a dictionary of
 `key: (array, array)` (tuple of two numpy arrays, one with datetimes and one with values).
-See [Collecting Graph Outputs](https://github.com/Point72/csp/wiki/0.-Introduction#collecting-graph-outputs)
+See [Collecting Graph Outputs](https://github.com/Point72/csp/wiki/0.-Introduction#collecting-graph-outputs)
 
 Args:
 
-- **`key`**: key to return the results as from csp.run
+- **`key`**: key to return the results as from `csp.run`
 - **`input`**: edge to connect
 - **`tick_count`**: number of ticks to keep in the buffer (defaults to -1 - all ticks)
 - **`tick_history`**: amount of ticks to keep by time window (defaults to keeping all history)
@@ -106,5 +106,5 @@ Args:
 
 Methods:
 
-- **`out()`**: call this method on the feedback object to get the edge which can be wired as an input
+- **`out()`**: call this method on the feedback object to get the edge which can be wired as an input
 - **`bind(x: ts[object])`**: call this to bind an edge to the feedback

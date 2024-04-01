@@ -8,7 +8,7 @@
   - [AdapterManager - **graph-- time**](#adaptermanager---graph---time)
   - [AdapterManager - **impl-- runtime**](#adaptermanager---impl---runtime)
   - [PushInputAdapter - **--impl-- runtime**](#pushinputadapter-----impl---runtime)
-  - [PushInputAdapter - **--graph-- time**](#pushinputadapter----graph---time)
+  - [PushInputAdapter - **--graph-- time**](#pushinputadapter----graph---time)
   - [Example](#example)
 
 ## Introduction
@@ -19,15 +19,15 @@ When writing realtime adapters, you will need to implement a "push" adapter, whi
 
 When writing input adapters it is also very important to denote the difference between "graph building time" and "runtime" versions of your adapter.
 For example, `csp.adapters.csv` has a `CSVReader` class that is used at graph building time.
-**Graph build time components** solely *describe* the adapter.
+**Graph build time components** solely *describe* the adapter.
 They are meant to do little else than keep track of the type of adapter and its parameters, which will then be used to construct the actual adapter implementation when the engine is constructed from the graph description.
 It is the runtime implementation that actual runs during the engine execution phase to process data.
 
-For clarity of this distinction, in the descriptions below we will denote graph build time components with *--graph--* and runtime implementations with *--impl--*.
+For clarity of this distinction, in the descriptions below we will denote graph build time components with *--graph--* and runtime implementations with *--impl--*.
 
 ## PushInputAdapter - Python
 
-To write a Python based PushInputAdapter one must write a class that derives from csp.impl.pushadapter.PushInputAdapter.
+To write a Python based `PushInputAdapter` one must write a class that derives from `csp.impl.pushadapter.PushInputAdapter`.
 The derived type should the define two methods:
 
 - `def start(self, start_time, end_time)`: this will be called at the start of the engine with the start/end times of the engine.
@@ -36,26 +36,26 @@ The derived type should the define two methods:
 - `def stop(self)`: This method well be called when the engine is done running.
   At this point any open threads should be stopped and resources cleaned up.
 
-The PushInputAdapter that you define will be used as the runtime *--impl–-*.
-You also need to define a *--graph--* time representation of the time series edge.
-In order to do this you should define a csp.impl.wiring.py_push_adapter_def.
-The py_push_adapter_def creates a *--graph--* time representation of your adapter:
+The `PushInputAdapter` that you define will be used as the runtime *--impl–-*.
+You also need to define a *--graph--* time representation of the time series edge.
+In order to do this you should define a `csp.impl.wiring.py_push_adapter_def`.
+The `py_push_adapter_def` creates a *--graph--* time representation of your adapter:
 
 **def py_push_adapter_def(name, adapterimpl, out_type, \*\*kwargs)**
 
 - **`name`**: string name for the adapter
 - **`adapterimpl`**: a derived implementation of
-  csp.impl.pushadapter.PushInputAdapter
-- **`out_type`**: the type of the output, should be a ts\[\] type.
+  `csp.impl.pushadapter.PushInputAdapter`
+- **`out_type`**: the type of the output, should be a `ts[]` type.
   Note this can use tvar types if a subsequent argument defines the
-  tvar
+  tvar.
 - **`kwargs`**: \*\*kwargs here be passed through as arguments to the
   PushInputAdapter implementation
 
-Note that the \*\*kwargs passed to py_push_adapter_def should be the names and types of the variables, like arg1=type1, arg2=type2.
-These are the names of the kwargs that the returned input adapter will take and pass through to the PushInputAdapter implementation, and the types expected for the values of those args.
+Note that the \*\*kwargs passed to `py_push_adapter_def` should be the names and types of the variables, like `arg1=type1, arg2=type2`.
+These are the names of the kwargs that the returned input adapter will take and pass through to the `PushInputAdapter` implementation, and the types expected for the values of those args.
 
-Example e_14_user_adapters_03_pushinput.py demonstrates a simple example of this
+Example [e_14_user_adapters_03_pushinput.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_user_adapters_03_pushinput.py) demonstrates a simple example of this.
 
 ```python
 from csp.impl.pushadapter import PushInputAdapter
@@ -109,9 +109,9 @@ MyPushAdapter = py_push_adapter_def('MyPushAdapter', MyPushAdapterImpl, ts[int],
 ```
 
 Note how line 41 calls **self.push_tick**.
-This is the call to get data from the adapter thread ticking into the csp engine
+This is the call to get data from the adapter thread ticking into the CSP engine.
 
-Now MyPushAdapter can be called in graph code to create a timeseries that is sourced by MyPushAdapterImpl
+Now `MyPushAdapter` can be called in graph code to create a timeseries that is sourced by `MyPushAdapterImpl`:
 
 ```python
 @csp.graph
@@ -124,11 +124,11 @@ def my_graph():
 
 ## GenericPushAdapter
 
-If you dont need as much control as PushInputAdapter provides, or if you have some existing source of data on a thread you can't control, another option is to use the higher-level abstraction csp.GenericPushAdapter.
-csp.GenericPushAdapter wraps a csp.PushInputAdapter implementation internally and provides a simplified interface.
-The downside of csp.GenericPushAdapter is that you lose some control of when the input feed starts and stop.
+If you dont need as much control as `PushInputAdapter` provides, or if you have some existing source of data on a thread you can't control, another option is to use the higher-level abstraction `csp.GenericPushAdapter`.
+`csp.GenericPushAdapter` wraps a `csp.PushInputAdapter` implementation internally and provides a simplified interface.
+The downside of `csp.GenericPushAdapter` is that you lose some control of when the input feed starts and stop.
 
-Lets take a look at the example found in "e_14_generic_push_adapter"
+Lets take a look at the example found in [e_14_generic_push_adapter.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_generic_push_adapter.py):
 
 ```python
 # This is an example of some separate thread providing data
@@ -173,38 +173,37 @@ def my_graph():
     csp.schedule_on_engine_stop(driver.stop)
 ```
 
-In this example we have this dummy Driver class which simply represents some external source of data which arrives on a thread that's completely independent of the engine.
-We pass along a csp.GenericInputAdapter instance to this thread, which can then call adapter.push_tick to get data into the engine (see line 27).
+In this example we have this dummy `Driver` class which simply represents some external source of data which arrives on a thread that's completely independent of the engine.
+We pass along a `csp.GenericInputAdapter` instance to this thread, which can then call adapter.push_tick to get data into the engine (see line 27).
 
 On line 24 we can also see an optional feature which allows the unrelated thread to wait for the adapter to be ready to accept data before ticking data onto it.
 If push_tick is called before the engine starts / the adapter is ready to receive data, it will simply drop the data.
 Note that GenericPushAadapter.push_tick will return a bool to indicate whether the data was successfully pushed to the engine or not.
 
-## Realtime AdapterManager
+## Realtime `AdapterManager`
 
 In most cases you will likely want to expose a single source of data into multiple input adapters.
-For this use case your adapter should define an AdapterManager *--graph--* time component, and AdapterManagerImpl *--impl--* runtime component.
-The AdapterManager *--graph--* time component just represents the parameters needed to create the *--impl--* AdapterManager.
-Its the *--impl--* that will have the actual implementation that will open the data source, parse the data and provide it to individual Adapters.
+For this use case your adapter should define an `AdapterManager` *--graph--* time component, and `AdapterManagerImpl` *--impl--* runtime component.
+The `AdapterManager` *--graph--* time component just represents the parameters needed to create the *--impl--* `AdapterManager`.
+Its the *--impl--* that will have the actual implementation that will open the data source, parse the data and provide it to individual Adapters.
 
-Similarly you will need to define a derived PushInputAdapter *--impl--* component to handle events directed at an individual time series adapter.
+Similarly you will need to define a derived `PushInputAdapter` *--impl--* component to handle events directed at an individual time series adapter.
 
-**NOTE** It is highly recommended not to open any resources in the *--graph--* time component.
+**NOTE** It is highly recommended not to open any resources in the *--graph--* time component.
 Graph time components can be pruned and/or memoized into a single instance, opening resources at graph time shouldn't be necessary.
 
 ### AdapterManager - **graph-- time**
 
-The graph time AdapterManager doesn't need to derive from any interface.
+The graph time `AdapterManager` doesn't need to derive from any interface.
 It should be initialized with any information the impl needs in order to open/process the data source (ie activemq connection information, server host port, multicast channels, config files, etc etc).
 It should also have an API to create individual timeseries adapters.
-These adapters will then get passed the adapter manager *--impl--* as an argument when they are created, so that they can register themselves for processing.
-The AdapterManager also needs to define a **\_create** method.
-The **\_create** is the bridge between the *--graph--* time AdapterManager representation and the runtime *--impl--* object.
-**\_create** will be called on the *--graph--* time AdapterManager which will in turn create the *--impl--* instance.
+These adapters will then get passed the adapter manager *--impl--* as an argument when they are created, so that they can register themselves for processing.
+The `AdapterManager` also needs to define a **\_create** method.
+The **\_create** is the bridge between the *--graph--* time `AdapterManager` representation and the runtime *--impl--* object.
+**\_create** will be called on the *--graph--* time `AdapterManager` which will in turn create the *--impl--* instance.
 \_create will get two arguments, engine (this represents the runtime engine object that will run the graph) and  memo dict which can optionally be used for any memoization that on might want.
 
-Lets take a look at the example found in
-"e_14_user_adapters_04_adaptermanager_pushinput"
+Lets take a look at the example found in [e_14_user_adapters_04_adaptermanager_pushinput.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_user_adapters_04_adaptermanager_pushinput.py):
 
 ```python
 # This object represents our AdapterManager at graph time. It describes the manager's properties
@@ -231,14 +230,14 @@ class MyAdapterManager:
         return MyAdapterManagerImpl(engine, self._interval)
 ```
 
-- **\_\_init\_\_** - as you can see, all \_\_init\_\_ does is keep the parameters that the impl will need.
-- **subscribe** - API to create an individual timeseries / edge from this file for the given symbol.
+- **\_\_init\_\_** - as you can see, all \_\_init\_\_ does is keep the parameters that the impl will need.
+- **subscribe** - API to create an individual timeseries / edge from this file for the given symbol.
   The interface defined here is up to the adapter writer, but generally "subscribe" is recommended, and it should take any number of arguments needed to define a single stream of data.
-  *MyPushAdapter* is the *--graph--* time representation of the edge, which will be described below.
-  We pass it *self* as its first argument, which will be used to create the AdapterManager *--impl--*
-- **\_create** - the method to create the *--impl--* object from the given *--graph--* time representation of the manager
+  *MyPushAdapter* is the *--graph--* time representation of the edge, which will be described below.
+  We pass it *self* as its first argument, which will be used to create the `AdapterManager` *--impl--*
+- **\_create** - the method to create the *--impl--* object from the given *--graph--* time representation of the manager
 
-MyAdapterManager would then be used in graph building code like so:
+`MyAdapterManager` would then be used in graph building code like so:
 
 ```python
 adapter_manager = MyAdapterManager(timedelta(seconds=0.75))
@@ -248,8 +247,8 @@ csp.print(symbol + " last_value", data)
 
 ### AdapterManager - **impl-- runtime**
 
-The AdapterManager *--impl--* is responsible for opening the data source, parsing and processing all the data and managing all the adapters it needs to feed.
-The impl class should derive from csp.impl.adaptermanager.AdapterManagerImpl and implement the following methods:
+The `AdapterManager` *--impl--* is responsible for opening the data source, parsing and processing all the data and managing all the adapters it needs to feed.
+The impl class should derive from `csp.impl.adaptermanager.AdapterManagerImpl` and implement the following methods:
 
 - **start(self,starttime,endtime)**: this is called when the engine starts up.
   At this point the impl should open the resource providing the data and start up any thread(s) needed to listen to and react to external data.
@@ -259,20 +258,20 @@ The impl class should derive from csp.impl.adaptermanager.AdapterManagerImpl and
 
 In the example manager, we spawn a processing thread in the `start()` call.
 This thread runs in a loop until it is shutdown, and will generate random data to tick out to the registered input adapters.
-Data is passed to a given adapter by calling **push_tick**()
+Data is passed to a given adapter by calling `push_tick()`.
 
 ### PushInputAdapter - **--impl-- runtime**
 
-Users will need to define PushInputAdapter derived types to represent the individual timeseries adapter *--impl--* objects.
-Objects should derive from csp.impl.pushadapter.PushInputAdapter.
+Users will need to define `PushInputAdapter` derived types to represent the individual timeseries adapter *--impl--* objects.
+Objects should derive from `csp.impl.pushadapter.PushInputAdapter`.
 
-PushInputAdapter defines a method `push_tick()` which takes the value to feed the input timeseries.
+`PushInputAdapter` defines a method `push_tick()` which takes the value to feed the input timeseries.
 
-### PushInputAdapter - **--graph-- time**
+### PushInputAdapter - **--graph-- time**
 
-Similar to the stand alone PushInputAdapter described above, we need to define a graph-time construct that represents a PushInputAdapter edge.
-In order to define this we use py_push_adapter_def again, but this time we pass the adapter manager *--graph--* time type so that it gets constructed properly.
-When the PushInputAdapter instance is created it will also receive an instance of the adapter manager *--impl–-*, which it can then self-register on/
+Similar to the stand alone `PushInputAdapter` described above, we need to define a graph-time construct that represents a `PushInputAdapter` edge.
+In order to define this we use `py_push_adapter_def` again, but this time we pass the adapter manager *--graph--* time type so that it gets constructed properly.
+When the `PushInputAdapter` instance is created it will also receive an instance of the adapter manager *--impl–-*, which it can then self-register on.
 
 ```python
 def py_push_adapter_def (name, adapterimpl, out_type, manager_type=None, memoize=True, force_memoize=False, **kwargs):
@@ -289,7 +288,7 @@ the first argument to the implementation will be the adapter manager impl instan
 
 ### Example
 
-Continuing with the --graph-- time AdapterManager described above, we
+Continuing with the *--graph--* time `AdapterManager` described above, we
 now define the impl:
 
 ```python
@@ -355,9 +354,9 @@ class MyAdapterManagerImpl(AdapterManagerImpl):
             time.sleep(self._interval.total_seconds())
 ```
 
-Then we define our PushInputAdapter --impl--, which basically just
-self-registers with the adapter manager --impl-- upon construction. We
-also define our PushInputAdapter *--graph--* time construct using `py_push_adapter_def`.
+Then we define our `PushInputAdapter` *--impl--*, which basically just
+self-registers with the adapter manager *--impl--* upon construction. We
+also define our `PushInputAdapter` *--graph--* time construct using `py_push_adapter_def`.
 
 ```python
 # The Impl object is created at runtime when the graph is converted into the runtime engine
@@ -373,7 +372,7 @@ class MyPushAdapterImpl(PushInputAdapter):
 MyPushAdapter = py_push_adapter_def('MyPushAdapter', MyPushAdapterImpl, ts[MyData], MyAdapterManager, symbol=str)
 ```
 
-And then we can run our adapter in a csp graph
+And then we can run our adapter in a CSP graph
 
 ```python
 @csp.graph

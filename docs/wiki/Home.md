@@ -19,7 +19,7 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
 
 ## Get Started
 
-- [Install `csp`](Installation) and [write your first CSP program](First-Steps)
+- [Install CSP](Installation) and [write your first CSP program](First-Steps)
 - Learn more about [nodes](CSP-Node), [graphs](CSP-Graph), and [execution modes](Execution-Modes)
 - Learn to extend CSP with [adapters](Adapters)
 <!-- - Check out the [examples](Examples) for various CSP features and use cases -->
@@ -34,4 +34,4 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
 
 ## License
 
-CSP is licensed under the Apache 2.0 license. See the [LICENSE](https://github.com/Point72/csp/blob/main/LICENSE) file for details.
+CSP is licensed under the Apache 2.0 license. See the [LICENSE](https://github.com/Point72/csp/blob/main/LICENSE) file for details.

@@ -8,10 +8,10 @@
 
 ## Anatomy of a `csp.graph`
 
-To reiterate, csp.graph methods are called in order to construct the graph and are only executed before the engine is run.
-csp.graph methods don't do anything special, they are essentially regular python methods, but they can be defined to accept inputs and generate outputs similar to csp.nodes.
+To reiterate, `csp.graph` methods are called in order to construct the graph and are only executed before the engine is run.
+`csp.graph` methods don't do anything special, they are essentially regular python methods, but they can be defined to accept inputs and generate outputs similar to `csp.nodes`.
 This is solely used for type checking.
-csp.graph methods can be created to encapsulate components of a graph, and can be called from other csp.graph methods in order to help facilitate graph building.
+`csp.graph` methods can be created to encapsulate components of a graph, and can be called from other `csp.graph` methods in order to help facilitate graph building.
 
 Simple example:
 
@@ -33,28 +33,28 @@ def calc_portfolio_pnl(symbols: [str]) -> ts[float]:
     return csp.sum(symbol_pnl)
 ```
 
-In this simple example we have a csp.graph component `calc_symbol_pnl` which encapsulates computing pnl for a single symbol.
+In this simple example we have a `csp.graph` component `calc_symbol_pnl` which encapsulates computing pnl for a single symbol.
 `calc_portfolio_pnl` is a graph that computes portfolio level pnl, it invokes the symbol-level pnl calc for every symbol, then sums up the results for the portfolio level pnl.
 
 ## Graph Propagation and Single-dispatch
 
-The `csp` graph propagation algorithm ensures that all nodes are executed *once* per engine cycle, and in the correct order.
+The CSP graph propagation algorithm ensures that all nodes are executed *once* per engine cycle, and in the correct order.
 Correct order means, that all input dependencies of a given node are guaranteed to have been evaluated before a given node is executed.
 Take this graph for example:
 
 ![359407953](https://github.com/Point72/csp/assets/3105306/d9416353-6755-4e37-8467-01da516499cf)
 
 On a given cycle lets say the `bid` input ticks.
-The `csp` engine will ensure that **`mid`** is executed, followed by **`spread`** and only once **`spread`**'s output is updated will **`quote`** be called.
-When **`quote`** executes it will have the latest values of the `mid` and `spread` calc for this cycle.
+The CSP engine will ensure that **`mid`** is executed, followed by **`spread`** and only once **`spread`**'s output is updated will **`quote`** be called.
+When **`quote`** executes it will have the latest values of the `mid` and `spread` calc for this cycle.
 
 ## Graph Pruning
 
-One should note a subtle optimization technique in `csp` graphs.
+One should note a subtle optimization technique in CSP graphs.
 Any part of a graph that is created at graph building time, but is NOT connected to any output nodes, will be pruned from the graph and will not exist during runtime.
 An output is defined as either an output adapter or a `csp.node` without any outputs of its own.
 The idea here is that we can avoid doing work if it doesn't result in any output being generated.
-In general its best practice for all csp.nodes to be \***side-effect free**, in other words they shouldn't mutate any state outside of the node.
+In general its best practice for all `csp.nodes` to be \***side-effect free**, in other words they shouldn't mutate any state outside of the node.
 Assuming all nodes are side-effect free, pruning the graph would not have any noticeable effects.
 
 ## Collecting Graph Outputs
@@ -94,7 +94,7 @@ This gives the same result:
 ```python
 @csp.graph
 def my_graph():
-    csp.add_graph_output('a', csp.merge(csp.const(1), csp.const(2, timedelta(seconds=1))))
+    csp.add_graph_output('a', csp.merge(csp.const(1), csp.const(2, timedelta(seconds=1))))
 ```
 
 In addition to python outputs like above, you can set the optional `csp.run` argument `output_numpy` to `True` to get outputs as numpy arrays:

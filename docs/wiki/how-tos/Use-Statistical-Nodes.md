@@ -18,11 +18,11 @@
 
 ## Introduction
 
-The `csp.stats` library provides rolling window calculations on time series data in csp.
-The goal of the library is to provide a uniform, robust interface for statistical calculations in csp.
+The `csp.stats` library provides rolling window calculations on time series data in CSP.
+The goal of the library is to provide a uniform, robust interface for statistical calculations in CSP.
 Each computation is a `csp.graph` which consists of one or more nodes that perform a given computation.
 Users can treat these graphs as a "black box" with specified inputs and outputs as provided in the API reference.
-Example statistics graphs for *mean* and *standard deviation* are provided below to give a rough idea of how the graphs work.
+Example statistics graphs for *mean* and *standard deviation* are provided below to give a rough idea of how the graphs work.
 
 **Mean using a tick-specified interval**
 ![437686747](https://github.com/Point72/csp/assets/3105306/5586a355-e405-45c3-aa6d-c64754fd6c26)
@@ -42,19 +42,19 @@ Internally, all values are cast to float-type.
 `NaN` values in the series (if applicable) are allowed and will be handled as specified by the `ignore_na` flag.
 
 If you are performing the same calculation on many different series, **it is highly recommended that you use a NumPy array.**
-NumPy array inputs result in a much smaller csp graph which can drastically improve performance.
+NumPy array inputs result in a much smaller CSP graph which can drastically improve performance.
 If different series tick asynchronously, then sometimes using single-input calculations cannot be avoided.
 However, you can consider sampling your data at regularly specified intervals, and then using the sampled values to create a NumPy array which is provided to the calculation.
 
 ## Working with a NumPy time series
 
 All statistics functions work on both single-input time series and time series of NumPy arrays.
-NumPy arrays provide the ability to perform the same calculation on many different elements within the same csp.node, and therefore drastically reduce the overall size of the csp graph.
+NumPy arrays provide the ability to perform the same calculation on many different elements within the same `csp.node`, and therefore drastically reduce the overall size of the CSP graph.
 The performance benefits of using NumPy arrays for large-scale computations (i.e. thousands of symbols) is order of magnitudes faster, per benchmarking.
-To convert a list of individual series into a NumPy array, use the csp.stats.list_to_numpy conversion node.
-To convert back to a basket of series, use the csp.stats.numpy_to_list converter.
+To convert a list of individual series into a NumPy array, use the `csp.stats.list_to_numpy` conversion node.
+To convert back to a basket of series, use the `csp.stats.numpy_to_list` converter.
 
-All calculations on NumPy arrays are performed element-wise, with exception of `cov_matrix` and `corr_matrix` which are defined in the statistical sense.
+All calculations on NumPy arrays are performed element-wise, with exception of `cov_matrix` and `corr_matrix` which are defined in the statistical sense.
 Arrays of arbitrary dimension are supported, as well as array views such as transposes and slices.
 The data type of arrays must be of float-type, not an int.
 If your data is integer valued, convert the array to a float-type using the `astype` function in the NumPy library.
@@ -63,16 +63,16 @@ Basic mathematical operations (such as addition, multiplication etc.) are define
 ## Working with a basket of time series
 
 There are two ways that users can run stats function on a listbasket of time series.
-If the data in the time series ticks together (or *relatively* together) then users can convert their listbasket data into a NumPy array time series
-using the `list_to_numpy` node, run the calculations they want, and then convert back to a listbasket using the `numpy_to_list` node.
-Since NumPy arrays only require one node per computation, whereas a list of `N` time series will require `N` nodes, this method is highly efficient even for small graphs.
+If the data in the time series ticks together (or *relatively* together) then users can convert their listbasket data into a NumPy array time series
+using the `list_to_numpy` node, run the calculations they want, and then convert back to a listbasket using the `numpy_to_list` node.
+Since NumPy arrays only require one node per computation, whereas a list of `N` time series will require `N` nodes, this method is highly efficient even for small graphs.
 Below is a diagram of the workflow for a listbasket with 2 elements.
 
 **A sum over a listbasket with 2 elements**
 ![437687654](https://github.com/Point72/csp/assets/3105306/0e12b9ff-9461-497c-895d-3b1c33669235)
 
 If the data does not tick (or is sampled) at the same time or the computations are fundamentally different in nature (i.e. different intervals), then the NumPy method will not provide the desired functionality.
-Instead, if users wish to store all their individual time series in a listbasket, then they must use single input stats with standard csp listbasket syntax.
+Instead, if users wish to store all their individual time series in a listbasket, then they must use single input stats with standard CSP listbasket syntax.
 This method is significantly slower than using NumPy arrays, since the graphs must be much larger.
 However, depending on your use case, this may be unavoidable.
 If possible, it is highly recommended that you consider transformations to your data that allow it to be stored in NumPy arrays, such as sampling at given intervals.
@@ -86,7 +86,7 @@ However, some computations may have to be applied cross-sectionally, and some us
 
 To use cross-sectional statistics, use the `csp.stats.cross_sectional` utility to receive all data in the current window.
 Then, use `csp.apply` to use your own function on the cross-sectional data.
-The `cross_sectional` function allows for the same user options as standard stats functions (such as triggering and sampling).
+The `cross_sectional` function allows for the same user options as standard stats functions (such as triggering and sampling).
 An example of using `csp.stats.cross_sectional` is shown below:
 
 ```python
@@ -139,7 +139,7 @@ For example,
 
 Time intervals are inclusive at the right endpoint but **exclusive** at the left endpoint.
 For example, if `x` ticks every one second with a value of `1`, and I call `csp.stats.sum(x, timedelta(seconds=1))`then my output will be `1` at all times.
-It will not be `2`, since the left endpoint value (which ticked *exactly* one second ago) is not included.
+It will not be `2`, since the left endpoint value (which ticked *exactly* one second ago) is not included.
 
 Tick intervals include `NaN` values.
 For example, a tick interval of size `10` with `9` `NaN` values in the interval will only use the single non-nan value for computations.
@@ -149,7 +149,7 @@ If no interval is specified, then the calculation will be treated as an expandin
 
 ### Triggers, samplers and resets
 
-**Triggers** are optional arguments which *trigger* a computation of the statistic.
+**Triggers** are optional arguments which *trigger* a computation of the statistic.
 If no trigger is provided as an argument, the statistic will be computed every time `x` ticks i.e. `x` becomes the trigger.
 
 ```python
@@ -172,7 +172,7 @@ sum(x, interval=2, trigger=trigger)
 {'2020-01-02': 3}
 ```
 
-**Samplers** are optional arguments which *sample* the data.
+**Samplers** are optional arguments which *sample* the data.
 Samplers are used to signify when the data, `x`, *should* tick.
 If no sampler is provided, the data is sampled whenever `x` ticks i.e. `x` becomes the sampler.
 
@@ -200,7 +200,7 @@ sum(x, interval=2, sampler=sampler)
 {'2020-01-03': 4}
 ```
 
-**Resets** are optional arguments which *reset* the interval, clearing all existing data.
+**Resets** are optional arguments which *reset* the interval, clearing all existing data.
 Whenever reset ticks, the data is cleared.
 If no reset is provided, then the data is never reset.
 
@@ -268,7 +268,7 @@ sum(x, interval=timedelta(days=2), min_window=timedelta(days=1))
 {'2020-01-02': 3, '2020-01-03': 5}
 ```
 
-**Minimum data points** (`min_data_points`) is the number of *valid* (non-nan) data points that must exist in the current window for a valid computation.
+**Minimum data points** (`min_data_points`) is the number of *valid* (non-nan) data points that must exist in the current window for a valid computation.
 By default, min_data_points is 0.
 However, in most applications, if you are dealing with frequently NaN data you may want to ensure that stats computations provide meaningful results.
 Thus, if the interval has fewer than min_data_points values, the computation is too noisy and thus NaN is returned instead.
@@ -293,7 +293,7 @@ sum(x, interval=2, min_data_points=2)
 ### NaN handling
 
 The stats library provides a uniform interface for NaN handling.
-Functions have an `ignore_na` parameter which is a bool argument (default value is `True`).
+Functions have an `ignore_na` parameter which is a bool argument (default value is `True`).
 
 - If `ignore_na=True`, then NaN values are "ignored" in the computation but still included in the interval
 - If `ignore_na=False`, then NaN values make the whole computation NaN ("poison" the interval) as long as they are present in the interval
@@ -317,7 +317,7 @@ sum(x, interval=2, ignore_na=False)
 {'2020-01-02': nan, '2020-01-03': nan, '2020-01-04': 7}
 ```
 
-For exponential moving calculations, **EMA NaN handling** is slightly different.
+For exponential moving calculations, **EMA NaN handling** is slightly different.
 If `ignore_na=True`, then NaN values are completely discarded.
 If `ignore_na=False`, then NaN values do not poison the interval, but rather count as a tick with no data.
 This affects the reweighting of past data points when the next tick with valid data is added.
@@ -326,10 +326,10 @@ For a detailed explanation, see the EMA section.
 ### Weighted statistics
 
 **Weights** is an optional time-series which gives a relative weight to each data point.
-Weighted statistics are available for: *sum(), mean(), var(), cov(), stddev(), sem(), corr(), skew(), kurt(), cov_matrix()* and *corr_matrix()*.
+Weighted statistics are available for: *sum(), mean(), var(), cov(), stddev(), sem(), corr(), skew(), kurt(), cov_matrix()* and *corr_matrix()*.
 Since weights are relative, they do not need to be normalized by the user.
-Weights also do not need to tick at the same time as the data, necessarily: the weights are *sampled* whenever the data sampler ticks.
-For higher-order statistics such as variance, covariance, correlation, standard deviation, standard error, skewness and kurtosis, weights are interpreted as *frequency weights*.
+Weights also do not need to tick at the same time as the data, necessarily: the weights are *sampled* whenever the data sampler ticks.
+For higher-order statistics such as variance, covariance, correlation, standard deviation, standard error, skewness and kurtosis, weights are interpreted as *frequency weights*.
 This means that a weight of 1 corresponds to that observation occurring once and a weight of 2 signifies that observation occurring twice.
 
 If either the data *or* its corresponding weight is NaN, then the weighted data point is collectively treated as NaN.
@@ -360,7 +360,7 @@ mean(x, interval=2, weights=weights)
 If the time-series is of type `float`, then the weights series is also of type `float`.
 If the time-series is of type `np.ndarray`, then the weights series is sometimes of type `np.ndarray` and sometimes of type `float`.
 For element-wise statistics *sum(), mean(), var(), stddev(), sem(), skew(), kurt()* the weights are element-wise as well.
-For *cov_matrix()* and *corr_matrix(),* the weights are of type float since they apply to the data vector collectively.
+For *cov_matrix()* and *corr_matrix(),* the weights are of type float since they apply to the data vector collectively.
 Consult the individual function references for more details.
 
 ```python
@@ -392,22 +392,22 @@ Stats functions are not guaranteed to be numerically stable due to the nature of
 These functions implement online algorithms which have increased risk of floating point precision errors, especially when the data is ill-conditioned.
 **Users are recommended to apply their own data cleaning** before calling these functions.
 Data cleaning may include clipping large, erroneous values to be NaN or normalizing data based on historical ranges.
-Cleaning can be implemented using the `csp.apply` node (see baselib documentation) with your cleaning pipeline expressed within a callable object (function).
+Cleaning can be implemented using the `csp.apply` node (see baselib documentation) with your cleaning pipeline expressed within a callable object (function).
 If numerical stability is paramount, then cross-sectional calculations can be used at the cost of efficiency (see the section below on Cross-Sectional Statistics).
 
 Where possible, `csp.stats` algorithms are chosen to maximize stability while maintaining their online efficiency.
 For example, rolling variance is calculated using Welford's online algorithm and rolling sums are calculated using Kahan's algorithm if `precise=True` is set.
 Floating-point error can still accumulate when the functions are used on large data streams, especially if the interval used is small in comparison to the quantity of data.
-Each stats method that is prone to floating-point error exposes a **recalc parameter** which is an optional time-series argument to trigger a clean recalculation of the statistic.
+Each stats method that is prone to floating-point error exposes a **recalc parameter** which is an optional time-series argument to trigger a clean recalculation of the statistic.
 The recalculation clears any accumulated floating-point error up to that point.
 
 ### The `recalc` parameter
 
-The `recalc` parameter is an optional time-series argument designed to stop unbounded floating-point error accumulation in rolling `csp.stats`  functions.
-When `recalc` ticks, the next calculation of the desired statistic will be computed with all data in the window.
+The `recalc` parameter is an optional time-series argument designed to stop unbounded floating-point error accumulation in rolling `csp.stats`  functions.
+When `recalc` ticks, the next calculation of the desired statistic will be computed with all data in the window.
 This clears any accumulated error from prior intervals.
 The parameter is meant to be used heuristically for use cases involving large data streams and small interval sizes, causing values to be continuously added and removed from the window.
-Periodically triggering a recalculation will limit the floating-point error accumulation caused by these updates; for example, a user could set `recalc` to tick every 100 intervals of their data.
+Periodically triggering a recalculation will limit the floating-point error accumulation caused by these updates; for example, a user could set `recalc` to tick every 100 intervals of their data.
 The cost of triggering a recalculation is efficiency: since all data in the window must be processed, it is not as fast as doing the calculation in the standard online fashion.
 
 A basic example using the `recalc` parameter is provided below.

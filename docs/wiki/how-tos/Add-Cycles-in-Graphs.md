@@ -1,13 +1,13 @@
-By definition of the graph building code, csp graphs can only produce acyclical graphs.
+By definition of the graph building code, CSP graphs can only produce acyclical graphs.
 However, there are many occasions where a cycle may be required.
 For example, lets say you want part of your graph to simulate an exchange.
 That part of the graph would need to accept new orders and return acks and executions.
-However, the acks / executions would likely need to *feedback* into the same part of the graph that generated the orders.
+However, the acks / executions would likely need to *feedback* into the same part of the graph that generated the orders.
 For this reason, the `csp.feedback` construct exists.
 Using `csp.feedback` one can wire a feedback as an input to a node, and effectively bind the actual edge that feeds it later in the graph.
 Note that internally the graph is still acyclical.
 Internally `csp.feedback` creates a pair of output and input adapters that are bound together.
-When a timeseries that is bound to a feedback ticks, it is fed to the feedback which then schedules the tick on its bound input to be executed on the **next engine cycle**.
+When a timeseries that is bound to a feedback ticks, it is fed to the feedback which then schedules the tick on its bound input to be executed on the **next engine cycle**.
 The next engine cycle will execute with the same engine time as the cycle that generated it, but it will be evaluated in a subsequent cycle.
 
 - **`csp.feedback(ts_type)`**: `ts_type` is the type of the timeseries (ie int, str).

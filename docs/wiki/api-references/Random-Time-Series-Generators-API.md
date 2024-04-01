@@ -25,7 +25,7 @@ Args:
 
 - **`rate`**: The rate of the Poisson process (per second), must be non-negative
 - **`seed`**: The seed for the numpy random Generator. Can be anything accepted by `np.random.default_rng`
-- **`value`**: The value to tick when there are events (similar to csp.timer)
+- **`value`**: The value to tick when there are events (similar to `csp.timer`)
 
 ## Random Noise
 

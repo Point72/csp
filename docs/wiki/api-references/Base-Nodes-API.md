@@ -1,7 +1,7 @@
 CSP comes with some basic constructs readily available and commonly used.
 The latest set of base nodes can be found in the `csp.baselib` module.
 
-All of the nodes noted here are imported directly into the csp namespace when importing csp.
+All of the nodes noted here are imported directly into the CSP namespace when importing CSP.
 
 These are all graph-time constructs.
 
@@ -61,7 +61,7 @@ csp.log(
 ```
 
 Similar to `csp.print`, this will log ticks using the logger on the provided level.
-The default 'csp' logger is used if none is provided to the node.
+The default CSP logger is used if none is provided to the node.
 
 Args:
 
@@ -97,7 +97,7 @@ Only output the first `N` ticks of the input.
 ## `count`
 
 ```python
-csp.count(x: ts[object]) → ts[int]
+csp.count(x: ts[object]) → ts[int]
 ```
 
 Returns the ticking count of ticks of the input
@@ -132,7 +132,7 @@ csp.merge( x: ts['T'], y: ts['T']) → ts['T']
 
 Merges the two timeseries `x` and `y` into a single series.
 If both tick on the same cycle, the first input (`x`) wins and the value of `y` is dropped.
-For loss-less merging see `csp.flatten`
+For loss-less merging see `csp.flatten`
 
 ## `split`
 
@@ -171,7 +171,7 @@ Will drop consecutive duplicate values from the input.
 csp.unroll(x: ts[['T']]) → ts['T']
 ```
 
-Given a timeseries of a *list* of values, unroll will "unroll" the values in the list into a timeseries of the elements.
+Given a timeseries of a *list* of values, unroll will "unroll" the values in the list into a timeseries of the elements.
 `unroll` will ensure to preserve the order across all list ticks.
 Ticks will be unrolled in subsequent engine cycles.
 
@@ -181,7 +181,7 @@ Ticks will be unrolled in subsequent engine cycles.
 csp.collect(x: [ts['T']]) → ts[['T']]
 ```
 
-Given a basket of inputs, return a timeseries of a *list* of all values that ticked
+Given a basket of inputs, return a timeseries of a *list* of all values that ticked
 
 ## `flatten`
 
@@ -190,7 +190,7 @@ csp.flatten(x: [ts['T']]) → ts['T']
 ```
 
 Given a basket of inputs, return all ticks across all inputs as a single timeseries of type 'T'
-(This is similar to `csp.merge` except that it can take more than two inputs, and is lossless)
+(This is similar to `csp.merge` except that it can take more than two inputs, and is lossless)
 
 ## `default`
 
@@ -279,15 +279,15 @@ csp.demultiplex(
 ) → {key: ts['T']}
 ```
 
-Given a single timeseries input, a key timeseries to demultiplex on and a set of expected keys, will output the given input onto the corresponding basket output of the current value of `key`.
+Given a single timeseries input, a key timeseries to demultiplex on and a set of expected keys, will output the given input onto the corresponding basket output of the current value of `key`.
 A good example use case of this is demultiplexing a timeseries of trades by account.
-Assuming your trade struct has an account field, you can `demultiplex(trades, trades.account, [ 'acct1', 'acct2', ... ])`.
+Assuming your trade struct has an account field, you can `demultiplex(trades, trades.account, [ 'acct1', 'acct2', ... ])`.
 
 Args:
 
 - **`x`**: the input timeseries to demultiplex
 - **`key`**: a ticking timeseries of the current key to output to
-- **`keys`**: a list of expected keys that will define the shape of the output basket.  The list of keys must be known at graph building time
+- **`keys`**: a list of expected keys that will define the shape of the output basket.  The list of keys must be known at graph building time
 - **`raise_on_bad_key`**: if `True` an exception will be raised of key ticks with an unrecognized key (defaults to `False`)
 
 ## `dynamic_demultiplex`
@@ -362,8 +362,8 @@ Args:
 
 - **`expression_str`**: an expression, as per the [C++ Mathematical Expression Library](http://www.partow.net/programming/exprtk/) (see [readme](http://www.partow.net/programming/exprtk/code/readme.txt)
 - **`inputs`**: a dict basket of timeseries. The keys will correspond to the variables in the expression. The timeseries can be of float or string
-- **`state_vars`**: an optional dictionary of variables to be held in state between executions, and assignable within the expression.  Keys are the variable names and values are the starting values
+- **`state_vars`**: an optional dictionary of variables to be held in state between executions, and assignable within the expression.  Keys are the variable names and values are the starting values
 - **`trigger`**: an optional trigger for when to calculate. By default will calculate on any input tick
 - **`functions`**: an optional dictionary whose keys are function names that can be used in the expression, and whose values are of the form `(("arg1", ..), "function body")`, for example `{"foo": (("x","y"), "x\*y")}`
-- **`constants`**: an optional dictionary of constants.  Keys are constant names and values are their values
+- **`constants`**: an optional dictionary of constants.  Keys are constant names and values are their values
 - **`output_ndarray`**: if `True`, output ndarray (1D) instead of float. Note that to output `ndarray`, the expression needs to use return like `return [a, b, c]`. The length of the array can vary between ticks.

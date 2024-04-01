@@ -50,7 +50,7 @@ Notes for editors:
   - [`csp.dynamic` API](csp.dynamic-API)
   - [`csp.profiler` API](csp.profiler-API)
 - [Examples](Examples)
-- [Glossary of Terms](Glosarry)
+- [Glossary of Terms](Glossary)
 
 **Developer Guide**
 

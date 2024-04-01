@@ -6,10 +6,13 @@ We ship binary wheels to install CSP on MacOS and Linux via `pip`:
 pip install csp
 ```
 
-## `conda` (coming soon)
+## `conda`
 
-We plan to create conda packages on conda-forge and ship binaries for Windows in
-the near future.
+CSP is available on `conda` for Linux and Mac:
+
+```bash
+conda install csp -c conda-forge
+```
 
 ## Source installation
 

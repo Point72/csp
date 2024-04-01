@@ -133,7 +133,7 @@ def demo_basket_node(                          # 2
 ```
 
 3\) Note the syntax of basket inputs.
-list baskets are noted as `[ts[type]]` (a list of time series) and dict baskets are `{key_type: ts[ts_type]}` (a dictionary of timeseries keyed by type `key_type`).
+list baskets are noted as `[ts[type]]` (a list of time series) and dict baskets are `{key_type: ts[ts_type]}` (a dictionary of timeseries keyed by type `key_type`). It is also possible to use the `List[ts[int]]` and `Dict[str, ts[int]]` typing notation.
 
 7\) Just like single timeseries, we can react to a basket if it ticked.
 The convention is the same as passing multiple inputs to `csp.ticked`, `csp.ticked` is true if **any** basket input ticked.
@@ -214,8 +214,8 @@ def demo_basket_output_node(                                              # 7
     symbols: [str],                                                       # 9
     num_symbols: int                                                      # 10
 ) -> csp.Outputs(                                                         # 11
-    dict_basket=csp.OutputBasket(Dict[str, ts[float]], shape="symbols"),  # 15
-    list_basket=csp.OutputBasket(List[ts[float]], shape="num_symbols"),   # 16
+    dict_basket=csp.OutputBasket({str: ts[float]}, shape="symbols"),  # 15
+    list_basket=csp.OutputBasket([ts[float]], shape="num_symbols"),   # 16
 ):                                                                        # 17
                                                                           # 18
     if csp.ticked(in_):                                                   # 19

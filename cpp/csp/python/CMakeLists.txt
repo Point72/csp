@@ -10,8 +10,10 @@ add_library(csptypesimpl
             CspTypeFactory.cpp
             PyCspEnum.cpp
             PyCspType.cpp
-            PyStruct.cpp)
+            PyStruct.cpp
+            PyStructToJson.cpp)
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
+target_compile_definitions(csptypesimpl PUBLIC RAPIDJSON_HAS_STDSTRING=1)
 target_link_libraries(csptypesimpl csp_core csp_types)
 
 set(CSPIMPL_PUBLIC_HEADERS
@@ -36,7 +38,8 @@ set(CSPIMPL_PUBLIC_HEADERS
         PyObjectPtr.h
         PyOutputAdapterWrapper.h
         PyOutputProxy.h
-        PyConstants.h)
+        PyConstants.h
+        PyStructToJson.h)
 
 add_library(cspimpl SHARED
         cspimpl.cpp

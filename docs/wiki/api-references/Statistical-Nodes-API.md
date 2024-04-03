@@ -841,94 +841,98 @@ min(x, interval=timedelta(days=3), min_window=timedelta(days=1))
 
 ### Median
 
+```python
 median(
-x: ts\[Union\[float, np.ndarray\]\],
-interval: Union\[timedelta, int\] = None,
-min_window: Union\[timedelta, int\] = None,
-ignore_na: bool = True,
-trigger: ts\[object\] = None,
-sampler: ts\[object\] = None,
-reset: ts\[object\] = None,
-min_data_points: int = 0
-) → ts\[Union\[float, np.ndarray\]\]
-
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
+    ignore_na: bool = True,
+    trigger: ts[object] = None,
+    sampler: ts[object] = None,
+    reset: ts[object] = None,
+    min_data_points: int = 0
+) → ts[Union[float, np.ndarray]]
 ```
+
 Args:
+
 - **x**: the time-series data
 - **interval**: the rolling interval over which to use data. If unspecified or set to None, an expanding (unbounded) window will be used.
-    - if an int, represents the number of ticks to use
-    - if a timedelta, represents the time interval to keep data (non-inclusive at left endpoint)
+  - if an int, represents the number of ticks to use
+  - if a timedelta, represents the time interval to keep data (non-inclusive at left endpoint)
 - **min_window**: the minimum allowable interval to use before outputting data
-    - If the interval is a timedelta then this must also be a timedelta. Example: interval=60s, min_window=30s means to use a 60s rolling interval with no output for the first 30s.
-    - If the interval is a tick count then this must also be a tick count. Example: interval=100, min_window=50 means to use a 100-tick rolling interval with no output until we have 50 ticks
+  - If the interval is a timedelta then this must also be a timedelta. Example: interval=60s, min_window=30s means to use a 60s rolling interval with no output for the first 30s.
+  - If the interval is a tick count then this must also be a tick count. Example: interval=100, min_window=50 means to use a 100-tick rolling interval with no output until we have 50 ticks
 - **ignore_na**: if True, does not include any nan values in the window. If false, nan values in the window will make the entire window value nan.
-- **trigger**: another optional time-series which can be used to externally trigger computations. Whenever the trigger ticks, the given statistic will be updated and returned. 
-    - *By default*, the trigger is the series itself.
+- **trigger**: another optional time-series which can be used to externally trigger computations. Whenever the trigger ticks, the given statistic will be updated and returned.
+  - *By default*, the trigger is the series itself.
 - **sampler**: another optional time-series which specifies when x *should* tick. The behavior is as follows:
-    - If x ticks *and *sampler ticks, then the x tick is considered valid and is used.
-    - If x ticks but sampler does not tick, then the x tick is considered invalid and is ignored.
-    - If x does not tick but sampler ticks, then the x tick is considered NaN and is handled based on the ignore_na flag.
-    - *By default*, the sampler is the series itself.
+  - If x ticks \*and \*sampler ticks, then the x tick is considered valid and is used.
+  - If x ticks but sampler does not tick, then the x tick is considered invalid and is ignored.
+  - If x does not tick but sampler ticks, then the x tick is considered NaN and is handled based on the ignore_na flag.
+  - *By default*, the sampler is the series itself.
 - **reset**: another optional time-series which, when ticked, will clear all data in the interval and "reset" the calculation
 - **min_data_points**: the minimum number of valid (non-nan) data points that must exist in the interval for a calculation to be valid. If there are fewer than min_data_point, NaN is returned.
 
 Returns:
+
 - a time-series of rolling medians over the interval. Uses midpoint interpolation if there are an even number of samples.
 
 #### Examples: `median`
+
 See `quantile`
 
-
 ### Quantile
+
+```python
+quantile(
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    quant: Union[float, List[float]] = None,
+    min_window: Union[timedelta, int] = None,
+    interpolate: str = "linear",
+    ignore_na: bool = True,
+    trigger: ts[object] = None,
+    sampler: ts[object] = None,
+    reset: ts[object] = None,
+    min_data_points: int = 0
+    ) → Union[ts[Union[float, np.ndarray]], [ts[Union[float, np.ndarray]]]
 ```
 
-quantile(
-x: ts\[Union\[float, np.ndarray\]\],
-interval: Union\[timedelta, int\] = None,
-quant: Union\[float, List\[float\]\] = None,
-min_window: Union\[timedelta, int\] = None,
-interpolate: str = "linear",
-ignore_na: bool = True,
-trigger: ts\[object\] = None,
-sampler: ts\[object\] = None,
-reset: ts\[object\] = None,
-min_data_points: int = 0
-) → Union\[ts\[Union\[float, np.ndarray\]\], \[ts\[Union\[float, np.ndarray\]\]\]
-
-````
 Args:
+
 - **x**: the time-series data
 - **interval**: the rolling interval over which to use data. If unspecified or set to None, an expanding (unbounded) window will be used.
-    - if an int, represents the number of ticks to use
-    - if a timedelta, represents the time interval to keep data (non-inclusive at left endpoint)
+  - if an int, represents the number of ticks to use
+  - if a timedelta, represents the time interval to keep data (non-inclusive at left endpoint)
 - **quant:** the quantile to calculate, which must be between 0 and 1
-    - If provided a list, then all quantiles will be calculated for the list. 
+  - If provided a list, then all quantiles will be calculated for the list.
 - **min_window**: the minimum allowable interval to use before outputting data
-    - If the interval is a timedelta then this must also be a timedelta. Example: interval=60s, min_window=30s means to use a 60s rolling interval with no output for the first 30s.
-    - If the interval is a tick count then this must also be a tick count. Example: interval=100, min_window=50 means to use a 100-tick rolling interval with no output until we have 50 ticks.
+  - If the interval is a timedelta then this must also be a timedelta. Example: interval=60s, min_window=30s means to use a 60s rolling interval with no output for the first 30s.
+  - If the interval is a tick count then this must also be a tick count. Example: interval=100, min_window=50 means to use a 100-tick rolling interval with no output until we have 50 ticks.
 - **interpolate**: the interpolation method to use when the quantile does not correspond to an individual value. Must be one of the following options:
-    - **"linear"**: interpolates linearly between the two closest values. For example, the 0.333 quantile of (1,2) with linear interpolation is 1.333.
-    - **"lower"**: returns the lower of the two closest values.
-    - **"higher"**: returns the higher of the two closest values.
-    - **"midpoint"**: returns the midpoint between the two closest values. For example, the 0.333 quantile of (1,2) with midpoint interpolation is 1.5.
-    - **"nearest"**: returns the value at the nearest position.  For example, the 0.333 quantile of (1,2) with nearest interpolation is 1. In cases of ties, the higher value is returned.
+  - **"linear"**: interpolates linearly between the two closest values. For example, the 0.333 quantile of (1,2) with linear interpolation is 1.333.
+  - **"lower"**: returns the lower of the two closest values.
+  - **"higher"**: returns the higher of the two closest values.
+  - **"midpoint"**: returns the midpoint between the two closest values. For example, the 0.333 quantile of (1,2) with midpoint interpolation is 1.5.
+  - **"nearest"**: returns the value at the nearest position.  For example, the 0.333 quantile of (1,2) with nearest interpolation is 1. In cases of ties, the higher value is returned.
 - **ignore_na**: if True, does not include any nan values in the window. If false, nan values in the window will make the entire window value nan.
-- **trigger**: another optional time-series which can be used to externally trigger computations. Whenever the trigger ticks, the given statistic will be updated and returned. 
-    - *By default*, the trigger is the series itself.
+- **trigger**: another optional time-series which can be used to externally trigger computations. Whenever the trigger ticks, the given statistic will be updated and returned.
+  - *By default*, the trigger is the series itself.
 - **sampler**: another optional time-series which specifies when x *should* tick. The behavior is as follows:
-    - If x ticks *and *sampler ticks, then the x tick is considered valid and is used.
-    - If x ticks but sampler does not tick, then the x tick is considered invalid and is ignored.
-    - If x does not tick but sampler ticks, then the x tick is considered NaN and is handled based on the ignore_na flag.
-    - *By default*, the sampler is the series itself.
+  - If x ticks \*and \*sampler ticks, then the x tick is considered valid and is used.
+  - If x ticks but sampler does not tick, then the x tick is considered invalid and is ignored.
+  - If x does not tick but sampler ticks, then the x tick is considered NaN and is handled based on the ignore_na flag.
+  - *By default*, the sampler is the series itself.
 - **reset**: another optional time-series which, when ticked, will clear all data in the interval and "reset" the calculation
 - **min_data_points**: the minimum number of valid (non-nan) data points that must exist in the interval for a calculation to be valid. If there are fewer than min_data_point, NaN is returned.
 
 Returns:
-- a time-series *or* list-basket of time-series of rolling quantiles over the interval. 
-    - If the quant parameter is a list then a list-basket will be returned.
-    - If it is a float then a time-series will be returned.
-    - The order of quantiles in the list-basket is equal to the order of the input.
 
+- a time-series *or* list-basket of time-series of rolling quantiles over the interval.
+  - If the quant parameter is a list then a list-basket will be returned.
+  - If it is a float then a time-series will be returned.
+  - The order of quantiles in the list-basket is equal to the order of the input.
 
 #### Examples: `median` and `quantile`
 
@@ -939,7 +943,7 @@ Starttime: `2020-01-01 00:00:00`
 ```python
 x = {'2020-01-01': 1, '2020-01-02': 2, '2020-01-03': 3, '2020-01-04': nan, '2020-01-05': 5}
 median(x, interval=3, min_window=2)
-````
+```
 
 ```python
 {'2020-01-02': 1.5, '2020-01-03': 2, '2020-01-04': 2.5, '2020-01-05': 4}

@@ -10,7 +10,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
-      - "docs/wiki/**"
+      - "docs/**"
   pull_request:
     branches:
       - main
@@ -18,7 +18,7 @@ on:
       - LICENSE
       - NOTICE
       - README.md
-      - "docs/wiki/**"
+      - "docs/**"
   workflow_dispatch:
     inputs:
       ci-full:
@@ -233,12 +233,15 @@ jobs:
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-12
+
             - is-full-run: false
               os: macos-14
               python-version: "3.8"
+
             - is-full-run: false
               os: macos-14
               python-version: "3.9"
+
             - is-full-run: false
               os: macos-14
               python-version: "3.10"
@@ -284,7 +287,7 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
-            CIBW_ENVIRONMENT_MACOS: CC="/usr/local/bin/gcc-13" CXX="/usr/local/bin/g++-13" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: x86_64
             CIBW_BUILD_VERBOSITY: 3
           if: ${{ matrix.os == 'macos-12' }}
@@ -293,7 +296,7 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
-            CIBW_ENVIRONMENT_MACOS: PATH="/opt/homebrew/opt/bison/bin/:$PATH" CC="/opt/homebrew/bin/gcc-13" CXX="/opt/homebrew/bin/g++-13" LDFLAGS="-Wl,-ld_classic" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: arm64
             CIBW_BUILD_VERBOSITY: 3
           if: ${{ matrix.os == 'macos-14' }}
@@ -308,11 +311,11 @@ jobs:
             CIBW_ENVIRONMENT_WINDOWS: TODO="todo"
           if: ${{ matrix.os == 'windows-2022' }}
 
-        # Check dist files
+        ##########
+        # Common
         - name: Check Wheels
           run: make dist-check
 
-        # Upload artifacts
         - name: Upload Wheel
           uses: actions/upload-artifact@v4
           with:
@@ -358,15 +361,12 @@ jobs:
         - name: Install python dependencies
           run: make requirements
 
-        # Build SDist
         - name: Python SDist Steps
           run: make dist-py-sdist
 
-        # Check dist files
         - name: Check sdist
           run: make dist-check
 
-        # Upload artifacts
         - name: Upload SDist
           uses: actions/upload-artifact@v4
           with:
@@ -414,27 +414,25 @@ jobs:
             - os: macos-14
               python-version: "3.9"
 
-            # Exclude windows builds
+            # windows is slow, so dont build unless its a full run
             # - is-full-run: false
             #   os: windows-2022
 
-            # Exclude macOS builds for now
-            - os: macos-12
-              # is-full-run: false  # FIXME https://github.com/Point72/csp/issues/33
-
-            - os: macos-14
-              # is-full-run: false  # FIXME https://github.com/Point72/csp/issues/33
-
-            # Exclude Python 3.8, 3.10, 3.11 builds
+            # avoid unnecessary use of mac resources
             - is-full-run: false
-              python-version: 3.8
+              os: macos-12
 
             - is-full-run: false
-              python-version: 3.9
+              os: macos-14
+              python-version: "3.8"
 
             - is-full-run: false
+              os: macos-14
+              python-version: "3.9"
+
+            - is-full-run: false
+              os: macos-14
               python-version: "3.10"
-
 
       runs-on: ${{ matrix.os }}
 
@@ -452,25 +450,28 @@ jobs:
         - name: Install python dependencies
           run: make requirements
 
-        - name: Install test dependencies (Linux)
-          shell: bash
-          run: sudo apt-get install graphviz
-          if: ${{ runner.os == 'Linux' }}
-
-        - name: Install test dependencies (Mac)
-          shell: bash
-          run: brew install graphviz
-          if: ${{ runner.os == 'macOS' }}
-
-        # Download artifact
         - name: Download wheel
           uses: actions/download-artifact@v4
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
+        ########
+        # Linux
+        - name: Install test dependencies (Linux)
+          shell: bash
+          run: sudo apt-get install graphviz
+          if: ${{ runner.os == 'Linux' }}
+
         - name: Install wheel (Linux)
           run: python -m pip install -U *manylinux2014*.whl --target .
           if: ${{ runner.os == 'Linux' }}
+
+        ########
+        # Macos
+        - name: Install test dependencies (Mac)
+          shell: bash
+          run: brew install graphviz
+          if: ${{ runner.os == 'macOS' }}
 
         - name: Install wheel (OSX x86)
           run: python -m pip install -U *x86*.whl --target .
@@ -480,11 +481,14 @@ jobs:
           run: python -m pip install -U *arm64*.whl --target .
           if: ${{ runner.os == 'macOS' && runner.arch == 'ARM64' }}
 
+        ########
+        # Windows
         - name: Install wheel (windows)
           run: python -m pip install -U (Get-ChildItem .\*.whl | Select-Object -Expand FullName) --target .
           if: ${{ runner.os == 'Windows' }}
 
-        # Run tests
+        ##########
+        # Common
         - name: Python Test Steps
           run: make test
 
@@ -532,17 +536,14 @@ jobs:
           with:
             cibuildwheel: 'cp39'
 
-        # Python
         - name: Install python dependencies
           run: make requirements
 
-        # Download sdist
         - uses: actions/download-artifact@v4
           with:
             name: csp-sdist
             path: dist/
 
-        # Install sdist
         - name: Install sdist
           run: python -m pip install -U -vvv dist/csp*.tar.gz --target .
           env:
@@ -550,7 +551,6 @@ jobs:
             VCPKG_DEFAULT_BINARY_CACHE: /home/runner/vcpkg_cache
             VCPKG_DOWNLOADS: /home/runner/vcpkg_download_cache
 
-        # Test sdist
         - name: Run tests against from-scratch sdist build
           run: make test
           env:
@@ -606,7 +606,6 @@ jobs:
           shell: bash
           run: sudo apt-get install graphviz
 
-        # Download artifact
         - name: Download wheel
           uses: actions/download-artifact@v4
           with:
@@ -618,7 +617,6 @@ jobs:
         - name: Install package - ${{ matrix.package }}
           run: python -m pip install -U "${{ matrix.package }}"
 
-        # Run tests
         - name: Python Test Steps
           run: make test TEST_ARGS="-k TestDBReader"
           if: ${{ contains( 'sqlalchemy', matrix.package )}}

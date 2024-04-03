@@ -10,8 +10,10 @@ add_library(csptypesimpl
             CspTypeFactory.cpp
             PyCspEnum.cpp
             PyCspType.cpp
-            PyStruct.cpp)
+            PyStruct.cpp
+            PyStructToJson.cpp)
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
+target_compile_definitions(csptypesimpl PUBLIC RAPIDJSON_HAS_STDSTRING=1)
 target_link_libraries(csptypesimpl csp_core csp_types)
 
 set(CSPIMPL_PUBLIC_HEADERS
@@ -36,7 +38,8 @@ set(CSPIMPL_PUBLIC_HEADERS
         PyObjectPtr.h
         PyOutputAdapterWrapper.h
         PyOutputProxy.h
-        PyConstants.h)
+        PyConstants.h
+        PyStructToJson.h)
 
 add_library(cspimpl SHARED
         cspimpl.cpp
@@ -93,6 +96,10 @@ target_link_libraries(cspmathimpl cspimpl mathimpl)
 add_library(cspstatsimpl SHARED cspstatsimpl.cpp)
 target_link_libraries(cspstatsimpl cspimpl statsimpl)
 
+## Testlib c++ module
+add_library(csptestlibimpl SHARED csptestlibimpl.cpp)
+target_link_libraries(csptestlibimpl cspimpl)
+
 ## NumPy stats c++ module
 add_library(npstatsimpl STATIC npstatsimpl.cpp)
 add_library(cspnpstatsimpl SHARED cspnpstatsimpl.cpp)
@@ -100,7 +107,7 @@ target_link_libraries(cspnpstatsimpl cspimpl npstatsimpl)
 target_include_directories(npstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 target_include_directories(cspnpstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 
-install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl cspnpstatsimpl
+install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl csptestlibimpl cspnpstatsimpl
         PUBLIC_HEADER DESTINATION include/csp/python
         RUNTIME DESTINATION bin/
         LIBRARY DESTINATION lib/

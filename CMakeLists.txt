@@ -115,35 +115,9 @@ if(MACOS)
     set(CMAKE_USE_PTHREADS_INIT 1)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-    # for exception unwinding on macOS
-    # TODO this does not work, which would be the
-    # proper cmake way of doing it, so instead we
-    # use a vanilla option
-    # check_linker_flag(CXX "-Wl,-ld_classic" CSP_USE_LD_CLASSIC_MAC)
-    if(CSP_USE_LD_CLASSIC_MAC)
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-ld_classic")
-      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-ld_classic")
-    endif()
-
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
-
     # don't link against build python
     # https://blog.tim-smith.us/2015/09/python-extension-modules-os-x/
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
-
-    # Support cross build
-    check_c_compiler_flag("-arch x86_64" x86_64Supported)
-    check_c_compiler_flag("-arch arm64" arm64Supported)
-
-    if(x86_64Supported AND arm64Supported)
-        set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Build universal architecture for OSX" FORCE)
-    elseif(x86_64Supported)
-        set(CMAKE_REQUIRED_LINK_OPTIONS "-arch;x86_64")
-        set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "Build universal architecture for OSX" FORCE)
-    elseif(arm64Supported)
-        set(CMAKE_REQUIRED_LINK_OPTIONS "-arch;arm64")
-        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build universal architecture for OSX" FORCE)
-    endif()
 endif()
 
 
@@ -170,19 +144,16 @@ endif()
 # RPath #
 #########
 if(MACOS)
-    set(CMAKE_INSTALL_RPATH "@loader_path/:@loader_path/../lib")
+    set(CMAKE_INSTALL_RPATH "@loader_path/")
 elseif(LINUX)
-    set(CMAKE_INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../lib")
+    set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 endif()
 
 ###################################################################################################################################################
 # Flags #
 #########
 # Compiler version flags
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-endif()
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 
 # Optimization Flags
 if(WIN32)
@@ -230,9 +201,13 @@ else()
         -Wall \
         -Wno-deprecated-declarations \
         -Wno-deprecated \
-        -Wno-maybe-uninitialized \
         ")
         add_definitions(-DNDEBUG)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+            -Wno-maybe-uninitialized \
+            ")
+        endif()
     endif()
 endif()
 

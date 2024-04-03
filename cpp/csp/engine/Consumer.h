@@ -34,6 +34,9 @@ public:
     DateTime now() const            { return rootEngine() -> now(); }
     uint64_t cycleCount() const     { return rootEngine() -> cycleCount(); }
 
+    void setStarted()               { m_started = true; }
+    bool started() const            { return m_started; }
+
     //called when input timeseries has an event, schedules in
     //step propagation.  See if we can do better than virtual per tick...
     virtual void handleEvent( InputId id )
@@ -126,6 +129,7 @@ private:
     Consumer * m_next;
     
     int32_t  m_rank;
+    bool     m_started;
 };
 
 };

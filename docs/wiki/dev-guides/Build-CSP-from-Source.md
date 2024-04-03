@@ -17,8 +17,7 @@ CSP is written in Python and C++ with Python and C++ build dependencies. While p
     - [MacOS](#macos)
   - [Install Python dependencies](#install-python-dependencies)
   - [Build](#build-1)
-    - [Building on `macOS`](#building-on-macos)
-    - [Building on `aarch64` Linux](#building-on-aarch64-linux)
+  - [Building on `aarch64` Linux](#building-on-aarch64-linux)
 - [Lint and Autoformat](#lint-and-autoformat)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -86,18 +85,10 @@ git submodule update --init --recursive
 ### Install build dependencies
 
 ```bash
-mamba env create -n csp -f dev-environment.yml
-
-# uncomment below if the build fails because git isn't new enough
-#
-# mamba install -y -n csp git
-
-# uncomment below if the build fails because perl-ipc-system is missing
-# (this happens on some RHEL7 systems)
-#
-# mamba install -y -n csp perl-ipc-system-simple
-
-conda activate csp
+# Note the operating system, change as needed
+# Linux and MacOS should use the unix dev environment spec
+micromamba create -n csp -f conda/dev-environment-unix.yml
+micromamba activate csp
 ```
 
 ### Build
@@ -172,9 +163,6 @@ sudo dnf group install "Development Tools"
 make dependencies-mac
 # or
 # brew install bison cmake flex make ninja
-
-# for g++
-brew install gcc
 ```
 
 ### Install Python dependencies
@@ -203,31 +191,7 @@ make build
 # python setup.py build build_ext --inplace
 ```
 
-#### Building on `macOS`
-
-**NOTE** On `macOS`, we need to use `g++`. Complicating this, `g++` is often aliased to `clang++`, so we need to be explicit:
-
-Apple Silicon (ARM):
-
-```bash
-CXX=/opt/homebrew/bin/g++-13 make build
-
-# or
-# CXX=/opt/homebrew/bin/g++-13 python setup.py build build_ext --inplace
-```
-
-Intel:
-
-```bash
-CXX=/usr/local/bin/g++-13 make build
-
-# or
-# CXX=/usr/local/bin/g++-13 python setup.py build build_ext --inplace
-```
-
-Substitute your installed version of `g++` as necessary.
-
-#### Building on `aarch64` Linux
+### Building on `aarch64` Linux
 
 On `aarch64` Linux the VCPKG_FORCE_SYSTEM_BINARIES environment variable must be set before running `make build`:
 

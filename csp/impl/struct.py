@@ -164,6 +164,9 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
     def to_dict(self):
         return self._obj_to_python(self)
 
+    def to_json(self, callback=lambda x: x):
+        return super().to_json(callback)
+
     def to_yaml(self):
         string_io = io.StringIO()
         g_YAML.dump(self.to_dict(), string_io)

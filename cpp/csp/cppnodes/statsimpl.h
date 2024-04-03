@@ -1163,7 +1163,7 @@ class Quantile
             int ft = floor( target );
             int ct = ceil( target );
 
-            double qtl;
+            double qtl = 0.0;
         #ifndef __clang__
             switch ( m_interpolation )
             {

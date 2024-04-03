@@ -77,7 +77,7 @@ inline InitHelper::InitCallback InitHelper::moduleMethodsCallback( PyMethodDef *
 
 inline InitHelper::InitCallback InitHelper::moduleMethod( const char * name, PyCFunction func, int flags, const char * doc )
 {
-    PyMethodDef defs[2]{ { name, func, flags, doc }, nullptr };
+    PyMethodDef defs[2]{ { name, func, flags, doc }, { nullptr } };
 
     //Note that we rely on the lambda closure to keep the lifetime of defs which is kept by ptr
     //m_callbacks will keep the InitCallback around for the life of the program

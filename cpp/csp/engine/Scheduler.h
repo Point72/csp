@@ -6,6 +6,7 @@
 #include <cassert>
 #include <functional>
 #include <map>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace csp
@@ -18,9 +19,9 @@ class Scheduler
     struct Event;
 
 public:
-    //For non-collapsing inputs, the callback should return a pointer to the input adapter that is 
+    //For non-collapsing inputs, the callback should return a pointer to the input adapter that is
     //unrolling / not collapsing.  This will ensure pending events for a given input adapter will get deferred
-    //to the next cycle until its completely unrolled.  This avoids a O(n^2) loop of reprocessing multiple pending events on 
+    //to the next cycle until its completely unrolled.  This avoids a O(n^2) loop of reprocessing multiple pending events on
     //a given input adapter.  If the callback isnt for an input adapter or if it is able to consume / process the tick, return nullptr
     using Callback = std::function<const InputAdapter *()>;
 
@@ -31,13 +32,13 @@ public:
         Handle( const Handle & rhs ) = default;
         bool expired() const;
         bool active() const { return !expired(); }
-    
+
         operator bool() const { return active(); }
 
         //Only valid if handle is active, otherwise returns NONE
         DateTime time() const;
 
-        void reset() 
+        void reset()
         {
             event = nullptr;
             id = 0;
@@ -70,9 +71,9 @@ public:
     };
 
     Scheduler();
-    ~Scheduler();  
+    ~Scheduler();
 
-    //Callback can return false which means it should stick around 
+    //Callback can return false which means it should stick around
     //and re-execute next engine cycle
     Handle scheduleCallback( Handle reserved, DateTime time, Callback &&cb );
     Handle scheduleCallback( DateTime time, Callback &&cb );
@@ -80,7 +81,7 @@ public:
     bool   cancelCallback( Handle handle );
 
     //useful to break circular dep of a callback needing its own handle
-    Handle reserveHandle(); 
+    Handle reserveHandle();
 
     bool hasEvents()           { return !m_map.empty() || m_pendingEvents.hasEvents(); }
     DateTime nextTime() const  { return m_pendingEvents.hasEvents() ? m_pendingEvents.time() : m_map.begin() -> first; }
@@ -104,7 +105,7 @@ private:
             return m_allocator.allocate();
         }
 
-        void deallocate( T* p, std::size_t n ) noexcept 
+        void deallocate( T* p, std::size_t n ) noexcept
         {
             assert( n == 1 );
             m_allocator.free( p );
@@ -160,7 +161,7 @@ private:
 
     private:
         //NOTE the reason that this isnt simply kept as an unordered_map<InputAdapter*,Event> list is to ensure
-        //simulated runs have complete reproducibility and are deterministic.  If we key by InputAdapter * pointer, ordering of 
+        //simulated runs have complete reproducibility and are deterministic.  If we key by InputAdapter * pointer, ordering of
         //invocations will vary across runs ( this generally wouldnt matter if all code was side-effect free, but even so basket input
         //tickeditems() order depends on order of basket elemnt ticks in a given cycle )
         //Instead we maintain an unordered_map<InputAdapter*, list iterator> to ensure we keep an adapter once in the m_pendingEvents list
@@ -177,7 +178,7 @@ private:
         };
 
         //time of all pending events
-        DateTime m_time; 
+        DateTime m_time;
 
         //Every list entry is *PER ADAPTER*, each entry will have a linked list of Event objects
         std::list<PendingEventList> m_pendingEvents;

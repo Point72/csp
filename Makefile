@@ -79,16 +79,19 @@ checks: check
 #########
 # TESTS #
 #########
-.PHONY: test-py coverage-py test tests
+.PHONY: test-py test-cpp coverage-py test tests
 
 TEST_ARGS :=
 test-py: ## Clean and Make unit tests
 	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
 
+test-cpp: ## Make C++ unit tests
+	for f in ./csp/tests/bin/*; do $$f; done || (echo "TEST FAILED" && exit 1)
+
 coverage-py:
 	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
 
-test: test-py  ## run the tests
+test: test-cpp test-py  ## run the tests
 
 # Alias
 tests: test
@@ -179,7 +182,7 @@ clean: ## clean the repository
 .PHONY: dependencies-mac dependencies-debian dependencies-fedora dependencies-vcpkg dependencies-win
 
 dependencies-mac:  ## install dependencies for mac
-	HOMEBREW_NO_AUTO_UPDATE=1 brew install bison cmake flex make ninja # gcc@13
+	HOMEBREW_NO_AUTO_UPDATE=1 brew install bison cmake flex make ninja
 	brew unlink bison flex && brew link --force bison flex
 
 dependencies-debian:  ## install dependencies for linux

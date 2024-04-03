@@ -3,6 +3,8 @@
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
+#include <csp/python/PyStructToJson.h>
+
 #include <unordered_set>
 #include <type_traits>
 
@@ -170,9 +172,9 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
 
     /*back reference to the struct type that will be accessible on the csp struct -> meta()
       DialectStructMeta will hold a borrowed reference to the type to avoid a circular dep
-      
+
       This is the layout of references between all these types
-                              StructMeta (shared_ptr) <-------- strong ref 
+                              StructMeta (shared_ptr) <-------- strong ref
                                   |                              |
                            DialectStructMeta ---> weak ref to PyStructMeta ( the PyType )
                                  /\                              /\
@@ -859,7 +861,7 @@ PyObject * PyStruct_deepcopy( PyStruct * self )
     CSP_BEGIN_METHOD;
     //Note that once tp_alloc is called, the object will get added to GC
     //deepcopy traversal may kick in a GC collect, so we have to call that first before the PyStruct is created
-    //of it may traverse a partially consturcted object and crash 
+    //of it may traverse a partially consturcted object and crash
     auto deepcopy = self -> struct_ -> deepcopy();
     PyObject * pyDeepcopy = self -> ob_type -> tp_alloc( self -> ob_type, 0 );
     new ( pyDeepcopy ) PyStruct( deepcopy );
@@ -912,6 +914,30 @@ PyObject * PyStruct_all_fields_set( PyStruct * self )
     return toPython( self -> struct_ -> allFieldsSet() );
 }
 
+PyObject * PyStruct_to_json( PyStruct * self, PyObject * args, PyObject * kwargs )
+{
+    CSP_BEGIN_METHOD;
+
+    // NOTE: Consider grouping customization properties into a dictionary
+    PyObject * callable = nullptr;
+
+    if( PyArg_ParseTuple( args, "O:to_json", &callable ) )
+    {
+        if( !PyCallable_Check( callable ) )
+        {
+            CSP_THROW( TypeError, "Parameter must be callable" );
+        }
+    }
+    else
+    {
+        CSP_THROW( TypeError, "Expected a callable as the argument" );
+    }
+    auto struct_ptr = self -> struct_;
+    auto buffer = structToJson( struct_ptr, callable );
+    return toPython( buffer );
+    CSP_RETURN_NULL;
+}
+
 static PyMethodDef PyStruct_methods[] = {
     { "copy",           (PyCFunction) PyStruct_copy,           METH_NOARGS, "make a shallow copy of the struct" },
     { "deepcopy",       (PyCFunction) PyStruct_deepcopy,       METH_NOARGS, "make a deep copy of the struct" },
@@ -921,6 +947,7 @@ static PyMethodDef PyStruct_methods[] = {
     { "update_from",    (PyCFunction) PyStruct_update_from,    METH_O,      "update from struct. struct must be same type or a derived type. unset fields will be not be copied" },
     { "update",         (PyCFunction) PyStruct_update,         METH_VARARGS | METH_KEYWORDS, "update from key=val.  given fields will be set on struct.  other fields will remain as is in struct" },
     { "all_fields_set", (PyCFunction) PyStruct_all_fields_set, METH_NOARGS, "return true if all fields on the struct are set" },
+    { "to_json",        (PyCFunction) PyStruct_to_json,        METH_VARARGS | METH_KEYWORDS, "return a json string of the struct by recursively converting struct members into json format" },
     { NULL}
 };
 

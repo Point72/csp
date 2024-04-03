@@ -62,7 +62,7 @@ inline FeedbackOutputAdapter<T>::FeedbackOutputAdapter( csp::Engine * engine,
 template<typename T>
 inline void FeedbackOutputAdapter<T>::executeImpl()
 {
-    m_boundInput -> pushTick( input() -> lastValueTyped<T>() );
+    m_boundInput -> pushTick( input() -> template lastValueTyped<T>() );
 }
 
 }

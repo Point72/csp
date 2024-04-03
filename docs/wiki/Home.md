@@ -22,6 +22,7 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
 - [Install CSP](Installation) and [write your first CSP program](First-Steps)
 - Learn more about [nodes](CSP-Node), [graphs](CSP-Graph), and [execution modes](Execution-Modes)
 - Learn to extend CSP with [adapters](Adapters)
+
 <!-- - Check out the [examples](Examples) for various CSP features and use cases -->
 
 > \[!TIP\]

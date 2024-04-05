@@ -2,7 +2,7 @@ CSP - Copyright 2024 Point72, L.P.
 This project contains software with the below copyrights
 
 
-vcpkg_installed/arm64-osx/share/abseil/copyright
+vcpkg_installed/x64-linux/share/abseil/copyright
 
 
 
@@ -210,7 +210,7 @@ vcpkg_installed/arm64-osx/share/abseil/copyright
 
 
 
-vcpkg_installed/arm64-osx/share/arrow/copyright
+vcpkg_installed/x64-linux/share/arrow/copyright
 
 
 
@@ -415,77 +415,6 @@ vcpkg_installed/arm64-osx/share/arrow/copyright
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-
---------------------------------------------------------------------------------
-
-src/plasma/fling.cc and src/plasma/fling.h: Apache 2.0
-
-Copyright 2013 Sharvil Nanavati
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
---------------------------------------------------------------------------------
-
-src/plasma/thirdparty/ae: Modified / 3-Clause BSD
-
-Copyright (c) 2006-2010, Salvatore Sanfilippo <antirez at gmail dot com>
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
- * Redistributions of source code must retain the above copyright notice,
-   this list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
- * Neither the name of Redis nor the names of its contributors may be used
-   to endorse or promote products derived from this software without
-   specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
---------------------------------------------------------------------------------
-
-src/plasma/thirdparty/dlmalloc.c: CC0
-
-This is a version (aka dlmalloc) of malloc/free/realloc written by
-Doug Lea and released to the public domain, as explained at
-http://creativecommons.org/publicdomain/zero/1.0/ Send questions,
-comments, complaints, performance data, etc to dl@cs.oswego.edu
-
---------------------------------------------------------------------------------
-
-src/plasma/common.cc (some portions)
-
-Copyright (c) Austin Appleby (aappleby (AT) gmail)
-
-Some portions of this file are derived from code in the MurmurHash project
-
-All code is released to the public domain. For business purposes, Murmurhash is
-under the MIT license.
-
-https://sites.google.com/site/murmurhash/
 
 --------------------------------------------------------------------------------
 
@@ -865,34 +794,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
---------------------------------------------------------------------------------
-
-The file cpp/src/arrow/vendored/string_view.hpp has the following license
-
-Boost Software License - Version 1.0 - August 17th, 2003
-
-Permission is hereby granted, free of charge, to any person or organization
-obtaining a copy of the software and accompanying documentation covered by
-this license (the "Software") to use, reproduce, display, distribute,
-execute, and transmit the Software, and to prepare derivative works of the
-Software, and to permit third-parties to whom the Software is furnished to
-do so, all subject to the following:
-
-The copyright notices in the Software and this entire statement, including
-the above license grant, this restriction and the following disclaimer,
-must be included in all copies of the Software, in whole or in part, and
-all derivative works of the Software, unless such copies or derivative
-works are solely in the form of machine-executable object code generated by
-a source language processor.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
-SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
-FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
-ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 
@@ -2203,17 +2104,6 @@ for PyArrow. Ibis is released under the Apache License, Version 2.0.
 
 --------------------------------------------------------------------------------
 
-This project includes code from the autobrew project.
-
-* r/tools/autobrew and dev/tasks/homebrew-formulae/autobrew/apache-arrow.rb
-  are based on code from the autobrew project.
-
-Copyright (c) 2019, Jeroen Ooms
-License: MIT
-Homepage: https://github.com/jeroen/autobrew
-
---------------------------------------------------------------------------------
-
 dev/tasks/homebrew-formulae/apache-arrow.rb has the following license:
 
 BSD 2-Clause License
@@ -2269,34 +2159,6 @@ the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 
 René Nyffenegger rene.nyffenegger@adp-gmbh.ch
-
---------------------------------------------------------------------------------
-
-The file cpp/src/arrow/vendored/optional.hpp has the following license
-
-Boost Software License - Version 1.0 - August 17th, 2003
-
-Permission is hereby granted, free of charge, to any person or organization
-obtaining a copy of the software and accompanying documentation covered by
-this license (the "Software") to use, reproduce, display, distribute,
-execute, and transmit the Software, and to prepare derivative works of the
-Software, and to permit third-parties to whom the Software is furnished to
-do so, all subject to the following:
-
-The copyright notices in the Software and this entire statement, including
-the above license grant, this restriction and the following disclaimer,
-must be included in all copies of the Software, in whole or in part, and
-all derivative works of the Software, unless such copies or derivative
-works are solely in the form of machine-executable object code generated by
-a source language processor.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
-SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
-FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
-ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 
@@ -2459,8 +2321,155 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+--------------------------------------------------------------------------------
 
-vcpkg_installed/arm64-osx/share/boost-algorithm/copyright
+The file src/arrow/util/io_util.cc contains code from the CPython project
+which is made available under the Python Software Foundation License Version 2.
+
+--------------------------------------------------------------------------------
+
+3rdparty dependency opentelemetry-cpp is statically linked in certain binary
+distributions. opentelemetry-cpp is made available under the Apache License 2.0.
+
+Copyright The OpenTelemetry Authors
+SPDX-License-Identifier: Apache-2.0
+
+--------------------------------------------------------------------------------
+
+ci/conan/ is based on code from Conan Package and Dependency Manager.
+
+Copyright (c) 2019 Conan.io
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--------------------------------------------------------------------------------
+
+3rdparty dependency UCX is redistributed as a dynamically linked shared
+library in certain binary distributions. UCX has the following license:
+
+Copyright (c) 2014-2015      UT-Battelle, LLC. All rights reserved.
+Copyright (C) 2014-2020      Mellanox Technologies Ltd. All rights reserved.
+Copyright (C) 2014-2015      The University of Houston System. All rights reserved.
+Copyright (C) 2015           The University of Tennessee and The University
+                             of Tennessee Research Foundation. All rights reserved.
+Copyright (C) 2016-2020      ARM Ltd. All rights reserved.
+Copyright (c) 2016           Los Alamos National Security, LLC. All rights reserved.
+Copyright (C) 2016-2020      Advanced Micro Devices, Inc.  All rights reserved.
+Copyright (C) 2019           UChicago Argonne, LLC.  All rights reserved.
+Copyright (c) 2018-2020      NVIDIA CORPORATION. All rights reserved.
+Copyright (C) 2020           Huawei Technologies Co., Ltd. All rights reserved.
+Copyright (C) 2016-2020      Stony Brook University. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+--------------------------------------------------------------------------------
+
+The file dev/tasks/r/github.packages.yml contains code from
+
+https://github.com/ursa-labs/arrow-r-nightly
+
+which is made available under the Apache License 2.0.
+
+--------------------------------------------------------------------------------
+.github/actions/sync-nightlies/action.yml  (some portions)
+
+Some portions of this file are derived from code from
+
+https://github.com/JoshPiper/rsync-docker
+
+which is made available under the MIT license
+
+Copyright (c) 2020 Joshua Piper
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--------------------------------------------------------------------------------
+.github/actions/sync-nightlies/action.yml (some portions)
+
+Some portions of this file are derived from code from
+
+https://github.com/burnett01/rsync-deployments
+
+which is made available under the MIT license
+
+Copyright (c) 2019-2022 Contention
+Copyright (c) 2019-2022 Burnett01
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+vcpkg_installed/x64-linux/share/boost-algorithm/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2488,7 +2497,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-align/copyright
+vcpkg_installed/x64-linux/share/boost-align/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2516,7 +2525,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-array/copyright
+vcpkg_installed/x64-linux/share/boost-array/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2544,7 +2553,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-assert/copyright
+vcpkg_installed/x64-linux/share/boost-asio/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2572,7 +2581,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-atomic/copyright
+vcpkg_installed/x64-linux/share/boost-assert/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2600,7 +2609,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-bind/copyright
+vcpkg_installed/x64-linux/share/boost-atomic/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2628,7 +2637,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-build/copyright
+vcpkg_installed/x64-linux/share/boost-bind/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2656,7 +2665,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-chrono/copyright
+vcpkg_installed/x64-linux/share/boost-build/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2684,7 +2693,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-concept-check/copyright
+vcpkg_installed/x64-linux/share/boost-chrono/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2712,7 +2721,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-config/copyright
+vcpkg_installed/x64-linux/share/boost-concept-check/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2740,7 +2749,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-container-hash/copyright
+vcpkg_installed/x64-linux/share/boost-config/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2768,7 +2777,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-container/copyright
+vcpkg_installed/x64-linux/share/boost-container/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2796,7 +2805,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-conversion/copyright
+vcpkg_installed/x64-linux/share/boost-container-hash/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2824,7 +2833,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-core/copyright
+vcpkg_installed/x64-linux/share/boost-context/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2852,7 +2861,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-date-time/copyright
+vcpkg_installed/x64-linux/share/boost-conversion/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2880,7 +2889,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-describe/copyright
+vcpkg_installed/x64-linux/share/boost-core/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2908,7 +2917,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-detail/copyright
+vcpkg_installed/x64-linux/share/boost-coroutine/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2936,7 +2945,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-dynamic-bitset/copyright
+vcpkg_installed/x64-linux/share/boost-date-time/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2964,7 +2973,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-exception/copyright
+vcpkg_installed/x64-linux/share/boost-describe/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2992,7 +3001,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-filesystem/copyright
+vcpkg_installed/x64-linux/share/boost-detail/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3020,7 +3029,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-function-types/copyright
+vcpkg_installed/x64-linux/share/boost-dynamic-bitset/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3048,7 +3057,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-function/copyright
+vcpkg_installed/x64-linux/share/boost-exception/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3076,7 +3085,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-functional/copyright
+vcpkg_installed/x64-linux/share/boost-filesystem/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3104,7 +3113,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-fusion/copyright
+vcpkg_installed/x64-linux/share/boost-functional/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3132,7 +3141,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-integer/copyright
+vcpkg_installed/x64-linux/share/boost-function/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3160,7 +3169,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-intrusive/copyright
+vcpkg_installed/x64-linux/share/boost-function-types/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3188,7 +3197,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-io/copyright
+vcpkg_installed/x64-linux/share/boost-fusion/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3216,7 +3225,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-iterator/copyright
+vcpkg_installed/x64-linux/share/boost-integer/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3244,7 +3253,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-lexical-cast/copyright
+vcpkg_installed/x64-linux/share/boost-intrusive/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3272,7 +3281,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-locale/copyright
+vcpkg_installed/x64-linux/share/boost-io/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3300,7 +3309,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-math/copyright
+vcpkg_installed/x64-linux/share/boost-iterator/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3328,7 +3337,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-move/copyright
+vcpkg_installed/x64-linux/share/boost-lexical-cast/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3356,7 +3365,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-mp11/copyright
+vcpkg_installed/x64-linux/share/boost-locale/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3384,7 +3393,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-mpl/copyright
+vcpkg_installed/x64-linux/share/boost-math/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3412,7 +3421,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-multiprecision/copyright
+vcpkg_installed/x64-linux/share/boost-move/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3440,7 +3449,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-numeric-conversion/copyright
+vcpkg_installed/x64-linux/share/boost-mp11/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3468,7 +3477,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-optional/copyright
+vcpkg_installed/x64-linux/share/boost-mpl/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3496,7 +3505,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-predef/copyright
+vcpkg_installed/x64-linux/share/boost-multiprecision/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3524,7 +3533,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-preprocessor/copyright
+vcpkg_installed/x64-linux/share/boost-numeric-conversion/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3552,7 +3561,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-random/copyright
+vcpkg_installed/x64-linux/share/boost-optional/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3580,7 +3589,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-range/copyright
+vcpkg_installed/x64-linux/share/boost-pool/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3608,7 +3617,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-ratio/copyright
+vcpkg_installed/x64-linux/share/boost-predef/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3636,7 +3645,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-rational/copyright
+vcpkg_installed/x64-linux/share/boost-preprocessor/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3664,7 +3673,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-regex/copyright
+vcpkg_installed/x64-linux/share/boost-random/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3692,7 +3701,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-scope-exit/copyright
+vcpkg_installed/x64-linux/share/boost-range/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3720,7 +3729,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-smart-ptr/copyright
+vcpkg_installed/x64-linux/share/boost-ratio/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3748,7 +3757,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-static-assert/copyright
+vcpkg_installed/x64-linux/share/boost-rational/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3776,7 +3785,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-system/copyright
+vcpkg_installed/x64-linux/share/boost-regex/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3804,7 +3813,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-thread/copyright
+vcpkg_installed/x64-linux/share/boost-scope-exit/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3832,7 +3841,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-throw-exception/copyright
+vcpkg_installed/x64-linux/share/boost-smart-ptr/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3860,7 +3869,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-tokenizer/copyright
+vcpkg_installed/x64-linux/share/boost-static-assert/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3888,7 +3897,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-tuple/copyright
+vcpkg_installed/x64-linux/share/boost-system/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3916,7 +3925,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-type-traits/copyright
+vcpkg_installed/x64-linux/share/boost-thread/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3944,7 +3953,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-typeof/copyright
+vcpkg_installed/x64-linux/share/boost-throw-exception/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3972,7 +3981,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-unordered/copyright
+vcpkg_installed/x64-linux/share/boost-tokenizer/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4000,7 +4009,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-utility/copyright
+vcpkg_installed/x64-linux/share/boost-tuple/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4028,7 +4037,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-variant2/copyright
+vcpkg_installed/x64-linux/share/boost-typeof/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4056,7 +4065,119 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-vcpkg-helpers/copyright
+vcpkg_installed/x64-linux/share/boost-type-traits/copyright
+
+
+Boost Software License - Version 1.0 - August 17th, 2003
+
+Permission is hereby granted, free of charge, to any person or organization
+obtaining a copy of the software and accompanying documentation covered by
+this license (the "Software") to use, reproduce, display, distribute,
+execute, and transmit the Software, and to prepare derivative works of the
+Software, and to permit third-parties to whom the Software is furnished to
+do so, all subject to the following:
+
+The copyright notices in the Software and this entire statement, including
+the above license grant, this restriction and the following disclaimer,
+must be included in all copies of the Software, in whole or in part, and
+all derivative works of the Software, unless such copies or derivative
+works are solely in the form of machine-executable object code generated by
+a source language processor.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+
+vcpkg_installed/x64-linux/share/boost-unordered/copyright
+
+
+Boost Software License - Version 1.0 - August 17th, 2003
+
+Permission is hereby granted, free of charge, to any person or organization
+obtaining a copy of the software and accompanying documentation covered by
+this license (the "Software") to use, reproduce, display, distribute,
+execute, and transmit the Software, and to prepare derivative works of the
+Software, and to permit third-parties to whom the Software is furnished to
+do so, all subject to the following:
+
+The copyright notices in the Software and this entire statement, including
+the above license grant, this restriction and the following disclaimer,
+must be included in all copies of the Software, in whole or in part, and
+all derivative works of the Software, unless such copies or derivative
+works are solely in the form of machine-executable object code generated by
+a source language processor.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+
+vcpkg_installed/x64-linux/share/boost-utility/copyright
+
+
+Boost Software License - Version 1.0 - August 17th, 2003
+
+Permission is hereby granted, free of charge, to any person or organization
+obtaining a copy of the software and accompanying documentation covered by
+this license (the "Software") to use, reproduce, display, distribute,
+execute, and transmit the Software, and to prepare derivative works of the
+Software, and to permit third-parties to whom the Software is furnished to
+do so, all subject to the following:
+
+The copyright notices in the Software and this entire statement, including
+the above license grant, this restriction and the following disclaimer,
+must be included in all copies of the Software, in whole or in part, and
+all derivative works of the Software, unless such copies or derivative
+works are solely in the form of machine-executable object code generated by
+a source language processor.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+
+vcpkg_installed/x64-linux/share/boost-variant2/copyright
+
+
+Boost Software License - Version 1.0 - August 17th, 2003
+
+Permission is hereby granted, free of charge, to any person or organization
+obtaining a copy of the software and accompanying documentation covered by
+this license (the "Software") to use, reproduce, display, distribute,
+execute, and transmit the Software, and to prepare derivative works of the
+Software, and to permit third-parties to whom the Software is furnished to
+do so, all subject to the following:
+
+The copyright notices in the Software and this entire statement, including
+the above license grant, this restriction and the following disclaimer,
+must be included in all copies of the Software, in whole or in part, and
+all derivative works of the Software, unless such copies or derivative
+works are solely in the form of machine-executable object code generated by
+a source language processor.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+
+vcpkg_installed/x64-linux/share/boost-vcpkg-helpers/copyright
 
 
 Copyright (c) Microsoft Corporation
@@ -4084,7 +4205,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-winapi/copyright
+vcpkg_installed/x64-linux/share/boost-winapi/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4112,7 +4233,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/brotli/copyright
+vcpkg_installed/x64-linux/share/brotli/copyright
 
 
 Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
@@ -4136,7 +4257,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/bzip2/copyright
+vcpkg_installed/x64-linux/share/bzip2/copyright
 
 
 
@@ -4183,7 +4304,7 @@ bzip2/libbzip2 version 1.0.8 of 13 July 2019
 --------------------------------------------------------------------------
 
 
-vcpkg_installed/arm64-osx/share/exprtk/copyright
+vcpkg_installed/x64-linux/share/exprtk/copyright
 
 
 Copyright 1999-2022 Arash Partow
@@ -4196,7 +4317,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/gflags/copyright
+vcpkg_installed/x64-linux/share/gflags/copyright
 
 
 Copyright (c) 2006, Google Inc.
@@ -4229,77 +4350,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-vcpkg_installed/arm64-osx/share/glog/copyright
-
-
-Copyright (c) 2008, Google Inc.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-    * Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-copyright notice, this list of conditions and the following disclaimer
-in the documentation and/or other materials provided with the
-distribution.
-    * Neither the name of Google Inc. nor the names of its
-contributors may be used to endorse or promote products derived from
-this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-A function gettimeofday in utilities.cc is based on
-
-http://www.google.com/codesearch/p?hl=en#dR3YEbitojA/COPYING&q=GetSystemTimeAsFileTime%20license:bsd
-
-The license of this code is:
-
-Copyright (c) 2003-2008, Jouni Malinen <j@w1.fi> and contributors
-All Rights Reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-
-3. Neither the name(s) of the above-listed copyright holder(s) nor the
-   names of its contributors may be used to endorse or promote products
-   derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-vcpkg_installed/arm64-osx/share/gtest/copyright
+vcpkg_installed/x64-linux/share/gtest/copyright
 
 
 Copyright 2008, Google Inc.
@@ -4332,7 +4383,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-vcpkg_installed/arm64-osx/share/libevent/copyright
+vcpkg_installed/x64-linux/share/libevent/copyright
 
 
 Libevent is available for use under the following license, commonly known
@@ -4488,7 +4539,7 @@ limitations under the License.
 This file is part of mbed TLS (https://tls.mbed.org)
 
 
-vcpkg_installed/arm64-osx/share/librdkafka/copyright
+vcpkg_installed/x64-linux/share/librdkafka/copyright
 
 
 LICENSE
@@ -4885,7 +4936,7 @@ For the files wingetopt.c wingetopt.h downloaded from https://github.com/alex85k
 
 
 
-vcpkg_installed/arm64-osx/share/lz4/copyright
+vcpkg_installed/x64-linux/share/lz4/copyright
 
 
 LZ4 Library
@@ -4914,7 +4965,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-vcpkg_installed/arm64-osx/share/openssl/copyright
+vcpkg_installed/x64-linux/share/openssl/copyright
 
 
 
@@ -5096,7 +5147,7 @@ vcpkg_installed/arm64-osx/share/openssl/copyright
    END OF TERMS AND CONDITIONS
 
 
-vcpkg_installed/arm64-osx/share/protobuf/copyright
+vcpkg_installed/x64-linux/share/protobuf/copyright
 
 
 Copyright 2008 Google Inc.  All rights reserved.
@@ -5133,7 +5184,7 @@ standalone and requires a support library to be linked with it.  This
 support library is itself covered by the above license.
 
 
-vcpkg_installed/arm64-osx/share/rapidjson/copyright
+vcpkg_installed/x64-linux/share/rapidjson/copyright
 
 
 Tencent is pleased to support the open source community by making RapidJSON available. 
@@ -5195,7 +5246,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/re2/copyright
+vcpkg_installed/x64-linux/share/re2/copyright
 
 
 // Copyright (c) 2009 The RE2 Authors. All rights reserved.
@@ -5227,7 +5278,7 @@ vcpkg_installed/arm64-osx/share/re2/copyright
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-vcpkg_installed/arm64-osx/share/snappy/copyright
+vcpkg_installed/x64-linux/share/snappy/copyright
 
 
 Copyright 2011, Google Inc.
@@ -5286,7 +5337,7 @@ Some of the benchmark data in testdata/ is licensed differently:
    (http://www.gutenberg.org/ebooks/53).
 
 
-vcpkg_installed/arm64-osx/share/thrift/copyright
+vcpkg_installed/x64-linux/share/thrift/copyright
 
 
 
@@ -5597,7 +5648,7 @@ For t_cl_generator.cc
 ---------------------------------------------------
 
 
-vcpkg_installed/arm64-osx/share/utf8proc/copyright
+vcpkg_installed/x64-linux/share/utf8proc/copyright
 
 
 ## utf8proc license ##
@@ -5695,7 +5746,7 @@ registered in some jurisdictions. All other trademarks and registered
 trademarks mentioned herein are the property of their respective owners.
 
 
-vcpkg_installed/arm64-osx/share/vcpkg-cmake-config/copyright
+vcpkg_installed/x64-linux/share/vcpkg-cmake-config/copyright
 
 
 Copyright (c) Microsoft Corporation
@@ -5723,7 +5774,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/vcpkg-cmake-get-vars/copyright
+vcpkg_installed/x64-linux/share/vcpkg-cmake/copyright
 
 
 MIT License
@@ -5748,7 +5799,7 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/vcpkg-cmake/copyright
+vcpkg_installed/x64-linux/share/vcpkg-cmake-get-vars/copyright
 
 
 MIT License
@@ -5773,7 +5824,191 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/zlib/copyright
+vcpkg_installed/x64-linux/share/websocketpp/copyright
+
+
+Main Library:
+
+Copyright (c) 2014, Peter Thorson. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the WebSocket++ Project nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL PETER THORSON BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Bundled Libraries:
+
+****** Base 64 Library (base64/base64.hpp) ******
+base64.hpp is a repackaging of the base64.cpp and base64.h files into a
+single header suitable for use as a header only library. This conversion was
+done by Peter Thorson (webmaster@zaphoyd.com) in 2012. All modifications to
+the code are redistributed under the same license as the original, which is
+listed below.
+
+base64.cpp and base64.h
+
+Copyright (C) 2004-2008 René Nyffenegger
+
+This source code is provided 'as-is', without any express or implied
+warranty. In no event will the author be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this source code must not be misrepresented; you must not
+  claim that you wrote the original source code. If you use this source code
+  in a product, an acknowledgment in the product documentation would be
+  appreciated but is not required.
+
+2. Altered source versions must be plainly marked as such, and must not be
+  misrepresented as being the original source code.
+
+3. This notice may not be removed or altered from any source distribution.
+
+René Nyffenegger rene.nyffenegger@adp-gmbh.ch
+
+****** SHA1 Library (sha1/sha1.hpp) ******
+sha1.hpp is a repackaging of the sha1.cpp and sha1.h files from the shallsha1
+library (http://code.google.com/p/smallsha1/) into a single header suitable for
+use as a header only library. This conversion was done by Peter Thorson
+(webmaster@zaphoyd.com) in 2013. All modifications to the code are redistributed
+under the same license as the original, which is listed below.
+
+ Copyright (c) 2011, Micael Hildenborg
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of Micael Hildenborg nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY Micael Hildenborg ''AS IS'' AND ANY
+ EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL Micael Hildenborg BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+****** MD5 Library (common/md5.hpp) ******
+md5.hpp is a reformulation of the md5.h and md5.c code from
+http://www.opensource.apple.com/source/cups/cups-59/cups/md5.c to allow it to
+function as a component of a header only library. This conversion was done by
+Peter Thorson (webmaster@zaphoyd.com) in 2012 for the WebSocket++ project. The
+changes are released under the same license as the original (listed below)
+
+Copyright (C) 1999, 2002 Aladdin Enterprises.  All rights reserved.
+
+This software is provided 'as-is', without any express or implied
+warranty.  In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+ claim that you wrote the original software. If you use this software
+ in a product, an acknowledgment in the product documentation would be
+ appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+ misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+
+L. Peter Deutsch
+ghost@aladdin.com
+
+****** UTF8 Validation logic (utf8_validation.hpp) ******
+utf8_validation.hpp is adapted from code originally written by Bjoern Hoehrmann
+<bjoern@hoehrmann.de>. See http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ for
+details.
+
+The original license:
+
+Copyright (c) 2008-2009 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+vcpkg_installed/x64-linux/share/xsimd/copyright
+
+
+Copyright (c) 2016, Johan Mabille, Sylvain Corlay, Wolf Vollprecht and Martin Renou
+Copyright (c) 2016, QuantStack
+Copyright (c) 2018, Serge Guelton
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+vcpkg_installed/x64-linux/share/zlib/copyright
 
 
 Copyright notice:
@@ -5800,7 +6035,7 @@ Copyright notice:
   jloup@gzip.org          madler@alumni.caltech.edu
 
 
-vcpkg_installed/arm64-osx/share/zstd/copyright
+vcpkg_installed/x64-linux/share/zstd/copyright
 
 
 ZSTD is dual licensed under BSD and GPLv2.
@@ -6183,7 +6418,7 @@ Public License instead of this License.
 
 
 
-vcpkg_installed/arm64-osx/tools/boost-build/src/engine/debian/copyright
+vcpkg_installed/x64-linux/tools/boost-build/src/engine/debian/copyright
 
 
 This package was debianized by Vladimir Prus <ghost@cs.msu.su> on

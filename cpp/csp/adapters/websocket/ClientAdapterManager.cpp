@@ -40,11 +40,19 @@ ClientAdapterManager::ClientAdapterManager( Engine* engine, const Dictionary & p
         m_endpoint = new WebsocketEndpointNoTLS( properties );
     }
 
-    if( m_inputAdapter != nullptr )
+
+};
+
+ClientAdapterManager::~ClientAdapterManager()
+{ };
+
+void ClientAdapterManager::start( DateTime starttime, DateTime endtime )
+{
+    if(m_inputAdapter != nullptr)
     {
         m_endpoint -> setOnMessageCb( [ this ]( std::string msg ) {
-                PushBatch batch( m_engine -> rootEngine() );
-                m_inputAdapter -> processMessage( msg, &batch );
+            PushBatch batch( m_engine -> rootEngine() );
+            m_inputAdapter -> processMessage( msg, &batch );
         });
     }
     m_endpoint -> setOnOpenCb( [ this ]() {
@@ -64,14 +72,6 @@ ClientAdapterManager::ClientAdapterManager( Engine* engine, const Dictionary & p
         ss << "Failed to send: " << s;
         pushStatus( StatusLevel::ERROR, ClientStatusType::MESSAGE_SEND_FAIL, ss.str() );
     });
-
-};
-
-ClientAdapterManager::~ClientAdapterManager()
-{ };
-
-void ClientAdapterManager::start( DateTime starttime, DateTime endtime )
-{
     AdapterManager::start( starttime, endtime );
     // start the bg thread
     m_shouldRun = true;

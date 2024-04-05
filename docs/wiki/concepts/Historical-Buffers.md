@@ -52,45 +52,32 @@ The various historical access methods take the same arguments and return the val
     The default policy is to return the LAST_VALUE that exists at the given time.
   - **`default`**: value to be returned if the requested time is out of the history bounds (if default is not provided and a request is out of bounds an exception will be raised).
 
-To illustrate the usage of history access using the **timedelta** indexing, consider a possible implementation of a function that sums up samples taken every second for each periods of **n_seconds** of the input time series.
-If the value ticks slower than every second then this implementation could sample the same value more than once (this is just an illustration, it's NOT recommended to use such implementation in real application as it could be implemented more efficiently):
+The following demonstrate a possible way to compute a rolling sum for the past N ticks.  Please note that this is for demonstration purposes only and is not efficient.  A more efficient 
+vectorized version can be seen below, though even that would not be recommended for a rolling sum since csp.stats.sum would be even more efficient with its C++ impl in-line calculation
 
 ```python
 @csp.node
-def sample_sum(n_seconds: int, input: ts[int], default_sample_value: int = 0) -> ts[int]:
-    with csp.alarms():
-        a = csp.alarm(bool)
+def rolling_sum(x:ts[float], tick_count: int) -> ts[float]:
     with csp.start():
-        assert n_seconds > 0
-        # This makes sure that input stores at least n_seconds seconds
-        csp.set_buffering_policy(input, tick_history=timedelta(seconds=n_seconds))
-        # Flag the input as passive since we don't need to react to its ticks
-        csp.make_passive(input)
-        # Schedule the first sample in n_seconds-1 from start, to also capture the initial value
-        csp.schedule_alarm(a, timedelta(seconds=n_seconds - 1), True)
-    if csp.ticked(a):
-        # Schedule the next sample in n_seconds from start
-        csp.schedule_alarm(a, timedelta(seconds=n_seconds), True)
-        res = 0
-        for i in range(n_seconds):
-            res += csp.value_at(input, timedelta(seconds=-i), default=default_sample_value)
-        return res
+        csp.set_buffering_policy(x, tick_count=tick_count)
+
+    if csp.ticked(x):
+        return sum(csp.value_at(x, -i) for i in range(min(csp.num_ticks(x), tick_count)))
 ```
 
 ## Historical Range Access
 
 In similar fashion, the methods **`csp.values_at`**, **`csp.times_at`** and **`csp.items_at`** can be used to retrieve a range of historical input values as numpy arrays.
-The bin generator example above can be accomplished more efficiently with range access:
+The sample_sum example above can be accomplished more efficiently with range access:
 
 ```python
 @csp.node
-def data_bin_generator(bin_size: int, input: ts['T']) -> ts[['T']]:
+def rolling_sum(x:ts[float], tick_count: int) -> ts[float]:
     with csp.start():
-        assert bin_size > 0
-        # This makes sure that input stores at least bin_size entries
-        csp.set_buffering_policy(input, tick_count=bin_size)
-    if csp.ticked(input) and (csp.num_ticks(input) % bin_size == 0):
-        return csp.values_at(input, -bin_size + 1, 0).tolist()
+        csp.set_buffering_policy(x, tick_count=tick_count)
+
+    if csp.ticked(x):
+        return csp.values_at(x).sum()
 ```
 
 The past values in this example are accessed using **`csp.values_at`**.

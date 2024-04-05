@@ -4,3 +4,4 @@ docs/* linguist-documentation
 Makefile linguist-documentation
 
 * text=auto eol=lf
+*.png binary

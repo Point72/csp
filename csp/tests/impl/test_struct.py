@@ -1282,6 +1282,18 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"b": False, "i": 456, "f": 1.73, "s": "789"}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
+        test_struct = MyStruct(b=False, i=456, f=float("nan"), s="789")
+        result_dict = {"b": False, "i": 456, "f": None, "s": "789"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        test_struct = MyStruct(b=False, i=456, f=float("inf"), s="789")
+        result_dict = {"b": False, "i": 456, "f": None, "s": "789"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        test_struct = MyStruct(b=False, i=456, f=float("-inf"), s="789")
+        result_dict = {"b": False, "i": 456, "f": None, "s": "789"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
     def test_to_json_enums(self):
         from enum import Enum as PyEnum
 
@@ -1434,8 +1446,13 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "l_any": l_l_i}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
-        l_any = [[1, 2], "hello", [4, 3.2, [6, [7], (8, True, 10.5, (11, [12, False]))]]]
-        l_any_result = [[1, 2], "hello", [4, 3.2, [6, [7], [8, True, 10.5, [11, [12, False]]]]]]
+        l_any = [[1, float("nan")], [float("INFINITY"), float("-inf")]]
+        test_struct = MyStruct(i=456, l_any=l_any)
+        result_dict = {"i": 456, "l_any": [[1, None], [None, None]]}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        l_any = [[1, 2], "hello", [4, 3.2, [6, [7], (8, True, 10.5, (11, [float("nan"), False]))]]]
+        l_any_result = [[1, 2], "hello", [4, 3.2, [6, [7], [8, True, 10.5, [11, [None, False]]]]]]
         test_struct = MyStruct(i=456, l_any=l_any)
         result_dict = {"i": 456, "l_any": l_any_result}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
@@ -1444,6 +1461,7 @@ class TestCspStruct(unittest.TestCase):
         class MyStruct(csp.Struct):
             i: int = 123
             d_i: typing.Dict[int, int]
+            d_f: typing.Dict[float, int]
             d_dt: typing.Dict[str, datetime]
             d_d_s: typing.Dict[str, typing.Dict[str, str]]
             d_any: dict
@@ -1456,6 +1474,12 @@ class TestCspStruct(unittest.TestCase):
         d_i_res = {str(k): v for k, v in d_i.items()}
         test_struct = MyStruct(i=456, d_i=d_i)
         result_dict = {"i": 456, "d_i": d_i_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        d_f = {1.2: 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_f=d_f)
+        result_dict = {"i": 456, "d_f": d_f_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
         dt = datetime.now(tz=pytz.utc)
@@ -1475,6 +1499,12 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "d_any": d_i_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
+        d_f = {1.2: 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_any=d_f)
+        result_dict = {"i": 456, "d_any": d_f_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
         dt = datetime.now(tz=pytz.utc)
         d_dt = {"d1": dt, "d2": dt}
         test_struct = MyStruct(i=456, d_any=d_dt)
@@ -1486,6 +1516,24 @@ class TestCspStruct(unittest.TestCase):
         test_struct = MyStruct(i=456, d_any=d_any)
         result_dict = {"i": 456, "d_any": d_any_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        d_f = {float("nan"): 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_any=d_f)
+        with self.assertRaises(ValueError):
+            test_struct.to_json()
+
+        d_f = {float("inf"): 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_any=d_f)
+        with self.assertRaises(ValueError):
+            test_struct.to_json()
+
+        d_f = {float("-inf"): 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_any=d_f)
+        with self.assertRaises(ValueError):
+            test_struct.to_json()
 
     def test_to_json_struct(self):
         class MySubSubStruct(csp.Struct):

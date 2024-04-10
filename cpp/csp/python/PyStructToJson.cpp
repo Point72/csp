@@ -21,6 +21,32 @@ inline rapidjson::Value toJson( const T& val, const CspType& typ, rapidjson::Doc
     return rapidjson::Value( val );
 }
 
+// Helper function for parsing doubles
+inline rapidjson::Value doubleToJson( const double& val, rapidjson::Document& doc )
+{
+    // NOTE: Rapidjson adds support for this in a future release. Remove this when we upgrade rapidjson to a version
+    // after 07/16/2023 and use kWriteNanAndInfNullFlag in the writer.
+    //
+    // To be compatible with other JSON libraries, we cannot use the default approach that rapidjson has to
+    // serializing NaN, and (+/-)Infs. We need to manually convert them to NULLs. Rapidjson adds support for this
+    // in a future release.
+    if ( std::isnan( val ) || std::isinf( val ) )
+    {
+        return rapidjson::Value();
+    }
+    else
+    {
+        return rapidjson::Value( val );
+    }
+}
+
+// Helper function to convert doubles into json format recursively, by properly handlings NaNs, and Infs
+template<>
+inline rapidjson::Value toJson( const double& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+{
+    return doubleToJson( val, doc );
+}
+
 // Helper function to convert Enums into json format recursively
 template<>
 inline rapidjson::Value toJson( const CspEnum& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
@@ -183,7 +209,21 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc )
     else if( PyFloat_Check( py_key ) )
     {
         auto key = PyFloat_AsDouble( py_key );
-        val.SetString( std::to_string( key ), doc.GetAllocator() );
+        auto json_obj = doubleToJson( key, doc );
+        if ( json_obj.IsNull() )
+        {
+            auto * str_obj = PyObject_Str( py_key );
+            Py_ssize_t len = 0;
+            const char * str = PyUnicode_AsUTF8AndSize( str_obj, &len );
+            CSP_THROW( ValueError, "Cannot serialize " + std::string( str ) + " to key in JSON" );
+        }
+        else
+        {
+            // Convert to string
+            std::stringstream s;
+            s << key;
+            val.SetString( s.str(), doc.GetAllocator() );
+        }
     }
     else
     {
@@ -255,12 +295,12 @@ rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyO
     }
     else if( PyFloat_Check( value ) )
     {
-        return rapidjson::Value( fromPython<double>( value ) );
+        return doubleToJson( fromPython<double>( value ), doc );
     }
     else if( PyUnicode_Check( value ) )
     {
         Py_ssize_t len;
-        auto str = PyUnicode_AsUTF8AndSize( value , &len );
+        auto str = PyUnicode_AsUTF8AndSize( value, &len );
         rapidjson::Value str_val;
         str_val.SetString( str, len, doc.GetAllocator() );
         return str_val;

@@ -1,14 +1,14 @@
-We do not have a formal roadmap, but we're happy to discuss features, improvements, new adapters, etc, in our [discussions area](https://github.com/Point72/csp/discussions). Here are some high level items we hope to accomplish in the next few months:
+We do not have a formal roadmap, but we're happy to discuss features, improvements, new adapters, etc, in our [discussions area](https://github.com/Point72/csp/discussions).
 
-- Support `clang` compiler and full MacOS support ([#33](https://github.com/Point72/csp/issues/33) / [#132](https://github.com/Point72/csp/pull/132))
+Here are some high level items we hope to accomplish in the next few months:
+
 - Support `msvc` compiler and full Windows support ([#109](https://github.com/Point72/csp/issues/109))
 - Establish a better pattern for adapters ([#165](https://github.com/Point72/csp/discussions/165))
+- Parallelization to improve runtime, for historical distribution
+- Support for cross-process communication in realtime distributions
 
 ## Adapters and Extensions
 
-- Redis Pub/Sub Adapter with [Redis-plus-plus](https://github.com/sewenew/redis-plus-plus) ([#61](https://github.com/Point72/csp/issues/61))
-- C++-based websocket adapter
-  - Client adapter in [#152](https://github.com/Point72/csp/pull/152)
 - C++-based HTTP/SSE adapter
 - Add support for other graph viewers, including interactive / standalone / Jupyter
 

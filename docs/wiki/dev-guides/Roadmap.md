@@ -4,7 +4,7 @@ Here are some high level items we hope to accomplish in the next few months:
 
 - Support `msvc` compiler and full Windows support ([#109](https://github.com/Point72/csp/issues/109))
 - Establish a better pattern for adapters ([#165](https://github.com/Point72/csp/discussions/165))
-- Parallelization to improve runtime, for historical distribution
+- Parallelization to improve runtime, for historical/offline distributions
 - Support for cross-process communication in realtime distributions
 
 ## Adapters and Extensions

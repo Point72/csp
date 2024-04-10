@@ -1,114 +1,43 @@
-# Intro
-
 CSP comes with some basic constructs readily available and commonly used.
-The latest set of baselib nodes / adapters can be found in the csp.baselib module.
+The latest set of base nodes can be found in the `csp.baselib` module.
 
-All of the nodes / adapters noted here are imported directly into the csp namespace when importing csp.
+All of the nodes noted here are imported directly into the CSP namespace when importing CSP.
+
 These are all graph-time constructs.
 
-# Adapters
+## Table of Contents
 
-## `timer`
+- [Table of Contents](#table-of-contents)
+- [`csp.print`](#cspprint)
+- [`csp.log`](#csplog)
+- [`csp.sample`](#cspsample)
+- [`csp.firstN`](#cspfirstn)
+- [`csp.count`](#cspcount)
+- [`csp.delay`](#cspdelay)
+- [`csp.diff`](#cspdiff)
+- [`csp.merge`](#cspmerge)
+- [`csp.split`](#cspsplit)
+- [`csp.filter`](#cspfilter)
+- [`csp.drop_dups`](#cspdrop_dups)
+- [`csp.unroll`](#cspunroll)
+- [`csp.collect`](#cspcollect)
+- [`csp.flatten`](#cspflatten)
+- [`csp.default`](#cspdefault)
+- [`csp.gate`](#cspgate)
+- [`csp.apply`](#cspapply)
+- [`csp.null_ts`](#cspnull_ts)
+- [`csp.stop_engine`](#cspstop_engine)
+- [`csp.multiplex`](#cspmultiplex)
+- [`csp.demultiplex`](#cspdemultiplex)
+- [`csp.dynamic_demultiplex`](#cspdynamic_demultiplex)
+- [`csp.dynamic_collect`](#cspdynamic_collect)
+- [`csp.drop_nans`](#cspdrop_nans)
+- [`csp.times`](#csptimes)
+- [`csp.times_ns`](#csptimes_ns)
+- [`csp.accum`](#cspaccum)
+- [`csp.exprtk`](#cspexprtk)
 
-```python
-csp.timer(
-    interval: timedelta,
-    value: '~T' = True,
-    allow_deviation: bool = False
-)
-```
-
-This will create a repeating timer edge that will tick on the given `timedelta` with the given value (value defaults to `True`, returning a `ts[bool]`)
-
-Args:
-
-- **`interval`**: how often to tick value
-- **`value`**: the actual value that will tick every interval (defaults to the value `True`)
-- **`allow_deviation`**: When running in realtime the engine will ensure timers execute exactly when they requested on their intervals.
-  If your engine begins to lag, timers will still execute at the expected time "in the past" as the engine catches up
-  (imagine having a `csp.timer` fire every 1/2 second but the engine becomes delayed for 1 second.
-  By default the half seconds will still execute until time catches up to wallclock).
-  When `allow_deviation` is `True`, and the engine is in realtime mode, subsequent timers will always be scheduled from the current wallclock + interval,
-  so they won't end up lagging behind at the expensive of the timer skewing.
-
-## `const`
-
-```python
-csp.const(
-    value: '~T',
-    delay: timedelta = timedelta()
-)
-```
-
-This will create an edge that ticks one time with the value provided.
-By default this will tick at the start of the engine, delta can be provided to delay the tick
-
-## `curve`
-
-```python
-csp.curve(
-    typ: 'T',
-    data: typing.Union[list, tuple]
-)
-```
-
-This allows you to convert a list of non-csp data into a ticking edge in csp
-
-Args:
-
-- **`typ`**: is the type of the value of the data of this edge
-- **`data`**: is either a list of tuples of `(datetime, value)`, or a tuple of two equal-length numpy ndarrays, the first with datetimes and the second with values.
-  In either case, that will tick on the returned edge into the engine, and the data must be in time order.
-  Note that for the list of tuples case, you can also provide tuples of (timedelta, value) where timedelta will be the offset from the engine's start time.
-
-## `add_graph_output`
-
-```python
-csp.add_graph_output(
-    key: object,
-    input: ts['T'],
-    tick_count: int = -1,
-    tick_history: timedelta = timedelta()
-)
-```
-
-This allows you to connect an edge as a "graph output".
-All edges added as outputs will be returned to the caller from `csp.run` as a dictionary of `key: [(datetime, value)]`
-(list of datetime, values that ticked on the edge) or if `csp.run` is passed `output_numpy=True`, as a dictionary of
-`key: (array, array)` (tuple of two numpy arrays, one with datetimes and one with values).
-See [Collecting Graph Outputs](https://github.com/Point72/csp/wiki/0.-Introduction#collecting-graph-outputs)
-
-Args:
-
-- **`key`**: key to return the results as from csp.run
-- **`input`**: edge to connect
-- **`tick_count`**: number of ticks to keep in the buffer (defaults to -1 - all ticks)
-- **`tick_history`**: amount of ticks to keep by time window (defaults to keeping all history)
-
-## `feedback`
-
-```python
-csp.feedback(typ)
-```
-
-`csp.feedback` is a construct that can be used to create artificial loops in the graph.
-Use feedbacks in order to delay bind an input to a node in order to be able to create a loop
-(think of writing a simulated exchange that takes orders in and needs to feed responses back to the originating node).
-
-`csp.feedback` itself is not an edge, its a construct that allows you to access the delayed edge / bind a delayed input.
-
-Args:
-
-- **`typ`**: type of the edge's data to be bound
-
-Methods:
-
-- **`out()`**: call this method on the feedback object to get the edge which can be wired as an input
-- **`bind(x: ts[object])`**: call this to bind an edge to the feedback
-
-# Basic Nodes
-
-## `print`
+## `csp.print`
 
 ```python
 csp.print(
@@ -118,7 +47,7 @@ csp.print(
 
 This node will print (using python `print()`) the time, tag and value of `x` for every tick of `x`
 
-## `log`
+## `csp.log`
 
 ```python
 csp.log(
@@ -132,7 +61,7 @@ csp.log(
 ```
 
 Similar to `csp.print`, this will log ticks using the logger on the provided level.
-The default 'csp' logger is used if none is provided to the node.
+The default CSP logger is used if none is provided to the node.
 
 Args:
 
@@ -141,7 +70,7 @@ Args:
   This can be useful when printing large strings in log calls.
   If individual time-series values are subject to modification *after* the log call, then the user must pass in a copy of the time-series if they wish to have proper threaded logging.
 
-## `sample`
+## `csp.sample`
 
 ```python
 csp.sample(
@@ -154,7 +83,7 @@ Use this to down-sample an input.
 `csp.sample` will return the current value of `x` any time trigger ticks.
 This can be combined with `csp.timer` to sample the input on a time interval.
 
-## `firstN`
+## `csp.firstN`
 
 ```python
 csp.firstN(
@@ -165,15 +94,15 @@ csp.firstN(
 
 Only output the first `N` ticks of the input.
 
-## `count`
+## `csp.count`
 
 ```python
-csp.count(x: ts[object]) → ts[int]
+csp.count(x: ts[object]) → ts[int]
 ```
 
 Returns the ticking count of ticks of the input
 
-## `delay`
+## `csp.delay`
 
 ```python
 csp.delay(
@@ -184,7 +113,7 @@ csp.delay(
 
 This will delay all ticks of the input `x` by the given `delay`, which can be given as a `timedelta` to delay a specified amount of time, or as an int to delay a specified number of ticks (delay must be positive)
 
-## `diff`
+## `csp.diff`
 
 ```python
 csp.diff(
@@ -195,7 +124,7 @@ csp.diff(
 
 When `x` ticks, output difference between current tick and value time or ticks ago (once that exists)
 
-## `merge`
+## `csp.merge`
 
 ```python
 csp.merge( x: ts['T'], y: ts['T']) → ts['T']
@@ -203,9 +132,9 @@ csp.merge( x: ts['T'], y: ts['T']) → ts['T']
 
 Merges the two timeseries `x` and `y` into a single series.
 If both tick on the same cycle, the first input (`x`) wins and the value of `y` is dropped.
-For loss-less merging see `csp.flatten`
+For loss-less merging see `csp.flatten`
 
-## `split`
+## `csp.split`
 
 ```python
 csp.split(
@@ -219,7 +148,7 @@ If `flag` is `True` when `x` ticks, output 'true' will tick with the value of `x
 If `flag` is `False` at the time of the input tick, then 'false' will tick.
 Note that if flag is not valid at the time of the input tick, the input will be dropped.
 
-## `filter`
+## `csp.filter`
 
 ```python
 csp.filter(flag: ts[bool], x: ts['T']) → ts['T']
@@ -228,7 +157,7 @@ csp.filter(flag: ts[bool], x: ts['T']) → ts['T']
 Will only tick out input ticks of `x` if the current value of `flag` is `True`.
 If flag is `False`, or if flag is not valid (hasn't ticked yet) then `x` is suppressed.
 
-## `drop_dups`
+## `csp.drop_dups`
 
 ```python
 csp.drop_dups(x: ts['T']) → ts['T']
@@ -236,34 +165,34 @@ csp.drop_dups(x: ts['T']) → ts['T']
 
 Will drop consecutive duplicate values from the input.
 
-## `unroll`
+## `csp.unroll`
 
 ```python
 csp.unroll(x: ts[['T']]) → ts['T']
 ```
 
-Given a timeseries of a *list* of values, unroll will "unroll" the values in the list into a timeseries of the elements.
+Given a timeseries of a *list* of values, unroll will "unroll" the values in the list into a timeseries of the elements.
 `unroll` will ensure to preserve the order across all list ticks.
 Ticks will be unrolled in subsequent engine cycles.
 
-## `collect`
+## `csp.collect`
 
 ```python
 csp.collect(x: [ts['T']]) → ts[['T']]
 ```
 
-Given a basket of inputs, return a timeseries of a *list* of all values that ticked
+Given a basket of inputs, return a timeseries of a *list* of all values that ticked
 
-## `flatten`
+## `csp.flatten`
 
 ```python
 csp.flatten(x: [ts['T']]) → ts['T']
 ```
 
 Given a basket of inputs, return all ticks across all inputs as a single timeseries of type 'T'
-(This is similar to `csp.merge` except that it can take more than two inputs, and is lossless)
+(This is similar to `csp.merge` except that it can take more than two inputs, and is lossless)
 
-## `default`
+## `csp.default`
 
 ```python
 csp.default(
@@ -276,7 +205,7 @@ csp.default(
 Defaults the input series to the value of `default` at start of the engine, or after `delay` if `delay` is provided.
 If `x` ticks right at the start of the engine, or before `delay` if `delay` is provided, `default` value will be discarded.
 
-## `gate`
+## `csp.gate`
 
 ```python
 csp.gate(
@@ -290,7 +219,7 @@ csp.gate(
 While open, the input will tick out as a single value burst.
 While closed, input ticks will buffer up until they can be released.
 
-## `apply`
+## `csp.apply`
 
 ```python
 csp.apply(
@@ -302,7 +231,7 @@ csp.apply(
 
 Applies the provided callable `f` on every tick of the input and returns the result of the callable.
 
-## `null_ts`
+## `csp.null_ts`
 
 ```python
 csp.null_ts(typ: 'T')
@@ -310,7 +239,7 @@ csp.null_ts(typ: 'T')
 
 Returns a "null" timeseries of the given type which will never tick.
 
-## `stop_engine`
+## `csp.stop_engine`
 
 ```python
 csp.stop_engine(x: ts['T'])
@@ -318,7 +247,7 @@ csp.stop_engine(x: ts['T'])
 
 Forces the engine to stop if `x` ticks
 
-## `multiplex`
+## `csp.multiplex`
 
 ```python
 csp.multiplex(
@@ -339,7 +268,7 @@ Args:
   the input basket whenever the key ticks (defaults to `False`)
 - **`raise_on_bad_key`**: if `True` an exception will be raised if key ticks with an unrecognized key (defaults to `False`)
 
-## `demultiplex`
+## `csp.demultiplex`
 
 ```python
 csp.demultiplex(
@@ -350,18 +279,18 @@ csp.demultiplex(
 ) → {key: ts['T']}
 ```
 
-Given a single timeseries input, a key timeseries to demultiplex on and a set of expected keys, will output the given input onto the corresponding basket output of the current value of `key`.
+Given a single timeseries input, a key timeseries to demultiplex on and a set of expected keys, will output the given input onto the corresponding basket output of the current value of `key`.
 A good example use case of this is demultiplexing a timeseries of trades by account.
-Assuming your trade struct has an account field, you can `demultiplex(trades, trades.account, [ 'acct1', 'acct2', ... ])`.
+Assuming your trade struct has an account field, you can `demultiplex(trades, trades.account, [ 'acct1', 'acct2', ... ])`.
 
 Args:
 
 - **`x`**: the input timeseries to demultiplex
 - **`key`**: a ticking timeseries of the current key to output to
-- **`keys`**: a list of expected keys that will define the shape of the output basket.  The list of keys must be known at graph building time
+- **`keys`**: a list of expected keys that will define the shape of the output basket.  The list of keys must be known at graph building time
 - **`raise_on_bad_key`**: if `True` an exception will be raised of key ticks with an unrecognized key (defaults to `False`)
 
-## `dynamic_demultiplex`
+## `csp.dynamic_demultiplex`
 
 ```python
 csp.dynamic_demultiplex(
@@ -372,7 +301,7 @@ csp.dynamic_demultiplex(
 
 Similar to `csp.demultiplex`, this version will return a [Dynamic Basket](https://github.com/Point72/csp/wiki/6.-Dynamic-Graphs) output that will dynamically add new keys as they are seen.
 
-## `dynamic_collect`
+## `csp.dynamic_collect`
 
 ```python
 csp.dynamic_collect(
@@ -382,7 +311,7 @@ csp.dynamic_collect(
 
 Similar to `csp.collect`, this function takes a [Dynamic Basket](https://github.com/Point72/csp/wiki/6.-Dynamic-Graphs) input and returns a dictionary of the key-value pairs corresponding to the values that ticked.
 
-## `drop_nans`
+## `csp.drop_nans`
 
 ```python
 csp.drop_nans(x: ts[float]) → ts[float]
@@ -390,7 +319,7 @@ csp.drop_nans(x: ts[float]) → ts[float]
 
 Filters nan (Not-a-number) values out of the time series.
 
-## `times`
+## `csp.times`
 
 ```python
 csp.times(x: ts['T']) → ts[datetime]
@@ -398,7 +327,7 @@ csp.times(x: ts['T']) → ts[datetime]
 
 Given a timeseries, returns the time at which that series ticks
 
-## `times_ns`
+## `csp.times_ns`
 
 ```python
 csp.times_ns(x: ts['T']) → ts[int]
@@ -406,7 +335,7 @@ csp.times_ns(x: ts['T']) → ts[int]
 
 Given a timeseries, returns the epoch time in nanoseconds at which that series ticks
 
-## `accum`
+## `csp.accum`
 
 ```python
 csp.accum(x: ts["T"], start: "~T" = 0) -> ts["T"]
@@ -414,72 +343,7 @@ csp.accum(x: ts["T"], start: "~T" = 0) -> ts["T"]
 
 Given a timeseries, accumulate via `+=` with starting value `start`.
 
-# Math and Logic nodes
-
-See [Math Nodes](<https://github.com/Point72/csp/wiki/XX.-(Draft)-Math-Nodes-(csp.math)>).
-
-# Functional Methods
-
-Edges in csp contain some methods to serve as syntactic sugar for stringing nodes together in a pipeline. This makes it easier to read/modify workflows and avoids the need for nested brackets.
-
-## `apply`
-
-```python
-Edge.apply(self, func, *args, **kwargs)
-```
-
-Calls `csp.apply` on the edge with the provided python `func`.
-
-Args:
-
-- **`func`**: A scalar function that will be applied on each value of the Edge. If a different output type is returned, pass a tuple `(f, typ)`, where `typ` is the output type of f
-- **`args`**: Positional arguments passed into `func`
-- **`kwargs`**: Dictionary of keyword arguments passed into func
-
-## `pipe`
-
-```python
-Edge.pipe(self, node, *args, **kwargs)
-```
-
-Calls the `node` on the edge.
-
-Args:
-
-- **`node`**: A graph node that will be applied to the Edge, which is passed into node as the first argument.
-  Alternatively, a `(node, edge_keyword)` tuple where `edge_keyword` is a string indicating the keyword of node that expects the edge.
-- **`args`**: Positional arguments passed into `node`
-- **`kwargs`**: Dictionary of keyword arguments passed into `node`
-
-## `run`
-
-```python
-Edge.run(self, node, *args, **kwargs)
-```
-
-Alias for `csp.run(self, *args, **kwargs)`
-
-## Example of functional methods
-
-```python
-import csp
-from datetime import datetime, timedelta
-import math
-
-(csp.timer(timedelta(minutes=1))
-    .pipe(csp.count)
-    .pipe(csp.delay, timedelta(seconds=1))
-    .pipe((csp.sample, 'x'), trigger=csp.timer(timedelta(minutes=2)))
-    .apply((math.sin, float))
-    .apply(math.pow, 3)
-    .pipe(csp.firstN, 10)
-    .run(starttime=datetime(2000,1,1), endtime=datetime(2000,1,2)))
-
-```
-
-# Other nodes
-
-## `exprtk`
+## `csp.exprtk`
 
 ```python
 csp.exprtk(
@@ -498,8 +362,8 @@ Args:
 
 - **`expression_str`**: an expression, as per the [C++ Mathematical Expression Library](http://www.partow.net/programming/exprtk/) (see [readme](http://www.partow.net/programming/exprtk/code/readme.txt)
 - **`inputs`**: a dict basket of timeseries. The keys will correspond to the variables in the expression. The timeseries can be of float or string
-- **`state_vars`**: an optional dictionary of variables to be held in state between executions, and assignable within the expression.  Keys are the variable names and values are the starting values
+- **`state_vars`**: an optional dictionary of variables to be held in state between executions, and assignable within the expression.  Keys are the variable names and values are the starting values
 - **`trigger`**: an optional trigger for when to calculate. By default will calculate on any input tick
 - **`functions`**: an optional dictionary whose keys are function names that can be used in the expression, and whose values are of the form `(("arg1", ..), "function body")`, for example `{"foo": (("x","y"), "x\*y")}`
-- **`constants`**: an optional dictionary of constants.  Keys are constant names and values are their values
+- **`constants`**: an optional dictionary of constants.  Keys are constant names and values are their values
 - **`output_ndarray`**: if `True`, output ndarray (1D) instead of float. Note that to output `ndarray`, the expression needs to use return like `return [a, b, c]`. The length of the array can vary between ticks.

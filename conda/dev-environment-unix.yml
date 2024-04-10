@@ -18,6 +18,7 @@ dependencies:
  - isort
  - libarrow=15
  - librdkafka
+ - libboost-headers
  - lz4-c
  - mamba
  - mdformat
@@ -47,4 +48,5 @@ dependencies:
  - twine
  - unzip
  - wheel
+ - websocketpp
  - zip

@@ -4,11 +4,35 @@ import threading
 import typing
 import urllib
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from typing import Dict, List
 
 import csp
 from csp import ts
+from csp.adapters.status import Status
+from csp.adapters.utils import (
+    BytesMessageProtoMapper,
+    DateTimeType,
+    JSONTextMessageMapper,
+    MsgMapper,
+    RawBytesMessageMapper,
+    RawTextMessageMapper,
+)
+from csp.impl.wiring import input_adapter_def, output_adapter_def, status_adapter_def
 from csp.impl.wiring.delayed_node import DelayedNodeWrapperDef
+from csp.lib import _websocketadapterimpl
+
+from .websocket_types import WebsocketHeaderUpdate
+
+_ = (
+    BytesMessageProtoMapper,
+    DateTimeType,
+    JSONTextMessageMapper,
+    RawBytesMessageMapper,
+    RawTextMessageMapper,
+)
+T = typing.TypeVar("T")
+
 
 try:
     import tornado.ioloop
@@ -355,3 +379,91 @@ class WebsocketTableAdapter(DelayedNodeWrapperDef):
             _apply_updates(manager, table_name, table.columns)
 
         _launch_application(self._port, manager, csp.const("stub"))
+
+
+class WebsocketAdapterManager:
+    def __init__(
+        self,
+        uri: str,
+        verbose_log: bool = False,
+        reconnect_interval: timedelta = timedelta(seconds=2),
+        headers: Dict[str, str] = None,
+    ):
+        """
+        uri: str
+            where to connect
+        verbose_log: bool = False
+            should the websocket client also log using the builtin
+        reconnect_interval: timedelta = timedelta(seconds=2)
+            time interval to wait before trying to reconnect (must be >= 1 second)
+        headers: Dict[str, str] = None
+            headers to apply to the request during the handshake
+        """
+        assert reconnect_interval >= timedelta(seconds=1)
+        self._properties = dict(
+            uri=uri,
+            verbose_log=verbose_log,
+            reconnect_interval=reconnect_interval,
+            headers=headers if headers else {},
+            use_tls=uri.startswith("wss"),
+        )
+
+    def subscribe(
+        self,
+        ts_type: type,
+        msg_mapper: MsgMapper,
+        field_map: typing.Union[dict, str] = None,
+        meta_field_map: dict = None,
+        push_mode: csp.PushMode = csp.PushMode.NON_COLLAPSING,
+    ):
+        field_map = field_map or {}
+        meta_field_map = meta_field_map or {}
+        if isinstance(field_map, str):
+            field_map = {field_map: ""}
+
+        if not field_map and issubclass(ts_type, csp.Struct):
+            field_map = ts_type.default_field_map()
+
+        properties = msg_mapper.properties.copy()
+        properties["field_map"] = field_map
+        properties["meta_field_map"] = meta_field_map
+
+        return _websocket_input_adapter_def(self, ts_type, properties, push_mode)
+
+    def send(self, x: ts["T"]):
+        return _websocket_output_adapter_def(self, x)
+
+    def update_headers(self, x: ts[List[str]]):
+        return _websocket_header_update_adapter_def(self, x)
+
+    def status(self, push_mode=csp.PushMode.NON_COLLAPSING):
+        ts_type = Status
+        return status_adapter_def(self, ts_type, push_mode)
+
+    def _create(self, engine, memo):
+        """method needs to return the wrapped c++ adapter manager"""
+        return _websocketadapterimpl._websocket_adapter_manager(engine, self._properties)
+
+
+_websocket_input_adapter_def = input_adapter_def(
+    "websocket_input_adapter",
+    _websocketadapterimpl._websocket_input_adapter,
+    ts["T"],
+    WebsocketAdapterManager,
+    typ="T",
+    properties=dict,
+)
+
+_websocket_output_adapter_def = output_adapter_def(
+    "websocket_output_adapter",
+    _websocketadapterimpl._websocket_output_adapter,
+    WebsocketAdapterManager,
+    input=ts["T"],
+)
+
+_websocket_header_update_adapter_def = output_adapter_def(
+    "websocket_header_update_adapter",
+    _websocketadapterimpl._websocket_header_update_adapter,
+    WebsocketAdapterManager,
+    input=ts[List[WebsocketHeaderUpdate]],
+)

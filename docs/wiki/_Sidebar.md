@@ -22,7 +22,6 @@ Notes for editors:
 - [Historical Buffers](Historical-Buffers)
 - [Execution Modes](Execution-Modes)
 - [Adapters](Adapters)
-- [Caching](Caching)
 
 **How-to guides**
 

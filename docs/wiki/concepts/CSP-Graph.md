@@ -84,7 +84,7 @@ result:
 
 Note that the result is a list of `(datetime, value)` tuples.
 
-You can also use [csp.add_graph_output](<https://github.com/Point72/csp/wiki/1.-Generic-Nodes-(csp.baselib)#adapters>) to add outputs.
+You can also use [csp.add_graph_output](Base-Adapters-API#cspadd_graph_output) to add outputs.
 These do not need to be in the top-level graph called directly from `csp.run`.
 
 This gives the same result:

@@ -299,7 +299,7 @@ csp.dynamic_demultiplex(
 ) → {ts['K']: ts['T']}
 ```
 
-Similar to `csp.demultiplex`, this version will return a [Dynamic Basket](https://github.com/Point72/csp/wiki/6.-Dynamic-Graphs) output that will dynamically add new keys as they are seen.
+Similar to `csp.demultiplex`, this version will return a [Dynamic Basket](Create-Dynamic-Baskets) output that will dynamically add new keys as they are seen.
 
 ## `csp.dynamic_collect`
 
@@ -309,7 +309,7 @@ csp.dynamic_collect(
 ) → ts[{'K': 'T'}]
 ```
 
-Similar to `csp.collect`, this function takes a [Dynamic Basket](https://github.com/Point72/csp/wiki/6.-Dynamic-Graphs) input and returns a dictionary of the key-value pairs corresponding to the values that ticked.
+Similar to `csp.collect`, this function takes a [Dynamic Basket](Create-Dynamic-Baskets) input and returns a dictionary of the key-value pairs corresponding to the values that ticked.
 
 ## `csp.drop_nans`
 

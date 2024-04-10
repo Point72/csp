@@ -12,6 +12,7 @@
 #include <csp/python/PyCspType.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
+#include <csp/python/PyStructList.h>
 #include <datetime.h>
 #include <Python.h>
 #include <string>
@@ -760,6 +761,29 @@ inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & typ
         PyList_SET_ITEM( list.ptr(), idx, toPython<ElemT>( v[idx], elemType ) );
     }
     return list.release();
+}
+
+template<typename StorageT>
+inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & type, const PyStruct * pystruct )
+{
+    assert( type.type() == CspType::Type::ARRAY );
+
+    const CspTypePtr elemType = static_cast<const CspArrayType &>( type ).elemType();
+    using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
+    size_t sz = v.size();
+
+    // TODO: Implement more efficient list allocation by pre-allocating the space and filling it using PyList_SET_ITEM.
+    // As of now, the problem is that Python is not allowing to resize the list via API, and it cannot allocate the list at the base of PyStructList, it can only allocate it somewhere in memory not under control.
+    PyObject * psl = PyStructList<StorageT>::PyType.tp_alloc( &PyStructList<StorageT>::PyType, 0 );
+    new ( psl ) PyStructList<StorageT>( const_cast<PyStruct *>( pystruct ), const_cast<std::vector<StorageT> &>( v ), *elemType );
+
+    for( size_t index = 0; index < sz; ++index )
+    {
+        PyObjectPtr element = PyObjectPtr::own( toPython<ElemT>( v[ index ], *elemType ) );
+        PyList_Append( ( PyObject * ) psl, element.get() );
+    }
+    
+    return psl;
 }
 
 template<typename StorageT>

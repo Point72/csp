@@ -3,8 +3,8 @@
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
+#include <csp/python/PyStructList.hi>
 #include <csp/python/PyStructToJson.h>
-
 #include <unordered_set>
 #include <type_traits>
 
@@ -395,8 +395,10 @@ PyTypeObject PyStructMeta::PyType = {
 
 
 //PyStruct
-PyObject * getattr_( const StructField* field, const Struct * struct_ )
+PyObject * getattr_( const StructField * field, const Struct * struct_ )
 {
+    assert( field -> type() -> type() != CspType::Type::ARRAY );
+
     PyObject *v = switchCspType( field -> type(), [ field, struct_ ]( auto tag )
     {
         using CType = typename decltype(tag)::type;
@@ -404,6 +406,21 @@ PyObject * getattr_( const StructField* field, const Struct * struct_ )
         return toPython( typedField -> value( struct_ ), *field -> type() );
     } );
 
+    return v;
+}
+
+PyObject * getarrayattr_( const StructField * field, const PyStruct * pystruct )
+{
+    assert( field -> type() -> type() == CspType::Type::ARRAY );
+    
+    const CspArrayType * arrayType = static_cast<const CspArrayType *>( field -> type().get() );
+    PyObject *v = ArraySubTypeSwitch::invoke( arrayType -> elemType(), [ field, pystruct ]( auto tag )
+    {
+        using StorageT  = typename CspType::Type::toCArrayStorageType<typename decltype(tag)::type>::type;
+        using ArrayT    = typename StructField::upcast<std::vector<StorageT>>::type;
+        auto * typedField = static_cast<const ArrayT *>( field );
+        return toPython( typedField -> value( pystruct -> struct_.get()  ), *field -> type(), pystruct );
+    } );
     return v;
 }
 
@@ -424,7 +441,9 @@ PyObject * PyStruct::getattr( PyObject * attr )
         return nullptr;
     }
 
-    return getattr_( field, ( const Struct *)struct_.get() );
+    if( field -> type() -> type() == CspType::Type::ARRAY )
+        return getarrayattr_( field, this );
+    return getattr_( field, ( const Struct * ) struct_.get() );
 }
 
 void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
@@ -996,5 +1015,25 @@ PyTypeObject PyStruct::PyType = {
 
 REGISTER_TYPE_INIT( &PyStructMeta::PyType, "PyStructMeta" )
 REGISTER_TYPE_INIT( &PyStruct::PyType,     "PyStruct" )
+
+// Instantiate all templates for PyStructList class
+template struct PyStructList<bool>;
+template struct PyStructList<int8_t>;
+template struct PyStructList<uint8_t>;
+template struct PyStructList<int16_t>;
+template struct PyStructList<uint16_t>;
+template struct PyStructList<int32_t>;
+template struct PyStructList<uint32_t>;
+template struct PyStructList<int64_t>;
+template struct PyStructList<uint64_t>;
+template struct PyStructList<double>;
+template struct PyStructList<DateTime>;
+template struct PyStructList<TimeDelta>;
+template struct PyStructList<Date>;
+template struct PyStructList<Time>;
+template struct PyStructList<std::string>;
+template struct PyStructList<DialectGenericType>;
+template struct PyStructList<StructPtr>;
+template struct PyStructList<CspEnum>;
 
 }

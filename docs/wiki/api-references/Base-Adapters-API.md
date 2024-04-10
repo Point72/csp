@@ -5,13 +5,13 @@ These are all graph-time constructs.
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
-- [`timer`](#timer)
-- [`const`](#const)
-- [`curve`](#curve)
-- [`add_graph_output`](#add_graph_output)
-- [`feedback`](#feedback)
+- [`csp.timer`](#csptimer)
+- [`csp.const`](#cspconst)
+- [`csp.curve`](#cspcurve)
+- [`csp.add_graph_output`](#cspadd_graph_output)
+- [`csp.feedback`](#cspfeedback)
 
-## `timer`
+## `csp.timer`
 
 ```python
 csp.timer(
@@ -34,7 +34,7 @@ Args:
   When `allow_deviation` is `True`, and the engine is in realtime mode, subsequent timers will always be scheduled from the current wallclock + interval,
   so they won't end up lagging behind at the expensive of the timer skewing.
 
-## `const`
+## `csp.const`
 
 ```python
 csp.const(
@@ -46,7 +46,7 @@ csp.const(
 This will create an edge that ticks one time with the value provided.
 By default this will tick at the start of the engine, delta can be provided to delay the tick
 
-## `curve`
+## `csp.curve`
 
 ```python
 csp.curve(
@@ -64,7 +64,7 @@ Args:
   In either case, that will tick on the returned edge into the engine, and the data must be in time order.
   Note that for the list of tuples case, you can also provide tuples of (timedelta, value) where timedelta will be the offset from the engine's start time.
 
-## `add_graph_output`
+## `csp.add_graph_output`
 
 ```python
 csp.add_graph_output(
@@ -88,7 +88,7 @@ Args:
 - **`tick_count`**: number of ticks to keep in the buffer (defaults to -1 - all ticks)
 - **`tick_history`**: amount of ticks to keep by time window (defaults to keeping all history)
 
-## `feedback`
+## `csp.feedback`
 
 ```python
 csp.feedback(typ)

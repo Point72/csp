@@ -8,36 +8,36 @@ These are all graph-time constructs.
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
-- [`print`](#print)
-- [`log`](#log)
-- [`sample`](#sample)
-- [`firstN`](#firstn)
-- [`count`](#count)
-- [`delay`](#delay)
-- [`diff`](#diff)
-- [`merge`](#merge)
-- [`split`](#split)
-- [`filter`](#filter)
-- [`drop_dups`](#drop_dups)
-- [`unroll`](#unroll)
-- [`collect`](#collect)
-- [`flatten`](#flatten)
-- [`default`](#default)
-- [`gate`](#gate)
-- [`apply`](#apply)
-- [`null_ts`](#null_ts)
-- [`stop_engine`](#stop_engine)
-- [`multiplex`](#multiplex)
-- [`demultiplex`](#demultiplex)
-- [`dynamic_demultiplex`](#dynamic_demultiplex)
-- [`dynamic_collect`](#dynamic_collect)
-- [`drop_nans`](#drop_nans)
-- [`times`](#times)
-- [`times_ns`](#times_ns)
-- [`accum`](#accum)
-- [`exprtk`](#exprtk)
+- [`csp.print`](#cspprint)
+- [`csp.log`](#csplog)
+- [`csp.sample`](#cspsample)
+- [`csp.firstN`](#cspfirstn)
+- [`csp.count`](#cspcount)
+- [`csp.delay`](#cspdelay)
+- [`csp.diff`](#cspdiff)
+- [`csp.merge`](#cspmerge)
+- [`csp.split`](#cspsplit)
+- [`csp.filter`](#cspfilter)
+- [`csp.drop_dups`](#cspdrop_dups)
+- [`csp.unroll`](#cspunroll)
+- [`csp.collect`](#cspcollect)
+- [`csp.flatten`](#cspflatten)
+- [`csp.default`](#cspdefault)
+- [`csp.gate`](#cspgate)
+- [`csp.apply`](#cspapply)
+- [`csp.null_ts`](#cspnull_ts)
+- [`csp.stop_engine`](#cspstop_engine)
+- [`csp.multiplex`](#cspmultiplex)
+- [`csp.demultiplex`](#cspdemultiplex)
+- [`csp.dynamic_demultiplex`](#cspdynamic_demultiplex)
+- [`csp.dynamic_collect`](#cspdynamic_collect)
+- [`csp.drop_nans`](#cspdrop_nans)
+- [`csp.times`](#csptimes)
+- [`csp.times_ns`](#csptimes_ns)
+- [`csp.accum`](#cspaccum)
+- [`csp.exprtk`](#cspexprtk)
 
-## `print`
+## `csp.print`
 
 ```python
 csp.print(
@@ -47,7 +47,7 @@ csp.print(
 
 This node will print (using python `print()`) the time, tag and value of `x` for every tick of `x`
 
-## `log`
+## `csp.log`
 
 ```python
 csp.log(
@@ -70,7 +70,7 @@ Args:
   This can be useful when printing large strings in log calls.
   If individual time-series values are subject to modification *after* the log call, then the user must pass in a copy of the time-series if they wish to have proper threaded logging.
 
-## `sample`
+## `csp.sample`
 
 ```python
 csp.sample(
@@ -83,7 +83,7 @@ Use this to down-sample an input.
 `csp.sample` will return the current value of `x` any time trigger ticks.
 This can be combined with `csp.timer` to sample the input on a time interval.
 
-## `firstN`
+## `csp.firstN`
 
 ```python
 csp.firstN(
@@ -94,7 +94,7 @@ csp.firstN(
 
 Only output the first `N` ticks of the input.
 
-## `count`
+## `csp.count`
 
 ```python
 csp.count(x: ts[object]) → ts[int]
@@ -102,7 +102,7 @@ csp.count(x: ts[object]) → ts[int]
 
 Returns the ticking count of ticks of the input
 
-## `delay`
+## `csp.delay`
 
 ```python
 csp.delay(
@@ -113,7 +113,7 @@ csp.delay(
 
 This will delay all ticks of the input `x` by the given `delay`, which can be given as a `timedelta` to delay a specified amount of time, or as an int to delay a specified number of ticks (delay must be positive)
 
-## `diff`
+## `csp.diff`
 
 ```python
 csp.diff(
@@ -124,7 +124,7 @@ csp.diff(
 
 When `x` ticks, output difference between current tick and value time or ticks ago (once that exists)
 
-## `merge`
+## `csp.merge`
 
 ```python
 csp.merge( x: ts['T'], y: ts['T']) → ts['T']
@@ -134,7 +134,7 @@ Merges the two timeseries `x` and `y` into a single series.
 If both tick on the same cycle, the first input (`x`) wins and the value of `y` is dropped.
 For loss-less merging see `csp.flatten`
 
-## `split`
+## `csp.split`
 
 ```python
 csp.split(
@@ -148,7 +148,7 @@ If `flag` is `True` when `x` ticks, output 'true' will tick with the value of `x
 If `flag` is `False` at the time of the input tick, then 'false' will tick.
 Note that if flag is not valid at the time of the input tick, the input will be dropped.
 
-## `filter`
+## `csp.filter`
 
 ```python
 csp.filter(flag: ts[bool], x: ts['T']) → ts['T']
@@ -157,7 +157,7 @@ csp.filter(flag: ts[bool], x: ts['T']) → ts['T']
 Will only tick out input ticks of `x` if the current value of `flag` is `True`.
 If flag is `False`, or if flag is not valid (hasn't ticked yet) then `x` is suppressed.
 
-## `drop_dups`
+## `csp.drop_dups`
 
 ```python
 csp.drop_dups(x: ts['T']) → ts['T']
@@ -165,7 +165,7 @@ csp.drop_dups(x: ts['T']) → ts['T']
 
 Will drop consecutive duplicate values from the input.
 
-## `unroll`
+## `csp.unroll`
 
 ```python
 csp.unroll(x: ts[['T']]) → ts['T']
@@ -175,7 +175,7 @@ Given a timeseries of a *list* of values, unroll will "unroll" the values in the
 `unroll` will ensure to preserve the order across all list ticks.
 Ticks will be unrolled in subsequent engine cycles.
 
-## `collect`
+## `csp.collect`
 
 ```python
 csp.collect(x: [ts['T']]) → ts[['T']]
@@ -183,7 +183,7 @@ csp.collect(x: [ts['T']]) → ts[['T']]
 
 Given a basket of inputs, return a timeseries of a *list* of all values that ticked
 
-## `flatten`
+## `csp.flatten`
 
 ```python
 csp.flatten(x: [ts['T']]) → ts['T']
@@ -192,7 +192,7 @@ csp.flatten(x: [ts['T']]) → ts['T']
 Given a basket of inputs, return all ticks across all inputs as a single timeseries of type 'T'
 (This is similar to `csp.merge` except that it can take more than two inputs, and is lossless)
 
-## `default`
+## `csp.default`
 
 ```python
 csp.default(
@@ -205,7 +205,7 @@ csp.default(
 Defaults the input series to the value of `default` at start of the engine, or after `delay` if `delay` is provided.
 If `x` ticks right at the start of the engine, or before `delay` if `delay` is provided, `default` value will be discarded.
 
-## `gate`
+## `csp.gate`
 
 ```python
 csp.gate(
@@ -219,7 +219,7 @@ csp.gate(
 While open, the input will tick out as a single value burst.
 While closed, input ticks will buffer up until they can be released.
 
-## `apply`
+## `csp.apply`
 
 ```python
 csp.apply(
@@ -231,7 +231,7 @@ csp.apply(
 
 Applies the provided callable `f` on every tick of the input and returns the result of the callable.
 
-## `null_ts`
+## `csp.null_ts`
 
 ```python
 csp.null_ts(typ: 'T')
@@ -239,7 +239,7 @@ csp.null_ts(typ: 'T')
 
 Returns a "null" timeseries of the given type which will never tick.
 
-## `stop_engine`
+## `csp.stop_engine`
 
 ```python
 csp.stop_engine(x: ts['T'])
@@ -247,7 +247,7 @@ csp.stop_engine(x: ts['T'])
 
 Forces the engine to stop if `x` ticks
 
-## `multiplex`
+## `csp.multiplex`
 
 ```python
 csp.multiplex(
@@ -268,7 +268,7 @@ Args:
   the input basket whenever the key ticks (defaults to `False`)
 - **`raise_on_bad_key`**: if `True` an exception will be raised if key ticks with an unrecognized key (defaults to `False`)
 
-## `demultiplex`
+## `csp.demultiplex`
 
 ```python
 csp.demultiplex(
@@ -290,7 +290,7 @@ Args:
 - **`keys`**: a list of expected keys that will define the shape of the output basket.  The list of keys must be known at graph building time
 - **`raise_on_bad_key`**: if `True` an exception will be raised of key ticks with an unrecognized key (defaults to `False`)
 
-## `dynamic_demultiplex`
+## `csp.dynamic_demultiplex`
 
 ```python
 csp.dynamic_demultiplex(
@@ -301,7 +301,7 @@ csp.dynamic_demultiplex(
 
 Similar to `csp.demultiplex`, this version will return a [Dynamic Basket](https://github.com/Point72/csp/wiki/6.-Dynamic-Graphs) output that will dynamically add new keys as they are seen.
 
-## `dynamic_collect`
+## `csp.dynamic_collect`
 
 ```python
 csp.dynamic_collect(
@@ -311,7 +311,7 @@ csp.dynamic_collect(
 
 Similar to `csp.collect`, this function takes a [Dynamic Basket](https://github.com/Point72/csp/wiki/6.-Dynamic-Graphs) input and returns a dictionary of the key-value pairs corresponding to the values that ticked.
 
-## `drop_nans`
+## `csp.drop_nans`
 
 ```python
 csp.drop_nans(x: ts[float]) → ts[float]
@@ -319,7 +319,7 @@ csp.drop_nans(x: ts[float]) → ts[float]
 
 Filters nan (Not-a-number) values out of the time series.
 
-## `times`
+## `csp.times`
 
 ```python
 csp.times(x: ts['T']) → ts[datetime]
@@ -327,7 +327,7 @@ csp.times(x: ts['T']) → ts[datetime]
 
 Given a timeseries, returns the time at which that series ticks
 
-## `times_ns`
+## `csp.times_ns`
 
 ```python
 csp.times_ns(x: ts['T']) → ts[int]
@@ -335,7 +335,7 @@ csp.times_ns(x: ts['T']) → ts[int]
 
 Given a timeseries, returns the epoch time in nanoseconds at which that series ticks
 
-## `accum`
+## `csp.accum`
 
 ```python
 csp.accum(x: ts["T"], start: "~T" = 0) -> ts["T"]
@@ -343,7 +343,7 @@ csp.accum(x: ts["T"], start: "~T" = 0) -> ts["T"]
 
 Given a timeseries, accumulate via `+=` with starting value `start`.
 
-## `exprtk`
+## `csp.exprtk`
 
 ```python
 csp.exprtk(

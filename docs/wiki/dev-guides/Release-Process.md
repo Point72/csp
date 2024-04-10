@@ -74,6 +74,13 @@ Follow these steps when it's time to tag a new release. Before doing
 this, you will need to ensure `bump2version` is installed into your
 development environment.
 
+> \[!NOTE\]
+> The following steps assume you have a personal fork of csp.
+> If you are working from the main `Point72/csp` repo, use `origin`
+> instead of `upstream` in the git commands. Specifically,
+> `git pull origin main --tags` in the step 1,
+> and `git push origin main --follow-tags` in step 7.
+
 1. Ensure your local clone of `csp` is synced up with GitHub, including
    any tags that have been pushed since you last synced:
 
@@ -142,6 +149,8 @@ actions running, one for the push to `main` and one for the new tag. You
 want to inspect the action running for the new tag. Once the run
 finishes, there should be a new release on the ["Releases"
 page](https://github.com/Point72/csp/releases).
+If the release is in "Draft" state, click on the pencil icon to
+"Edit" and publish it with the "Publish release" button.
 
 ### Releasing to PyPI
 
@@ -227,7 +236,7 @@ dependencies succeeds.
 If you are sure the release is ready, you can upload to pypi like so:
 
 ```bash
-twine upload --repository csp dist/*`
+twine upload --repository csp dist/*
 ```
 
 Note that this assumes you have a `.pypirc` set up as explained above.

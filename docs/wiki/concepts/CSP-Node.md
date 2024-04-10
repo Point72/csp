@@ -93,7 +93,7 @@ Note that `schedule_alarm` can be called multiple times on the same alarm to sch
 
 22\) all nodes will have if conditions to react to different inputs.
 **`csp.ticked()`** takes any number of inputs and returns true if **any** of the inputs ticked.
-**`csp.valid`** similar takes any number of inputs however it only returns true if **all** inputs are valid.
+**`csp.valid()`** similar takes any number of inputs however it only returns true if **all** inputs are valid.
 Valid means that an input has had at least one tick and so it has a "current value".
 
 23\) One of the benefits of CSP is that you always have easy access to the latest value of all inputs.

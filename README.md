@@ -61,7 +61,7 @@ See [our wiki!](https://github.com/Point72/csp/wiki)
 
 ## Development
 
-Check out the [Developer Documentation](https://github.com/Point72/csp/wiki/99.-Developer)
+Check out the [contribution guide](https://github.com/Point72/csp/wiki/Contribute) and [local development instructions](https://github.com/Point72/csp/wiki/Local-Development-Setup).
 
 ## Authors
 

@@ -79,7 +79,7 @@ This allows you to connect an edge as a "graph output".
 All edges added as outputs will be returned to the caller from `csp.run` as a dictionary of `key: [(datetime, value)]`
 (list of datetime, values that ticked on the edge) or if `csp.run` is passed `output_numpy=True`, as a dictionary of
 `key: (array, array)` (tuple of two numpy arrays, one with datetimes and one with values).
-See [Collecting Graph Outputs](https://github.com/Point72/csp/wiki/0.-Introduction#collecting-graph-outputs)
+See [Collecting Graph Outputs](CSP-Graph#collecting-graph-outputs)
 
 Args:
 

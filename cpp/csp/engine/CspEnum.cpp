@@ -14,11 +14,11 @@ CspEnumMeta::CspEnumMeta( const std::string & name, const ValueDef & def ) : m_n
 {
     for( auto [ key,value ] : def )
     {
-        auto [rit, inserted] = m_instanceMap.emplace( value, CspEnumInstance( key, value, this ) );
+        auto [rit, inserted] = m_instanceMap.emplace( value, std::make_shared<CspEnumInstance>( key, value, this ) );
         if( !inserted )
             CSP_THROW( TypeError, "CspEnum type " << name << " defined with multiple entries for " << value );
 
-        m_mapping[ rit -> second.name().c_str() ] = rit;
+        m_mapping[ rit -> second -> name().c_str() ] = rit;
     }
 }
 

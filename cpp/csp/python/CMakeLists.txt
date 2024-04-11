@@ -13,6 +13,8 @@ add_library(csptypesimpl
             PyStruct.cpp)
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
 target_link_libraries(csptypesimpl csp_core csp_types)
+target_compile_definitions(csptypesimpl PRIVATE CSPTYPESIMPL_EXPORTS=1)
+
 
 set(CSPIMPL_PUBLIC_HEADERS
         Common.h
@@ -73,6 +75,7 @@ set_target_properties(cspimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_PUBLIC_HEADERS
 
 target_link_libraries(cspimpl csptypesimpl csp_core csp_engine)
 target_compile_definitions(cspimpl PUBLIC NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
+
 
 ## Baselib c++ module
 add_library(cspbaselibimpl SHARED cspbaselibimpl.cpp)

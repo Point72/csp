@@ -85,6 +85,7 @@ set(ENGINE_SOURCE_FILES
 
 add_library(csp_types STATIC ${CSP_TYPES_SOURCE_FILES})
 set_target_properties(csp_types PROPERTIES PUBLIC_HEADER "${CSP_TYPES_PUBLIC_HEADERS}")
+target_compile_definitions(csp_types PRIVATE CSP_TYPES_EXPORTS=1)
 
 add_library(csp_engine STATIC ${ENGINE_SOURCE_FILES})
 set_target_properties(csp_engine PROPERTIES PUBLIC_HEADER "${ENGINE_PUBLIC_HEADERS}")

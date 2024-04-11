@@ -1,3 +1,4 @@
+#include <csp/python/Common.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/CspTypeFactory.h>
 #include <csp/python/PyStruct.h>
@@ -14,6 +15,8 @@ CspTypeFactory & CspTypeFactory::instance()
 
 CspTypePtr & CspTypeFactory::typeFromPyType( PyObject * pyTypeObj )
 {
+    INIT_PYDATETIME;
+
     // List objects shouldn't be cached since they are temporary objects
     if( PyList_Check( pyTypeObj ) )
     {

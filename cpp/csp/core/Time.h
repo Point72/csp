@@ -394,7 +394,7 @@ inline Time::Time( int hour, int minute, int second, int32_t nanosecond )
     if( nanosecond >= NANOS_PER_SECOND || nanosecond < 0 )
         CSP_THROW( ValueError, "Nanosecond out of range: " << nanosecond );
 
-    m_ticks = ( hour * 3600 + minute * 60 + second ) * NANOS_PER_SECOND + nanosecond;
+    m_ticks = ( int64_t( hour ) * 3600 + int64_t( minute ) * 60 + int64_t( second ) ) * NANOS_PER_SECOND + nanosecond;
 }
 
 inline Time& Time::operator +=( const TimeDelta & delta )
@@ -446,7 +446,7 @@ inline std::ostream & operator <<( std::ostream &os, const Time & t )
 
 // Time is internally stored as an int64_t nanoseconds since 1970. 
 // All DateTime objects are stored as UTC and should be treated as such
-class DateTime
+class CSP_CORE_EXPORT DateTime
 {
 public:
     DateTime() : DateTime( DateTime::NONE() ) {}

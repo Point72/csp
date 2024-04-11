@@ -9,7 +9,7 @@
 namespace csp::python
 {
 
-class DLL_PUBLIC CspTypeFactory
+class CSPTYPESIMPL_EXPORT CspTypeFactory
 {
 public:
     static CspTypeFactory & instance();

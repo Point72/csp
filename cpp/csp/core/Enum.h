@@ -78,7 +78,6 @@ struct Enum : public EnumTraits
     using EnumV = typename EnumTraits::_enum;
     using Mapping = std::vector<std::string>;
 
-    //these checks for enum is for the SubVenue "hack"
     using UType = typename EnumUTypeHelper<EnumV, std::is_enum<EnumV>::value>::type;
 
     template<typename = std::enable_if<std::is_enum<EnumV>::value> >

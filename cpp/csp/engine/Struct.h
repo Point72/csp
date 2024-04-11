@@ -18,7 +18,7 @@ class TypedStructPtr;
 
 using StructPtr = TypedStructPtr<Struct>;
 
-class StructField
+class CSP_TYPES_EXPORT StructField
 {
 public:
 
@@ -215,7 +215,7 @@ public:
 
 
 //Non-native fields need to have these specialized in dialect-specific code
-class NonNativeStructField : public StructField
+class CSP_TYPES_EXPORT NonNativeStructField : public StructField
 {
 public:
     NonNativeStructField( CspTypePtr type, const std::string &fieldname, size_t size, size_t alignment ) :
@@ -239,7 +239,7 @@ private:
     virtual void clearValueImpl( Struct * s ) const = 0;
 };
 
-class StringStructField final : public NonNativeStructField
+class CSP_TYPES_EXPORT StringStructField final : public NonNativeStructField
 {
 public:
     using CType = csp::CspType::StringCType;
@@ -313,7 +313,6 @@ class ArrayStructField : public NonNativeStructField
 {
     using ElemT = typename CType::value_type;
 
-    //template<typename T, std::enable_if_t<CspType::isNative(CspType::fromCType<T>::type), bool> = true>
     template<typename T>
     static std::enable_if_t<CspType::isNative(CspType::Type::fromCType<T>::type), void> deepcopy( const std::vector<T> & src, std::vector<T> & dest )
     {
@@ -333,6 +332,14 @@ class ArrayStructField : public NonNativeStructField
         dest.resize( src.size() );
         for( size_t i = 0; i < src.size(); ++i )
             dest[i] = src[i].deepcopy();
+    }
+
+    template<typename StorageT>
+    static void deepcopy( const std::vector<std::vector<StorageT>> & src, std::vector<std::vector<StorageT>> & dest )
+    {
+        dest.resize( src.size() );
+        for( size_t i = 0; i < src.size(); ++i )
+            deepcopy( src[i], dest[i] );
     }
 
 public:
@@ -411,7 +418,7 @@ private:
     }
 };
 
-class DialectGenericStructField : public NonNativeStructField
+class CSP_TYPES_EXPORT DialectGenericStructField : public NonNativeStructField
 {
 public:
     DialectGenericStructField( const std::string & fieldname, size_t size, size_t alignment ) :
@@ -573,7 +580,7 @@ TypedStructPtr<T> structptr_cast( const TypedStructPtr<U> & r )
     return out;
 }
 
-class StructMeta : public std::enable_shared_from_this<StructMeta>
+class CSP_TYPES_EXPORT StructMeta : public std::enable_shared_from_this<StructMeta>
 {
 public:
     using Fields = std::vector<StructFieldPtr>;
@@ -677,7 +684,7 @@ std::shared_ptr<typename StructField::upcast<T>::type> StructMeta::getMetaField(
 
 using StructMetaPtr = std::shared_ptr<StructMeta>;
 
-class Struct
+class CSP_TYPES_EXPORT Struct
 {
 public:
 
@@ -805,7 +812,7 @@ bool TypedStructPtr<T>::operator==( const TypedStructPtr<T> & rhs ) const
 }
 
 //field that is another struct
-class StructStructField final : public NonNativeStructField
+class CSP_TYPES_EXPORT StructStructField final : public NonNativeStructField
 {
 public:
     StructStructField( CspTypePtr cspType, const std::string &fieldname ) :

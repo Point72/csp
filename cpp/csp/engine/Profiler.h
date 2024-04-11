@@ -152,7 +152,7 @@ class Profiler
 
         struct ProfStat
         {
-            int64_t m_exec;
+            int64_t m_exec = 0;
             TimeDelta m_maxTime = TimeDelta::ZERO();
             TimeDelta m_totalTime = TimeDelta::ZERO();
 

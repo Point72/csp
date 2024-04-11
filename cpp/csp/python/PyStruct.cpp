@@ -436,7 +436,9 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
     {
         switchCspType( field -> type(), [field,&struct_=s,value]( auto tag )
         {
-            using CType = typename decltype(tag)::type;
+            //workaround for MS compiler bug, separate into two using lines... :/
+            using TagType = decltype( tag );
+            using CType  = typename TagType::type;
             using fieldType = typename StructField::upcast<CType>::type;
             auto *typedField = static_cast<const fieldType *>( field );
 
@@ -534,7 +536,9 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
 
             switchCspType( elemType, [ field, struct_, &arrayType, &tl_repr, show_unset ]( auto tag )
             {
-                using CElemType = typename decltype( tag )::type;
+                //workaround for MS compiler bug, separate into two using lines... :/
+                using TagType = decltype( tag );
+                using CElemType = typename TagType::type;
                 using ArrayType = typename CspType::Type::toCArrayType<CElemType>::type;
                 const ArrayType & val = field -> value<ArrayType>( struct_ );
                 repr_array( val, *arrayType, tl_repr, show_unset );

@@ -7,13 +7,13 @@
 #include <csp/engine/PartialSwitchCspType.h>
 #include <csp/engine/Struct.h>
 #include <csp/engine/TimeSeriesProvider.h>
+#include <csp/python/Common.h>
 #include <csp/python/CspTypeFactory.h>
 #include <csp/python/Exception.h>
 #include <csp/python/PyCspEnum.h>
 #include <csp/python/PyCspType.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
-#include <datetime.h>
 #include <Python.h>
 #include <string>
 #include <variant>
@@ -465,6 +465,7 @@ inline CspEnum fromPython( PyObject * o, const CspType & type )
 template<>
 inline PyObject * toPython( const TimeDelta & td )
 {
+    INIT_PYDATETIME;
     if( td == TimeDelta::NONE() )
         Py_RETURN_NONE;
 
@@ -474,6 +475,8 @@ inline PyObject * toPython( const TimeDelta & td )
 template<>
 inline TimeDelta fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( o == Py_None )
         return TimeDelta::NONE();
 
@@ -499,6 +502,7 @@ inline TimeDelta fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const Date & d )
 {
+    INIT_PYDATETIME;
     if ( d == Date::NONE())
         Py_RETURN_NONE;
 
@@ -508,6 +512,7 @@ inline PyObject * toPython( const Date & d )
 template<>
 inline Date fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
     if( o == Py_None )
         return Date::NONE();
 
@@ -525,6 +530,7 @@ inline Date fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const Time & t )
 {
+    INIT_PYDATETIME;
     if( t == Time::NONE())
         Py_RETURN_NONE;
 
@@ -534,6 +540,7 @@ inline PyObject * toPython( const Time & t )
 template<>
 inline Time fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
     if( o == Py_None )
         return Time::NONE();
 
@@ -555,6 +562,7 @@ inline Time fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const DateTime & dt )
 {
+    INIT_PYDATETIME;
     DateTimeEx dtEx( dt );
     return toPythonCheck( PyDateTime_FromDateAndTime( dtEx.year(), dtEx.month(), dtEx.day(), dtEx.hour(), dtEx.minute(), dtEx.second(), dtEx.microseconds() ) );
 }
@@ -562,6 +570,7 @@ inline PyObject * toPython( const DateTime & dt )
 template<>
 inline DateTime fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
     if( o == Py_None )
         return DateTime::NONE();
 
@@ -666,6 +675,8 @@ inline std::vector<Dictionary::Data> fromPython( PyObject * o )
 template<>
 inline Dictionary::Value fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( PyBool_Check( o ) )
         return fromPython<bool>( o );
     else if( PyLong_Check( o ) )
@@ -817,15 +828,6 @@ struct FromPython<std::vector<StorageT>>
 //timeserise helper method
 PyObject * lastValueToPython( const csp::TimeSeriesProvider * ts );
 PyObject * valueAtIndexToPython( const csp::TimeSeriesProvider * ts, int32_t index );
-
-static bool _initPyDateTimeAPI()
-{
-    PyDateTime_IMPORT;
-    return true;
-}
-
-//init datetime API once up front for this cpp object
-static bool _initDateTimeAPI = _initPyDateTimeAPI();
 
 }
 

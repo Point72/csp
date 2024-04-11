@@ -11,7 +11,7 @@ namespace csp::python
 {
 
 //This is the base class of csp.Enum
-struct DLL_PUBLIC PyCspEnumMeta : public PyHeapTypeObject
+struct CSPTYPESIMPL_EXPORT PyCspEnumMeta : public PyHeapTypeObject
 {
     //convert to PyObject ( new ref )
     PyObject * toPyEnum( CspEnum e ) const;
@@ -31,7 +31,7 @@ struct DLL_PUBLIC PyCspEnumMeta : public PyHeapTypeObject
 
 //This is an extension of csp::CspEnumMeta for python dialect, we need it in order to 
 //keep a reference to the python enum type from conversion to/from csp::CspEnumMeta <-> PyObject properly
-class DialectCspEnumMeta : public CspEnumMeta
+class CSPTYPESIMPL_EXPORT DialectCspEnumMeta : public CspEnumMeta
 {
 public:
     DialectCspEnumMeta( PyTypeObjectPtr pyType, const std::string & name, 
@@ -47,7 +47,7 @@ private:
     PyTypeObjectPtr m_pyType;
 };
 
-struct DLL_PUBLIC PyCspEnum : public PyObject
+struct CSPTYPESIMPL_EXPORT PyCspEnum : public PyObject
 {
     PyCspEnum( const CspEnum & e ) : enum_( e ) {}
     ~PyCspEnum() {}

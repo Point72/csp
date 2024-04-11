@@ -20,8 +20,25 @@ typedef int64_t binding_int_t;
 
 #undef ERROR
 
-#define DLL_PUBLIC __declspec(dllexport)
 #define DLL_LOCAL
+
+#ifdef CSP_TYPES_EXPORTS
+#define CSP_TYPES_EXPORT __declspec(dllexport)
+#else
+#define CSP_TYPES_EXPORT __declspec(dllimport)
+#endif
+
+#ifdef CSP_CORE_EXPORTS
+#define CSP_CORE_EXPORT __declspec(dllexport)
+#else
+#define CSP_CORE_EXPORT __declspec(dllimport)
+#endif
+
+#ifdef CSPTYPESIMPL_EXPORTS
+#define CSPTYPESIMPL_EXPORT __declspec(dllexport)
+#else
+#define CSPTYPESIMPL_EXPORT __declspec(dllimport)
+#endif
 
 #define START_PACKED __pragma( pack(push, 1) )
 #define END_PACKED   __pragma( pack(pop))
@@ -84,7 +101,11 @@ inline uint8_t ffs(uint64_t n)
 }
 
 #else
-#define DLL_PUBLIC 
+
+#define CSP_CORE_EXPORT
+#define CSP_TYPES_EXPORT
+#define CSPTYPESIMPL_EXPORT
+
 #define DLL_LOCAL __attribute__ ((visibility ("hidden")))
 
 #define START_PACKED

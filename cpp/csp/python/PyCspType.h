@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_PYCSPTYPE_H
 #define _IN_CSP_PYTHON_PYCSPTYPE_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/CspType.h>
 #include <csp/python/PyObjectPtr.h>
 

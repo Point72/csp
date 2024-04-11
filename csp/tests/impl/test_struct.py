@@ -1451,8 +1451,13 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "l_any": [[1, None], [None, None]]}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
-        l_any = [[1, 2], "hello", [4, 3.2, [6, [7], (8, True, 10.5, (11, [float("nan"), False]))]]]
-        l_any_result = [[1, 2], "hello", [4, 3.2, [6, [7], [8, True, 10.5, [11, [None, False]]]]]]
+        l_any = [[None], None, [1, 2, None]]
+        test_struct = MyStruct(i=456, l_any=l_any)
+        result_dict = {"i": 456, "l_any": l_any}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        l_any = [[1, 2], "hello", [4, 3.2, [6, [7], (None, True, 10.5, (11, [float("nan"), None, False]))]]]
+        l_any_result = [[1, 2], "hello", [4, 3.2, [6, [7], [None, True, 10.5, [11, [None, None, False]]]]]]
         test_struct = MyStruct(i=456, l_any=l_any)
         result_dict = {"i": 456, "l_any": l_any_result}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
@@ -1511,8 +1516,16 @@ class TestCspStruct(unittest.TestCase):
         result_dict = json.loads(test_struct.to_json())
         self.assertEqual({k: datetime.fromisoformat(d) for k, d in result_dict["d_any"].items()}, d_dt)
 
-        d_any = {"b1": {1: "k1", "d2": {4: 5.5}}, "b2": {"d3": {}, "d4": {"d5": {"d6": {"d7": {}}}}}}
-        d_any_res = {"b1": {"1": "k1", "d2": {"4": 5.5}}, "b2": {"d3": {}, "d4": {"d5": {"d6": {"d7": {}}}}}}
+        d_any = {
+            "b1": {1: "k1", "d2": {4: 5.5}},
+            "b2": {"d3": {}, "d4": {"d5": {"d6": {"d7": {}}}}, "d8": None},
+            "b3": None,
+        }
+        d_any_res = {
+            "b1": {"1": "k1", "d2": {"4": 5.5}},
+            "b2": {"d3": {}, "d4": {"d5": {"d6": {"d7": {}}}}, "d8": None},
+            "b3": None,
+        }
         test_struct = MyStruct(i=456, d_any=d_any)
         result_dict = {"i": 456, "d_any": d_any_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)

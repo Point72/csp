@@ -424,21 +424,47 @@ PyStructList_dealloc( PyStructList<StorageT> * self )
     Py_TYPE( pself ) -> tp_base -> tp_dealloc( pself );
 }
 
-template<typename StorageT> PyTypeObject PyStructList<StorageT>::PyType = {
-    PyVarObject_HEAD_INIT( NULL, 0 )
-    .tp_name = "_cspimpl.PyStructList",
-    .tp_basicsize = sizeof( PyStructList<StorageT> ),
-    .tp_itemsize = 0,
-    .tp_dealloc = ( destructor ) PyStructList_dealloc<StorageT>,
-    .tp_as_sequence = &py_struct_list_as_sequence<StorageT>,
-    .tp_as_mapping = &py_struct_list_as_mapping<StorageT>,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_LIST_SUBCLASS,
-    .tp_traverse = ( traverseproc ) PyStructList_traverse<StorageT>,
-    .tp_clear = ( inquiry ) PyStructList_tp_clear<StorageT>,
-    .tp_methods = PyStructList_methods<StorageT>,
-    .tp_alloc = PyType_GenericAlloc,
-    .tp_new   = PyType_GenericNew,
-    .tp_free  = PyObject_GC_Del,
+template<typename StorageT>
+PyTypeObject  PyStructList<StorageT>::PyType = {
+    PyVarObject_HEAD_INIT(nullptr, 0)
+    "_cspimpl.PyStructList",   /* tp_name */
+    sizeof(PyStructList<StorageT>), /* tp_basicsize */
+    0,                         /* tp_itemsize */
+    ( destructor ) PyStructList_dealloc<StorageT>, /* tp_dealloc */
+    0,                         /* tp_print */
+    0,                         /* tp_getattr */
+    0,                         /* tp_setattr */
+    0,                         /* tp_reserved */
+    0,                         /* tp_repr */
+    0,                         /* tp_as_number */
+    &py_struct_list_as_sequence<StorageT>,   /* tp_as_sequence */
+    &py_struct_list_as_mapping<StorageT>,     /* tp_as_mapping */
+    0,                         /* tp_hash  */
+    0,                         /* tp_call */
+    0,                         /* tp_str */
+    0,                         /* tp_getattro */
+    0,                         /* tp_setattro */
+    0,                         /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_LIST_SUBCLASS, /* tp_flags */
+    "",                        /* tp_doc */
+    ( traverseproc ) PyStructList_traverse<StorageT>,         /* tp_traverse */
+    ( inquiry ) PyStructList_tp_clear<StorageT>,             /* tp_clear */
+    0,                         /* tp_richcompare */
+    0,                         /* tp_weaklistoffset */
+    0,                         /* tp_iter */
+    0,                         /* tp_iternext */
+    PyStructList_methods<StorageT>, /* tp_methods */
+    0,                         /* tp_members */
+    0,                         /* tp_getset */
+    0,                         /* tp_base */
+    0,                         /* tp_dict */
+    0,                         /* tp_descr_get */
+    0,                         /* tp_descr_set */
+    0,                         /* tp_dictoffset */
+    0,                         /* tp_init */
+    PyType_GenericAlloc,       /* tp_alloc */
+    PyType_GenericNew,         /* tp_new */
+    PyObject_GC_Del,           /* tp_free */
 };
 
 }

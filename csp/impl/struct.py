@@ -108,7 +108,9 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
             )
         elif isinstance(obj, dict):
             return {k: cls._obj_to_python(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple, set)):
+        elif isinstance(obj, list):
+            return list(cls._obj_to_python(v) for v in obj)
+        elif isinstance(obj, (tuple, set)):
             return type(obj)(cls._obj_to_python(v) for v in obj)
         elif isinstance(obj, csp.Enum):
             return obj.name  # handled in _obj_from_python
@@ -163,6 +165,9 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
 
     def to_dict(self):
         return self._obj_to_python(self)
+
+    def to_json(self, callback=lambda x: x):
+        return super().to_json(callback)
 
     def to_yaml(self):
         string_io = io.StringIO()

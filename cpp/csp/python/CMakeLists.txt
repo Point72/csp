@@ -3,15 +3,19 @@ set(CSPTYPESIMPL_PUBLIC_HEADERS
         CspTypeFactory.h
         PyCspEnum.h
         PyCspType.h
-        PyStruct.h)
+        PyStruct.h
+        PyStructList.h)
 
 add_library(csptypesimpl
             csptypesimpl.cpp
             CspTypeFactory.cpp
             PyCspEnum.cpp
             PyCspType.cpp
-            PyStruct.cpp)
+            PyStruct.cpp
+            PyStructToJson.cpp
+            PyStructList.hi)
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
+target_compile_definitions(csptypesimpl PUBLIC RAPIDJSON_HAS_STDSTRING=1)
 target_link_libraries(csptypesimpl csp_core csp_types)
 target_compile_definitions(csptypesimpl PRIVATE CSPTYPESIMPL_EXPORTS=1)
 
@@ -38,7 +42,9 @@ set(CSPIMPL_PUBLIC_HEADERS
         PyObjectPtr.h
         PyOutputAdapterWrapper.h
         PyOutputProxy.h
-        PyConstants.h)
+        PyConstants.h
+        PyStructToJson.h
+        PyStructList.h)
 
 add_library(cspimpl SHARED
         cspimpl.cpp
@@ -69,6 +75,7 @@ add_library(cspimpl SHARED
         PyManagedSimInputAdapter.cpp
         PyTimerAdapter.cpp
         PyConstants.cpp
+        PyStructList.hi
         ${CSPIMPL_PUBLIC_HEADERS})
 
 set_target_properties(cspimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_PUBLIC_HEADERS}")

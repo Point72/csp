@@ -1,8 +1,13 @@
-# Intro
-
 The module `csp.random` contains a few nodes (contributions welcome) to help simulate stochastic processes to assist with testing, examples and demos.
 
-# Arrival Processes
+## Table of Contents
+
+- [Table of Contents](#table-of-contents)
+- [Arrival Processes](#arrival-processes)
+- [Random Noise](#random-noise)
+- [Diffusion Processes](#diffusion-processes)
+
+## Arrival Processes
 
 These nodes extend the deterministic `csp.timer` node with other arrival processes for triggering events.
 
@@ -20,9 +25,9 @@ Args:
 
 - **`rate`**: The rate of the Poisson process (per second), must be non-negative
 - **`seed`**: The seed for the numpy random Generator. Can be anything accepted by `np.random.default_rng`
-- **`value`**: The value to tick when there are events (similar to csp.timer)
+- **`value`**: The value to tick when there are events (similar to `csp.timer`)
 
-# Random Noise
+## Random Noise
 
 To generate random noise at trigger times, the `csp.apply` node can be used. For example, to generate random samples at the tick times of a `trigger` edge following a Laplace distribution:
 
@@ -48,7 +53,7 @@ random_noise = csp.apply(
 
 See the [Numpy Random Generator documentation](https://numpy.org/doc/stable/reference/random/generator.html#distributions) for a full list of distributions.
 
-# Diffusion Processes
+## Diffusion Processes
 
 These nodes simulate samples from diffusion processes at a provided set of trigger events.
 

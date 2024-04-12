@@ -14,7 +14,7 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.0.2"
+version = "0.0.3"
 requires-python = ">=3.8"
 
 dependencies = [
@@ -99,10 +99,16 @@ test-requires = [
 ]
 
 [tool.cibuildwheel.linux]
-before-all ="make dependencies-fedora"
+before-all ="""
+rpm --import https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux &&
+dnf config-manager --set-enabled powertools &&
+dnf install epel-release -y &&
+make dependencies-fedora
+"""
 environment = {CSP_MANYLINUX="ON"}
 repair-wheel-command = "auditwheel -v show {wheel} && LD_LIBRARY_PATH=/project/csp/lib auditwheel -v repair -w {dest_dir} {wheel}"
 skip = "*i686 musllinux*"
+manylinux-x86_64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
 before-all ="make dependencies-mac"

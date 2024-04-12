@@ -3,6 +3,8 @@
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
+#include <csp/python/PyStructList.hi>
+#include <csp/python/PyStructToJson.h>
 #include <unordered_set>
 #include <type_traits>
 
@@ -170,9 +172,9 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
 
     /*back reference to the struct type that will be accessible on the csp struct -> meta()
       DialectStructMeta will hold a borrowed reference to the type to avoid a circular dep
-      
+
       This is the layout of references between all these types
-                              StructMeta (shared_ptr) <-------- strong ref 
+                              StructMeta (shared_ptr) <-------- strong ref
                                   |                              |
                            DialectStructMeta ---> weak ref to PyStructMeta ( the PyType )
                                  /\                              /\
@@ -393,8 +395,10 @@ PyTypeObject PyStructMeta::PyType = {
 
 
 //PyStruct
-PyObject * getattr_( const StructField* field, const Struct * struct_ )
+PyObject * getattr_( const StructField * field, const Struct * struct_ )
 {
+    assert( field -> type() -> type() != CspType::Type::ARRAY );
+
     PyObject *v = switchCspType( field -> type(), [ field, struct_ ]( auto tag )
     {
         using CType = typename decltype(tag)::type;
@@ -402,6 +406,21 @@ PyObject * getattr_( const StructField* field, const Struct * struct_ )
         return toPython( typedField -> value( struct_ ), *field -> type() );
     } );
 
+    return v;
+}
+
+PyObject * getarrayattr_( const StructField * field, const PyStruct * pystruct )
+{
+    assert( field -> type() -> type() == CspType::Type::ARRAY );
+    
+    const CspArrayType * arrayType = static_cast<const CspArrayType *>( field -> type().get() );
+    PyObject *v = ArraySubTypeSwitch::invoke( arrayType -> elemType(), [ field, pystruct ]( auto tag )
+    {
+        using StorageT  = typename CspType::Type::toCArrayStorageType<typename decltype(tag)::type>::type;
+        using ArrayT    = typename StructField::upcast<std::vector<StorageT>>::type;
+        auto * typedField = static_cast<const ArrayT *>( field );
+        return toPython( typedField -> value( pystruct -> struct_.get()  ), *field -> type(), pystruct );
+    } );
     return v;
 }
 
@@ -422,7 +441,9 @@ PyObject * PyStruct::getattr( PyObject * attr )
         return nullptr;
     }
 
-    return getattr_( field, ( const Struct *)struct_.get() );
+    if( field -> type() -> type() == CspType::Type::ARRAY )
+        return getarrayattr_( field, this );
+    return getattr_( field, ( const Struct * ) struct_.get() );
 }
 
 void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
@@ -864,7 +885,7 @@ PyObject * PyStruct_deepcopy( PyStruct * self )
     CSP_BEGIN_METHOD;
     //Note that once tp_alloc is called, the object will get added to GC
     //deepcopy traversal may kick in a GC collect, so we have to call that first before the PyStruct is created
-    //of it may traverse a partially consturcted object and crash 
+    //of it may traverse a partially consturcted object and crash
     auto deepcopy = self -> struct_ -> deepcopy();
     PyObject * pyDeepcopy = self -> ob_type -> tp_alloc( self -> ob_type, 0 );
     new ( pyDeepcopy ) PyStruct( deepcopy );
@@ -917,6 +938,30 @@ PyObject * PyStruct_all_fields_set( PyStruct * self )
     return toPython( self -> struct_ -> allFieldsSet() );
 }
 
+PyObject * PyStruct_to_json( PyStruct * self, PyObject * args, PyObject * kwargs )
+{
+    CSP_BEGIN_METHOD;
+
+    // NOTE: Consider grouping customization properties into a dictionary
+    PyObject * callable = nullptr;
+
+    if( PyArg_ParseTuple( args, "O:to_json", &callable ) )
+    {
+        if( !PyCallable_Check( callable ) )
+        {
+            CSP_THROW( TypeError, "Parameter must be callable" );
+        }
+    }
+    else
+    {
+        CSP_THROW( TypeError, "Expected a callable as the argument" );
+    }
+    auto struct_ptr = self -> struct_;
+    auto buffer = structToJson( struct_ptr, callable );
+    return toPython( buffer );
+    CSP_RETURN_NULL;
+}
+
 static PyMethodDef PyStruct_methods[] = {
     { "copy",           (PyCFunction) PyStruct_copy,           METH_NOARGS, "make a shallow copy of the struct" },
     { "deepcopy",       (PyCFunction) PyStruct_deepcopy,       METH_NOARGS, "make a deep copy of the struct" },
@@ -926,6 +971,7 @@ static PyMethodDef PyStruct_methods[] = {
     { "update_from",    (PyCFunction) PyStruct_update_from,    METH_O,      "update from struct. struct must be same type or a derived type. unset fields will be not be copied" },
     { "update",         (PyCFunction) PyStruct_update,         METH_VARARGS | METH_KEYWORDS, "update from key=val.  given fields will be set on struct.  other fields will remain as is in struct" },
     { "all_fields_set", (PyCFunction) PyStruct_all_fields_set, METH_NOARGS, "return true if all fields on the struct are set" },
+    { "to_json",        (PyCFunction) PyStruct_to_json,        METH_VARARGS | METH_KEYWORDS, "return a json string of the struct by recursively converting struct members into json format" },
     { NULL}
 };
 
@@ -974,5 +1020,25 @@ PyTypeObject PyStruct::PyType = {
 
 REGISTER_TYPE_INIT( &PyStructMeta::PyType, "PyStructMeta" )
 REGISTER_TYPE_INIT( &PyStruct::PyType,     "PyStruct" )
+
+// Instantiate all templates for PyStructList class
+template struct PyStructList<bool>;
+template struct PyStructList<int8_t>;
+template struct PyStructList<uint8_t>;
+template struct PyStructList<int16_t>;
+template struct PyStructList<uint16_t>;
+template struct PyStructList<int32_t>;
+template struct PyStructList<uint32_t>;
+template struct PyStructList<int64_t>;
+template struct PyStructList<uint64_t>;
+template struct PyStructList<double>;
+template struct PyStructList<DateTime>;
+template struct PyStructList<TimeDelta>;
+template struct PyStructList<Date>;
+template struct PyStructList<Time>;
+template struct PyStructList<std::string>;
+template struct PyStructList<DialectGenericType>;
+template struct PyStructList<StructPtr>;
+template struct PyStructList<CspEnum>;
 
 }

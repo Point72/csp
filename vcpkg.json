@@ -17,7 +17,8 @@
       "protobuf",
       "rapidjson",
       "thrift",
-      "utf8proc"
+      "utf8proc",
+      "websocketpp"
     ],
     "overrides": [
       { "name": "arrow", "version": "15.0.0"}

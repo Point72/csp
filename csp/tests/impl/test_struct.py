@@ -1,4 +1,6 @@
+import json
 import numpy as np
+import pytz
 import typing
 import unittest
 from datetime import date, datetime, time, timedelta
@@ -137,6 +139,53 @@ class AllTypes(csp.Struct):
     struct: BaseNative = BaseNative(i=123, b=True, f=456.789)
     arr: [int] = [1, 2, 3]
     o: object = {"k": "v"}
+
+
+class SimpleStruct(csp.Struct):
+    a: int
+
+
+class AnotherSimpleStruct(csp.Struct):
+    b: str
+
+
+class SimpleEnum(csp.Enum):
+    A = 1
+    B = 2
+    C = 3
+
+
+class AnotherSimpleEnum(csp.Enum):
+    D = 5
+
+
+class SimpleClass:
+    x: int
+
+    def __init__(self, x: int):
+        self.x = x
+
+
+# Common set of values for PyStructList tests
+# For each type:
+# items[:-2] are normal values of the given type that should be handled,
+# items[-2] is a normal value for non-generic and non-str types and None for generic and str types (the purpose is to test the raise of TypeError if a single object instead of a sequence is passed),
+# items[-1] is a value of a different type that is not convertible to the give type for non-generic types and None for generic types (the purpose is to test the raise of TypeError if an object of the wrong type is passed).
+pystruct_list_test_values = { 
+    int : [4, 2, 3, 5, 6, 7, 8, 's'],
+    bool: [True, True, True, False, True, False, True, 2],
+    float: [1.4, 3.2, 2.7, 1.0, -4.5, -6.0, -2.0, 's'],
+    datetime: [datetime(2022, 12, 6, 1, 2, 3), datetime(2022, 12, 7, 2, 2, 3), datetime(2022, 12, 8, 3, 2, 3), datetime(2022, 12, 9, 4, 2, 3), datetime(2022, 12, 10, 5, 2, 3), datetime(2022, 12, 11, 6, 2, 3), datetime(2022, 12, 13, 7, 2, 3), timedelta(seconds=.123)],
+    timedelta: [timedelta(seconds=.123), timedelta(seconds=12), timedelta(seconds=1), timedelta(seconds=.5), timedelta(seconds=123), timedelta(seconds=70), timedelta(seconds=700), datetime(2022, 12, 8, 3, 2, 3)],
+    date: [date(2022, 12, 6), date(2022, 12, 7), date(2022, 12, 8), date(2022, 12, 9), date(2022, 12, 10), date(2022, 12, 11), date(2022, 12, 13), timedelta(seconds=.123)],
+    time: [time(1, 2, 3), time(2, 2, 3), time(3, 2, 3), time(4, 2, 3), time(5, 2, 3), time(6, 2, 3), time(7, 2, 3), timedelta(seconds=.123)],
+    str : ['s', 'pqr', 'masd', 'wes', 'as', 'm', None, 5],
+    csp.Struct: [SimpleStruct(a = 1), AnotherSimpleStruct(b = 'sd'), SimpleStruct(a = 3), AnotherSimpleStruct(b = 'sdf'), SimpleStruct(a = -4), SimpleStruct(a = 5), SimpleStruct(a = 7), 4],  # untyped struct list
+    SimpleStruct: [SimpleStruct(a = 1), SimpleStruct(a = 3), SimpleStruct(a = -1), SimpleStruct(a = -4), SimpleStruct(a = 5), SimpleStruct(a = 100), SimpleStruct(a = 1200), AnotherSimpleStruct(b = 'sd')],
+    SimpleEnum: [SimpleEnum.A, SimpleEnum.C, SimpleEnum.B, SimpleEnum.B, SimpleEnum.B, SimpleEnum.C, SimpleEnum.C, AnotherSimpleEnum.D],
+    list: [[1], [1, 2, 1], [6], [8, 3, 5], [3], [11, 8], None, None],  # generic type list
+    SimpleClass: [SimpleClass(x = 1), SimpleClass(x = 5), SimpleClass(x = 9), SimpleClass(x = -1), SimpleClass(x = 2), SimpleClass(x = 3), None, None],  # generic type user-defined
+}
 
 
 class TestCspStruct(unittest.TestCase):
@@ -1217,6 +1266,881 @@ class TestCspStruct(unittest.TestCase):
 
         r = repr(a)
         self.assertTrue(repr(raw) in r)
+
+    def test_to_json_primitives(self):
+        class MyStruct(csp.Struct):
+            b: bool = True
+            i: int = 123
+            f: float = 3.14
+            s: str = "456"
+
+        test_struct = MyStruct()
+        result_dict = {"b": True, "i": 123, "f": 3.14, "s": "456"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        test_struct = MyStruct(b=False, i=456, f=1.73, s="789")
+        result_dict = {"b": False, "i": 456, "f": 1.73, "s": "789"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        test_struct = MyStruct(b=False, i=456, f=float("nan"), s="789")
+        result_dict = {"b": False, "i": 456, "f": None, "s": "789"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        test_struct = MyStruct(b=False, i=456, f=float("inf"), s="789")
+        result_dict = {"b": False, "i": 456, "f": None, "s": "789"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        test_struct = MyStruct(b=False, i=456, f=float("-inf"), s="789")
+        result_dict = {"b": False, "i": 456, "f": None, "s": "789"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+    def test_to_json_enums(self):
+        from enum import Enum as PyEnum
+
+        class MyPyEnum(PyEnum):
+            PyEnumA = 1
+            PyEnumB = 2
+            PyEnumC = 3
+            NumPyEnum = 4
+
+        def callback(obj):
+            if isinstance(obj, PyEnum):
+                return obj.name
+            raise RuntimeError("Invalid type for callback")
+
+        class MyCspEnum(csp.Enum):
+            CspEnumA = 1
+            CspEnumB = 2
+            CspEnumC = 3
+            NumCspEnum = 4
+
+        class MyStruct(csp.Struct):
+            i: int = 123
+            csp_e: MyCspEnum
+            py_e: MyPyEnum
+
+        test_struct = MyStruct()
+        result_dict = {"i": 123}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        test_struct = MyStruct(i=456, csp_e=MyCspEnum.CspEnumC)
+        result_dict = {"i": 456, "csp_e": "CspEnumC"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+        self.assertEqual(json.loads(test_struct.to_json(callback)), result_dict)
+
+        test_struct = MyStruct(i=456, py_e=MyPyEnum.PyEnumC)
+        result_dict = {"i": 456, "py_e": "PyEnumC"}
+        self.assertEqual(json.loads(test_struct.to_json(callback)), result_dict)
+
+        test_struct = MyStruct(i=456, csp_e=MyCspEnum.CspEnumA, py_e=MyPyEnum.PyEnumB)
+        result_dict = {"i": 456, "csp_e": "CspEnumA", "py_e": "PyEnumB"}
+        self.assertEqual(json.loads(test_struct.to_json(callback)), result_dict)
+
+    def test_to_json_datetime(self):
+        class MyStruct(csp.Struct):
+            i: int = 123
+            dt: datetime
+            d: date
+            t: time
+            td: timedelta
+
+        test_struct = MyStruct()
+        result_dict = {"i": 123}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        dt = datetime(2024, 3, 8)
+        dt_utc = datetime(2024, 3, 8, tzinfo=pytz.utc)
+        test_struct = MyStruct(i=456, dt=dt)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual(datetime.fromisoformat(result_dict["dt"]), dt_utc)
+
+        dt = datetime.now(tz=pytz.utc)
+        test_struct = MyStruct(i=456, dt=dt)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual(datetime.fromisoformat(result_dict["dt"]), dt)
+
+        dt = datetime.now(tz=pytz.timezone("America/New_York"))
+        dt_utc = dt.astimezone(pytz.utc)
+        test_struct = MyStruct(i=456, dt=dt)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual(datetime.fromisoformat(result_dict["dt"]), dt_utc)
+        self.assertEqual(datetime.fromisoformat(result_dict["dt"]), dt)
+
+        d = date(2024, 3, 8)
+        test_struct = MyStruct(i=456, d=d)
+        result_dict = {"i": 456, "d": "2024-03-08"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        t = time(5, 10, 12, 500)
+        test_struct = MyStruct(i=456, t=t)
+        result_dict = {"i": 456, "t": "05:10:12.000500"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        td = timedelta(days=1, seconds=68400.05)
+        seconds = td.total_seconds()
+        microseconds = round((seconds - int(seconds)) * 1e6)
+        test_struct = MyStruct(i=456, td=td)
+        result_dict = {"i": 456, "td": f"{int(seconds):+}.{microseconds:06}"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        td = timedelta(days=-1, seconds=68400.05)
+        seconds = td.total_seconds()
+        microseconds = abs(round((seconds - int(seconds)) * 1e6))
+        test_struct = MyStruct(i=456, td=td)
+        result_dict = {"i": 456, "td": f"{int(seconds):+}.{microseconds:06}"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+    def test_to_json_list(self):
+        class MyStruct(csp.Struct):
+            i: int = 123
+            l_i: typing.List[int]
+            l_b: typing.List[bool]
+            l_dt: typing.List[datetime]
+            l_l_i: typing.List[typing.List[int]]
+            l_tuple: typing.Tuple[int, float, str]
+            l_any: list
+
+        test_struct = MyStruct()
+        result_dict = {"i": 123}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        l_i = [1, 2, 3]
+        test_struct = MyStruct(i=456, l_i=l_i)
+        result_dict = {"i": 456, "l_i": l_i}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        l_b = [True, True, False]
+        test_struct = MyStruct(i=456, l_b=l_b)
+        result_dict = {"i": 456, "l_b": l_b}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        dt = datetime.now(tz=pytz.timezone("Europe/London"))
+        l_dt = [dt, dt]
+        test_struct = MyStruct(i=456, l_dt=l_dt)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual([datetime.fromisoformat(d_str) for d_str in result_dict["l_dt"]], l_dt)
+
+        l_l_i = [[1, 2], [3, 4]]
+        test_struct = MyStruct(i=456, l_l_i=l_l_i)
+        result_dict = {"i": 456, "l_l_i": l_l_i}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        l_tuple = (1, 3.14, "hello world")
+        test_struct = MyStruct(i=456, l_tuple=l_tuple)
+        result_dict = {"i": 456, "l_tuple": list(l_tuple)}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        l_i = [1, 2, 3]
+        test_struct = MyStruct(i=456, l_any=l_i)
+        result_dict = {"i": 456, "l_any": l_i}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        dt = datetime.now(tz=pytz.timezone("Europe/London"))
+        l_dt = [dt, dt]
+        test_struct = MyStruct(i=456, l_any=l_dt)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual([datetime.fromisoformat(d_str) for d_str in result_dict["l_any"]], l_dt)
+
+        l_l_i = [[1, 2], [3, 4]]
+        test_struct = MyStruct(i=456, l_any=l_l_i)
+        result_dict = {"i": 456, "l_any": l_l_i}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        l_any = [[1, float("nan")], [float("INFINITY"), float("-inf")]]
+        test_struct = MyStruct(i=456, l_any=l_any)
+        result_dict = {"i": 456, "l_any": [[1, None], [None, None]]}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        l_any = [[1, 2], "hello", [4, 3.2, [6, [7], (8, True, 10.5, (11, [float("nan"), False]))]]]
+        l_any_result = [[1, 2], "hello", [4, 3.2, [6, [7], [8, True, 10.5, [11, [None, False]]]]]]
+        test_struct = MyStruct(i=456, l_any=l_any)
+        result_dict = {"i": 456, "l_any": l_any_result}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+    def test_to_json_dict(self):
+        class MyStruct(csp.Struct):
+            i: int = 123
+            d_i: typing.Dict[int, int]
+            d_f: typing.Dict[float, int]
+            d_dt: typing.Dict[str, datetime]
+            d_d_s: typing.Dict[str, typing.Dict[str, str]]
+            d_any: dict
+
+        test_struct = MyStruct()
+        result_dict = {"i": 123}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        d_i = {1: 2, 3: 4, 5: 6}
+        d_i_res = {str(k): v for k, v in d_i.items()}
+        test_struct = MyStruct(i=456, d_i=d_i)
+        result_dict = {"i": 456, "d_i": d_i_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        d_f = {1.2: 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_f=d_f)
+        result_dict = {"i": 456, "d_f": d_f_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        dt = datetime.now(tz=pytz.utc)
+        d_dt = {"d1": dt, "d2": dt}
+        test_struct = MyStruct(i=456, d_dt=d_dt)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({k: datetime.fromisoformat(d) for k, d in result_dict["d_dt"].items()}, d_dt)
+
+        d_d_s = {"b1": {"d1": "k1", "d2": "k2"}, "b2": {"d3": "k3", "d4": "k4"}}
+        test_struct = MyStruct(i=456, d_d_s=d_d_s)
+        result_dict = {"i": 456, "d_d_s": d_d_s}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        d_i = {1: 2, 3: 4, 5: 6}
+        d_i_res = {str(k): v for k, v in d_i.items()}
+        test_struct = MyStruct(i=456, d_any=d_i)
+        result_dict = {"i": 456, "d_any": d_i_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        d_f = {1.2: 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_any=d_f)
+        result_dict = {"i": 456, "d_any": d_f_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        dt = datetime.now(tz=pytz.utc)
+        d_dt = {"d1": dt, "d2": dt}
+        test_struct = MyStruct(i=456, d_any=d_dt)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({k: datetime.fromisoformat(d) for k, d in result_dict["d_any"].items()}, d_dt)
+
+        d_any = {"b1": {1: "k1", "d2": {4: 5.5}}, "b2": {"d3": {}, "d4": {"d5": {"d6": {"d7": {}}}}}}
+        d_any_res = {"b1": {"1": "k1", "d2": {"4": 5.5}}, "b2": {"d3": {}, "d4": {"d5": {"d6": {"d7": {}}}}}}
+        test_struct = MyStruct(i=456, d_any=d_any)
+        result_dict = {"i": 456, "d_any": d_any_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        d_f = {float("nan"): 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_any=d_f)
+        with self.assertRaises(ValueError):
+            test_struct.to_json()
+
+        d_f = {float("inf"): 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_any=d_f)
+        with self.assertRaises(ValueError):
+            test_struct.to_json()
+
+        d_f = {float("-inf"): 2, 2.3: 4, 3.4: 6, 4.5: 7}
+        d_f_res = {str(k): v for k, v in d_f.items()}
+        test_struct = MyStruct(i=456, d_any=d_f)
+        with self.assertRaises(ValueError):
+            test_struct.to_json()
+
+    def test_to_json_struct(self):
+        class MySubSubStruct(csp.Struct):
+            b: bool = True
+            i: int = 123
+            f: float = 3.14
+            s: str = "MySubSubStruct"
+
+        class MySubStruct(csp.Struct):
+            b: bool = True
+            i: int = 456
+            f: float = 2.71
+            s: str = "MySubStruct"
+            msss: MySubSubStruct = MySubSubStruct()
+
+        class MyStruct(csp.Struct):
+            i: int = 789
+            s: str = "MyStruct"
+            mss: MySubStruct = MySubStruct()
+            msss: MySubSubStruct
+
+        test_struct = MySubSubStruct()
+        result_dict = {"b": True, "i": 123, "f": 3.14, "s": "MySubSubStruct"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        test_struct = MySubStruct()
+        result_dict = {
+            "b": True,
+            "i": 456,
+            "f": 2.71,
+            "s": "MySubStruct",
+            "msss": {"b": True, "i": 123, "f": 3.14, "s": "MySubSubStruct"},
+        }
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        test_struct = MyStruct()
+        result_dict = {
+            "i": 789,
+            "s": "MyStruct",
+            "mss": {
+                "b": True,
+                "i": 456,
+                "f": 2.71,
+                "s": "MySubStruct",
+                "msss": {"b": True, "i": 123, "f": 3.14, "s": "MySubSubStruct"},
+            },
+        }
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        msss = MySubSubStruct(s="MySubSubStructNew")
+        mss = MySubStruct(s="MySubStructNew", msss=msss)
+        ms = MyStruct(s="MyStructNew", mss=mss, msss=msss)
+
+        result_dict = {"b": True, "i": 123, "f": 3.14, "s": "MySubSubStructNew"}
+        self.assertEqual(json.loads(msss.to_json()), result_dict)
+
+        result_dict = {
+            "b": True,
+            "i": 456,
+            "f": 2.71,
+            "s": "MySubStructNew",
+            "msss": {"b": True, "i": 123, "f": 3.14, "s": "MySubSubStructNew"},
+        }
+        self.assertEqual(json.loads(mss.to_json()), result_dict)
+
+        result_dict = {
+            "i": 789,
+            "s": "MyStructNew",
+            "mss": {
+                "b": True,
+                "i": 456,
+                "f": 2.71,
+                "s": "MySubStructNew",
+                "msss": {"b": True, "i": 123, "f": 3.14, "s": "MySubSubStructNew"},
+            },
+            "msss": {"b": True, "i": 123, "f": 3.14, "s": "MySubSubStructNew"},
+        }
+        self.assertEqual(json.loads(ms.to_json()), result_dict)
+
+    def test_to_json_all(self):
+        class MyEnum(csp.Enum):
+            A = 1
+            B = 2
+            C = 3
+            NUM = 4
+
+        class NonCspStruct:
+            pass
+
+        class MySubSubStruct(csp.Struct):
+            ncsp: NonCspStruct
+            nparray: np.ndarray
+            myenum: MyEnum
+
+        class MySubStruct(csp.Struct):
+            d_s_msss: dict
+            l_ncsp: typing.List[NonCspStruct]
+            py_l_ncsp: list
+
+        class MyStruct(csp.Struct):
+            i: int = 789
+            s: str = "MyStruct"
+            ts: datetime
+            l_mss: typing.List[MySubStruct]
+            l_msss: list
+            d_i_ncsp: dict
+
+        def custom_jsonifier(obj):
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, NonCspStruct):
+                return {"ncsp_key": "ncsp_value", "ncsp_arr": np.array(["ncsp_arr_val1", "ncsp_arr_val2"])}
+            else:
+                return obj
+
+        test_struct = MyStruct()
+        result_dict = {"i": 789, "s": "MyStruct"}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        enum1 = MyEnum.A
+        enum2 = MyEnum.C
+        enum3 = MyEnum.NUM
+
+        ncsp1 = NonCspStruct()
+        ncsp2 = NonCspStruct()
+        ncsp3 = NonCspStruct()
+
+        msss1 = MySubSubStruct(ncsp=ncsp1, myenum=enum1)
+        msss2 = MySubSubStruct(myenum=enum2)
+        msss3 = MySubSubStruct(nparray=np.array([1, 9]), myenum=enum3)
+        msss4 = MySubSubStruct(ncsp=ncsp2, nparray=np.array([1, 9]))
+
+        mss1 = MySubStruct(d_s_msss={"msss1": msss1}, l_ncsp=[ncsp1, ncsp2], py_l_ncsp=[ncsp2, ncsp3])
+        mss2 = MySubStruct(d_s_msss={"msss2": msss2}, l_ncsp=[ncsp2], py_l_ncsp=[ncsp3])
+
+        dt = datetime.now(tz=pytz.utc)
+        ms = MyStruct(
+            i=123456789,
+            s="NewMyStruct",
+            ts=dt,
+            l_mss=[mss2, mss1],
+            l_msss=[msss3, msss1, msss2, msss4],
+            d_i_ncsp={1: ncsp1, 2: ncsp2, 3: ncsp3},
+        )
+        test_struct = ms
+        result_dict_ncsp1 = {"ncsp_key": "ncsp_value", "ncsp_arr": ["ncsp_arr_val1", "ncsp_arr_val2"]}
+        result_dict_ncsp2 = {"ncsp_key": "ncsp_value", "ncsp_arr": ["ncsp_arr_val1", "ncsp_arr_val2"]}
+        result_dict_ncsp3 = {"ncsp_key": "ncsp_value", "ncsp_arr": ["ncsp_arr_val1", "ncsp_arr_val2"]}
+        result_dict_msss1 = {"ncsp": result_dict_ncsp1, "myenum": "A"}
+        result_dict_msss2 = {"myenum": "C"}
+        result_dict_msss3 = {"nparray": [1, 9], "myenum": "NUM"}
+        result_dict_msss4 = {"ncsp": result_dict_ncsp2, "nparray": [1, 9]}
+
+        result_dict_mss1 = {
+            "d_s_msss": {"msss1": result_dict_msss1},
+            "l_ncsp": [result_dict_ncsp1, result_dict_ncsp2],
+            "py_l_ncsp": [result_dict_ncsp2, result_dict_ncsp3],
+        }
+        result_dict_mss2 = {
+            "d_s_msss": {"msss2": result_dict_msss2},
+            "l_ncsp": [result_dict_ncsp2],
+            "py_l_ncsp": [result_dict_ncsp3],
+        }
+        result_dict_ms = {
+            "i": 123456789,
+            "s": "NewMyStruct",
+            "ts": dt,
+            "l_mss": [result_dict_mss2, result_dict_mss1],
+            "l_msss": [result_dict_msss3, result_dict_msss1, result_dict_msss2, result_dict_msss4],
+            "d_i_ncsp": {"1": result_dict_ncsp1, "2": result_dict_ncsp2, "3": result_dict_ncsp3},
+        }
+
+        self.assertEqual(json.loads(msss1.to_json(custom_jsonifier)), result_dict_msss1)
+        self.assertEqual(json.loads(msss2.to_json(custom_jsonifier)), result_dict_msss2)
+        self.assertEqual(json.loads(msss3.to_json(custom_jsonifier)), result_dict_msss3)
+        self.assertEqual(json.loads(msss4.to_json(custom_jsonifier)), result_dict_msss4)
+
+        self.assertEqual(json.loads(mss1.to_json(custom_jsonifier)), result_dict_mss1)
+        self.assertEqual(json.loads(mss2.to_json(custom_jsonifier)), result_dict_mss2)
+
+        result = json.loads(test_struct.to_json(custom_jsonifier))
+        result["ts"] = datetime.fromisoformat(result["ts"])
+        self.assertEqual(result, result_dict_ms)
+
+    def test_to_json_callback(self):
+        class MyExceptionNonCspStruct:
+            pass
+
+        class MyExceptionStruct(csp.Struct):
+            e: MyExceptionNonCspStruct
+
+        class MyNonCspStruct:
+            s: str = "NonCspStruct"
+
+        class MyStruct(csp.Struct):
+            i: int = 123
+            narray: np.ndarray
+            mncsps: MyNonCspStruct
+
+        def custom_jsonifier(obj):
+            if isinstance(obj, np.ndarray):
+                a = obj.tolist()
+                return a
+            elif isinstance(obj, MyNonCspStruct):
+                return {"s": obj.s}
+            elif isinstance(obj, MyExceptionNonCspStruct):
+                raise TypeError("Testing exceptions in callback")
+            else:
+                raise Exception("Obj type cannot be jsonified")
+
+        test_struct = MyStruct()
+        result_dict = {"i": 123}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        narray = np.array([1, 9])
+        test_struct = MyStruct(narray=narray)
+        result_dict = {"i": 123, "narray": narray}
+        result_dict_custom = {"i": 123, "narray": narray.tolist()}
+        self.assertEqual(json.loads(test_struct.to_json(custom_jsonifier)), result_dict_custom)
+        with self.assertRaises(ValueError):
+            test_struct.to_json()
+
+        narray = np.eye(10)
+        test_struct = MyStruct(narray=narray)
+        result_dict = {"i": 123, "narray": narray}
+        result_dict_custom = {"i": 123, "narray": narray.tolist()}
+        with self.assertRaises(ValueError):
+            self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+        self.assertEqual(json.loads(test_struct.to_json(custom_jsonifier)), result_dict_custom)
+
+        mncsps = MyNonCspStruct()
+        test_struct = MyStruct(mncsps=mncsps)
+        result_dict = {"i": 123, "mncsps": mncsps}
+        result_dict_custom = {"i": 123, "mncsps": {"s": mncsps.s}}
+        with self.assertRaises(ValueError):
+            self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+        self.assertEqual(json.loads(test_struct.to_json(custom_jsonifier)), result_dict_custom)
+
+        mncsps = MyNonCspStruct()
+        mncsps.s = "NewNonCspStruct"
+        mncsps.s_dynamic = "DynamicMetadata"
+        test_struct = MyStruct(mncsps=mncsps)
+        result_dict = {"i": 123, "mncsps": mncsps}
+        result_dict_custom = {"i": 123, "mncsps": {"s": mncsps.s}}
+        with self.assertRaises(ValueError):
+            self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+        self.assertEqual(json.loads(test_struct.to_json(custom_jsonifier)), result_dict_custom)
+
+        test_struct = MyExceptionStruct(e=MyExceptionNonCspStruct())
+        with self.assertRaises(TypeError):
+            json.loads(test_struct.to_json(custom_jsonifier))
+
+    def test_list_field_append(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+            
+            s = A( a = [] )
+            s.a.append(v[0])
+            
+            self.assertEqual(s.a, [v[0]])
+
+            s.a.append(v[1])
+            s.a.append(v[2])
+
+            self.assertEqual(s.a, [v[0], v[1], v[2]])
+
+            # Check if not generic type
+            if v[-1] is not None:
+                with self.assertRaises(TypeError) as e:
+                    s.a.append(v[-1])
+
+    def test_list_field_insert(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+            
+            s = A( a = [] )
+            s.a.insert(0, v[0])
+            
+            self.assertEqual(s.a, [v[0]])
+
+            s.a.insert(1, v[1])
+            s.a.insert(1, v[2])
+
+            self.assertEqual(s.a, [v[0], v[2], v[1]])
+
+            s.a.insert(-1, v[3])
+
+            self.assertEqual(s.a, [v[0], v[2], v[3], v[1]])
+
+            s.a.insert(100, v[4])
+            s.a.insert(-100, v[5])
+
+            self.assertEqual(s.a, [v[5], v[0], v[2], v[3], v[1], v[4]])
+
+            # Check if not generic type
+            if v[-1] is not None:
+                with self.assertRaises(TypeError) as e:
+                    s.a.insert(-1, v[-1])
+
+    def test_list_field_pop(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+        
+            s = A(a = [v[0], v[1], v[2], v[3], v[4]])
+            b = s.a.pop()
+            
+            self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
+            self.assertEqual(b, v[4])
+
+            b = s.a.pop(-1)
+            
+            self.assertEqual(s.a, [v[0], v[1], v[2]])
+            self.assertEqual(b, v[3])
+
+            b = s.a.pop(1)
+
+            self.assertEqual(s.a, [v[0], v[2]])
+            self.assertEqual(b, v[1])
+            
+            with self.assertRaises(IndexError) as e:
+                s.a.pop()
+                s.a.pop()
+                s.a.pop()
+            
+            s = A(a = [v[0], v[1], v[2], v[3], v[4]])
+
+            b = s.a.pop(-3)
+
+            self.assertEqual(s.a, [v[0], v[1], v[3], v[4]])
+            self.assertEqual(b, v[2])
+
+            with self.assertRaises(IndexError) as e:
+                s.a.pop(-5)
+
+            with self.assertRaises(IndexError) as e:
+                s.a.pop(4)
+
+    def test_list_field_set_item(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+                    
+            s = A( a = [v[0], v[1], v[2]] )
+            s.a.__setitem__(0, v[3])
+            
+            self.assertEqual(s.a, [v[3], v[1], v[2]])
+
+            s.a[1] = v[4]
+
+            self.assertEqual(s.a, [v[3], v[4], v[2]])
+
+            s.a[-1] = v[5]
+
+            self.assertEqual(s.a, [v[3], v[4], v[5]])
+
+            with self.assertRaises(IndexError) as e:
+                s.a[100] = v[0]
+
+            with self.assertRaises(IndexError) as e:
+                s.a[-100] = v[0]
+            
+            s.a[5:6] = [v[0], v[1], v[2]]
+
+            self.assertEqual(s.a, [v[3], v[4], v[5], v[0], v[1], v[2]])
+
+            s.a[2:4] = [v[2]]
+
+            self.assertEqual(s.a, [v[3], v[4], v[2], v[1], v[2]])
+
+            s.a[3:5] = [v[0], v[5]]
+
+            self.assertEqual(s.a, [v[3], v[4], v[2], v[0], v[5]])
+
+            s.a[1:10:2] = [v[1], v[2]]
+
+            self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+
+            # Check if not str or generic type (as str is a sequence of str) 
+            if v[-2] is not None:
+                with self.assertRaises(TypeError) as e:
+                    s.a[1:4] = v[-2]
+
+            self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+
+            # Check if not generic type
+            if v[-1] is not None:
+                with self.assertRaises(TypeError) as e:
+                    s.a[1:4] = [v[-1]]
+
+            self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+
+            with self.assertRaises(ValueError) as e:
+                s.a[1:10:2] = [v[0]]
+
+            self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+
+    def test_list_field_reverse(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+        
+            s = A( a = [v[0], v[1], v[2], v[3]] )
+            s.a.reverse()
+            
+            self.assertEqual(s.a, [v[3], v[2], v[1], v[0]])
+    
+    def test_list_field_sort(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        # Not using pystruct_list_test_values, as sort() tests are of different semantics (order and sorting key existance matters).
+        values = { 
+            int : [1, 5, 2, 2, -1, -5, 's'],
+            float: [1.4, 5.2, 2.7, 2.7, -1.4, -5.2, 's'],
+            datetime: [datetime(2022, 12, 6, 1, 2, 3), datetime(2022, 12, 8, 3, 2, 3), datetime(2022, 12, 7, 2, 2, 3), datetime(2022, 12, 7, 2, 2, 3), datetime(2022, 12, 5, 2, 2, 3), datetime(2022, 12, 3, 2, 2, 3), None],
+            timedelta: [timedelta(seconds=1), timedelta(seconds=123), timedelta(seconds=12), timedelta(seconds=12), timedelta(seconds=.1), timedelta(seconds=.01), None],
+            date: [date(2022, 12, 6), date(2022, 12, 8), date(2022, 12, 7), date(2022, 12, 7), date(2022, 12, 5), date(2022, 12, 3), None],
+            time: [time(5, 2, 3), time(7, 2, 3), time(6, 2, 3), time(6, 2, 3), time(4, 2, 3), time(3, 2, 3), None],
+            str : ['s', 'xyz', 'w', 'w', 'bds', 'a', None],
+        }
+
+        for typ, v in values.items():
+            class A(csp.Struct):
+                a: [typ]
+        
+            s = A( a = [v[0], v[1], v[2], v[3], v[4], v[5]] )
+            
+            s.a.sort()
+            
+            self.assertEqual(s.a, [v[5], v[4], v[0], v[2], v[3], v[1]])
+
+            s.a.sort(reverse=True)
+            
+            self.assertEqual(s.a, [v[1], v[2], v[3], v[0], v[4], v[5]])
+
+            with self.assertRaises(TypeError) as e:
+                s.a.sort(1)
+
+            with self.assertRaises(TypeError) as e:
+                s.a.sort(key=abs, a=3)
+
+            # Check if sorting key abs() is defined
+            if v[6] is not None:
+                s.a.sort(key=abs)
+
+                self.assertEqual(s.a, [v[0], v[4], v[2], v[3], v[1], v[5]])
+    
+    def test_list_field_extend(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+        
+            s = A( a = [v[0], v[1], v[2]] )
+            s.a.extend([v[3]])
+            
+            self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
+
+            s.a.extend([])
+            s.a.extend((v[4], v[5]))
+
+            self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
+
+            # Check if not str or generic type (as str is a sequence of str) 
+            if v[-2] is not None:
+                with self.assertRaises(TypeError) as e:
+                    s.a.extend(v[-2])
+            
+            # Check if not generic type 
+            if v[-1] is not None:
+                with self.assertRaises(TypeError) as e:
+                    s.a.extend([v[-1]])
+    
+    def test_list_field_remove(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+        
+            s = A( a = [v[0], v[1], v[0], v[2]] )
+            s.a.remove(v[0])
+            
+            self.assertEqual(s.a, [v[1], v[0], v[2]])
+
+            s.a.remove(v[2])
+
+            self.assertEqual(s.a, [v[1], v[0]])
+
+            with self.assertRaises(ValueError) as e:
+                s.a.remove(v[3])
+
+    def test_list_field_clear(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+        
+            s = A( a = [v[0], v[1], v[2], v[3]] )
+            s.a.clear()
+            
+            self.assertEqual(s.a, [])
+    
+    def test_list_field_del(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+        
+            s = A( a = [v[0], v[1], v[2], v[3]] )
+            del s.a[0]
+            
+            self.assertEqual(s.a, [v[1], v[2], v[3]])
+
+            del s.a[1]
+
+            self.assertEqual(s.a, [v[1], v[3]])
+
+            s = A( a = [v[0], v[1], v[2], v[3]] )
+            del s.a[1:3]
+
+            self.assertEqual(s.a, [v[0], v[3]])
+
+            del s.a[5:100]
+
+            self.assertEqual(s.a, [v[0], v[3]])
+
+            with self.assertRaises(IndexError) as e:
+                del s.a[5]
+    
+    def test_list_field_inplace_concat(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+        
+            s = A( a = [v[0], v[1]] )
+            s.a.__iadd__([v[2], v[3]])
+            
+            self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
+
+            s.a += (v[4], v[5])
+
+            self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
+
+            s.a += []
+
+            self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
+
+            with self.assertRaises(TypeError) as e:
+                s.a += v[-1]
+
+             # Check if not generic type
+            if v[-1] is not None:
+                with self.assertRaises(TypeError) as e:
+                    s.a += [v[-1]]
+            
+            self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
+    
+    def test_list_field_inplace_repeat(self):
+        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        for typ, v in pystruct_list_test_values.items():
+            class A(csp.Struct):
+                a: [typ]
+        
+            s = A( a = [v[0], v[1]] )
+            s.a.__imul__(1)
+            
+            self.assertEqual(s.a, [v[0], v[1]])
+
+            s.a *= 2
+
+            self.assertEqual(s.a, [v[0], v[1], v[0], v[1]])
+
+            with self.assertRaises(TypeError) as e:
+                s.a *= [3]
+
+            with self.assertRaises(TypeError) as e:
+                s.a *= 's'
+            
+            s.a *= 0
+            
+            self.assertEqual(s.a, [])
+
+            s.a += [v[2], v[3]]
+
+            self.assertEqual(s.a, [v[2], v[3]])
+
+            s.a *= -1
+            
+            self.assertEqual(s.a, [])
+    
+    def test_list_field_lifetime(self):
+        '''Ensure that the lifetime of PyStructList field exceeds the lifetime of struct holding it'''
+        class A(csp.Struct):
+            a: [int]
+    
+        s = A( a = [1, 2, 3] )
+        l = s.a
+        del s
+        
+        self.assertEqual(l, [1, 2, 3])
 
 
 if __name__ == "__main__":

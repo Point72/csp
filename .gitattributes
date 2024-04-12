@@ -3,4 +3,4 @@ docs/* linguist-documentation
 *.ipynb linguist-documentation
 Makefile linguist-documentation
 
-* text=auto eol=lf
+text=auto eol=lf

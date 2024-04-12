@@ -29,9 +29,12 @@ inline void mkdir( const std::string & path,
         pos = path.find( std::filesystem::path::preferred_separator, pos + 1 );
         std::string subpath = path.substr( 0, pos );
         std::error_code err;
-        if( !fileExists( subpath ) && ( !std::filesystem::create_directory( subpath, err ) ) )
-            CSP_THROW( IOError, "Failed to create path " << subpath << ": " << err.message() );
-        std::filesystem::permissions( subpath, perms );
+        if( !fileExists( subpath ) )
+        {
+            if( !std::filesystem::create_directory( subpath, err ) )
+                CSP_THROW( IOError, "Failed to create path " << subpath << ": " << err.message() );
+            std::filesystem::permissions( subpath, perms );
+        }
     } while( pos != std::string::npos );
 }
 

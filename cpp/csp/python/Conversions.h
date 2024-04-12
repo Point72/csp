@@ -618,6 +618,8 @@ inline DateTime fromPython( PyObject * o )
 template<>
 inline DateTimeOrTimeDelta fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( PyDateTime_Check( o ) )
         return fromPython<DateTime>( o );
 

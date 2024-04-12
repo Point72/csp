@@ -123,9 +123,8 @@ inline constexpr uint8_t clz(uint8_t n)  { return clz(static_cast<uint32_t>(n)) 
 
 // ffs (find first set) returns offset of first set bit (i.e. ffs(..0110) = 2 ), with ffs(0) = 0
 template<typename U,std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
-inline constexpr nbit_type ffs( U n )        { return __builtin_ffs(n); }
-inline constexpr nbit_type ffs( uint64_t n ) { return __builtin_ffsl(n); }
-
+inline constexpr uint8_t ffs( U n )        { return __builtin_ffs(n); }
+inline constexpr uint8_t ffs( uint64_t n ) { return __builtin_ffsl(n); }
 
 #endif
 

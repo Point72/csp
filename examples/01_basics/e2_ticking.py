@@ -26,7 +26,7 @@ def my_graph():
     x = csp.curve(int, [(st + timedelta(1), 1), (st + timedelta(2), 2), (st + timedelta(3), 3)])
 
     # Dummy y values
-    y = csp.curve(int, [(st + timedelta(1), -1), (st + timedelta(2), -1), (st + timedelta(3), -1)])
+    y = csp.curve(int, [(st + timedelta(1), -1), (st + timedelta(3), -1), (st + timedelta(4), -1)])
 
     # Add the time series
     sum = add(x, y)

@@ -34,7 +34,7 @@ private:
 
 //As an optimization we do NOT attach meta or value to every instance of an enum.  Instead, the enum
 //holds only a pointer to a singleton CspEnumInstance, which holds the value, name, and meta pointer.
-class CSP_TYPES_EXPORT CspEnum
+class CspEnum
 {
 public:
     CspEnum();
@@ -56,9 +56,9 @@ protected:
     friend class CspEnumMeta;
 };
 
-CSP_TYPES_EXPORT std::ostream &operator<<( std::ostream &os, const CspEnum & rhs );
+std::ostream &operator<<( std::ostream &os, const CspEnum & rhs );
 
-class CSP_TYPES_EXPORT CspEnumMeta
+class CspEnumMeta
 {
 public:
     using ValueDef = std::unordered_map<std::string,int64_t>;

@@ -13,6 +13,6 @@ target_link_libraries(statsimpl baselibimpl csp_core csp_engine)
 
 install(TARGETS baselibimpl basketlibimpl mathimpl statsimpl
         PUBLIC_HEADER DESTINATION include/csp/cppnodes
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )

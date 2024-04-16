@@ -26,6 +26,6 @@ target_link_libraries(csp_kafka_adapter PRIVATE csp_adapter_utils RdKafka::rdkaf
 
 install(TARGETS csp_kafka_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/kafka
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )

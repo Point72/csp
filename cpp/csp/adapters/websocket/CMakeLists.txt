@@ -36,6 +36,6 @@ target_link_libraries(csp_websocket_client_adapter
 
 install(TARGETS csp_websocket_client_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/websocket
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )

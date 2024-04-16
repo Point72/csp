@@ -446,7 +446,7 @@ inline std::ostream & operator <<( std::ostream &os, const Time & t )
 
 // Time is internally stored as an int64_t nanoseconds since 1970. 
 // All DateTime objects are stored as UTC and should be treated as such
-class CSP_CORE_EXPORT DateTime
+class DateTime
 {
 public:
     DateTime() : DateTime( DateTime::NONE() ) {}

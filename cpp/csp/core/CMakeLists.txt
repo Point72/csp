@@ -27,11 +27,10 @@ configure_file(Config.h.in ${CMAKE_CURRENT_BINARY_DIR}/cpp/csp/core/Config.h)
 
 add_library(csp_core STATIC ${CORE_SOURCE_FILES})
 set_target_properties(csp_core PROPERTIES PUBLIC_HEADER "${CORE_PUBLIC_HEADERS}")
-target_compile_definitions(csp_core PUBLIC CSP_CORE_EXPORTS=1)
 
 install(TARGETS csp_core
         PUBLIC_HEADER DESTINATION include/csp/core
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cpp/csp/core/Config.h DESTINATION include/csp/core)

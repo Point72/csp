@@ -80,8 +80,11 @@ add_library(cspimpl SHARED
 
 set_target_properties(cspimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_PUBLIC_HEADERS}")
 
-target_link_libraries(cspimpl csptypesimpl csp_core csp_engine)
+target_link_libraries(cspimpl csptypesimpl csp_core csp_engine )
+set_target_properties(cspimpl PROPERTIES LINK_FLAGS "/WHOLEARCHIVE:csp_engine")
+
 target_compile_definitions(cspimpl PUBLIC NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
+target_compile_definitions(cspimpl PRIVATE CSPIMPL_EXPORTS=1)
 
 
 ## Baselib c++ module
@@ -116,6 +119,6 @@ target_include_directories(cspnpstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 
 install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl csptestlibimpl cspnpstatsimpl
         PUBLIC_HEADER DESTINATION include/csp/python
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )

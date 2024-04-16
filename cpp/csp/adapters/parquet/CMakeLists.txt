@@ -50,8 +50,10 @@ find_package(lz4 REQUIRED)
 find_package(utf8proc REQUIRED)
 find_package(Brotli REQUIRED)
 
-if(CSP_USE_VCPKG)
-  # use staic variants
+if(WIN32)
+  set(ARROW_PACKAGES_TO_LINK ${ARROW_IMPORT_LIB} ${PARQUET_IMPORT_LIB})
+elseif(CSP_USE_VCPKG)
+  # use static variants
   set(ARROW_PACKAGES_TO_LINK parquet_static arrow_static)
 else()
   # use dynamic variants
@@ -62,6 +64,6 @@ target_link_libraries(csp_parquet_adapter PRIVATE csp_adapter_utils thrift::thri
 
 install(TARGETS csp_parquet_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/parquet
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )

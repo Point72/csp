@@ -363,8 +363,10 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 if(WIN32)
     # On windows, force dlls into lib folder
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+    set(CSP_RUNTIME_INSTALL_SUBDIR lib/)
 else()
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    set(CSP_RUNTIME_INSTALL_SUBDIR bin/)
 endif()
 
 add_subdirectory(cpp/csp/adapters)

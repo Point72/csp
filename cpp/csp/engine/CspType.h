@@ -14,7 +14,7 @@ namespace csp
 
 class CspStringType;
 
-class CSP_TYPES_EXPORT CspType
+class CspType
 {
 public:
 
@@ -115,7 +115,7 @@ private:
     Type m_type;
 };
 
-class CSP_TYPES_EXPORT CspStringType : public CspType
+class CspStringType : public CspType
 {
 public:
     CspStringType(bool isBytes)
@@ -134,7 +134,7 @@ class CspEnum;
 
 class CspEnumMeta;
 
-class CSP_TYPES_EXPORT CspEnumType : public CspType
+class CspEnumType : public CspType
 {
 public:
     CspEnumType( std::shared_ptr<CspEnumMeta> & meta ) : CspType( CspType::Type::ENUM ),
@@ -154,7 +154,7 @@ using StructPtr = TypedStructPtr<Struct>;
 
 class StructMeta;
 
-class CSP_TYPES_EXPORT CspStructType : public CspType
+class CspStructType : public CspType
 {
 public:
     CspStructType( const std::shared_ptr<StructMeta> & meta ) : CspType( CspType::Type::STRUCT ),
@@ -167,7 +167,7 @@ private:
     std::shared_ptr<StructMeta> m_meta;
 };
 
-class CSP_TYPES_EXPORT CspArrayType : public CspType
+class CspArrayType : public CspType
 {
 public:
     CspArrayType( CspTypePtr elemType ) : CspType( CspType::Type::ARRAY ),

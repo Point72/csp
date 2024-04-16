@@ -387,6 +387,9 @@ bool {struct_name}::static_init()
 {assertions}
     if( Py_IsInitialized() )
     {{
+        //Note that windows requires we grab the GIL since the windows DLL loading code releases GIL
+        PyGILState_STATE state = PyGILState_Ensure();
+
         // initialize StructMeta from python type if we're in python
         PyObject * pymodule = PyImport_ImportModule( "{self._module_name}" );
         assert_or_die( pymodule != nullptr, "failed to import struct module {self._module_name}" );
@@ -397,6 +400,8 @@ bool {struct_name}::static_init()
         // should add some assertion here..
         csp::python::PyStructMeta * pymeta = ( csp::python::PyStructMeta * ) structType;
         s_meta = pymeta -> structMeta;
+
+         PyGILState_Release(state);
     }}
 
     return true;
@@ -423,6 +428,9 @@ bool {enum_name}::static_init()
 {{
     if( Py_IsInitialized() )
     {{
+        //Note that windows requires we grab the GIL since the windows DLL loading code releases GIL
+        PyGILState_STATE state = PyGILState_Ensure();
+
         // initialize EnumMeta from python type if we're in python
         PyObject * pymodule = PyImport_ImportModule( "{self._module_name}" );
         assert_or_die( pymodule != nullptr, "failed to import struct module {self._module_name}" );
@@ -433,6 +441,8 @@ bool {enum_name}::static_init()
         // should add some assertion here..
         csp::python::PyCspEnumMeta * pymeta = ( csp::python::PyCspEnumMeta * ) enumType;
         s_meta = pymeta -> enumMeta;
+
+         PyGILState_Release(state);
     }}
 
     return true;

@@ -697,6 +697,19 @@ class TestCspStruct(unittest.TestCase):
         struct = StructWithDefaults.from_dict({"e": MyEnum.A})
         self.assertEqual(MyEnum.A, getattr(struct, "e"))
 
+    def test_from_dict_with_list_derived_type(self):
+        class ListDerivedType(list):
+            def __init__(self, iterable=None):
+                super().__init__(iterable)
+
+        class StructWithListDerivedType(csp.Struct):
+            ldt: ListDerivedType
+
+        s1 = StructWithListDerivedType(ldt=ListDerivedType([1,2]))
+        self.assertTrue(isinstance(s1.to_dict()['ldt'], ListDerivedType))
+        s2 = StructWithListDerivedType.from_dict(s1.to_dict())
+        self.assertEqual(s1, s2)
+
     def test_from_dict_loop_no_defaults(self):
         looped = StructNoDefaults.from_dict(StructNoDefaults(a1=[9, 10]).to_dict())
         self.assertEqual(looped, StructNoDefaults(a1=[9, 10]))

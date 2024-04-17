@@ -81,7 +81,7 @@ PushPullInputAdapter::PullDataEvent * PushPullInputAdapter::nextPullEvent()
     auto * event = m_poppedPullEvents.front();
     m_poppedPullEvents.pop();
 
-    if( m_adjustOutOfOrderTime )
+    if( m_adjustOutOfOrderTime && event )
         event -> time = std::max( event -> time, rootEngine() -> now() );
 
     return event;    

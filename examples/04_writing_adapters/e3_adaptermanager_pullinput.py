@@ -1,7 +1,7 @@
 """
-This example introduces the concept of an AdapterManager.  AdapterManagers are constructs that are used
-when you have a shared input or output resources ( ie single CSV / Parquet file, some pub/sub session, etc )
-that you want to connect to once, but provide data to / from many input / output adapters ( aka time series )
+This example introduces the concept of an AdapterManager. AdapterManagers are constructs that are used
+when you have a shared input or output resources (ie single CSV / Parquet file, some pub/sub session, etc)
+that you want to connect to once, but provide data to/from many input/output adapters (aka time series)
 """
 
 import random
@@ -18,7 +18,7 @@ class MyData(csp.Struct):
     value: int
 
 
-# This object represents our AdapterManager at graph time.  It describes the manager's properties
+# This object represents our AdapterManager at graph time. It describes the manager's properties
 # and will be used to create the actual impl when its time to build the engine
 class MyAdapterManager:
     def __init__(self, interval: timedelta):
@@ -78,9 +78,9 @@ class MyAdapterManagerImpl(AdapterManagerImpl):
 
     def process_next_sim_timeslice(self, now):
         """After start is called, process_next_sim_timeslice will be called repeatedly
-        to process the next available timestamp from the data source.  Every call to this method
+        to process the next available timestamp from the data source. Every call to this method
         should process all "rows" for the given timestamp.
-        For every tick that aplies to an input, we push the tick into the adapter.
+        For every tick that applies to an input, we push the tick into the adapter.
         This method should return the datetime of the next even in the data, or None if there is no data left.
         First call will be for "starttime"
         """
@@ -104,7 +104,7 @@ class MyAdapterManagerImpl(AdapterManagerImpl):
 
 
 # The Impl object is created at runtime when the graph is converted into the runtime engine
-# it does not exist at graph building time.  a managed sim adapter impl will get the
+# it does not exist at graph building time. a managed sim adapter impl will get the
 # adapter manager runtime impl as its first argument
 class MyManagedSimAdapterImpl(ManagedSimInputAdapter):
     def __init__(self, manager_impl, symbol):
@@ -146,4 +146,9 @@ def my_graph():
     print("End of graph building")
 
 
-csp.run(my_graph, starttime=datetime(2020, 12, 28), endtime=timedelta(seconds=10))
+def main():
+    csp.run(my_graph, starttime=datetime(2020, 12, 28), endtime=timedelta(seconds=10))
+
+
+if __name__ == "__main__":
+    main()

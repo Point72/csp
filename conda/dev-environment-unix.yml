@@ -5,6 +5,7 @@ channels:
 dependencies:
  - bison
  - brotli
+ - build
  - bump2version>=1
  - cmake
  - codespell
@@ -12,10 +13,11 @@ dependencies:
  - cyrus-sasl
  - exprtk
  - flex
+ - graphviz
  - python-graphviz
  - gtest
- - httpx
- - isort
+ - httpx>=0.20,<1
+ - isort>=5,<6
  - libarrow=15
  - librdkafka
  - libboost-headers
@@ -24,16 +26,18 @@ dependencies:
  - mdformat
  - ninja
  - numpy
+ - pillow
  - psutil
  - pyarrow=15
  - pandas
  - pillow
  - polars
+ - psutil
  - pytz
  - pytest
+ - pytest-asyncio
  - pytest-cov
  - pytest-sugar
- - pytest-asyncio
  - python<3.12
  - python-rapidjson
  - rapidjson
@@ -44,6 +48,7 @@ dependencies:
  - slack-sdk
  - sqlalchemy
  - tar
+ - threadpoolctl
  - tornado
  - twine
  - unzip

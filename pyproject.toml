@@ -52,31 +52,55 @@ Tracker = "https://github.com/point72/csp/issues"
 
 [project.optional-dependencies]
 develop = [
+    # build/dist
     "bump2version>=1.0.0",
     "build",
-    "graphviz",
-    "httpx>=0.20,<1",
-    "isort>=5,<6",
     "ruamel.yaml",
-    "ruff>=0.3,<0.4",
-    "mdformat",
-    "codespell",
     "scikit-build",
     "twine",
     "wheel",
-    # Test dependencies
-    "polars",
-    "psutil",
+    # lint
+    "codespell",
+    "isort>=5,<6",
+    "mdformat",
+    "ruff>=0.3,<0.4",
+    # test
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
     "pytest-sugar",
+    # showgraph
+    "graphviz",
+    "pillow",
+    # adapters
+    "httpx>=0.20,<1",  # kafka
+    "polars",  # parquet
+    "psutil",  # test_engine/test_history
+    "slack-sdk>=3",  # slack
+    "sqlalchemy",  # db
+    "requests",  # symphony
+    "threadpoolctl",  # test_random
+    "tornado",  # profiler, perspective, websocket
+]
+showgraph = [
+    "graphviz",
+    "pillow",
+]
+test = [
+    "graphviz",
+    "pillow",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-sugar",
+    "httpx>=0.20,<1",
+    "polars",
+    "psutil",
+    "requests",
+    "slack-sdk>=3",
     "sqlalchemy",
     "threadpoolctl",
     "tornado",
-    # Extras
-    "requests",
-    "slack-sdk>=3",
 ]
 symphony = [
     "requests",

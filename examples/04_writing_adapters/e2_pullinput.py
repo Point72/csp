@@ -1,9 +1,9 @@
 """
-PullInputAdapter is the simplest form of an input adapter for historical data.  One instance is created
-to provide data on a single timeseries.  There are use cases for this construct, though they are limited.
-This is useful when feeding a single source of historical data into a single timeseries.  In most cases however,
-you will likely have a single source that is processed and used to provide data to multiple inputs.  For that construct
-see e_14_user_adapters_02_adaptermanager_siminput.py
+PullInputAdapter is the simplest form of an input adapter for historical data. One instance is created
+to provide data on a single timeseries. There are use cases for this construct, though they are limited.
+This is useful when feeding a single source of historical data into a single timeseries. In most cases however,
+you will likely have a single source that is processed and used to provide data to multiple inputs. For that construct
+see e3_adaptermanager_pullinput.py
 """
 
 from datetime import datetime, timedelta
@@ -45,7 +45,7 @@ class MyPullAdapterImpl(PullInputAdapter):
         return None
 
 
-# MyPullAdapter is the graph-building time construct.  This is simply a representation of what the
+# MyPullAdapter is the graph-building time construct. This is simply a representation of what the
 # input adapter is and how to create it, including the Impl to use and arguments to pass into it upon construction
 MyPullAdapter = py_pull_adapter_def("MyPullAdapter", MyPullAdapterImpl, ts[int], interval=timedelta, num_ticks=int)
 
@@ -58,4 +58,9 @@ def my_graph():
     print("End of graph building")
 
 
-csp.run(my_graph, starttime=datetime(2020, 12, 28))
+def main():
+    csp.run(my_graph, starttime=datetime(2020, 12, 28))
+
+
+if __name__ == "__main__":
+    main()

@@ -80,7 +80,7 @@ def main():
     if show_graph:
         csp.showgraph.show_graph(my_graph)
     else:
-        csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=60), realtime=True)
+        csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=False)
 
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@ class Driver:
         counter = 0
         # Optionally, we can wait for the adapter to start before proceeding
         # Alternatively we can start pushing data, but push_tick may fail and return False if
-        # the csp engine isnt ready yet
+        # the csp engine isn't ready yet
         self._adapter.wait_for_start()
 
         while self._active and not self._adapter.stopped():
@@ -52,4 +52,9 @@ def my_graph():
     csp.print("data", adapter.out())
 
 
-csp.run(my_graph, realtime=True, starttime=datetime.utcnow(), endtime=timedelta(seconds=10))
+def main():
+    csp.run(my_graph, realtime=True, starttime=datetime.utcnow(), endtime=timedelta(seconds=2))
+
+
+if __name__ == "__main__":
+    main()

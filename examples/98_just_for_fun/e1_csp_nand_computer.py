@@ -1,7 +1,10 @@
-"""The purpose of this example is to help demonstrate the difference between csp.node and csp.graph concepts ( and because its awesome ).
-We define a single node, which is a simple NAND gate.  We then wire up the NAND gate nodes in more and more complex constructs under csp.graph definitions
+"""
+The purpose of this example is to help demonstrate the difference between csp.node and csp.graph concepts (and because its awesome).
+We define a single node, which is a simple NAND gate. We then wire up the NAND gate nodes in more and more complex constructs under csp.graph definitions
 to build up our "computer".
-csp.graph calls only define the wiring of the NAND gate nodes.  At runtime, the only things that exist and execute are the NAND nodes.
+
+csp.graph calls only define the wiring of the NAND gate nodes. At runtime, the only things that exist and execute are the NAND nodes.
+
 The wiring done here has been taken from the awesome book  https://www.amazon.com/Elements-Computing-Systems-Building-Principles/dp/0262640686
 """
 
@@ -88,7 +91,7 @@ def basket_to_bitstring(x: [ts[bool]]) -> ts[str]:
 
 
 @csp.graph
-def main(bits: int = 16):
+def my_graph(bits: int = 16):
     x = number_to_basket(42001, bits)
     y = number_to_basket(136, bits)
 
@@ -101,6 +104,11 @@ def main(bits: int = 16):
     csp.print("x+y_bits", basket_to_bitstring(add))
 
 
-# Show graph with 4-bit ints to limit size
-csp.showgraph.show_graph(main, 4)
-csp.run(main, starttime=datetime(2022, 6, 24))
+def main():
+    # Show graph with 4-bit ints to limit size
+    csp.showgraph.show_graph(my_graph, 4)
+    csp.run(my_graph, starttime=datetime(2022, 6, 24))
+
+
+if __name__ == "__main__":
+    main()

@@ -29,7 +29,7 @@ def times(timer: ts[bool]) -> ts[datetime]:
 
 
 @csp.graph
-def main(port: int, num_keys: int):
+def my_graph(port: int, num_keys: int):
     snap = csp.timer(timedelta(seconds=0.25))
     angle = csp.count(snap)
 
@@ -57,7 +57,10 @@ def main(port: int, num_keys: int):
 port = 7677
 num_keys = 10
 
-csp.run(main, port, num_keys, starttime=datetime.utcnow(), endtime=timedelta(seconds=360), realtime=True)
+
+def main():
+    csp.run(my_graph, port, num_keys, starttime=datetime.utcnow(), endtime=timedelta(seconds=360), realtime=True)
+
 
 """ Sample html to view the data.  Note to put your machine name on the websocket line below
 <html>
@@ -84,3 +87,6 @@ csp.run(main, port, num_keys, starttime=datetime.utcnow(), endtime=timedelta(sec
 </body>
 </html>
 """
+
+if __name__ == "__main__":
+    main()

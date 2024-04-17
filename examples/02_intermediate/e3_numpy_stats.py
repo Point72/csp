@@ -56,7 +56,7 @@ def numpy_stats_graph():
 
 
 def main():
-    results = csp.run(numpy_stats_graph, starttime=st, endtime=st + timedelta(minutes=10))
+    results = csp.run(numpy_stats_graph, starttime=st, endtime=st + timedelta(minutes=10), realtime=False)
 
     print("Price Averages\n")
     for i in range(10):

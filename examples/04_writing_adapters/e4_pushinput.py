@@ -1,9 +1,9 @@
 """
-PushInputAdapter is the simplest form of an input adapter for real-time data.  One instance is created
-to provide data on a single timeseries.  There are use cases for this construct, though they are limited.
-This is useful when feeding a single source of data into a single timeseries.  In most cases however,
-you will likely have a single source that is processed and used to provide data to multiple inputs.  For that construct
-see e_14_user_adapters_04_adaptermanager_pushinput.py
+PushInputAdapter is the simplest form of an input adapter for real-time data. One instance is created
+to provide data on a single timeseries. There are use cases for this construct, though they are limited.
+This is useful when feeding a single source of data into a single timeseries. In most cases however,
+you will likely have a single source that is processed and used to provide data to multiple inputs. For that construct
+see e5_adaptermanager_pushinput.py
 """
 
 import threading
@@ -27,7 +27,7 @@ class MyPushAdapterImpl(PushInputAdapter):
 
     def start(self, starttime, endtime):
         """start will get called at the start of the engine, at which point the push
-        input adapter should start its thread that will push the data onto the adapter.  Note
+        input adapter should start its thread that will push the data onto the adapter. Note
         that push adapters will ALWAYS have a separate thread driving ticks into the csp engine thread
         """
         print("MyPushAdapterImpl::start")
@@ -52,14 +52,14 @@ class MyPushAdapterImpl(PushInputAdapter):
             time.sleep(self._interval.total_seconds())
 
 
-# MyPushAdapter is the graph-building time construct.  This is simply a representation of what the
+# MyPushAdapter is the graph-building time construct. This is simply a representation of what the
 # input adapter is and how to create it, including the Impl to create and arguments to pass into it
 MyPushAdapter = py_push_adapter_def("MyPushAdapter", MyPushAdapterImpl, ts[int], interval=timedelta)
 
 
 @csp.graph
 def my_graph():
-    # At this point we create the graph-time representation of the input adapter.  This will be converted
+    # At this point we create the graph-time representation of the input adapter. This will be converted
     # into the impl once the graph is done constructing and the engine is created in order to run
     print("Start of graph building")
     data = MyPushAdapter(timedelta(seconds=1))
@@ -67,4 +67,9 @@ def my_graph():
     print("End of graph building")
 
 
-csp.run(my_graph, realtime=True, starttime=datetime.utcnow())
+def main():
+    csp.run(my_graph, realtime=True, starttime=datetime.utcnow(), endtime=timedelta(seconds=2))
+
+
+if __name__ == "__main__":
+    main()

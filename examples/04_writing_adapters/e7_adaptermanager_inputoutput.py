@@ -124,9 +124,7 @@ class MyInputAdapterImpl(PushInputAdapter):
 
 
 class MyOutputAdapterImpl(OutputAdapter):
-    """Similarly, our output adpter is simple as well, defering
-    its functionality to the manager
-    """
+    """Similarly, our output adapter is simple as well, deferring its functionality to the manager"""
 
     def __init__(self, manager, symbol):
         manager.register_publication(symbol)
@@ -168,5 +166,9 @@ def my_graph():
     adapter_manager.publish(data_3, "data_3")
 
 
+def main():
+    csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+
+
 if __name__ == "__main__":
-    csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)
+    main()

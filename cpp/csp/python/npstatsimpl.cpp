@@ -5,6 +5,8 @@
 #include <numpy/npy_math.h> // need to be included before csp
 
 //Include first so that csp dialect types are defined
+#include <csp/python/Common.h>
+#include <csp/python/PyCspType.h>
 #include <csp/python/PyCspType.h>
 #include <csp/python/PyObjectPtr.h>
 
@@ -28,6 +30,7 @@ using namespace csp::cppnodes;
 
 static void * init_nparray()
 {
+    csp::python::AcquireGIL gil;
     import_array();
     return nullptr;
 }

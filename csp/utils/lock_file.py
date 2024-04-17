@@ -1,5 +1,4 @@
 import datetime
-import fcntl
 import os
 import threading
 import time
@@ -9,6 +8,13 @@ from csp.impl.struct import Struct
 from csp.utils.file_permissions import FilePermissions, ensure_file_exists_with_permissions
 from csp.utils.rm_utils import rm_file_or_folder
 
+try:
+    import fcntl
+except ImportError:
+    import sys
+
+    if sys.platform != 'win32':
+        raise
 
 class _FileLockRecord(Struct):
     open_file: object

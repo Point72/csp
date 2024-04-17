@@ -1,8 +1,13 @@
-import grp
-import os
-import pwd
-import random
-import time
+try:
+    import grp
+    import os
+    import pwd
+    import random
+    import time
+except ImportError:
+    import sys
+    if sys.platform != 'win32':
+        raise
 
 from csp.impl.struct import Struct
 

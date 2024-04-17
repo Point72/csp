@@ -48,12 +48,12 @@ def my_graph(struct_file_name: str, series_file_name: str):
     write_series(series_file_name)
 
 
-if __name__ == "__main__":
+def main():
     with tempfile.NamedTemporaryFile(suffix=".parquet") as struct_file:
         struct_file.file.close()
         with tempfile.NamedTemporaryFile(suffix=".parquet") as series_file:
             series_file.file.close()
-            g = csp.run(
+            csp.run(
                 my_graph,
                 struct_file.name,
                 series_file.name,
@@ -72,3 +72,7 @@ if __name__ == "__main__":
                 print(f"Struct data:\n{struct_df}")
                 series_df = pandas.read_parquet(series_file.name)
                 print(f"Series data:\n{series_df}")
+
+
+if __name__ == "__main__":
+    main()

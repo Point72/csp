@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import csp
 from csp import ts
 
-# This example demonstrates the advanced concept of dynamic graphs.  Dynamic graphs provide the ability to extend the shape of the graph during runtime,
+# This example demonstrates the advanced concept of dynamic graphs. Dynamic graphs provide the ability to extend the shape of the graph during runtime,
 # which is useful when you may not necessarily know what you will be processing at start
 
 

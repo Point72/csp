@@ -59,11 +59,15 @@ def my_graph():
     MyBufferWriterAdapter(curve, output_buffer=output_buffer)
 
 
-if __name__ == "__main__":
+def main():
     csp.run(
         my_graph,
         starttime=datetime.utcnow(),
-        endtime=timedelta(seconds=3),
+        endtime=timedelta(seconds=2),
         realtime=True,
     )
     print("output buffer: {}".format(output_buffer))
+
+
+if __name__ == "__main__":
+    main()

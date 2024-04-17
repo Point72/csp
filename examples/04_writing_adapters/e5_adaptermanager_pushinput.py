@@ -1,7 +1,7 @@
 """
-This example introduces the concept of an AdapterManager for realtime data.  AdapterManagers are constructs that are used
-when you have a shared input or output resources ( ie single CSV / Parquet file, some pub/sub session, etc )
-that you want to connect to once, but provide data to / from many input / output adapters ( aka time series )
+This example introduces the concept of an AdapterManager for realtime data. AdapterManagers are constructs that are used
+when you have a shared input or output resources (ie single CSV / Parquet file, some pub/sub session, etc)
+that you want to connect to once, but provide data to/from many input/output adapters (aka time series)
 """
 
 import random
@@ -21,7 +21,7 @@ class MyData(csp.Struct):
     value: int
 
 
-# This object represents our AdapterManager at graph time.  It describes the manager's properties
+# This object represents our AdapterManager at graph time. It describes the manager's properties
 # and will be used to create the actual impl when its time to build the engine
 class MyAdapterManager:
     def __init__(self, interval: timedelta):
@@ -66,7 +66,7 @@ class MyAdapterManagerImpl(AdapterManagerImpl):
         self._thread = None
 
     def start(self, starttime, endtime):
-        """start wil get called at the start of the engine run.  At this point
+        """start will get called at the start of the engine run. At this point
         one would start up the realtime data source / spawn the driving thread(s) and
          subscribe to the needed data"""
         print("MyAdapterManagerImpl::start")
@@ -113,7 +113,7 @@ class MyAdapterManagerImpl(AdapterManagerImpl):
 
 
 # The Impl object is created at runtime when the graph is converted into the runtime engine
-# it does not exist at graph building time.  a managed sim adapter impl will get the
+# it does not exist at graph building time. a managed sim adapter impl will get the
 # adapter manager runtime impl as its first argument
 class MyPushAdapterImpl(PushInputAdapter):
     def __init__(self, manager_impl, symbol):
@@ -151,4 +151,9 @@ def my_graph():
     print("End of graph building")
 
 
-csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)
+def main():
+    csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+
+
+if __name__ == "__main__":
+    main()

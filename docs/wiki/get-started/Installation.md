@@ -17,4 +17,4 @@ conda install csp -c conda-forge
 ## Source installation
 
 For other platforms, follow the instructions to [build CSP from
-source](Build-CSP-from-Source).
+source](../dev-guides/Build-CSP-from-Source.md).

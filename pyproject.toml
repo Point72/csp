@@ -84,6 +84,10 @@ symphony = [
 slack = [
     "slack-sdk>=3",
 ]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+]
 
 [tool.check-manifest]
 ignore = []

@@ -155,7 +155,7 @@ basket and react to it as well as access its current value
 ## **Node Outputs**
 
 Nodes can return any number of outputs (including no outputs, in which case it is considered an "output" or sink node,
-see [Graph Pruning](CSP-Graph#graph-pruning)).
+see [Graph Pruning](CSP-Graph.md#graph-pruning)).
 Nodes with single outputs can return the output as an unnamed output.
 Nodes returning multiple outputs must have them be named.
 When a node is called at graph building time, if it is a single unnamed node the return variable is an edge representing the output which can be passed into other nodes.

@@ -13,9 +13,14 @@ namespace csp
 class Exception : public std::exception
 {
 public:
-    Exception( const char * exType, const std::string & description ) : m_exType( exType ), m_description( description ), m_line ( -1 ) { setbt(); }
     Exception( const char * exType, const std::string & description, const char * file, const char * func, int line ) :
-        m_exType( exType ), m_description( description ), m_file( file ), m_function( func ), m_line( line ) { setbt(); }
+        m_exType( exType ), m_description( description ), m_file( file ), m_function( func ), m_line( line ), m_backtracemessages( nullptr )
+    { 
+        setbt();
+    }
+
+    Exception(const char* exType, const std::string& description) : Exception(exType, description, "", "", -1)
+    {}
     ~Exception() { free( m_backtracemessages ); }
     Exception( const Exception & );
     Exception( Exception&& );

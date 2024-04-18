@@ -230,7 +230,7 @@ inline int64_t fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const uint64_t & value )
 {
-    return toPythonCheck( PyLong_FromUnsignedLong( value ) );
+    return toPythonCheck( PyLong_FromUnsignedLongLong( value ) );
 }
 
 template<>
@@ -239,7 +239,7 @@ inline uint64_t fromPython( PyObject * o )
     if( !PyLong_Check( o ) )
         CSP_THROW( TypeError, "Invalid int type, expected long (int) got " << Py_TYPE( o ) -> tp_name );
 
-    uint64_t rv = PyLong_AsUnsignedLong( o );
+    uint64_t rv = PyLong_AsUnsignedLongLong( o );
     if( rv == ( uint64_t ) -1 && PyErr_Occurred() )
         CSP_THROW( PythonPassthrough, "" );
     return rv;

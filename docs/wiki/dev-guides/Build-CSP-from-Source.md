@@ -10,6 +10,7 @@ CSP is written in Python and C++ with Python and C++ build dependencies. While p
   - [Clone](#clone)
   - [Install build dependencies](#install-build-dependencies)
   - [Build](#build)
+  - [A note about dependencies](#a-note-about-dependencies)
 - [Building with a system package manager](#building-with-a-system-package-manager)
   - [Clone](#clone-1)
   - [Install build dependencies](#install-build-dependencies-1)
@@ -49,29 +50,16 @@ CSP has a few system-level dependencies which you can install from your machine 
 
 The easiest way to get started on a Linux machine is by installing the necessary dependencies in a self-contained conda environment.
 
-Tweak this script to create a conda environment, install the build dependencies, build, and install a development version of CSP into the environment.
+Tweak this script to create a conda environment, install the build dependencies, build, and install a development version of `csp` into the environment. Note that we use [micromamba](https://mamba.readthedocs.io/en/latest/index.html) in this example, but [Anaconda](https://www.anaconda.com/download), [Miniconda](https://docs.anaconda.com/free/miniconda/index.html), [Miniforge](https://github.com/conda-forge/miniforge), etc, should all work fine.
 
 ### Install conda
 
 ```bash
-mkdir ~/github
-cd ~/github
+# download and install micromamba for Linux/Mac
+"${SHELL}" <(curl -L micro.mamba.pm/install.sh)
 
-# this downloads a Linux x86_64 build, change your architecture to match your development machine
-# see https://conda-forge.org/miniforge/ for alternate download links
-
-wget https://github.com/conda-forge/miniforge/releases/download/23.3.1-1/Mambaforge-23.3.1-1-Linux-x86_64.sh
-chmod 755 Mambaforge-23.3.1-1-Linux-x86_64.sh
-./Mambaforge-23.3.1-1-Linux-x86_64.sh -b -f -u -p csp_venv
-
-. ~/github/csp_venv/etc/profile.d/conda.sh
-
-# optionally, run this if you want to set up conda in your .bashrc
-# conda init bash
-
-conda config --add channels conda-forge
-conda config --set channel_priority strict
-conda activate base
+# on windows powershell
+# Invoke-Expression ((Invoke-WebRequest -Uri https://micro.mamba.pm/install.ps1).Content)
 ```
 
 ### Clone
@@ -94,25 +82,15 @@ micromamba activate csp
 ### Build
 
 ```bash
-make build
+make build-conda
 
-# on aarch64 linux, comment the above command and use this instead
-# VCPKG_FORCE_SYSTEM_BINARIES=1 make build
-
-# finally install into the csp_venv conda environment
+# finally install into the csp conda environment
 make develop
 ```
 
-If you didn’t do `conda init bash` you’ll need to re-add conda to your shell environment and activate the `csp` environment to use it:
+### A note about dependencies
 
-```bash
-. ~/github/csp_venv/etc/profile.d/conda.sh
-conda activate csp
-
-# make sure everything works
-cd ~/github/csp
-make test
-```
+In Conda, we pull our dependencies from the Conda environment by setting the environment variable `CSP_USE_VCPKG=0`. This will force the build to not pull dependencies from vcpkg. This may or may not work in other environments or with packages provided by other package managers or built from source, but there is too much variability for us to support alternative patterns.
 
 ## Building with a system package manager
 
@@ -187,6 +165,8 @@ Build the python project in the usual manner:
 ```bash
 make build
 
+# on aarch64 linux, comment the above command and use this instead
+# VCPKG_FORCE_SYSTEM_BINARIES=1 make build
 # or
 # python setup.py build build_ext --inplace
 ```
@@ -231,7 +211,7 @@ make fix-cpp
 make lint-py
 # or
 # python -m isort --check csp/ setup.py
-# python -m ruff csp/ setup.py
+# python -m ruff check csp/ setup.py
 ```
 
 **Python Autoformatting**
@@ -241,6 +221,24 @@ make fix-py
 # or
 # python -m isort csp/ setup.py
 # python -m ruff format csp/ setup.py
+```
+
+**Documentation Linting**
+
+```bash
+make lint-docs
+# or
+# python -m mdformat --check docs/wiki/ README.md examples/README.md
+# python -m codespell_lib docs/wiki/ README.md examples/README.md
+```
+
+**Documentation Autoformatting**
+
+```bash
+make fix-docs
+# or
+# python -m mdformat docs/wiki/ README.md examples/README.md
+# python -m codespell_lib --write docs/wiki/ README.md examples/README.md
 ```
 
 ## Testing

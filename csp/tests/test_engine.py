@@ -1234,6 +1234,8 @@ class TestEngine(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "csp graph information is not available"):
             csp.engine_start_time()
 
+    # TODO port test to windows
+    @unittest.skipIf(sys.platform == 'win32', 'tests needs windows port')
     def test_ctrl_c(self):
         pid = os.fork()
         if pid == 0:
@@ -1331,8 +1333,10 @@ class TestEngine(unittest.TestCase):
         for d in [
             datetime(2020, 12, 24, 1, 2, 3, 123456),
             datetime(1970, 1, 1),
-            datetime(1969, 5, 6, 2, 3, 4),
-            datetime(1969, 5, 6, 2, 3, 4, 123456),
+            # Negative Epochs times are not supported on windows
+            datetime(1969, 5, 6, 2, 3, 4) if sys.platform != 'win32' else datetime(1970, 1, 1),
+            datetime(1969, 5, 6, 2, 3, 4, 123456) if sys.platform != 'win32' else datetime(1970, 1, 1),
+
             # Edge cases, DateTime MIN / MAX
             datetime(1678, 1, 1) if sys.platform == "linux" else datetime(1970, 1, 1),
             datetime(2261, 12, 31, 23, 59, 59, 999999),
@@ -2063,7 +2067,6 @@ class TestEngine(unittest.TestCase):
 
         csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta())
         self.assertTrue(status["started"] and status["stopped"])
-
 
 if __name__ == "__main__":
     unittest.main()

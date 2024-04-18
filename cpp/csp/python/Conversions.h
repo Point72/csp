@@ -188,7 +188,7 @@ inline double fromPython( PyObject * o )
         //allow ints as floats
         if( PyLong_Check( o ) )
         {
-            int64_t rv = PyLong_AsLong( o );
+            int64_t rv = PyLong_AsLongLong( o );
             if( rv == -1 && PyErr_Occurred() )
                 CSP_THROW( PythonPassthrough, "" );
             return rv;
@@ -210,7 +210,7 @@ inline PyObject * toPython( const double & value )
 template<>
 inline PyObject * toPython( const int64_t & value )
 {
-    return toPythonCheck( PyLong_FromLong( value ) );
+    return toPythonCheck( PyLong_FromLongLong( value ) );
 }
 
 template<>
@@ -219,7 +219,7 @@ inline int64_t fromPython( PyObject * o )
     if( !PyLong_Check( o ) )
         CSP_THROW( TypeError, "Invalid int type, expected long (int) got " << Py_TYPE( o ) -> tp_name );
 
-    int64_t rv = PyLong_AsLong( o );
+    int64_t rv = PyLong_AsLongLong( o );
     if( rv == -1 && PyErr_Occurred() )
         CSP_THROW( PythonPassthrough, "" );
     return rv;

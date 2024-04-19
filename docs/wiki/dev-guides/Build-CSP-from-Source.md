@@ -19,6 +19,7 @@ CSP is written in Python and C++ with Python and C++ build dependencies. While p
   - [Install Python dependencies](#install-python-dependencies)
   - [Build](#build-1)
   - [Building on `aarch64` Linux](#building-on-aarch64-linux)
+- [Using System Dependencies](#using-system-dependencies)
 - [Lint and Autoformat](#lint-and-autoformat)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -188,6 +189,10 @@ On `aarch64` Linux the VCPKG_FORCE_SYSTEM_BINARIES environment variable must be 
 ```bash
 VCPKG_FORCE_SYSTEM_BINARIES=1 make build
 ```
+
+## Using System Dependencies
+
+By default, we pull and build dependencies with [vcpkg](https://vcpkg.io/en/). We only support non-vendored dependencies via Conda (see [A note about dependencies](#A-note-about-dependencies) above).
 
 ## Lint and Autoformat
 

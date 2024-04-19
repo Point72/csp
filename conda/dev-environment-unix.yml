@@ -30,6 +30,7 @@ dependencies:
  - psutil
  - pyarrow=15
  - pandas
+ - perl-ipc-system-simple
  - pillow
  - polars
  - psutil

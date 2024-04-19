@@ -96,8 +96,7 @@ inline uint8_t ffs(uint64_t n)
 
 #else
 
-#define CSP_CORE_EXPORT
-#define CSP_TYPES_EXPORT
+#define CSPIMPL_EXPORT
 #define CSPTYPESIMPL_EXPORT
 
 #define DLL_LOCAL __attribute__ ((visibility ("hidden")))

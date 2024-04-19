@@ -76,6 +76,16 @@ git submodule update --init --recursive
 # Note the operating system, change as needed
 # Linux and MacOS should use the unix dev environment spec
 micromamba create -n csp -f conda/dev-environment-unix.yml
+
+# uncomment below if the build fails because git isn't new enough
+#
+# micromamba install -y -n csp git
+
+# uncomment below if the build fails because perl-ipc-system is missing
+# (this happens on some RHEL7 systems)
+#
+# micromamba install -y -n csp perl-ipc-system-simple
+
 micromamba activate csp
 ```
 

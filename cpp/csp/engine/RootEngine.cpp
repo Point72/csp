@@ -11,12 +11,12 @@
 namespace csp
 {
 
-static volatile bool    g_SIGNALED = false;
+static volatile int     g_SIGNAL_COUNT = 0;
 static struct sigaction g_prevSIGTERMaction;
 
 static void handle_SIGTERM( int signum )
 {
-    g_SIGNALED = true;
+    g_SIGNAL_COUNT++;
     if( g_prevSIGTERMaction.sa_handler )
         (*g_prevSIGTERMaction.sa_handler)( signum );
 }
@@ -58,6 +58,7 @@ RootEngine::RootEngine( const Dictionary & settings ) : Engine( m_cycleStepTable
                                                         m_cycleCount( 0 ),
                                                         m_settings( settings ),
                                                         m_inRealtime( false ),
+                                                        m_initSignalCount( g_SIGNAL_COUNT ),
                                                         m_pushEventQueue( m_settings.queueWaitTime > TimeDelta::ZERO() )
 {
     if( settings.get<bool>( "profile",  false ) )
@@ -78,7 +79,7 @@ RootEngine::~RootEngine()
 
 bool RootEngine::interrupted() const
 {
-    return g_SIGNALED;
+    return g_SIGNAL_COUNT != m_initSignalCount;
 }
 
 void RootEngine::preRun( DateTime start, DateTime end )
@@ -131,7 +132,7 @@ void RootEngine::processEndCycle()
 void RootEngine::runSim( DateTime end )
 {
     m_inRealtime = false;
-    while( m_scheduler.hasEvents() && m_state == State::RUNNING && !g_SIGNALED )
+    while( m_scheduler.hasEvents() && m_state == State::RUNNING && !interrupted() )
     {
         m_now = m_scheduler.nextTime();
         if( m_now > end )
@@ -161,7 +162,7 @@ void RootEngine::runRealtime( DateTime end )
 
     m_inRealtime = true;
     bool haveEvents = false;
-    while( m_state == State::RUNNING && !g_SIGNALED )
+    while( m_state == State::RUNNING && !interrupted() )
     {
         TimeDelta waitTime;
         if( !m_pendingPushEvents.hasEvents() )

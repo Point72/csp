@@ -66,6 +66,37 @@ EXPORT_CPPNODE( start_n2_throw );
 
 }
 
+namespace interrupt_stop_test
+{
+
+using namespace csp::python;
+
+void setStatus( const DialectGenericType & obj_, int64_t idx )
+{
+    PyObjectPtr obj = PyObjectPtr::own( toPython( obj_ ) );
+    PyObjectPtr list = PyObjectPtr::own( PyObject_GetAttrString( obj.get(), "stopped" ) );
+    PyList_SET_ITEM( list.get(), idx, Py_True );
+}
+
+DECLARE_CPPNODE( set_stop_index )
+{
+    INIT_CPPNODE( set_stop_index ) {}
+
+    SCALAR_INPUT( DialectGenericType, obj_ );
+    SCALAR_INPUT( int64_t, idx );
+
+    START() {}
+    INVOKE() {}
+
+    STOP()
+    {
+       setStatus( obj_, idx );
+    }
+};
+EXPORT_CPPNODE( set_stop_index );
+
+}
+
 }
 
 }
@@ -73,6 +104,7 @@ EXPORT_CPPNODE( start_n2_throw );
 // Test nodes
 REGISTER_CPPNODE( csp::cppnodes::testing::stop_start_test, start_n1_set_value );
 REGISTER_CPPNODE( csp::cppnodes::testing::stop_start_test, start_n2_throw );
+REGISTER_CPPNODE( csp::cppnodes::testing::interrupt_stop_test, set_stop_index );
 
 static PyModuleDef _csptestlibimpl_module = {
     PyModuleDef_HEAD_INIT,

@@ -2064,6 +2064,60 @@ class TestEngine(unittest.TestCase):
         csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta())
         self.assertTrue(status["started"] and status["stopped"])
 
+    def test_interrupt_stops_all_nodes(self):
+        @csp.node
+        def n(l: list, idx: int):
+            with csp.stop():
+                l[idx] = True
+
+        @csp.node
+        def raise_interrupt():
+            with csp.alarms():
+                a = csp.alarm(bool)
+            with csp.start():
+                csp.schedule_alarm(a, timedelta(seconds=1), True)
+            if csp.ticked(a):
+                import signal
+                os.kill(os.getpid(), signal.SIGINT)
+            
+        # Python nodes
+        @csp.graph
+        def g(l: list):
+            n(l, 0)
+            n(l, 1)
+            n(l, 2)
+            raise_interrupt()
+
+        stopped = [False, False, False]
+        with self.assertRaises(KeyboardInterrupt):
+            csp.run(g, stopped, starttime=datetime.utcnow(), endtime=timedelta(seconds=60), realtime=True)
+
+        for element in stopped:
+            self.assertTrue(element)
+        
+        # C++ nodes
+        class RTI:
+            def __init__(self):
+                self.stopped = [False, False, False]
+        
+        @csp.node(cppimpl=_csptestlibimpl.set_stop_index)
+        def n2(obj_: object, idx: int):
+            return
+
+        @csp.graph
+        def g2(rti: RTI):
+            n2(rti, 0)
+            n2(rti, 1)
+            n2(rti, 2)
+            raise_interrupt()
+
+        rti = RTI()
+        with self.assertRaises(KeyboardInterrupt):
+            csp.run(g2, rti, starttime=datetime.utcnow(), endtime=timedelta(seconds=60), realtime=True)
+        
+        for element in rti.stopped:
+            self.assertTrue(element)
+
 
 if __name__ == "__main__":
     unittest.main()

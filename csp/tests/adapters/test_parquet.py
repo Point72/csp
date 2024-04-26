@@ -32,7 +32,7 @@ parquet_filename = os.path.join(os.path.dirname(__file__), "parquet_test_data.pa
 arrow_filename = os.path.join(os.path.dirname(__file__), "arrow_test_data.arrow")
 
 
-class TestParquetReader(unittest.TestCase):
+class TestParquet(unittest.TestCase):
     def do_test_body(self, filename, arrow=False):
         @csp.graph
         def write_ts_to_file(x: csp.ts["T"]):

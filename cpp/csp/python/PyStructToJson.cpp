@@ -285,6 +285,7 @@ rapidjson::Value pyDictToJson( PyObject * py_dict, rapidjson::Document& doc, PyO
 
 rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyObject * callable, bool is_recursing )
 {
+    INIT_PYDATETIME;
     if( PyBool_Check( value ) )
     {
         return rapidjson::Value( fromPython<bool>( value ) );

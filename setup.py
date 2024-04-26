@@ -32,7 +32,7 @@ if CSP_USE_VCPKG:
         subprocess.call(["git", "pull"], cwd="vcpkg")
         if os.name == "nt":
             subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg", shell=True)
-            subprocess.call(["vcpkg.bat", "install"], cwd="vcpkg", shell=True)
+            subprocess.call(["vcpkg.bat", "install", "--triplet=x64-windows-static-md"], cwd="vcpkg", shell=True)
         else:
             subprocess.call(["./bootstrap-vcpkg.sh"], cwd="vcpkg")
             subprocess.call(["./vcpkg", "install"], cwd="vcpkg")
@@ -54,6 +54,9 @@ if CSP_USE_VCPKG and os.path.exists(vcpkg_toolchain_file):
             "-DCSP_USE_VCPKG=ON",
         ]
     )
+    if os.name == "nt":
+        cmake_args.append("-DVCPKG_TARGET_TRIPLET=x64-windows-static-md")
+
 else:
     cmake_args.append("-DCSP_USE_VCPKG=OFF")
 

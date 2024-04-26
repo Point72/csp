@@ -51,7 +51,9 @@ find_package(utf8proc REQUIRED)
 find_package(Brotli REQUIRED)
 
 if(WIN32)
-  set(ARROW_PACKAGES_TO_LINK ${ARROW_IMPORT_LIB} ${PARQUET_IMPORT_LIB})
+    set(ARROW_PACKAGES_TO_LINK Arrow::arrow_static Parquet::parquet_static)
+    target_compile_definitions(csp_parquet_adapter PUBLIC ARROW_STATIC)
+    target_compile_definitions(csp_parquet_adapter PUBLIC PARQUET_STATIC)
 elseif(CSP_USE_VCPKG)
   # use static variants
   set(ARROW_PACKAGES_TO_LINK parquet_static arrow_static)

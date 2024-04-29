@@ -351,10 +351,7 @@ class DBReaderImpl(AdapterManagerImpl):
         elif self._rep._use_raw_user_query:
             return db.text(self._rep._query)
         else:  # self._rep._query
-            if _SQLALCHEMY_2:
-                from_obj = db.text(f"({self._rep._query})")
-            else:
-                from_obj = db.text(f"({self._rep._query}) AS user_query")
+            from_obj = db.text(f"({self._rep._query}) AS user_query")
 
             time_columns = self._rep._time_accessor.get_time_columns(self._rep._connection)
             if time_columns:

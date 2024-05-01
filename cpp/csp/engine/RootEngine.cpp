@@ -12,6 +12,18 @@ namespace csp
 {
 
 static volatile int     g_SIGNAL_COUNT = 0;
+/*
+The signal count variable is maintained to ensure that multiple engine threads shutdown properly.
+
+An interrupt should cause all running engines to stop, but should not affect future runs in the same process.
+Thus, each root engine keeps track of the signal count when its created. When an interrupt occurs, one engine thread
+handles the interrupt by incrementing the count. Then, all other root engines detect the signal by comparing their
+initial count to the current count. 
+
+Future runs after the interrupt remain unaffected since they are initialized with the updated signal count, and will
+only consider themselves "interupted" if another signal is received during their execution.
+*/
+
 static struct sigaction g_prevSIGTERMaction;
 
 static void handle_SIGTERM( int signum )

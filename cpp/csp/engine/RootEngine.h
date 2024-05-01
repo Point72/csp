@@ -127,6 +127,7 @@ protected:
     PendingPushEvents m_pendingPushEvents;
     Settings          m_settings;
     bool              m_inRealtime;
+    int               m_initSignalCount;
 
     PushEventQueue    m_pushEventQueue;
 

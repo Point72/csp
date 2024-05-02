@@ -572,7 +572,7 @@ def _reduce(x: [ts["T"]], typ: "T", func: object, args: object = (), kwargs: obj
             data = data.astype("O")
 
         out = func(data, *args, **kwargs)
-        if isinstance(out, np.int64):
+        if isinstance(out, (np.int64,np.int32)):
             return int(out)
         return out
 

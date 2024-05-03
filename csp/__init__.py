@@ -4,7 +4,6 @@ from csp.baselib import *
 from csp.curve import curve
 from csp.dataframe import DataFrame
 from csp.impl.builtin_functions import *
-from csp.impl.config import Config
 from csp.impl.constants import UNSET
 from csp.impl.enum import DynamicEnum, Enum
 from csp.impl.error_handling import set_print_full_exception_stack
@@ -30,7 +29,7 @@ from csp.impl.wiring.context import clear_global_context, new_global_context
 from csp.math import *
 from csp.showgraph import show_graph
 
-from . import cache_support, stats
+from . import stats
 
 __version__ = "0.0.3"
 

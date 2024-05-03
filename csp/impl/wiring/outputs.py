@@ -35,18 +35,3 @@ class OutputsContainer:
 
     def __repr__(self):
         return "OutputsContainer( %s )" % (",".join("%s=%r" % (k, v) for k, v in self._items()))
-
-
-class CacheWriteOnlyOutputsContainer(list):
-    def __repr__(self):
-        return f'CacheWriteOnlyOutputsContainer( {",".join(v for v in self)} )'
-
-    def __getattr__(self, item):
-        raise RuntimeError(
-            "Outputs of graphs with custom data_timestamp_column_name must be read using .cached property"
-        )
-
-    def __getitem__(self, item):
-        raise RuntimeError(
-            "Outputs of graphs with custom data_timestamp_column_name must be read using .cached property"
-        )

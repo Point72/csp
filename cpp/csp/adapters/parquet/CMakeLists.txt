@@ -51,7 +51,12 @@ find_package(utf8proc REQUIRED)
 find_package(Brotli REQUIRED)
 
 if(WIN32)
-    set(ARROW_PACKAGES_TO_LINK Arrow::arrow_static Parquet::parquet_static)
+    # Until we manage to get the vcpkg fix for ws3_32.dll that comes with arrow 16, manually fix the error here
+    get_target_property(LINK_LIBS Arrow::arrow_static INTERFACE_LINK_LIBRARIES)
+    string(REPLACE "ws2_32.dll" "ws2_32" FIXED_LINK_LIBS "${LINK_LIBS}")
+    set_target_properties(Arrow::arrow_static PROPERTIES INTERFACE_LINK_LIBRARIES "${FIXED_LINK_LIBS}")
+
+    set(ARROW_PACKAGES_TO_LINK Arrow::arrow_static Parquet::parquet_static )
     target_compile_definitions(csp_parquet_adapter PUBLIC ARROW_STATIC)
     target_compile_definitions(csp_parquet_adapter PUBLIC PARQUET_STATIC)
 elseif(CSP_USE_VCPKG)

@@ -5,3 +5,4 @@ Makefile linguist-documentation
 
 * text=auto eol=lf
 *.png binary
+*.hi linguist-language=C++

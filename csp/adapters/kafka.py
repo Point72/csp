@@ -18,7 +18,11 @@ from csp.adapters.utils import (
     hash_mutable,
 )
 from csp.impl.wiring import ReplayMode, input_adapter_def, output_adapter_def, status_adapter_def
-from csp.lib import _kafkaadapterimpl
+
+try:
+    from csp.lib import _kafkaadapterimpl
+except ImportError:
+    raise ImportError("csp's kafka adapter requires the C++ csp extension to be built, but it could not be imported")
 
 _ = BytesMessageProtoMapper, DateTimeType, JSONTextMessageMapper, RawBytesMessageMapper, RawTextMessageMapper
 T = TypeVar("T")

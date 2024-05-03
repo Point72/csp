@@ -10,12 +10,12 @@ try:
         _PERSPECTIVE_3 = True
         from perspective.widget import PerspectiveWidget
 
-    elif version.parse(perspective.__version__) >= version.parse("0.6.2"):
+    elif version.parse(perspective.__version__) >= version.parse("2.0.0"):
         from perspective import PerspectiveManager, PerspectiveWidget  # noqa F401
 
         _PERSPECTIVE_3 = False
     else:
-        raise ImportError("perspective adapter requires 0.6.2 or greater of the perspective-python package")
+        raise ImportError("perspective adapter requires 2.0 or greater of the perspective-python package")
 
 except ImportError:
     raise ImportError(

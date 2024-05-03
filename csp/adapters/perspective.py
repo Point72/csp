@@ -19,7 +19,7 @@ try:
     import tornado.web
     import tornado.websocket
 except ImportError:
-    raise ImportError("perspective adapter requires tornado package")
+    raise ModuleNotFoundError("csp's perspective adapter requires `tornado`")
 
 
 _PERSPECTIVE_3 = is_perspective3()

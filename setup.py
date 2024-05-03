@@ -23,9 +23,9 @@ CMAKE_OPTIONS = (
 )
 
 if sys.platform == "linux":
-    VCPKG_TRIPLET="x64-linux"
+    VCPKG_TRIPLET = "x64-linux"
 else:
-    VCPKG_TRIPLET=None
+    VCPKG_TRIPLET = None
 
 # This will be used for e.g. the sdist
 if CSP_USE_VCPKG:
@@ -37,7 +37,7 @@ if CSP_USE_VCPKG:
         subprocess.call(["git", "pull"], cwd="vcpkg")
         args = ["install"]
         if VCPKG_TRIPLET is not None:
-            args.append( f"--triplet={VCPKG_TRIPLET}" )
+            args.append(f"--triplet={VCPKG_TRIPLET}")
         if os.name == "nt":
             subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg", shell=True)
             subprocess.call(["vcpkg.bat"] + args, cwd="vcpkg", shell=True)

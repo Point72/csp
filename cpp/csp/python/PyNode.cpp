@@ -212,18 +212,17 @@ void PyNode::start()
 
 void PyNode::stop()
 {
+    if( this -> rootEngine() -> interrupted() && PyErr_CheckSignals() == -1 )
+    {
+        // When an interrupt occurs a KeyboardInterrupt exception is raised in Python, which we need to clear
+        // before calling "close" on the generator. Else, the close method will fail due to the unhandled 
+        // exception, and we lose the state of the generator before the "finally" block that calls stop() is executed.
+        PyErr_Clear();
+    }
+
     PyObjectPtr rv = PyObjectPtr::own( PyObject_CallMethod( m_gen.ptr(), "close", nullptr ) );
     if( !rv.ptr() )
-    {
-        if( PyErr_Occurred() == PyExc_KeyboardInterrupt )
-        {
-            PyErr_Clear();
-            rv = PyObjectPtr::own( PyObject_CallMethod( m_gen.ptr(), "close", nullptr ) );
-        }
-
-        if( !rv.ptr() )
-            CSP_THROW( PythonPassthrough, "" );
-    }
+        CSP_THROW( PythonPassthrough, "" );
 }
 
 PyNode * PyNode::create( PyEngine * pyengine, PyObject * inputs, PyObject * outputs, PyObject * gen )

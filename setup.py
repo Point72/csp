@@ -22,6 +22,13 @@ CMAKE_OPTIONS = (
     # - omit coverage/gprof, not implemented
 )
 
+if sys.platform == "linux":
+    VCPKG_TRIPLET = "x64-linux"
+elif sys.platform == "win32":
+    VCPKG_TRIPLET = "x64-windows-static-md"
+else:
+    VCPKG_TRIPLET = None
+
 # This will be used for e.g. the sdist
 if CSP_USE_VCPKG:
     if not os.path.exists("vcpkg"):
@@ -30,12 +37,15 @@ if CSP_USE_VCPKG:
         subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
     if not os.path.exists("vcpkg/buildtrees"):
         subprocess.call(["git", "pull"], cwd="vcpkg")
+        args = ["install"]
+        if VCPKG_TRIPLET is not None:
+            args.append(f"--triplet={VCPKG_TRIPLET}")
         if os.name == "nt":
             subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg", shell=True)
-            subprocess.call(["vcpkg.bat", "install", "--triplet=x64-windows-static-md"], cwd="vcpkg", shell=True)
+            subprocess.call(["vcpkg.bat"] + args, cwd="vcpkg", shell=True)
         else:
             subprocess.call(["./bootstrap-vcpkg.sh"], cwd="vcpkg")
-            subprocess.call(["./vcpkg", "install"], cwd="vcpkg")
+            subprocess.call(["./vcpkg"] + args, cwd="vcpkg")
 
 
 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -54,9 +64,9 @@ if CSP_USE_VCPKG and os.path.exists(vcpkg_toolchain_file):
             "-DCSP_USE_VCPKG=ON",
         ]
     )
-    if os.name == "nt":
-        cmake_args.append("-DVCPKG_TARGET_TRIPLET=x64-windows-static-md")
 
+    if VCPKG_TRIPLET is not None:
+        cmake_args.append( f"-DVCPKG_TARGET_TRIPLET={VCPKG_TRIPLET}" )
 else:
     cmake_args.append("-DCSP_USE_VCPKG=OFF")
 

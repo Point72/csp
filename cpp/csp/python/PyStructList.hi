@@ -394,6 +394,16 @@ static PyMappingMethods py_struct_list_as_mapping = {
     py_struct_list_ass_subscript<StorageT>
 };
 
+static PyObject *
+PyStructList_new( PyTypeObject *type, PyObject *args, PyObject *kwds )
+{
+    // Since the PyStructList has no real meaning when created from Python, we can reconstruct the PSL's value
+    // by just treating it as a list. Thus, we simply override the tp_new behaviour to return a list object here.
+    // Again, since we don't have tp_init for the PSL, we need to rely on the Python list's tp_init function.
+
+    return PyObject_Call( ( PyObject * ) &PyList_Type, args, kwds ); // Calls both tp_new and tp_init for a Python list
+}
+
 template<typename StorageT>
 static int
 PyStructList_tp_clear( PyStructList<StorageT> * self )
@@ -463,7 +473,7 @@ PyTypeObject  PyStructList<StorageT>::PyType = {
     0,                         /* tp_dictoffset */
     0,                         /* tp_init */
     PyType_GenericAlloc,       /* tp_alloc */
-    PyType_GenericNew,         /* tp_new */
+    PyStructList_new,          /* tp_new */
     PyObject_GC_Del,           /* tp_free */
 };
 

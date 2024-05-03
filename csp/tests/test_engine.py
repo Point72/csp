@@ -2078,8 +2078,9 @@ class TestEngine(unittest.TestCase):
                 csp.schedule_alarm(a, timedelta(seconds=1), True)
             if csp.ticked(a):
                 import signal
+
                 os.kill(os.getpid(), signal.SIGINT)
-            
+
         # Python nodes
         @csp.graph
         def g(l: list):
@@ -2094,12 +2095,12 @@ class TestEngine(unittest.TestCase):
 
         for element in stopped:
             self.assertTrue(element)
-        
+
         # C++ nodes
         class RTI:
             def __init__(self):
                 self.stopped = [False, False, False]
-        
+
         @csp.node(cppimpl=_csptestlibimpl.set_stop_index)
         def n2(obj_: object, idx: int):
             return
@@ -2114,7 +2115,7 @@ class TestEngine(unittest.TestCase):
         rti = RTI()
         with self.assertRaises(KeyboardInterrupt):
             csp.run(g2, rti, starttime=datetime.utcnow(), endtime=timedelta(seconds=60), realtime=True)
-        
+
         for element in rti.stopped:
             self.assertTrue(element)
 

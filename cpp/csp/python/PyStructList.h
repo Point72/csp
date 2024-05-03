@@ -14,7 +14,7 @@ struct PyStructList : public PyObject
 {
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
 
-    PyStructList<StorageT>( PyStruct * p, std::vector<StorageT> & v, const CspType & type ) : pystruct( p ), vector( v ), field_type( type )
+    PyStructList( PyStruct * p, std::vector<StorageT> & v, const CspType & type ) : pystruct( p ), vector( v ), field_type( type )
     {
         Py_INCREF( pystruct );
     }

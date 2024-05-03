@@ -227,6 +227,7 @@ make lint-py
 # or
 # python -m isort --check csp/ setup.py
 # python -m ruff check csp/ setup.py
+# python -m ruff format --check csp/ setup.py
 ```
 
 **Python Autoformatting**

@@ -66,7 +66,7 @@ if CSP_USE_VCPKG and os.path.exists(vcpkg_toolchain_file):
     )
 
     if VCPKG_TRIPLET is not None:
-        cmake_args.append( f"-DVCPKG_TARGET_TRIPLET={VCPKG_TRIPLET}" )
+        cmake_args.append(f"-DVCPKG_TARGET_TRIPLET={VCPKG_TRIPLET}")
 else:
     cmake_args.append("-DCSP_USE_VCPKG=OFF")
 
@@ -86,7 +86,7 @@ if platform.system() == "Windows":
         "14.0": "Visual Studio 14 2015",
         "14.1": "Visual Studio 15 2017",
         "14.2": "Visual Studio 16 2019",
-        "14.3": "Visual Studio 16 2019", # ?
+        "14.3": "Visual Studio 16 2019",  # ?
     }.get(str(dm.get_build_version()), "Visual Studio 15 2017")
     cmake_args.extend(
         [

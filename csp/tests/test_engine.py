@@ -1235,7 +1235,7 @@ class TestEngine(unittest.TestCase):
             csp.engine_start_time()
 
     # TODO port test to windows
-    @unittest.skipIf(sys.platform == 'win32', 'tests needs windows port')
+    @unittest.skipIf(sys.platform == "win32", "tests needs windows port")
     def test_ctrl_c(self):
         pid = os.fork()
         if pid == 0:
@@ -1334,9 +1334,8 @@ class TestEngine(unittest.TestCase):
             datetime(2020, 12, 24, 1, 2, 3, 123456),
             datetime(1970, 1, 1),
             # Negative Epochs times are not supported on windows
-            datetime(1969, 5, 6, 2, 3, 4) if sys.platform != 'win32' else datetime(1970, 1, 1),
-            datetime(1969, 5, 6, 2, 3, 4, 123456) if sys.platform != 'win32' else datetime(1970, 1, 1),
-
+            datetime(1969, 5, 6, 2, 3, 4) if sys.platform != "win32" else datetime(1970, 1, 1),
+            datetime(1969, 5, 6, 2, 3, 4, 123456) if sys.platform != "win32" else datetime(1970, 1, 1),
             # Edge cases, DateTime MIN / MAX
             datetime(1678, 1, 1) if sys.platform == "linux" else datetime(1970, 1, 1),
             datetime(2261, 12, 31, 23, 59, 59, 999999),
@@ -2082,8 +2081,9 @@ class TestEngine(unittest.TestCase):
                 csp.schedule_alarm(a, timedelta(seconds=1), True)
             if csp.ticked(a):
                 import signal
+
                 os.kill(os.getpid(), signal.SIGINT)
-            
+
         # Python nodes
         @csp.graph
         def g(l: list):
@@ -2098,12 +2098,12 @@ class TestEngine(unittest.TestCase):
 
         for element in stopped:
             self.assertTrue(element)
-        
+
         # C++ nodes
         class RTI:
             def __init__(self):
                 self.stopped = [False, False, False]
-        
+
         @csp.node(cppimpl=_csptestlibimpl.set_stop_index)
         def n2(obj_: object, idx: int):
             return
@@ -2118,9 +2118,10 @@ class TestEngine(unittest.TestCase):
         rti = RTI()
         with self.assertRaises(KeyboardInterrupt):
             csp.run(g2, rti, starttime=datetime.utcnow(), endtime=timedelta(seconds=60), realtime=True)
-        
+
         for element in rti.stopped:
             self.assertTrue(element)
+
 
 if __name__ == "__main__":
     unittest.main()

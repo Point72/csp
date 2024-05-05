@@ -13,8 +13,9 @@ try:
 except ImportError:
     import sys
 
-    if sys.platform != 'win32':
+    if sys.platform != "win32":
         raise
+
 
 class _FileLockRecord(Struct):
     open_file: object

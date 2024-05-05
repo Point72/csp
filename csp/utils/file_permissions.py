@@ -6,7 +6,8 @@ try:
     import time
 except ImportError:
     import sys
-    if sys.platform != 'win32':
+
+    if sys.platform != "win32":
         raise
 
 from csp.impl.struct import Struct

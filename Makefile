@@ -27,6 +27,9 @@ build:  ## build the library
 build-conda:  ## build the library in Conda
 	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
+build-conda-win:  ## build the library in Conda for Windows
+	python setup.py build build_ext --inplace
+
 install:  ## install library
 	python -m pip install .
 
@@ -88,10 +91,24 @@ test-py: ## Clean and Make unit tests
 test-cpp: ## Make C++ unit tests
 	for f in ./csp/tests/bin/*; do $$f; done || (echo "TEST FAILED" && exit 1)
 
+test-cpp-win: ## Make C++ unit tests
+	.\csp/tests/bin/test_basic_allocator.exe
+	.\csp/tests/bin/test_dictionary.exe
+	.\csp/tests/bin/test_dynamicbitset.exe
+	.\csp/tests/bin/test_enum.exe
+	.\csp/tests/bin/test_partial_switch_csp_type.exe
+	.\csp/tests/bin/test_srmwlockfreequeue.exe
+	.\csp/tests/bin/test_tagged_pointer_union.exe
+	.\csp/tests/bin/test_tick_buffer.exe
+	.\csp/tests/bin/test_time.exe
+	.\csp/tests/bin/test_time_series.exe
+	.\csp/tests/bin/test_window_buffer.exe
+
 coverage-py:
 	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
 
 test: test-cpp test-py  ## run the tests
+test-win: test-cpp-win test-py  ## run the tests
 
 # Alias
 tests: test

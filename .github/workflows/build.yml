@@ -179,11 +179,13 @@ jobs:
             - "3.9"
             - "3.10"
             - "3.11"
+            - "3.12"
           cibuildwheel:
             - "cp38"
             - "cp39"
             - "cp310"
             - "cp311"
+            - "cp312"
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -198,24 +200,41 @@ jobs:
               cibuildwheel: "cp310"
             - python-version: "3.8"
               cibuildwheel: "cp311"
+            - python-version: "3.8"
+              cibuildwheel: "cp312"
             - python-version: "3.9"
               cibuildwheel: "cp38"
             - python-version: "3.9"
               cibuildwheel: "cp310"
             - python-version: "3.9"
               cibuildwheel: "cp311"
+            - python-version: "3.9"
+              cibuildwheel: "cp312"
             - python-version: "3.10"
               cibuildwheel: "cp38"
             - python-version: "3.10"
               cibuildwheel: "cp39"
             - python-version: "3.10"
               cibuildwheel: "cp311"
+            - python-version: "3.10"
+              cibuildwheel: "cp312"
             - python-version: "3.11"
               cibuildwheel: "cp38"
             - python-version: "3.11"
               cibuildwheel: "cp39"
             - python-version: "3.11"
               cibuildwheel: "cp310"
+            - python-version: "3.11"
+              cibuildwheel: "cp312"
+            - python-version: "3.12"
+              cibuildwheel: "cp38"
+            - python-version: "3.12"
+              cibuildwheel: "cp39"
+            - python-version: "3.12"
+              cibuildwheel: "cp310"
+            - python-version: "3.12"
+              cibuildwheel: "cp311"
+
 
             ##############################################
             # Things to exclude if not a full matrix run #
@@ -402,6 +421,7 @@ jobs:
             - 3.9
             - "3.10"
             - 3.11
+            - 3.12
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:

@@ -20,7 +20,7 @@ MAX_END_TIME = datetime(2261, 12, 31, 23, 59, 50, 999999)
 def _normalize_run_times(starttime, endtime, realtime):
     if starttime is None:
         if realtime:
-            starttime = datetime.utcnow()
+            starttime = datetime.now(pytz.UTC).replace(tzinfo=None)
         else:
             raise RuntimeError("starttime argument is required")
     if endtime is None:
@@ -220,8 +220,8 @@ def run(
             mem_cache.clear(clear_user_objects=False)
 
             # Ensure we dont start running realtime engines before starttime if its in the future
-            if starttime > datetime.utcnow() and realtime:
-                time.sleep((starttime - datetime.utcnow()).total_seconds())
+            if starttime > datetime.now(pytz.UTC).replace(tzinfo=None) and realtime:
+                time.sleep((starttime - datetime.now(pytz.UTC)).total_seconds())
 
             with mem_cache:
                 return _run_engine(

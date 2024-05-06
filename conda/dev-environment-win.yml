@@ -30,3 +30,4 @@ dependencies:
  - python-rapidjson
  - pillow
  - mdformat
+ - codespell

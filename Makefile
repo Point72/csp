@@ -11,7 +11,7 @@ endif
 #########
 # BUILD #
 #########
-.PHONY: requirements develop build build-conda install
+.PHONY: requirements develop build build-debug build-conda install
 
 requirements:  ## install python dev and runtime dependencies
 	python -m pip install toml

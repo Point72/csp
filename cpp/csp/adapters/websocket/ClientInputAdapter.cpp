@@ -30,7 +30,7 @@ void ClientInputAdapter::processMessage( std::string payload, PushBatch* batch )
 
     if( type() -> type() == CspType::Type::STRUCT )
     {
-        auto tick = m_converter -> asStruct( &payload, payload.length() );
+        auto tick = m_converter -> asStruct( (void*)payload.data(), payload.length() );
         pushTick( std::move(tick), batch );
     } else if ( type() -> type() == CspType::Type::STRING )
     {

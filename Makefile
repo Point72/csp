@@ -11,7 +11,7 @@ endif
 #########
 # BUILD #
 #########
-.PHONY: requirements develop build build-conda install
+.PHONY: requirements develop build build-debug build-conda install
 
 requirements:  ## install python dev and runtime dependencies
 	python -m pip install toml
@@ -23,6 +23,9 @@ develop: requirements  ## install dependencies and build library
 
 build:  ## build the library
 	python setup.py build build_ext --inplace -- -- -j$(NPROC)
+
+build-debug:  ## build the library ( DEBUG ) - May need a make clean when switching from regular build to build-debug and vice versa
+	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
 build-conda:  ## build the library in Conda
 	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- -j$(NPROC)

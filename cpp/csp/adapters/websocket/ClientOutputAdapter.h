@@ -5,7 +5,6 @@
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/OutputAdapter.h>
 #include <csp/adapters/utils/MessageWriter.h>
-#include <websocketpp/client.hpp>
 
 namespace csp::adapters::websocket
 {

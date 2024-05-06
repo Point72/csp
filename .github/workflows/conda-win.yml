@@ -1,0 +1,70 @@
+name: Windows Conda End-to-end Test
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - "docs/**"
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - "docs/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  checks: write
+
+jobs:
+    build:
+      strategy:
+        matrix:
+          os:
+            - windows-2019
+      runs-on: ${{ matrix.os }}
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - uses: mamba-org/setup-micromamba@v1
+          with:
+            micromamba-version: '1.5.7-0'
+            environment-file: conda/dev-environment-win.yml
+            init-shell: >-
+                powershell
+            cache-environment: true
+            post-cleanup: 'all'
+
+        - name: Set up Caches
+          uses: ./.github/actions/setup-caches
+          with:
+            cibuildwheel: 'cp311'
+
+        - name: Install make
+          run: |
+              Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+              choco install make -y
+
+        - name: Python Lint Steps
+          run: make lint
+          shell: powershell
+
+        - name: Python Build Steps
+          run: make build-conda-win
+          shell: powershell
+
+        - name: Python Test Steps
+          run: make test-win
+          shell: powershell

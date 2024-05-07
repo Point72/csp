@@ -34,4 +34,4 @@ runs:
 
     - name: Install cibuildwheel and twine
       shell: bash
-      run: pip install cibuildwheel==2.11.2 twine
+      run: pip install cibuildwheel==2.16.5 twine

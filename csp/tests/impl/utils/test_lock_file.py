@@ -39,7 +39,8 @@ class _SimpleOneEventCondVar:
             if lock:
                 self._lock.release()
 
-@unittest.skipIf(sys.platform == 'win32', 'Not supported on windows')
+
+@unittest.skipIf(sys.platform == "win32", "Not supported on windows")
 class TestLockFile(unittest.TestCase):
     def test_multiple_threads(self):
         for shared in [True, False]:

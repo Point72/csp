@@ -12,6 +12,7 @@ from csp import ts
 from csp.baselib import _convert_ts_object_for_print
 from csp.impl.struct import defineStruct
 
+
 class TestBaselib(unittest.TestCase):
     def test_const(self):
         @csp.graph

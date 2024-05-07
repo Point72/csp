@@ -3,31 +3,53 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
- - compilers
+ - brotli
+ - build
+ - bump2version>=1
  - cmake
- - numpy
- - pyarrow>=7.0.0
- - ruamel.yaml
- - scikit-build
- - psutil
- - sqlalchemy
- - bump2version>=1.0.0
- - python-graphviz
+ - codespell
+ - compilers
+ - cyrus-sasl
+ - exprtk
+ - graphviz
+ - gtest
  - httpx
+ - httpx>=0.20,<1
  - isort
- - ruff
- - twine
- - wheel
+ - isort>=5,<6
+ - libarrow=15
+ - libboost-headers
+ - librdkafka
+ - lz4-c
+ - mamba
+ - mdformat
+ - ninja
+ - numpy
  - pandas
+ - pillow
+ - pillow
  - polars
- - pytz
+ - psutil
+ - psutil
+ - pyarrow=15
+ - pyarrow>=7.0.0
  - pytest
+ - pytest-asyncio
  - pytest-cov
  - pytest-sugar
- - pytest-asyncio
- - python<3.12
- - tornado
+ - python-graphviz
  - python-rapidjson
- - pillow
- - mdformat
- - codespell
+ - python<3.12
+ - pytz
+ - rapidjson
+ - requests
+ - ruamel.yaml
+ - ruff
+ - scikit-build
+ - slack-sdk
+ - sqlalchemy
+ - threadpoolctl
+ - tornado
+ - twine
+ - websocketpp
+ - wheel

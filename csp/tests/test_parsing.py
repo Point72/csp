@@ -1,6 +1,6 @@
 import sys
 import unittest
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Callable, Dict, List
 
 import csp
@@ -984,37 +984,6 @@ class TestParsing(unittest.TestCase):
 
         @csp.graph
         def graph(v: Dict[str, Callable[[], str]]):
-            pass
-
-    def test_graph_caching_parsing(self):
-        with self.assertRaisesRegex(
-            NotImplementedError, "Caching is unsupported for argument type typing.List\\[int\\] \\(argument x\\)"
-        ):
-
-            @csp.graph(cache=True)
-            def graph(x: List[int]):
-                __outputs__(o=ts[int])
-                pass
-
-        with self.assertRaisesRegex(
-            NotImplementedError, "Caching is unsupported for argument type typing.Dict\\[int, int\\] \\(argument x\\)"
-        ):
-
-            @csp.graph(cache=True)
-            def graph(x: Dict[int, int]):
-                __outputs__(o=ts[int])
-                pass
-
-        with self.assertRaisesRegex(NotImplementedError, "Caching of list basket outputs is unsupported"):
-
-            @csp.graph(cache=True)
-            def graph():
-                __outputs__(o=[ts[int]])
-                pass
-
-        @csp.graph(cache=True)
-        def graph(a1: datetime, a2: date, a3: int, a4: float, a5: str, a6: bool):
-            __outputs__(o=ts[int])
             pass
 
     def test_list_default_value(self):

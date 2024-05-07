@@ -2,19 +2,18 @@ import ast
 
 from csp.impl.wiring import Signature
 from csp.impl.wiring.base_parser import BaseParser, CspParseError, _pythonic_depr_warning
-from csp.impl.wiring.special_output_names import CSP_CACHE_ENABLED_OUTPUT, UNNAMED_OUTPUT_NAME
+from csp.impl.wiring.special_output_names import UNNAMED_OUTPUT_NAME
 
 
 class GraphParser(BaseParser):
     _DEBUG_PARSE = False
 
-    def __init__(self, name, raw_func, func_frame, debug_print=False, add_cache_control_output=False):
+    def __init__(self, name, raw_func, func_frame, debug_print=False):
         super().__init__(
             name=name,
             raw_func=raw_func,
             func_frame=func_frame,
             debug_print=debug_print,
-            add_cache_control_output=add_cache_control_output,
         )
 
     def visit_FunctionDef(self, node):
@@ -51,26 +50,17 @@ class GraphParser(BaseParser):
         if len(self._outputs) and node.value is None:
             raise CspParseError("return does not return values with non empty outputs")
 
-        if self._add_cache_control_output:
-            if isinstance(node.value, ast.Call):
-                parsed_return = self.visit_Call(node.value)
-                if isinstance(parsed_return, ast.Return):
-                    return parsed_return
+        if isinstance(node.value, ast.Call):
+            if len(self._outputs) > 1:
+                self._validate_output(node)
 
-            returned_value = node.value
-            return self._wrap_returned_value_and_add_special_outputs(returned_value)
-        else:
-            if isinstance(node.value, ast.Call):
-                if len(self._outputs) > 1:
-                    self._validate_output(node)
+            parsed_return = self.visit_Call(node.value)
+            if isinstance(parsed_return, ast.Call):
+                return ast.Return(value=parsed_return, lineno=node.lineno, end_lineno=node.end_lineno)
 
-                parsed_return = self.visit_Call(node.value)
-                if isinstance(parsed_return, ast.Call):
-                    return ast.Return(value=parsed_return, lineno=node.lineno, end_lineno=node.end_lineno)
+            return parsed_return
 
-                return parsed_return
-
-            return node
+        return node
 
     def _parse_single_output_definition(self, name, arg_type_node, ts_idx, typ=None):
         return self._parse_single_output_definition_with_shapes(
@@ -101,11 +91,8 @@ class GraphParser(BaseParser):
                 raise CspParseError("returning from graph without any outputs defined", node.lineno)
             elif (
                 len(self._signature._outputs) == 1 and self._signature._outputs[0].name is None
-            ):  # graph only has one unnamed output
-                if self._add_cache_control_output:
-                    return self._wrap_returned_value_and_add_special_outputs(node.args[0])
-                else:
-                    return ast.Return(value=node.args[0], lineno=node.lineno, end_lineno=node.end_lineno)
+            ):  # graph only has one unnamed output:
+                return ast.Return(value=node.args[0], lineno=node.lineno, end_lineno=node.end_lineno)
             else:
                 node.keywords = [ast.keyword(arg=self._signature._outputs[0].name, value=node.args[0])]
                 node.args.clear()
@@ -160,32 +147,10 @@ class GraphParser(BaseParser):
             return res.value
         return res
 
-    def _get_special_output_name_mapping(self):
-        """
-        :return: A dict mapping local_variable->output_name
-        """
-        return {CSP_CACHE_ENABLED_OUTPUT: CSP_CACHE_ENABLED_OUTPUT}
-
     def visit_Call(self, node: ast.Call):
         if (isinstance(node.func, ast.Name) and node.func.id == "__return__") or BaseParser._is_csp_output_call(node):
             special_outputs = {}
-            if self._add_cache_control_output:
-                special_outputs = self._get_special_output_name_mapping()
             return self._parse_return(node, special_outputs)
-        if (
-            isinstance(node.func, ast.Attribute)
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "csp"
-            and node.func.attr == "set_cache_enable_ts"
-        ):
-            if len(node.args) != 1 or node.keywords:
-                raise CspParseError("Invalid call to csp.set_cache_enable_ts", node.lineno)
-            if self._add_cache_control_output:
-                return ast.Assign(targets=[ast.Name(id=CSP_CACHE_ENABLED_OUTPUT, ctx=ast.Store())], value=node.args[0])
-            else:
-                raise CspParseError(
-                    "Invalid call to csp.set_cache_enable_ts in graph with non controlled cache", node.lineno
-                )
         return self.generic_visit(node)
 
     def _is_ts_args_removed_from_signature(self):
@@ -193,23 +158,10 @@ class GraphParser(BaseParser):
 
     def _parse_impl(self):
         self._inputs, input_defaults, self._outputs = self.parse_func_signature(self._funcdef)
-        self._resolve_special_outputs()
         # Should have inputs and outputs at this point
         self._signature = Signature(
             self._name, self._inputs, self._outputs, input_defaults, special_outputs=self._special_outputs
         )
-        # We need to set default value for the cache control variable as the first command in the function
-        if self._add_cache_control_output:
-            self._funcdef.body = [
-                ast.Assign(
-                    targets=[ast.Name(id=CSP_CACHE_ENABLED_OUTPUT, ctx=ast.Store())],
-                    value=ast.Call(
-                        func=ast.Attribute(value=ast.Name(id="csp", ctx=ast.Load()), attr="null_ts", ctx=ast.Load()),
-                        args=[ast.Name(id="bool", ctx=ast.Load())],
-                        keywords=[],
-                    ),
-                )
-            ] + self._funcdef.body
         self.generic_visit(self._funcdef)
 
         newfuncdef = ast.FunctionDef(name=self._funcdef.name, body=self._funcdef.body, returns=None)

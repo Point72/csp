@@ -1,8 +1,6 @@
 import threading
-from typing import Optional
 
 import csp
-from csp.impl.config import Config
 from csp.impl.pushadapter import PushInputAdapter
 from csp.impl.types.tstype import ts
 from csp.impl.wiring import MAX_END_TIME, py_push_adapter_def
@@ -110,7 +108,6 @@ def run_on_thread(
     *args,
     starttime=None,
     endtime=MAX_END_TIME,
-    config: Optional[Config] = None,
     queue_wait_time=None,
     realtime=False,
     auto_shutdown=False,
@@ -122,7 +119,6 @@ def run_on_thread(
         *args,
         starttime=starttime,
         endtime=endtime,
-        config=config,
         queue_wait_time=queue_wait_time,
         realtime=realtime,
         auto_shutdown=auto_shutdown,

@@ -56,6 +56,12 @@ jobs:
           run: |
               Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
               choco install make -y
+              choco install winflexbison3 -y
+              choco install zip -y
+              choco install unzip -y
+              choco install tartool -y
+              New-Alias -Name bison -Value win_bison
+               New-Alias -Name flex -Value win_flex
 
         - name: Python Lint Steps
           run: make lint

@@ -21,7 +21,7 @@ class UpcastRegistry(object):
         self._type_registry: typing.Dict[typing.Tuple[type, type], type] = {}
         self._add_type_upcast(int, float, float)
 
-    def resolve_type(self, expected_type: type, new_type: type, allow_subtypes: bool, raise_on_error=True):
+    def resolve_type(self, expected_type: type, new_type: type, raise_on_error=True):
         if expected_type == new_type:
             return expected_type
         if expected_type is object or new_type is object:
@@ -57,7 +57,7 @@ class UpcastRegistry(object):
                 else:
                     return None
 
-            if allow_subtypes and inspect.isclass(expected_type) and inspect.isclass(new_type):
+            if inspect.isclass(expected_type) and inspect.isclass(new_type):
                 if issubclass(expected_type, new_type):
                     # Generally if B inherits from A, we want to resolve from A, the only exception
                     # is "Generic types". Dict[int, int] inherits from dict but we want the type to be resolved to the generic type
@@ -203,7 +203,6 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
         values: typing.List[object],
         forced_tvars: typing.Union[typing.Dict[str, typing.Type], None],
         is_input=True,
-        allow_subtypes=True,
         allow_none_ts=False,
     ):
         self._function_name = function_name
@@ -211,7 +210,6 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
         self._arguments = values
         self._forced_tvars = forced_tvars
         self._def_name = "inputdef" if is_input else "outputdef"
-        self._allow_subtypes = allow_subtypes
         self._allow_none_ts = allow_none_ts
 
         self._tvars: typing.Dict[str, type] = {}
@@ -318,9 +316,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
             return False
         else:
             # At this point it must be a scalar value
-            res_type = UpcastRegistry.instance().resolve_type(
-                expected_sub_type, actual_sub_type, allow_subtypes=self._allow_subtypes, raise_on_error=False
-            )
+            res_type = UpcastRegistry.instance().resolve_type(expected_sub_type, actual_sub_type, raise_on_error=False)
             return res_type is expected_sub_type
         return True
 
@@ -391,12 +387,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
     def _is_scalar_value_matching_spec(self, inp_def_type, arg):
         if inp_def_type is typing.Any:
             return True
-        if (
-            UpcastRegistry.instance().resolve_type(
-                inp_def_type, type(arg), allow_subtypes=self._allow_subtypes, raise_on_error=False
-            )
-            is inp_def_type
-        ):
+        if UpcastRegistry.instance().resolve_type(inp_def_type, type(arg), raise_on_error=False) is inp_def_type:
             return True
         if CspTypingUtils.is_union_type(inp_def_type):
             types = inp_def_type.__args__
@@ -533,9 +524,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
                     self._raise_arg_mismatch_error(arg=self._cur_arg, tvar_info={tvar: old_tvar_type})
             return
 
-        combined_type = UpcastRegistry.instance().resolve_type(
-            resolved_type, old_tvar_type, allow_subtypes=self._allow_subtypes, raise_on_error=False
-        )
+        combined_type = UpcastRegistry.instance().resolve_type(resolved_type, old_tvar_type, raise_on_error=False)
         if combined_type is None:
             conflicting_tvar_types = self._conflicting_tvar_types.get(tvar)
             if conflicting_tvar_types is None:
@@ -605,9 +594,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
             assert resolved_type, f'"{tvar}" was not resolved'
             for conflicting_type in conflicting_types:
                 if (
-                    UpcastRegistry.instance().resolve_type(
-                        resolved_type, conflicting_type, allow_subtypes=self._allow_subtypes, raise_on_error=False
-                    )
+                    UpcastRegistry.instance().resolve_type(resolved_type, conflicting_type, raise_on_error=False)
                     is not resolved_type
                 ):
                     raise TypeError(
@@ -627,7 +614,6 @@ class InputInstanceTypeResolver(_InstanceTypeResolverBase):
         input_definitions: typing.Tuple[InputDef],
         arguments: typing.List[object],
         forced_tvars: typing.Union[typing.Dict[str, typing.Type], None],
-        allow_subtypes: bool = True,
         allow_none_ts: bool = False,
     ):
         self._scalar_inputs: typing.List[object] = []
@@ -637,7 +623,6 @@ class InputInstanceTypeResolver(_InstanceTypeResolverBase):
             input_or_output_definitions=input_definitions,
             values=arguments,
             forced_tvars=forced_tvars,
-            allow_subtypes=allow_subtypes,
             allow_none_ts=allow_none_ts,
         )
 
@@ -692,14 +677,12 @@ class GraphOutputTypeResolver(_InstanceTypeResolverBase):
         output_definitions: typing.Tuple[OutputDef],
         values: typing.List[object],
         forced_tvars: typing.Union[typing.Dict[str, typing.Type], None],
-        allow_subtypes=True,
     ):
         super().__init__(
             function_name=function_name,
             input_or_output_definitions=output_definitions,
             values=values,
             forced_tvars=forced_tvars,
-            allow_subtypes=allow_subtypes,
             allow_none_ts=False,
         )
 

@@ -41,14 +41,14 @@ As always, `csp.now()` should still be used in `csp.node` code, even when runnin
 
 When consuming data from input adapters there are three choices on how one can consume the data:
 
-| PushMode       | EngineMode | Description |
-| :-------       | :--------- | :---------- |
-| **LAST_VALUE** | Simulation | all ticks from input source with duplicate timestamps (on the same timeseries) will tick once with the last value on a given timestamp |
-|           | Realtime   | all ticks that occurred since previous engine cycle will collapse / conflate to the latest value |
+| PushMode           | EngineMode | Description                                                                                                                                                       |
+| :----------------- | :--------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **LAST_VALUE**     | Simulation | all ticks from input source with duplicate timestamps (on the same timeseries) will tick once with the last value on a given timestamp                            |
+|                    | Realtime   | all ticks that occurred since previous engine cycle will collapse / conflate to the latest value                                                                  |
 | **NON_COLLAPSING** | Simulation | all ticks from input source with duplicate timestamps (on the same timeseries) will tick once per engine cycle. subsequent cycles will execute with the same time |
-|           | Realtime | all ticks that occurred since previous engine cycle will be ticked across subsequent engine cycles as fast as possible |
-| **BURST**      | Simulation | all ticks from input source with duplicate timestamps (on the same timeseries) will tick once with a list of all values |
-|           | Realtime | all ticks that occurred since previous engine cycle will tick once with a list of all the values |
+|                    | Realtime   | all ticks that occurred since previous engine cycle will be ticked across subsequent engine cycles as fast as possible                                            |
+| **BURST**          | Simulation | all ticks from input source with duplicate timestamps (on the same timeseries) will tick once with a list of all values                                           |
+|                    | Realtime   | all ticks that occurred since previous engine cycle will tick once with a list of all the values                                                                  |
 
 ## Realtime Group Event Synchronization
 

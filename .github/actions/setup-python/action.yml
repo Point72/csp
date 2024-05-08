@@ -10,6 +10,7 @@ inputs:
       - '3.9'
       - '3.10'
       - '3.11'
+      - '3.12'
     default: '3.9'
 
 runs:
@@ -33,4 +34,4 @@ runs:
 
     - name: Install cibuildwheel and twine
       shell: bash
-      run: pip install cibuildwheel==2.11.2 twine
+      run: pip install cibuildwheel==2.16.5 twine

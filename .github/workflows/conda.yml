@@ -52,7 +52,7 @@ jobs:
         - name: Set up Caches
           uses: ./.github/actions/setup-caches
           with:
-            cibuildwheel: 'cp311'
+            cibuildwheel: 'cp312'
 
         - name: Python Lint Steps
           run: make lint

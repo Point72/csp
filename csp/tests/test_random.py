@@ -116,7 +116,7 @@ class TestBrownianMotion(unittest.TestCase):
             endtime=timedelta(seconds=100),
         )[0]
         err = bm_out[-1][1] - data.sum(axis=0)
-        self.assertAlmostEquals(np.abs(err).max(), 0.0)
+        self.assertAlmostEqual(np.abs(err).max(), 0.0)
 
     def test_brownian_motion_1d(self):
         mean = 10.0

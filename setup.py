@@ -64,7 +64,7 @@ if CSP_USE_VCPKG and os.path.exists(vcpkg_toolchain_file):
     )
 
     if VCPKG_TRIPLET is not None:
-        cmake_args.append( f"-DVCPKG_TARGET_TRIPLET={VCPKG_TRIPLET}" )
+        cmake_args.append(f"-DVCPKG_TARGET_TRIPLET={VCPKG_TRIPLET}")
 else:
     cmake_args.append("-DCSP_USE_VCPKG=OFF")
 

@@ -28,7 +28,7 @@ dependencies:
  - numpy
  - pillow
  - psutil
- - pyarrow=15
+ - pyarrow=16
  - pandas
  - pillow
  - polars

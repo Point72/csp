@@ -61,9 +61,9 @@ develop = [
     "twine",
     "wheel",
     # lint
-    "codespell",
+    "codespell>=2.2.6,<2.3",
     "isort>=5,<6",
-    "mdformat",
+    "mdformat>=0.7.17,<0.8",
     "ruff>=0.3,<0.4",
     # test
     "pytest",

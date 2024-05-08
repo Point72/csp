@@ -1,9 +1,9 @@
 import copy
 import inspect
-import logging
 import threading
 from collections import namedtuple
 from functools import wraps
+from warnings import warn
 
 from csp.impl.constants import UNSET
 
@@ -149,11 +149,6 @@ def _preprocess_args(args):
         yield (arg_name, normalize_arg(arg_value))
 
 
-class _WarnedFlag:
-    def __init__(self):
-        self.value = False
-
-
 def function_full_name(f):
     """A utility function that can be used for implementation of function_name for csp_memoized_graph_object
     :param f:
@@ -177,7 +172,6 @@ def csp_memoized(func=None, *, force_memoize=False, function_name=None, is_user_
     :param is_user_data: A flag that specifies whether the memoized object is user object or graph object
     :return:
     """
-    warned_flag = _WarnedFlag()
 
     def _impl(func):
         func_args = _resolve_func_args(func)
@@ -204,10 +198,8 @@ def csp_memoized(func=None, *, force_memoize=False, function_name=None, is_user_
                 except TypeError as e:
                     if force_memoize:
                         raise
-                    if not warned_flag.value:
-                        logging_context = function_name if function_name else str(func)
-                        logging.debug(f"Not memoizing output of {str(logging_context)}: {str(e)}")
-                        warned_flag.value = True
+                    logging_context = function_name if function_name else str(func)
+                    warn(f"Not memoizing output of {str(logging_context)}: {str(e)}", Warning)
                     cur_item = func(*args, **kwargs)
                 else:
                     if cur_item is UNSET:

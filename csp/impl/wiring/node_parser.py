@@ -846,11 +846,7 @@ class NodeParser(BaseParser):
         # delete ts_var variables *after* start so that they raise Unbound local exceptions if they get accessed before first tick
         del_vars = []
         for v in ts_vars:
-            del_vars.append(
-                ast.Delete(
-                    targets=[ast.Name(id=v.targets[0].id, ctx=ast.Del())]
-                )
-            )
+            del_vars.append(ast.Delete(targets=[ast.Name(id=v.targets[0].id, ctx=ast.Del())]))
         # Yield before start block so we can setup stack frame before executing
         # However, this initial yield shouldn't be within the try-finally block, since if a node does not start, it's stop() logic should not be invoked
         # This avoids an issue where one node raises an exception upon start(), and then other nodes execute their stop() without having ever started

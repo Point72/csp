@@ -549,7 +549,7 @@ class TestEngine(unittest.TestCase):
             expected_str = "referenced before assignment"
         with self.assertRaisesRegex(UnboundLocalError, expected_str):
             csp.run(foo, csp.const(1), csp.const(1, delay=timedelta(1)), starttime=datetime.utcnow())
-    
+
     def test_cell_access(self):
         '''was a bug "PyNode crashes on startup when cellvars are generated"'''
 

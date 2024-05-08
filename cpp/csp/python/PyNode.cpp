@@ -114,18 +114,17 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
         std::string vartype = PyUnicode_AsUTF8( PyTuple_GET_ITEM( *var, 0 ) );
         int index           = fromPython<int64_t>( PyTuple_GET_ITEM( *var, 1 ) );
 
-        //decref tuple at this point its no longer needed and will be replaced
-        Py_DECREF( *var );
-
         if( vartype == INPUT_VAR_VAR )
         {
             CSP_ASSERT( !isInputBasket( index ) );
 
             m_localVars[ index ] = var;
-            //assign null to location so users get reference before assignment errors
-            *var = nullptr;
+            //These vars will be "deleted" from the python stack after start 
             continue;
         }
+
+        //decref tuple at this point its no longer needed and will be replaced
+        Py_DECREF( *var );
 
         PyObject * newvalue = nullptr;
         if( vartype == NODEREF_VAR )

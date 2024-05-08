@@ -549,7 +549,7 @@ class TestEngine(unittest.TestCase):
 
             csp.run(g, starttime=datetime.now(), endtime=timedelta(seconds=1))
 
-    '''def test_access_before_valid(self):
+    def test_access_before_valid(self):
         @csp.node
         def foo(x: ts[int], y: ts[int]):
             print(x + y)
@@ -561,7 +561,7 @@ class TestEngine(unittest.TestCase):
             expected_str = "referenced before assignment"
         with self.assertRaisesRegex(UnboundLocalError, expected_str):
             csp.run(foo, csp.const(1), csp.const(1, delay=timedelta(1)), starttime=datetime.utcnow())
-    '''
+    
     def test_cell_access(self):
         '''was a bug "PyNode crashes on startup when cellvars are generated"'''
 

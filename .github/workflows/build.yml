@@ -173,7 +173,7 @@ jobs:
             - ubuntu-22.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md
             - macos-12 # https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
-            - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
+            - windows-2019 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
             - "3.8"
             - "3.9"
@@ -303,13 +303,13 @@ jobs:
 
         ##########
         # Windows
-        - name: Python Build Steps (Windows vc14.3)
+        - name: Python Build Steps (Windows 2019)
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-win_amd64"
             CMAKE_GENERATOR: Visual Studio 17 2022
             CIBW_ENVIRONMENT_WINDOWS: TODO="todo"
-          if: ${{ matrix.os == 'windows-2022' }}
+          if: ${{ matrix.os == 'windows-2019' }}
 
         ##########
         # Common
@@ -396,7 +396,7 @@ jobs:
             - ubuntu-22.04
             - macos-12
             - macos-14
-            # - windows-2022
+            - windows-2019
           python-version:
             - 3.8
             - 3.9
@@ -416,7 +416,7 @@ jobs:
 
             # windows is slow, so dont build unless its a full run
             # - is-full-run: false
-            #   os: windows-2022
+            #   os: windows-2019
 
             # avoid unnecessary use of mac resources
             - is-full-run: false

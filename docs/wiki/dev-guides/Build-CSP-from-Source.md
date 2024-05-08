@@ -198,11 +198,11 @@ By default, we pull and build dependencies with [vcpkg](https://vcpkg.io/en/). W
 
 CSP has listing and auto formatting.
 
-| Language | Linter | Autoformatter | Description |
-| :------- | :----- | :------------ | :---------- |
-| C++      | `clang-format` | `clang-format` | Style |
-| Python   | `ruff`         | `ruff` | Style |
-| Python   | `isort`         | `isort` | Imports |
+| Language | Linter         | Autoformatter  | Description |
+| :------- | :------------- | :------------- | :---------- |
+| C++      | `clang-format` | `clang-format` | Style       |
+| Python   | `ruff`         | `ruff`         | Style       |
+| Python   | `isort`        | `isort`        | Imports     |
 
 **C++ Linting**
 

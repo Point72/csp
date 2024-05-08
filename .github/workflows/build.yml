@@ -271,6 +271,10 @@ jobs:
             cibuildwheel: '${{ matrix.cibuildwheel }}'
           if: ${{ runner.os == 'macOS' }}
 
+        - name: Set up requirements (Windows 2019)
+          run: make requirements
+          if: ${{ runner.os == 'Windows' }}
+
         ########
         # Linux
         - name: Python Wheel Steps (Linux - cibuildwheel)

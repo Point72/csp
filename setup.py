@@ -23,9 +23,9 @@ CMAKE_OPTIONS = (
 )
 
 if sys.platform == "linux":
-    VCPKG_TRIPLET="x64-linux"
+    VCPKG_TRIPLET = "x64-linux"
 else:
-    VCPKG_TRIPLET=None
+    VCPKG_TRIPLET = None
 
 # This will be used for e.g. the sdist
 if CSP_USE_VCPKG:

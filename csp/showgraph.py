@@ -84,7 +84,7 @@ def _build_graph_for_viz(graph_func, *args, **kwargs):
 def _build_graphviz_graph(graph_func, *args, **kwargs):
     from graphviz import Digraph
 
-    nodes, edges = _build_graph_for_viz(graph_func=graph_func, *args, **kwargs)
+    nodes, edges = _build_graph_for_viz(graph_func, *args, **kwargs)
 
     digraph = Digraph(strict=True)
     digraph.attr(rankdir="LR", size="150,150")
@@ -137,21 +137,18 @@ def show_graph_pil(graph_func, *args, **kwargs):
     image.show()
 
 
-def show_graph_graphviz(graph_func, *args, graph_filename=None, interactive=False, **kwargs):
+def show_graph_graphviz(graph_func, *args, graph_filename=None, **kwargs):
     # extract the format of the image
     image_format = graph_filename.split(".")[-1] if graph_filename else "png"
 
     # Generate graph with graphviz
     digraph = _build_graphviz_graph(graph_func, *args, **kwargs)
 
-    # if we're in a notebook, return it directly for rendering
-    if interactive:
-        return digraph
-
-    # otherwise output to file
-    buffer = _graphviz_to_buffer(digraph=digraph, image_format=image_format)
-    with open(graph_filename, "wb") as f:
-        f.write(buffer.read())
+    if graph_filename:
+        # output to file
+        buffer = _graphviz_to_buffer(digraph=digraph, image_format=image_format)
+        with open(graph_filename, "wb") as f:
+            f.write(buffer.read())
     return digraph
 
 
@@ -188,19 +185,14 @@ def show_graph(graph_func, *args, graph_filename=None, **kwargs):
     else:
         _HAVE_INTERACTIVE = False
 
-    # display graph via pillow or ipydagred3
-    if graph_filename in (None, "widget"):
-        if graph_filename == "widget" and not _HAVE_INTERACTIVE:
-            raise RuntimeError("Interactive graph viewer only works in Jupyter.")
-
+    if graph_filename == "widget" and not _HAVE_INTERACTIVE:
+        # widget only works in Jupyter for now
+        raise RuntimeError("Interactive graph viewer only works in Jupyter.")
+    elif graph_filename == "widget":
         # render with ipydagred3
-        if graph_filename == "widget":
-            return show_graph_widget(graph_func, *args, **kwargs)
-
+        return show_graph_widget(graph_func, *args, **kwargs)
+    elif graph_filename in ("", None) and not _HAVE_INTERACTIVE:
         # render with pillow
         return show_graph_pil(graph_func, *args, **kwargs)
-
-    # TODO we can show graphviz in jupyter without a filename, but preserving existing behavior for now
-    return show_graph_graphviz(
-        graph_func, *args, graph_filename=graph_filename, interactive=_HAVE_INTERACTIVE, **kwargs
-    )
+    # render with graphviz
+    return show_graph_graphviz(graph_func, *args, graph_filename=graph_filename, **kwargs)

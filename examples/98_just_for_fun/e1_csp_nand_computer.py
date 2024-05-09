@@ -99,7 +99,9 @@ def my_graph(bits: int = 16):
     csp.print("y", basket_to_number(y))
     csp.print("x_bits", basket_to_bitstring(x))
     csp.print("y_bits", basket_to_bitstring(y))
+
     add = addInt(x, y)
+
     csp.print("x+y", basket_to_number(add))
     csp.print("x+y_bits", basket_to_bitstring(add))
 
@@ -107,6 +109,7 @@ def my_graph(bits: int = 16):
 def main():
     # Show graph with 4-bit ints to limit size
     csp.showgraph.show_graph(my_graph, 4)
+
     csp.run(my_graph, starttime=datetime(2022, 6, 24))
 
 

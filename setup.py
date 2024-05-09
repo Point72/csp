@@ -40,6 +40,7 @@ if CSP_USE_VCPKG:
         args = ["install"]
         if VCPKG_TRIPLET is not None:
             args.append(f"--triplet={VCPKG_TRIPLET}")
+
         if os.name == "nt":
             subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg", shell=True)
             subprocess.call(["vcpkg.bat"] + args, cwd="vcpkg", shell=True)

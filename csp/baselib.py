@@ -283,10 +283,7 @@ def get_basket_field(dict_basket: {"K": ts["V"]}, field_name: str) -> OutputBask
     :param field_name:
     :return:
     """
-    if isinstance(dict_basket, csp.impl.wiring.cache_support.graph_building.WrappedCachedStructBasket):
-        return dict_basket.get_basket_field(field_name)
-    else:
-        return {k: getattr(v, field_name) for k, v in dict_basket.items()}
+    return {k: getattr(v, field_name) for k, v in dict_basket.items()}
 
 
 @node(cppimpl=_cspbaselibimpl.sample)

@@ -61,8 +61,8 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
     m_localVars = ( PyObject *** ) calloc( numInputs(), sizeof( PyObject ** ) );
 
     //printf( "Starting %s slots: %ld rank: %d\n", name(), slots, rank() );
-    PyCodeObject * code = ( PyCodeObject * ) pygen -> gi_code;
 #if IS_PRE_PYTHON_3_11
+    PyCodeObject * code = ( PyCodeObject * ) pygen -> gi_code;
     Py_ssize_t numCells = PyTuple_GET_SIZE( code -> co_cellvars );
     size_t cell2argIdx = 0;
     for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocals + numCells; ++stackloc )
@@ -82,12 +82,13 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
                 continue;
             var = &( ( ( PyCellObject * ) *var ) -> ob_ref );
         }
-//PY311 changes
+//PY311+ changes
 #else
+    _PyInterpreterFrame * frame = ( _PyInterpreterFrame * ) pygen -> gi_iframe;
+    PyCodeObject * code = frame -> f_code;
     int localPlusIndex = 0;
     for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocalsplus; ++stackloc, ++localPlusIndex )
     {
-        _PyInterpreterFrame * frame = ( _PyInterpreterFrame * ) pygen -> gi_iframe;
         PyObject **var = &frame -> localsplus[stackloc];
 
         auto kind = _PyLocals_GetKind(code -> co_localspluskinds, localPlusIndex );
@@ -113,18 +114,17 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
         std::string vartype = PyUnicode_AsUTF8( PyTuple_GET_ITEM( *var, 0 ) );
         int index           = fromPython<int64_t>( PyTuple_GET_ITEM( *var, 1 ) );
 
-        //decref tuple at this point its no longer needed and will be replaced
-        Py_DECREF( *var );
-
         if( vartype == INPUT_VAR_VAR )
         {
             CSP_ASSERT( !isInputBasket( index ) );
 
             m_localVars[ index ] = var;
-            //assign null to location so users get reference before assignment errors
-            *var = nullptr;
+            //These vars will be "deleted" from the python stack after start 
             continue;
         }
+
+        //decref tuple at this point its no longer needed and will be replaced
+        Py_DECREF( *var );
 
         PyObject * newvalue = nullptr;
         if( vartype == NODEREF_VAR )

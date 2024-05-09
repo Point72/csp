@@ -379,11 +379,11 @@ DECLARE_CPPNODE( unroll )
                 {
                     size_t idx = 0;
                     if( !s_pending )
-                        CSP_OUTPUT( v[idx++] );
+                        CSP_OUTPUT( static_cast<ElemT>( v[idx++] ) );
 
                     s_pending += sz - idx;
                     for( ; idx < sz; ++idx )
-                        csp.schedule_alarm( alarm, TimeDelta::ZERO(), v[idx] );
+                        csp.schedule_alarm( alarm, TimeDelta::ZERO(), static_cast<ElemT>( v[idx] ) );
                 }
             }
 

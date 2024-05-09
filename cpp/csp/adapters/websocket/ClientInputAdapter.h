@@ -1,8 +1,6 @@
 #ifndef _IN_CSP_ADAPTERS_WEBSOCKETS_CLIENT_INPUTADAPTER_H
 #define _IN_CSP_ADAPTERS_WEBSOCKETS_CLIENT_INPUTADAPTER_H
 
-#include <websocketpp/config/core_client.hpp>
-#include <websocketpp/client.hpp>
 #include <csp/engine/Dictionary.h>
 #include <csp/adapters/utils/MessageStructConverter.h>
 #include <csp/engine/PushInputAdapter.h>

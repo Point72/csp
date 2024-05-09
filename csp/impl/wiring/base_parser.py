@@ -20,11 +20,9 @@ from csp.impl.types.common_definitions import (
     OutputTypeError,
 )
 from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
-from csp.impl.types.tstype import TsType
 from csp.impl.types.type_annotation_normalizer_transformer import TypeAnnotationNormalizerTransformer
 from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.warnings import WARN_PYTHONIC
-from csp.impl.wiring.special_output_names import CSP_CACHE_ENABLED_OUTPUT
 
 LEGACY_METHODS = {"__alarms__", "__state__", "__start__", "__stop__", "__outputs__", "__return__"}
 
@@ -92,7 +90,7 @@ def _pythonic_depr_warning(func):
 class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
     _DEBUG_PARSE = False
 
-    def __init__(self, name, raw_func, func_frame, debug_print=False, add_cache_control_output=False):
+    def __init__(self, name, raw_func, func_frame, debug_print=False):
         self._name = name
         self._outputs = []
         self._special_outputs = tuple()
@@ -115,7 +113,6 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         body = ast.parse(source)
         self._funcdef = body.body[0]
         self._type_annotation_normalizer.normalize_type_annotations(self._funcdef)
-        self._add_cache_control_output = add_cache_control_output
 
     def _eval_expr(self, exp):
         return eval(
@@ -548,15 +545,3 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
                             output.typ.shape_func = self._compile_function(shape_func)
                         else:
                             output.typ.shape_func = lambda *args, s=output.typ.shape: s
-
-    def _resolve_special_outputs(self):
-        if self._add_cache_control_output:
-            self._special_outputs += (
-                OutputDef(
-                    name=CSP_CACHE_ENABLED_OUTPUT,
-                    typ=TsType[bool],
-                    kind=ArgKind.TS,
-                    ts_idx=self._outputs[-1].ts_idx + 1,
-                    shape=None,
-                ),
-            )

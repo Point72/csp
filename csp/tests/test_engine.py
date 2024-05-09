@@ -31,18 +31,6 @@ def _dummy_node():
     raise NotImplementedError()
 
 
-@csp.graph(cache=True)
-def _dummy_graph_cached() -> csp.ts[float]:
-    raise NotImplementedError()
-    return csp.const(1)
-
-
-@csp.node(cache=True)
-def _dummy_node_cached() -> csp.ts[float]:
-    raise NotImplementedError()
-    return 1
-
-
 class TestEngine(unittest.TestCase):
     def test_simple(self):
         @csp.node
@@ -1305,7 +1293,7 @@ class TestEngine(unittest.TestCase):
         def dummy(v: ts[int]) -> ts[int]:
             return v
 
-        @csp.graph(cache=True)
+        @csp.graph
         def my_ranked_node(val: int, rank: int = 0) -> csp.Outputs(val=ts[int]):
             res = my_node(val)
             for i in range(rank):
@@ -1836,12 +1824,10 @@ class TestEngine(unittest.TestCase):
         """Checks for a bug that we had when transitioning to python 3.8 - the graphs and nodes became unpicklable
         :return:
         """
-        from csp.tests.test_engine import _dummy_graph, _dummy_graph_cached, _dummy_node, _dummy_node_cached
+        from csp.tests.test_engine import _dummy_graph, _dummy_node
 
         self.assertEqual(_dummy_graph, pickle.loads(pickle.dumps(_dummy_graph)))
         self.assertEqual(_dummy_node, pickle.loads(pickle.dumps(_dummy_node)))
-        self.assertEqual(_dummy_graph_cached, pickle.loads(pickle.dumps(_dummy_graph_cached)))
-        self.assertEqual(_dummy_node_cached, pickle.loads(pickle.dumps(_dummy_node_cached)))
 
     def test_memoized_object(self):
         @csp.csp_memoized

@@ -100,7 +100,6 @@ class Signature:
             input_definitions=self._inputs[self._num_alarms :],
             arguments=flat_args,
             forced_tvars=forced_tvars,
-            allow_subtypes=allow_subtypes,
             allow_none_ts=allow_none_ts,
         )
 

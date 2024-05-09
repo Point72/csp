@@ -1222,7 +1222,7 @@ class TestEngine(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "csp graph information is not available"):
             csp.engine_start_time()
 
-    # TODO port test to windows
+    # SIGINT wont work on windows ( https://docs.python.org/3/library/os.html#os.kill ), may not be worth the trouble to make this test work on windows
     @unittest.skipIf(sys.platform == "win32", "tests needs windows port")
     def test_ctrl_c(self):
         pid = os.fork()
@@ -2053,6 +2053,8 @@ class TestEngine(unittest.TestCase):
         csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta())
         self.assertTrue(status["started"] and status["stopped"])
 
+    # SIGINT wont work on windows ( https://docs.python.org/3/library/os.html#os.kill ), may not be worth the trouble to make this test work on windows
+    @unittest.skipIf(sys.platform == "win32", "tests needs windows port")
     def test_interrupt_stops_all_nodes(self):
         @csp.node
         def n(l: list, idx: int):

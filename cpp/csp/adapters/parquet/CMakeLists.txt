@@ -50,22 +50,27 @@ find_package(lz4 REQUIRED)
 find_package(utf8proc REQUIRED)
 find_package(Brotli REQUIRED)
 
-if(CSP_USE_VCPKG)
-  # use static variants
-  if(WIN32)
-    set(ARROW_PACKAGES_TO_LINK Arrow::arrow_static Parquet::parquet_static )
-    target_compile_definitions(csp_parquet_adapter PUBLIC ARROW_STATIC)
-    target_compile_definitions(csp_parquet_adapter PUBLIC PARQUET_STATIC)
-  else()
-    set(ARROW_PACKAGES_TO_LINK parquet_static arrow_static)
-  endif()
+if(WIN32)
+   if(CSP_USE_VCPKG)
+     set(ARROW_PACKAGES_TO_LINK Arrow::arrow_static Parquet::parquet_static )
+     target_compile_definitions(csp_parquet_adapter PUBLIC ARROW_STATIC)
+     target_compile_definitions(csp_parquet_adapter PUBLIC PARQUET_STATIC)
+   else()
+     # use dynamic variants
+     # Until we manage to get the vcpkg fix for ws3_32.dll that comes with arrow 16, manually fix the error here
+     get_target_property(LINK_LIBS Arrow::arrow_shared INTERFACE_LINK_LIBRARIES)
+     string(REPLACE "ws2_32.dll" "ws2_32" FIXED_LINK_LIBS "${LINK_LIBS}")
+     set_target_properties(Arrow::arrow_shared PROPERTIES INTERFACE_LINK_LIBRARIES "${FIXED_LINK_LIBS}")
+     set(ARROW_PACKAGES_TO_LINK parquet_shared arrow_shared)
+   endif()
 else()
-  # Until we manage to get the vcpkg fix for ws3_32.dll that comes with arrow 16, manually fix the error here
-  get_target_property(LINK_LIBS Arrow::arrow_shared INTERFACE_LINK_LIBRARIES)
-  string(REPLACE "ws2_32.dll" "ws2_32" FIXED_LINK_LIBS "${LINK_LIBS}")
-  set_target_properties(Arrow::arrow_shared PROPERTIES INTERFACE_LINK_LIBRARIES "${FIXED_LINK_LIBS}")
-  # use dynamic variants
-  set(ARROW_PACKAGES_TO_LINK parquet_shared arrow_shared)
+  if(CSP_USE_VCPKG)
+    # use static variants
+    set(ARROW_PACKAGES_TO_LINK parquet_static arrow_static)
+  else()
+    # use dynamic variants
+    set(ARROW_PACKAGES_TO_LINK parquet arrow)
+  endif()
 endif()
 
 target_link_libraries(csp_parquet_adapter PRIVATE csp_adapter_utils thrift::thrift lz4::lz4 utf8proc::utf8proc ${BROTLI_STATIC_LIB} ${ARROW_PACKAGES_TO_LINK})

@@ -1,4 +1,4 @@
-name: csp-dev
+name: csp
 channels:
   - conda-forge
   - nodefaults
@@ -20,6 +20,7 @@ dependencies:
  - librdkafka
  - lz4-c
  - mamba
+ - make
  - mdformat
  - ninja
  - numpy

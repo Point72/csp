@@ -283,6 +283,7 @@ jobs:
           uses: ./.github/actions/setup-caches
           with:
             cibuildwheel: '${{ matrix.cibuildwheel }}'
+          if: ${{ runner.os != 'Windows' }}
 
         - name: Set up dependencies
           uses: ./.github/actions/setup-dependencies

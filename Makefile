@@ -14,21 +14,33 @@ endif
 .PHONY: requirements develop build build-debug build-conda install
 
 requirements:  ## install python dev and runtime dependencies
+ifeq ($(OS),Windows_NT)
+	Powershell.exe -noprofile ./make_requirements.ps1
+else
 	python -m pip install toml
 	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["build-system"]["requires"]))'`
 	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["project"]["optional-dependencies"]["develop"]))'`
+endif
 
 develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
 build:  ## build the library
+ifeq ($(OS),Windows_NT)
+	python setup.py build build_ext --inplace
+else
 	python setup.py build build_ext --inplace -- -- -j$(NPROC)
+endif
 
 build-debug:  ## build the library ( DEBUG ) - May need a make clean when switching from regular build to build-debug and vice versa
 	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace -- -- -j$(NPROC)
 
 build-conda:  ## build the library in Conda
+ifeq ($(OS),Windows_NT)
+	set CSP_USE_VCPKG=0 && python setup.py build build_ext --inplace
+else
 	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- -j$(NPROC)
+endif
 
 install:  ## install library
 	python -m pip install .
@@ -90,7 +102,11 @@ test-py: ## Clean and Make unit tests
 	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
 
 test-cpp: ## Make C++ unit tests
+ifneq ($(OS),Windows_NT)
 	for f in ./csp/tests/bin/*; do $$f; done || (echo "TEST FAILED" && exit 1)
+else
+	run_cpp_tests.bat
+endif
 
 coverage-py:
 	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
@@ -195,11 +211,13 @@ dependencies-debian:  ## install dependencies for linux
 dependencies-fedora:  ## install dependencies for linux
 	yum install -y automake bison ccache cmake curl flex perl-IPC-Cmd tar unzip zip
 
-dependencies-vcpkg:  ## install dependnecies via vcpkg
+dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
 
-dependencies-win:  ## install dependnecies via windows (vcpkg)
+dependencies-win:  ## install dependencies via windows (vcpkg)
+	choco install cmake curl winflexbison ninja unzip zip
 	cd vcpkg && ./bootstrap-vcpkg.bat && ./vcpkg install
+	
 
 ############################################################################################
 # Thanks to Francoise at marmelab.com for this

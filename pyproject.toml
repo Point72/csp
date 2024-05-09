@@ -141,6 +141,7 @@ archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
 environment = {}
 
 [tool.cibuildwheel.windows]
+before-all ="make dependencies-win"
 archs = "AMD64"
 skip = "*win32 *arm_64"
 

@@ -195,16 +195,12 @@ def _create_node(
     cppimpl,
     pre_create_hook,
     name,
-    cache: bool = False,
-    cache_options=None,
 ):
-    create_wrapper = cache or cache_options
     parser = NodeParser(
         name,
         func,
         func_frame,
         debug_print=debug_print,
-        add_cache_control_output=cache_options and cache_options.controlled_cache,
     )
     parser.parse()
 
@@ -223,26 +219,7 @@ def _create_node(
             "__doc__": parser._docstring,
         },
     )
-    if create_wrapper:
-        from csp.impl.wiring.graph import _create_graph
-
-        def wrapper(*args, **kwargs):
-            return nodetype(*args, **kwargs)
-
-        return _create_graph(
-            name,
-            func.__doc__,
-            wrapper,
-            parser._signature.copy(drop_alarms=True),
-            memoize,
-            force_memoize,
-            cache,
-            cache_options,
-            wrapped_function=func,
-            wrapped_node=nodetype,
-        )
-    else:
-        return nodetype
+    return nodetype
 
 
 def _node_internal_use(
@@ -254,8 +231,6 @@ def _node_internal_use(
     debug_print=False,
     cppimpl=None,
     pre_create_hook=None,
-    cache: bool = False,
-    cache_options=None,
     name=None,
 ):
     """A decorator similar to the @node decorator that exposes some internal arguments that shoudn't be visible to users"""
@@ -272,8 +247,6 @@ def _node_internal_use(
                 cppimpl=cppimpl,
                 pre_create_hook=pre_create_hook,
                 name=name or func.__name__,
-                cache=cache,
-                cache_options=cache_options,
             )
 
     if func is None:
@@ -291,8 +264,6 @@ def node(
     force_memoize=False,
     debug_print=False,
     cppimpl=None,
-    cache: bool = False,
-    cache_options=None,
     name=None,
 ):
     """
@@ -303,8 +274,6 @@ def node(
     set of parameters).
     :param debug_print: A boolean that specifies that processed function should be printed
     :param cppimpl:
-    :param cache:
-    :param cache_options:
     :param name: Provide a custom name for the constructed node type, helpful when viewing a graph with many same-named nodes
     :return:
     """
@@ -317,7 +286,5 @@ def node(
             debug_print=debug_print,
             cppimpl=cppimpl,
             pre_create_hook=None,
-            cache=cache,
-            cache_options=cache_options,
             name=name,
         )

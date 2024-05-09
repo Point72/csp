@@ -98,7 +98,7 @@ if(CSP_USE_CCACHE)
 endif()
 
 if(NOT DEFINED CSP_PYTHON_VERSION)
-    set(CSP_PYTHON_VERSION 3.11)
+    set(CSP_PYTHON_VERSION 3.12)
 endif()
 
 # Path to python folder for autogen

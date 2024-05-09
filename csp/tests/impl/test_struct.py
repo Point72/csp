@@ -171,20 +171,92 @@ class SimpleClass:
 # items[:-2] are normal values of the given type that should be handled,
 # items[-2] is a normal value for non-generic and non-str types and None for generic and str types (the purpose is to test the raise of TypeError if a single object instead of a sequence is passed),
 # items[-1] is a value of a different type that is not convertible to the give type for non-generic types and None for generic types (the purpose is to test the raise of TypeError if an object of the wrong type is passed).
-pystruct_list_test_values = { 
-    int : [4, 2, 3, 5, 6, 7, 8, 's'],
+pystruct_list_test_values = {
+    int: [4, 2, 3, 5, 6, 7, 8, "s"],
     bool: [True, True, True, False, True, False, True, 2],
-    float: [1.4, 3.2, 2.7, 1.0, -4.5, -6.0, -2.0, 's'],
-    datetime: [datetime(2022, 12, 6, 1, 2, 3), datetime(2022, 12, 7, 2, 2, 3), datetime(2022, 12, 8, 3, 2, 3), datetime(2022, 12, 9, 4, 2, 3), datetime(2022, 12, 10, 5, 2, 3), datetime(2022, 12, 11, 6, 2, 3), datetime(2022, 12, 13, 7, 2, 3), timedelta(seconds=.123)],
-    timedelta: [timedelta(seconds=.123), timedelta(seconds=12), timedelta(seconds=1), timedelta(seconds=.5), timedelta(seconds=123), timedelta(seconds=70), timedelta(seconds=700), datetime(2022, 12, 8, 3, 2, 3)],
-    date: [date(2022, 12, 6), date(2022, 12, 7), date(2022, 12, 8), date(2022, 12, 9), date(2022, 12, 10), date(2022, 12, 11), date(2022, 12, 13), timedelta(seconds=.123)],
-    time: [time(1, 2, 3), time(2, 2, 3), time(3, 2, 3), time(4, 2, 3), time(5, 2, 3), time(6, 2, 3), time(7, 2, 3), timedelta(seconds=.123)],
-    str : ['s', 'pqr', 'masd', 'wes', 'as', 'm', None, 5],
-    csp.Struct: [SimpleStruct(a = 1), AnotherSimpleStruct(b = 'sd'), SimpleStruct(a = 3), AnotherSimpleStruct(b = 'sdf'), SimpleStruct(a = -4), SimpleStruct(a = 5), SimpleStruct(a = 7), 4],  # untyped struct list
-    SimpleStruct: [SimpleStruct(a = 1), SimpleStruct(a = 3), SimpleStruct(a = -1), SimpleStruct(a = -4), SimpleStruct(a = 5), SimpleStruct(a = 100), SimpleStruct(a = 1200), AnotherSimpleStruct(b = 'sd')],
-    SimpleEnum: [SimpleEnum.A, SimpleEnum.C, SimpleEnum.B, SimpleEnum.B, SimpleEnum.B, SimpleEnum.C, SimpleEnum.C, AnotherSimpleEnum.D],
+    float: [1.4, 3.2, 2.7, 1.0, -4.5, -6.0, -2.0, "s"],
+    datetime: [
+        datetime(2022, 12, 6, 1, 2, 3),
+        datetime(2022, 12, 7, 2, 2, 3),
+        datetime(2022, 12, 8, 3, 2, 3),
+        datetime(2022, 12, 9, 4, 2, 3),
+        datetime(2022, 12, 10, 5, 2, 3),
+        datetime(2022, 12, 11, 6, 2, 3),
+        datetime(2022, 12, 13, 7, 2, 3),
+        timedelta(seconds=0.123),
+    ],
+    timedelta: [
+        timedelta(seconds=0.123),
+        timedelta(seconds=12),
+        timedelta(seconds=1),
+        timedelta(seconds=0.5),
+        timedelta(seconds=123),
+        timedelta(seconds=70),
+        timedelta(seconds=700),
+        datetime(2022, 12, 8, 3, 2, 3),
+    ],
+    date: [
+        date(2022, 12, 6),
+        date(2022, 12, 7),
+        date(2022, 12, 8),
+        date(2022, 12, 9),
+        date(2022, 12, 10),
+        date(2022, 12, 11),
+        date(2022, 12, 13),
+        timedelta(seconds=0.123),
+    ],
+    time: [
+        time(1, 2, 3),
+        time(2, 2, 3),
+        time(3, 2, 3),
+        time(4, 2, 3),
+        time(5, 2, 3),
+        time(6, 2, 3),
+        time(7, 2, 3),
+        timedelta(seconds=0.123),
+    ],
+    str: ["s", "pqr", "masd", "wes", "as", "m", None, 5],
+    csp.Struct: [
+        SimpleStruct(a=1),
+        AnotherSimpleStruct(b="sd"),
+        SimpleStruct(a=3),
+        AnotherSimpleStruct(b="sdf"),
+        SimpleStruct(a=-4),
+        SimpleStruct(a=5),
+        SimpleStruct(a=7),
+        4,
+    ],  # untyped struct list
+    SimpleStruct: [
+        SimpleStruct(a=1),
+        SimpleStruct(a=3),
+        SimpleStruct(a=-1),
+        SimpleStruct(a=-4),
+        SimpleStruct(a=5),
+        SimpleStruct(a=100),
+        SimpleStruct(a=1200),
+        AnotherSimpleStruct(b="sd"),
+    ],
+    SimpleEnum: [
+        SimpleEnum.A,
+        SimpleEnum.C,
+        SimpleEnum.B,
+        SimpleEnum.B,
+        SimpleEnum.B,
+        SimpleEnum.C,
+        SimpleEnum.C,
+        AnotherSimpleEnum.D,
+    ],
     list: [[1], [1, 2, 1], [6], [8, 3, 5], [3], [11, 8], None, None],  # generic type list
-    SimpleClass: [SimpleClass(x = 1), SimpleClass(x = 5), SimpleClass(x = 9), SimpleClass(x = -1), SimpleClass(x = 2), SimpleClass(x = 3), None, None],  # generic type user-defined
+    SimpleClass: [
+        SimpleClass(x=1),
+        SimpleClass(x=5),
+        SimpleClass(x=9),
+        SimpleClass(x=-1),
+        SimpleClass(x=2),
+        SimpleClass(x=3),
+        None,
+        None,
+    ],  # generic type user-defined
 }
 
 
@@ -705,8 +777,8 @@ class TestCspStruct(unittest.TestCase):
         class StructWithListDerivedType(csp.Struct):
             ldt: ListDerivedType
 
-        s1 = StructWithListDerivedType(ldt=ListDerivedType([1,2]))
-        self.assertTrue(isinstance(s1.to_dict()['ldt'], ListDerivedType))
+        s1 = StructWithListDerivedType(ldt=ListDerivedType([1, 2]))
+        self.assertTrue(isinstance(s1.to_dict()["ldt"], ListDerivedType))
         s2 = StructWithListDerivedType.from_dict(s1.to_dict())
         self.assertEqual(s1, s2)
 
@@ -1813,14 +1885,15 @@ class TestCspStruct(unittest.TestCase):
             json.loads(test_struct.to_json(custom_jsonifier))
 
     def test_list_field_append(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-            
-            s = A( a = [] )
+
+            s = A(a=[])
             s.a.append(v[0])
-            
+
             self.assertEqual(s.a, [v[0]])
 
             s.a.append(v[1])
@@ -1834,14 +1907,15 @@ class TestCspStruct(unittest.TestCase):
                     s.a.append(v[-1])
 
     def test_list_field_insert(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-            
-            s = A( a = [] )
+
+            s = A(a=[])
             s.a.insert(0, v[0])
-            
+
             self.assertEqual(s.a, [v[0]])
 
             s.a.insert(1, v[1])
@@ -1864,19 +1938,20 @@ class TestCspStruct(unittest.TestCase):
                     s.a.insert(-1, v[-1])
 
     def test_list_field_pop(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-        
-            s = A(a = [v[0], v[1], v[2], v[3], v[4]])
+
+            s = A(a=[v[0], v[1], v[2], v[3], v[4]])
             b = s.a.pop()
-            
+
             self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
             self.assertEqual(b, v[4])
 
             b = s.a.pop(-1)
-            
+
             self.assertEqual(s.a, [v[0], v[1], v[2]])
             self.assertEqual(b, v[3])
 
@@ -1884,13 +1959,13 @@ class TestCspStruct(unittest.TestCase):
 
             self.assertEqual(s.a, [v[0], v[2]])
             self.assertEqual(b, v[1])
-            
+
             with self.assertRaises(IndexError) as e:
                 s.a.pop()
                 s.a.pop()
                 s.a.pop()
-            
-            s = A(a = [v[0], v[1], v[2], v[3], v[4]])
+
+            s = A(a=[v[0], v[1], v[2], v[3], v[4]])
 
             b = s.a.pop(-3)
 
@@ -1904,14 +1979,15 @@ class TestCspStruct(unittest.TestCase):
                 s.a.pop(4)
 
     def test_list_field_set_item(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-                    
-            s = A( a = [v[0], v[1], v[2]] )
+
+            s = A(a=[v[0], v[1], v[2]])
             s.a.__setitem__(0, v[3])
-            
+
             self.assertEqual(s.a, [v[3], v[1], v[2]])
 
             s.a[1] = v[4]
@@ -1927,7 +2003,7 @@ class TestCspStruct(unittest.TestCase):
 
             with self.assertRaises(IndexError) as e:
                 s.a[-100] = v[0]
-            
+
             s.a[5:6] = [v[0], v[1], v[2]]
 
             self.assertEqual(s.a, [v[3], v[4], v[5], v[0], v[1], v[2]])
@@ -1944,7 +2020,7 @@ class TestCspStruct(unittest.TestCase):
 
             self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
 
-            # Check if not str or generic type (as str is a sequence of str) 
+            # Check if not str or generic type (as str is a sequence of str)
             if v[-2] is not None:
                 with self.assertRaises(TypeError) as e:
                     s.a[1:4] = v[-2]
@@ -1964,41 +2040,67 @@ class TestCspStruct(unittest.TestCase):
             self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
 
     def test_list_field_reverse(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-        
-            s = A( a = [v[0], v[1], v[2], v[3]] )
+
+            s = A(a=[v[0], v[1], v[2], v[3]])
             s.a.reverse()
-            
+
             self.assertEqual(s.a, [v[3], v[2], v[1], v[0]])
-    
+
     def test_list_field_sort(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         # Not using pystruct_list_test_values, as sort() tests are of different semantics (order and sorting key existance matters).
-        values = { 
-            int : [1, 5, 2, 2, -1, -5, 's'],
-            float: [1.4, 5.2, 2.7, 2.7, -1.4, -5.2, 's'],
-            datetime: [datetime(2022, 12, 6, 1, 2, 3), datetime(2022, 12, 8, 3, 2, 3), datetime(2022, 12, 7, 2, 2, 3), datetime(2022, 12, 7, 2, 2, 3), datetime(2022, 12, 5, 2, 2, 3), datetime(2022, 12, 3, 2, 2, 3), None],
-            timedelta: [timedelta(seconds=1), timedelta(seconds=123), timedelta(seconds=12), timedelta(seconds=12), timedelta(seconds=.1), timedelta(seconds=.01), None],
-            date: [date(2022, 12, 6), date(2022, 12, 8), date(2022, 12, 7), date(2022, 12, 7), date(2022, 12, 5), date(2022, 12, 3), None],
+        values = {
+            int: [1, 5, 2, 2, -1, -5, "s"],
+            float: [1.4, 5.2, 2.7, 2.7, -1.4, -5.2, "s"],
+            datetime: [
+                datetime(2022, 12, 6, 1, 2, 3),
+                datetime(2022, 12, 8, 3, 2, 3),
+                datetime(2022, 12, 7, 2, 2, 3),
+                datetime(2022, 12, 7, 2, 2, 3),
+                datetime(2022, 12, 5, 2, 2, 3),
+                datetime(2022, 12, 3, 2, 2, 3),
+                None,
+            ],
+            timedelta: [
+                timedelta(seconds=1),
+                timedelta(seconds=123),
+                timedelta(seconds=12),
+                timedelta(seconds=12),
+                timedelta(seconds=0.1),
+                timedelta(seconds=0.01),
+                None,
+            ],
+            date: [
+                date(2022, 12, 6),
+                date(2022, 12, 8),
+                date(2022, 12, 7),
+                date(2022, 12, 7),
+                date(2022, 12, 5),
+                date(2022, 12, 3),
+                None,
+            ],
             time: [time(5, 2, 3), time(7, 2, 3), time(6, 2, 3), time(6, 2, 3), time(4, 2, 3), time(3, 2, 3), None],
-            str : ['s', 'xyz', 'w', 'w', 'bds', 'a', None],
+            str: ["s", "xyz", "w", "w", "bds", "a", None],
         }
 
         for typ, v in values.items():
+
             class A(csp.Struct):
                 a: [typ]
-        
-            s = A( a = [v[0], v[1], v[2], v[3], v[4], v[5]] )
-            
+
+            s = A(a=[v[0], v[1], v[2], v[3], v[4], v[5]])
+
             s.a.sort()
-            
+
             self.assertEqual(s.a, [v[5], v[4], v[0], v[2], v[3], v[1]])
 
             s.a.sort(reverse=True)
-            
+
             self.assertEqual(s.a, [v[1], v[2], v[3], v[0], v[4], v[5]])
 
             with self.assertRaises(TypeError) as e:
@@ -2012,16 +2114,17 @@ class TestCspStruct(unittest.TestCase):
                 s.a.sort(key=abs)
 
                 self.assertEqual(s.a, [v[0], v[4], v[2], v[3], v[1], v[5]])
-    
+
     def test_list_field_extend(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-        
-            s = A( a = [v[0], v[1], v[2]] )
+
+            s = A(a=[v[0], v[1], v[2]])
             s.a.extend([v[3]])
-            
+
             self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
 
             s.a.extend([])
@@ -2029,25 +2132,26 @@ class TestCspStruct(unittest.TestCase):
 
             self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
 
-            # Check if not str or generic type (as str is a sequence of str) 
+            # Check if not str or generic type (as str is a sequence of str)
             if v[-2] is not None:
                 with self.assertRaises(TypeError) as e:
                     s.a.extend(v[-2])
-            
-            # Check if not generic type 
+
+            # Check if not generic type
             if v[-1] is not None:
                 with self.assertRaises(TypeError) as e:
                     s.a.extend([v[-1]])
-    
+
     def test_list_field_remove(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-        
-            s = A( a = [v[0], v[1], v[0], v[2]] )
+
+            s = A(a=[v[0], v[1], v[0], v[2]])
             s.a.remove(v[0])
-            
+
             self.assertEqual(s.a, [v[1], v[0], v[2]])
 
             s.a.remove(v[2])
@@ -2058,32 +2162,34 @@ class TestCspStruct(unittest.TestCase):
                 s.a.remove(v[3])
 
     def test_list_field_clear(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-        
-            s = A( a = [v[0], v[1], v[2], v[3]] )
+
+            s = A(a=[v[0], v[1], v[2], v[3]])
             s.a.clear()
-            
+
             self.assertEqual(s.a, [])
-    
+
     def test_list_field_del(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-        
-            s = A( a = [v[0], v[1], v[2], v[3]] )
+
+            s = A(a=[v[0], v[1], v[2], v[3]])
             del s.a[0]
-            
+
             self.assertEqual(s.a, [v[1], v[2], v[3]])
 
             del s.a[1]
 
             self.assertEqual(s.a, [v[1], v[3]])
 
-            s = A( a = [v[0], v[1], v[2], v[3]] )
+            s = A(a=[v[0], v[1], v[2], v[3]])
             del s.a[1:3]
 
             self.assertEqual(s.a, [v[0], v[3]])
@@ -2094,16 +2200,17 @@ class TestCspStruct(unittest.TestCase):
 
             with self.assertRaises(IndexError) as e:
                 del s.a[5]
-    
+
     def test_list_field_inplace_concat(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-        
-            s = A( a = [v[0], v[1]] )
+
+            s = A(a=[v[0], v[1]])
             s.a.__iadd__([v[2], v[3]])
-            
+
             self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
 
             s.a += (v[4], v[5])
@@ -2117,22 +2224,23 @@ class TestCspStruct(unittest.TestCase):
             with self.assertRaises(TypeError) as e:
                 s.a += v[-1]
 
-             # Check if not generic type
+            # Check if not generic type
             if v[-1] is not None:
                 with self.assertRaises(TypeError) as e:
                     s.a += [v[-1]]
-            
+
             self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
-    
+
     def test_list_field_inplace_repeat(self):
-        ''' Was a BUG when the struct with list field was not recognizing changes made to this field in python'''
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         for typ, v in pystruct_list_test_values.items():
+
             class A(csp.Struct):
                 a: [typ]
-        
-            s = A( a = [v[0], v[1]] )
+
+            s = A(a=[v[0], v[1]])
             s.a.__imul__(1)
-            
+
             self.assertEqual(s.a, [v[0], v[1]])
 
             s.a *= 2
@@ -2143,10 +2251,10 @@ class TestCspStruct(unittest.TestCase):
                 s.a *= [3]
 
             with self.assertRaises(TypeError) as e:
-                s.a *= 's'
-            
+                s.a *= "s"
+
             s.a *= 0
-            
+
             self.assertEqual(s.a, [])
 
             s.a += [v[2], v[3]]
@@ -2154,18 +2262,19 @@ class TestCspStruct(unittest.TestCase):
             self.assertEqual(s.a, [v[2], v[3]])
 
             s.a *= -1
-            
+
             self.assertEqual(s.a, [])
-    
+
     def test_list_field_lifetime(self):
-        '''Ensure that the lifetime of PyStructList field exceeds the lifetime of struct holding it'''
+        """Ensure that the lifetime of PyStructList field exceeds the lifetime of struct holding it"""
+
         class A(csp.Struct):
             a: [int]
-    
-        s = A( a = [1, 2, 3] )
+
+        s = A(a=[1, 2, 3])
         l = s.a
         del s
-        
+
         self.assertEqual(l, [1, 2, 3])
 
 

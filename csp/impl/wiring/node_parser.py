@@ -13,7 +13,6 @@ from csp.impl.warnings import WARN_PYTHONIC
 from csp.impl.wiring import Signature
 from csp.impl.wiring.ast_utils import ASTUtils
 from csp.impl.wiring.base_parser import BaseParser, CspParseError, _pythonic_depr_warning
-from csp.impl.wiring.special_output_names import CSP_CACHE_ENABLED_OUTPUT
 
 
 class _SingleProxyFuncArgResolver(object):
@@ -96,13 +95,12 @@ class NodeParser(BaseParser):
     _INPUT_PROXY_VARNAME = "input_proxy"
     _OUTPUT_PROXY_VARNAME = "output_proxy"
 
-    def __init__(self, name, raw_func, func_frame, debug_print=False, add_cache_control_output=False):
+    def __init__(self, name, raw_func, func_frame, debug_print=False):
         super().__init__(
             name=name,
             raw_func=raw_func,
             func_frame=func_frame,
             debug_print=debug_print,
-            add_cache_control_output=add_cache_control_output,
         )
         self._stateblock = []
         self._startblock = []
@@ -661,14 +659,6 @@ class NodeParser(BaseParser):
             keywords=[],
         )
 
-    def _parse_csp_enable_cache(self, node):
-        if len(node.args) != 1 or node.keywords:
-            raise CspParseError("Invalid call to csp.enable_cache", node.lineno)
-
-        output = self._ts_outproxy_expr(CSP_CACHE_ENABLED_OUTPUT)
-        res = ast.BinOp(left=output, op=ast.Add(), right=node.args[0])
-        return res
-
     def _parse_csp_engine_stats(self, node):
         if len(node.args) or len(node.keywords):
             raise CspParseError("csp.engine_stats takes no arguments", node.lineno)
@@ -770,7 +760,6 @@ class NodeParser(BaseParser):
     def _parse_impl(self):
         self._inputs, input_defaults, self._outputs = self.parse_func_signature(self._funcdef)
         idx = self._parse_special_blocks(self._funcdef.body)
-        self._resolve_special_outputs()
         self._signature = Signature(
             self._name,
             self._inputs,
@@ -854,10 +843,14 @@ class NodeParser(BaseParser):
         else:
             start_and_body = startblock + body
 
+        # delete ts_var variables *after* start so that they raise Unbound local exceptions if they get accessed before first tick
+        del_vars = []
+        for v in ts_vars:
+            del_vars.append(ast.Delete(targets=[ast.Name(id=v.targets[0].id, ctx=ast.Del())]))
         # Yield before start block so we can setup stack frame before executing
         # However, this initial yield shouldn't be within the try-finally block, since if a node does not start, it's stop() logic should not be invoked
         # This avoids an issue where one node raises an exception upon start(), and then other nodes execute their stop() without having ever started
-        start_and_body = [ast.Expr(value=ast.Yield(value=None))] + start_and_body
+        start_and_body = [ast.Expr(value=ast.Yield(value=None))] + del_vars + start_and_body
         newbody = init_block + start_and_body
 
         newfuncdef = ast.FunctionDef(name=self._name, body=newbody, returns=None)
@@ -918,7 +911,6 @@ class NodeParser(BaseParser):
             "csp.set_buffering_policy": cls._parse_set_buffering_policy,
             "csp.engine_start_time": cls._parse_engine_start_time,
             "csp.engine_end_time": cls._parse_engine_end_time,
-            "csp.enable_cache": cls._parse_csp_enable_cache,
             "csp.engine_stats": cls._parse_csp_engine_stats,
         }
 

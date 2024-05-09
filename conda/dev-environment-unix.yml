@@ -8,7 +8,7 @@ dependencies:
  - build
  - bump2version>=1
  - cmake
- - codespell
+ - codespell>=2.2.6,<2.3
  - compilers
  - cyrus-sasl
  - exprtk
@@ -23,7 +23,7 @@ dependencies:
  - libboost-headers
  - lz4-c
  - mamba
- - mdformat
+ - mdformat>=0.7.17,<0.8
  - ninja
  - numpy
  - pillow
@@ -38,12 +38,12 @@ dependencies:
  - pytest-asyncio
  - pytest-cov
  - pytest-sugar
- - python<3.12
+ - python<3.13
  - python-rapidjson
  - rapidjson
  - requests
  - ruamel.yaml
- - ruff
+ - ruff>=0.3,<0.4
  - scikit-build
  - slack-sdk
  - sqlalchemy

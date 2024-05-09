@@ -3,15 +3,13 @@ import threading
 import time
 from collections import deque
 from datetime import datetime, timedelta
-from typing import Optional
 
 from csp.impl.__cspimpl import _cspimpl
-from csp.impl.config import Config
 from csp.impl.error_handling import ExceptionContext
 from csp.impl.wiring.adapters import _graph_return_adapter
 from csp.impl.wiring.context import Context
 from csp.impl.wiring.edge import Edge
-from csp.impl.wiring.outputs import CacheWriteOnlyOutputsContainer, OutputsContainer
+from csp.impl.wiring.outputs import OutputsContainer
 from csp.profiler import Profiler, graph_info
 
 MAX_END_TIME = datetime(2261, 12, 31, 23, 59, 50, 999999)
@@ -20,7 +18,7 @@ MAX_END_TIME = datetime(2261, 12, 31, 23, 59, 50, 999999)
 def _normalize_run_times(starttime, endtime, realtime):
     if starttime is None:
         if realtime:
-            starttime = datetime.utcnow()
+            starttime = datetime.now(pytz.UTC).replace(tzinfo=None)
         else:
             raise RuntimeError("starttime argument is required")
     if endtime is None:
@@ -34,14 +32,14 @@ def _normalize_run_times(starttime, endtime, realtime):
     return starttime, endtime
 
 
-def build_graph(f, *args, config: Optional[Config] = None, starttime=None, endtime=None, realtime=False, **kwargs):
+def build_graph(f, *args, starttime=None, endtime=None, realtime=False, **kwargs):
     assert (
         (starttime is None) == (endtime is None)
     ), "Start time and end time should either both be specified or none of them should be specified when building a graph"
     if starttime:
         starttime, endtime = _normalize_run_times(starttime, endtime, realtime)
     with ExceptionContext(), GraphRunInfo(starttime=starttime, endtime=endtime, realtime=realtime), Context(
-        start_time=starttime, end_time=endtime, config=config
+        start_time=starttime, end_time=endtime
     ) as c:
         # Setup the profiler if within a profiling context
         if Profiler.instance() is not None and not Profiler.instance().initialized:
@@ -54,7 +52,7 @@ def build_graph(f, *args, config: Optional[Config] = None, starttime=None, endti
 
         processed_outputs = OutputsContainer()
 
-        if outputs is not None and not isinstance(outputs, CacheWriteOnlyOutputsContainer):
+        if outputs is not None:
             if isinstance(outputs, Edge):
                 processed_outputs[0] = outputs
             elif isinstance(outputs, list):
@@ -112,19 +110,6 @@ def _build_engine(engine, context, memo=None):
     return engine
 
 
-def _run_engine(engine, starttime, endtime, context_config=None, cache_data=None):
-    # context = Context.TLS.instance
-    cache_config = getattr(context_config, "cache_config", None) if context_config else None
-    if cache_config:
-        from csp.impl.wiring.cache_support.runtime_cache_manager import RuntimeCacheManager
-
-        runtime_cache_manager = RuntimeCacheManager(cache_config, cache_data)
-        with runtime_cache_manager:
-            return engine.run(starttime, endtime)
-    else:
-        return engine.run(starttime, endtime)
-
-
 class GraphRunInfo:
     TLS = threading.local()
 
@@ -174,7 +159,6 @@ def run(
     *args,
     starttime=None,
     endtime=MAX_END_TIME,
-    config: Optional[Config] = None,
     queue_wait_time=None,
     realtime=False,
     output_numpy=False,
@@ -193,9 +177,6 @@ def run(
             orig_g.context = None
 
         if isinstance(g, Context):
-            if config is not None:
-                raise RuntimeError("Config can not be specified when running a built graph")
-
             if g.start_time is not None:
                 assert (
                     (g.start_time, g.end_time) == (starttime, endtime)
@@ -212,30 +193,24 @@ def run(
             engine = _cspimpl.PyEngine(**engine_settings)
             engine = _build_engine(engine, g)
 
-            context_config = g.config
-            cache_data = g.cache_data
             mem_cache = g.mem_cache
             # Release graph construct at this point to free up all the edge / nodedef memory thats no longer needed
             del g
             mem_cache.clear(clear_user_objects=False)
 
             # Ensure we dont start running realtime engines before starttime if its in the future
-            if starttime > datetime.utcnow() and realtime:
-                time.sleep((starttime - datetime.utcnow()).total_seconds())
+            if starttime > datetime.now(pytz.UTC).replace(tzinfo=None) and realtime:
+                time.sleep((starttime - datetime.now(pytz.UTC)).total_seconds())
 
             with mem_cache:
-                return _run_engine(
-                    engine, starttime=starttime, endtime=endtime, context_config=context_config, cache_data=cache_data
-                )
+                return engine.run(starttime, endtime)
 
         if isinstance(g, Edge):
-            if config is not None:
-                raise RuntimeError("Config can not be specified when running a built graph")
             return run(lambda: g, starttime=starttime, endtime=endtime, **engine_settings)
 
         # wrapped in a _WrappedContext so that we can give up the mem before run
         graph = _WrappedContext(
-            build_graph(g, *args, starttime=starttime, endtime=endtime, realtime=realtime, config=config, **kwargs)
+            build_graph(g, *args, starttime=starttime, endtime=endtime, realtime=realtime, **kwargs)
         )
         with GraphRunInfo(starttime=starttime, endtime=endtime, realtime=realtime):
             return run(graph, starttime=starttime, endtime=endtime, **engine_settings)

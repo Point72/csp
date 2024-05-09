@@ -3,7 +3,7 @@
 #########################
 cmake_minimum_required(VERSION 3.20.0)
 project(csp VERSION "0.0.3")
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 ###################################################################################################################################################
 # CMake Dependencies #
@@ -153,9 +153,6 @@ endif()
 ###################################################################################################################################################
 # Flags #
 #########
-# Compiler version flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-
 # Optimization Flags
 if(WIN32)
     if(CMAKE_BUILD_TYPE_LOWER STREQUAL debug)

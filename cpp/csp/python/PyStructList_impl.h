@@ -435,7 +435,7 @@ PyStructList_dealloc( PyStructList<StorageT> * self )
 }
 
 template<typename StorageT> PyTypeObject PyStructList<StorageT>::PyType = {
-    PyVarObject_HEAD_INIT( NULL, 0 )
+    .ob_base = PyVarObject_HEAD_INIT( NULL, 0 )
     .tp_name = "_cspimpl.PyStructList",
     .tp_basicsize = sizeof( PyStructList<StorageT> ),
     .tp_itemsize = 0,

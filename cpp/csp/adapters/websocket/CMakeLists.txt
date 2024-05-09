@@ -1,5 +1,8 @@
 csp_autogen( csp.adapters.websocket_types websocket_types WEBSOCKET_HEADER WEBSOCKET_SOURCE )
 
+# Need to build websocket adapter under cpp17 standard due to websocketpp incompatibility issues
+set(CMAKE_CXX_STANDARD 17)
+
 set(WS_CLIENT_HEADER_FILES
         ClientAdapterManager.h
         ClientInputAdapter.h

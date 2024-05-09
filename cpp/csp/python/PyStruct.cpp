@@ -3,7 +3,7 @@
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
-#include <csp/python/PyStructList.hi>
+#include <csp/python/PyStructList_impl.h>
 #include <csp/python/PyStructToJson.h>
 #include <unordered_set>
 #include <type_traits>

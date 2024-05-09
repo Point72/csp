@@ -18,7 +18,7 @@ dependencies:
  - gtest
  - httpx>=0.20,<1
  - isort>=5,<6
- - libarrow=15
+ - libarrow=16
  - librdkafka
  - libboost-headers
  - lz4-c
@@ -28,7 +28,7 @@ dependencies:
  - numpy
  - pillow
  - psutil
- - pyarrow=15
+ - pyarrow=16
  - pandas
  - pillow
  - polars

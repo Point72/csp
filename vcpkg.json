@@ -25,7 +25,8 @@
   "overrides": [
     {
       "name": "arrow",
-      "version": "15.0.0"
+      "version": "16.0.0",
+      "port-version" : 1
     }
   ],
   "builtin-baseline": "04b0cf2b3fd1752d3c3db969cbc10ba0a4613cee"

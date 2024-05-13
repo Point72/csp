@@ -1,157 +1,16 @@
-# tl;dr
+## Table of Contents
 
-After developing a change locally, ensure that both [lints](https://github.com/Point72/csp/wiki/98.-Building-From-Source#lint-and-autoformat) and [tests](https://github.com/Point72/csp/wiki/98.-Building-From-Source#testing) pass. Commits should be squashed into logical units, and all commits must be signed (e.g. with the `-s` git flag). `csp` requires [Developer Certificate of Origin](https://en.wikipedia.org/wiki/Developer_Certificate_of_Origin) for all contributions.
-
-If your work is still in-progress, open a [draft pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests#draft-pull-requests). Otherwise, open a normal pull request. It might take a few days for a maintainer to review and provide feedback, so please be patient. If a maintainer asks for changes, please make said changes and squash your commits if necessary. If everything looks good to go, a maintainer will approve and merge your changes for inclusion in the next release.
-
-**Please note that non substantive changes, large changes without prior discussion, etc, are not accepted and pull requests may be closed.**
-
-# Setting up a development environment
-
-To work on `csp`, you are going to need to build it from source. See
-https://github.com/Point72/csp/wiki/98.-Building-From-Source for
-detailed build instructions.
-
-Once you've built `csp` from a `git` clone, you will also need to
-configure `git` and your GitHub account for `csp` development.
-
-## Configuring Git and GitHub for Development
-
-### Create your fork
-
-The first step is to create a personal fork of `csp`. To do so, click
-the "fork" button at https://github.com/Point72/csp, or just navigate
-[here](https://github.com/Point72/csp/fork) in your browser. Set the
-owner of the repository to your personal GitHub account if it is not
-already set that way and click "Create fork".
-
-### Configure remotes
-
-Next, you should set some names for the `git` remotes corresponding to
-main Point72 repository and your fork. If you started with a clone of
-the main `Point72` repository, you could do something like:
-
-```bash
-cd csp
-git remote rename origin upstream
-
-# for SSH authentication
-git remote add origin git@github.com:<username>/csp.git
-
-# for HTTP authentication
-git remote add origin https://github.com/<username>/csp.git
-```
-
-### Authenticating with GitHub
-
-If you have not already configured `ssh` access to GitHub, you can find
-instructions to do so
-[here](https://docs.github.com/en/authentication/connecting-to-github-with-ssh),
-including instructions to create an SSH key if you have not done
-so. Authenticating with SSH is usually the easiest route. If you are working in
-an environment that does not allow SSH connections to GitHub, you can look into
-[configuring a hardware
-passkey](https://docs.github.com/en/authentication/authenticating-with-a-passkey/about-passkeys)
-or adding a [personal access
-token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
-to avoid the need to type in your password every time you push to your fork.
-
-### Configure commit signing
-
-Additionally, you will need to configure your local `git` setup and
-GitHub account to use [commit
-signing](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification). All
-commits to the `csp` repository must be signed to increase the
-difficulty of a supply-chain attack against the `csp` codebase. The
-easiest way to do this is to [configure `git` to sign commits with your
-SSH
-key](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#ssh-commit-signature-verification). You
-can also use a [GPG
-key](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#gpg-commit-signature-verification)
-to sign commits.
-
-In either case, you must also add your public key to your github account
-as a signing key. Note that if you have already added an SSH key as an
-authentication key, you will need to add it again [as a signing
-key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account).
-
-# Github for maintainers
-
-## Triaging Issues
-
-The bug tracker is both a venue for users to communicate to the
-developers about defects and a database of known defects. It's up to the
-maintainers to ensure issues are high quality.
-
-We have a number of labels that can be applied to sort issues into
-categories. If you notice newly created issues that are poorly labeled,
-consider adding or removing some labels that do not apply to the issue.
-
-The issue template encourages users to write bug reports that clearly
-describe the problem they are having and include steps to reproduce the
-issue. However, users sometimes ignore the template or are not used to
-GitHub and make mistakes in formatting or communication.
-
-If you are able to infer what they meant and are able to understand the
-issue, feel free to edit their issue description to fix formatting or
-correct issues with a script demonstrating the issue.
-
-If there is still not enough information or if the issue is unclear,
-request more information from the submitter. If they do not respond or
-do not clarify sufficiently, close the issue. Try to be polite and have
-empathy for inexperienced issue authors.
-
-## How to check out a PR locally
-
-This workflow is described in the [GitHub
-docs](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/checking-out-pull-requests-locally#modifying-an-inactive-pull-request-locally).
-
-1. Identify the pull request ID. This is the number of the pull request
-   in the GitHub UI, which shows up in the URL for the pull request. For
-   example, https://github.com/Point72/csp/pull/98 has PR ID 98.
-
-1. Fetch the pull request ref and assign it to a local branch name.
-
-   ```bash
-   git fetch upstream pull/<ID>/HEAD/:LOCAL_BRANCH_NAME
-   ```
-
-   where `<ID>` is the PR ID number and `LOCAL_BRANCH_NAME` is a name
-   chosen for the PR branch in your local checkout of `csp`.
-
-1. Switch to the PR branch
-
-   ```bash
-   git switch LOCAL_BRANCH_NAME
-   ```
-
-1. Rebuild `csp`
-
-## Pushing Fixups to Pull Requests
-
-Sometimes pull requests don't quite make it across the finish line. In
-cases where only a small fixup is required to make a PR mergeable and
-the author of the pull request is unresponsive to requests, the best
-course of action is often to push to the pull request directly to
-resolve the issues.
-
-To do this, check out the pull request locally using the above
-instructions. Then make the changes needed for the pull request and push
-the local branch back to GitHub:
-
-```bash
-git push upstream LOCAL_BRANCH_NAME
-```
-
-Where `LOCAL_BRANCH_NAME` is the name you gave to the PR branch when you
-fetched it from GitHub.
-
-Note that if the user who created the pull request selected the option
-to forbid pushes to their pull request, you will instead need to
-recreate the pull request by pushing the PR branch to your fork and
-making a pull request like normal.
-
-# Release Manual
+- [Table of Contents](#table-of-contents)
+- [Doing a "normal" release](#doing-a-normal-release)
+  - [Choosing a version number](#choosing-a-version-number)
+  - [Preparing and tagging a release](#preparing-and-tagging-a-release)
+  - [Releasing to PyPI](#releasing-to-pypi)
+    - [A developer's first release](#a-developers-first-release)
+    - [Doing the release](#doing-the-release)
+    - [Download release artifacts from github actions](#download-release-artifacts-from-github-actions)
+    - [Optionally upload to testpypi to test "pip install"](#optionally-upload-to-testpypi-to-test-pip-install)
+    - [Upload to pypi](#upload-to-pypi)
+- [Dealing with release mistakes](#dealing-with-release-mistakes)
 
 ## Doing a "normal" release
 
@@ -176,7 +35,7 @@ different potential impact on users.
   This is the most common kind of release. A patch release should only
   include fixes for bugs or other changes that cannot impact code a
   user writes with the `csp` package. A user should be able to safely
-  upgrade `csp` from the previous version to a new patch release with
+  upgrade CSP from the previous version to a new patch release with
   no changes to the output of their code and no new errors being
   raised, except for fixed bugs. Whether or not a bug fix is
   sufficiently impactful to break backward compatibility is a
@@ -214,6 +73,13 @@ your users.
 Follow these steps when it's time to tag a new release. Before doing
 this, you will need to ensure `bump2version` is installed into your
 development environment.
+
+> \[!NOTE\]
+> The following steps assume you have a personal fork of csp.
+> If you are working from the main `Point72/csp` repo, use `origin`
+> instead of `upstream` in the git commands. Specifically,
+> `git pull origin main --tags` in the step 1,
+> and `git push origin main --follow-tags` in step 7.
 
 1. Ensure your local clone of `csp` is synced up with GitHub, including
    any tags that have been pushed since you last synced:
@@ -283,18 +149,20 @@ actions running, one for the push to `main` and one for the new tag. You
 want to inspect the action running for the new tag. Once the run
 finishes, there should be a new release on the ["Releases"
 page](https://github.com/Point72/csp/releases).
+If the release is in "Draft" state, click on the pencil icon to
+"Edit" and publish it with the "Publish release" button.
 
 ### Releasing to PyPI
 
 #### A developer's first release
 
 If this is your first release, you will need an account on pypi.org and
-your account will need to be added as a maintainer to the `csp` project
-on pypi. You will also need to have two factor authentication enabled on
+your account will need to be added as a maintainer to the CSP project
+on PyPI. You will also need to have two factor authentication enabled on
 your PyPI account.
 
 Once that is set up, navigate to the API token page in your PyPI
-settings and generate an API token scoped to the `csp` project. **Do not**
+settings and generate an API token scoped to the CSP project. **Do not**
 navigate away from the page displaying the API token before the next
 step.
 
@@ -321,7 +189,7 @@ content:
 
 #### Doing the release
 
-##### Download release artifacts from github actions
+#### Download release artifacts from github actions
 
 Make sure you are in the root of the `csp` repository and execute the
 following commands.
@@ -347,7 +215,7 @@ twine check --strict dist/*
 
 This happens as part of the CI so this should only be a double-check.
 
-##### Optionally upload to testpypi to test "pip install"
+#### Optionally upload to testpypi to test "pip install"
 
 ```
 twine upload --repository testpypi dist/*
@@ -363,12 +231,12 @@ pip install --index-url https://test.pypi.org/simple --extra-index-url https://p
 Note that `extra-index-url` is necessary to ensure downloading
 dependencies succeeds.
 
-##### Upload to pypi
+#### Upload to pypi
 
 If you are sure the release is ready, you can upload to pypi like so:
 
 ```bash
-twine upload --repository csp dist/*`
+twine upload --repository csp dist/*
 ```
 
 Note that this assumes you have a `.pypirc` set up as explained above.

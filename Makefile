@@ -1,11 +1,13 @@
 EXTRA_ARGS :=
 
+ifneq ($(OS),Windows_NT)
 UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)
 NPROC = $(shell nproc)
 endif
 ifeq ($(UNAME), Darwin)
 NPROC = $(shell sysctl -n hw.physicalcpu)
+endif
 endif
 
 #########
@@ -15,7 +17,7 @@ endif
 
 requirements:  ## install python dev and runtime dependencies
 ifeq ($(OS),Windows_NT)
-	Powershell.exe -noprofile ./make_requirements.ps1
+	Powershell.exe -executionpolicy bypass -noprofile ./make_requirements.ps1
 else
 	python -m pip install toml
 	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["build-system"]["requires"]))'`
@@ -193,8 +195,13 @@ deep-clean: ## clean everything from the repository
 	git clean -fdx
 
 clean: ## clean the repository
+ifneq ($(OS),Windows_NT)
 	rm -rf .coverage coverage cover htmlcov logs build dist wheelhouse *.egg-info
 	rm -rf csp/lib csp/bin csp/include _skbuild
+else
+	del /s /q .coverage coverage cover htmlcov logs build dist wheelhouse *.egg-info
+	del /s/ q csp\lib csp\bin csp\include _skbuild
+endif
 
 ################
 # Dependencies #
@@ -214,9 +221,8 @@ dependencies-fedora:  ## install dependencies for linux
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
 
-dependencies-win:  ## install dependencies via windows (vcpkg)
-	choco install cmake curl winflexbison ninja unzip zip
-	cd vcpkg && ./bootstrap-vcpkg.bat && ./vcpkg install
+dependencies-win:  ## install dependencies via windows
+	choco install cmake curl winflexbison ninja unzip zip --no-progress -y
 	
 
 ############################################################################################

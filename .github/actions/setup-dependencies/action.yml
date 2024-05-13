@@ -22,7 +22,6 @@ runs:
     - name: Install python dependencies
       shell: bash
       run: make requirements
-      if: ${{ runner.os == 'Linux' ||runner.os == 'Windows' }}
 
     ################
     # Linux # NOTE: skip for manylinux image

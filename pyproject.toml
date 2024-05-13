@@ -136,14 +136,19 @@ skip = "*i686 musllinux*"
 manylinux-x86_64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
-before-all ="make dependencies-mac"
+before-all ="""
+make requirements
+make dependencies-mac
+"""
 archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
-environment = {}
 
 [tool.cibuildwheel.windows]
-before-all ="make dependencies-win"
+before-all = "make dependencies-win"
+before-build = "make requirements"
+
 archs = "AMD64"
 skip = "*win32 *arm_64"
+environment = {VERBOSE="1", VCPKG_TRIPLET="x64-windows-static-md"}
 
 [tool.isort]
 combine_as_imports = true

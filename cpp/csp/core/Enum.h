@@ -170,22 +170,6 @@ protected:
 
             return it->second;
         }
-
-        void addAliases( const Aliases &aliases ) 
-        {
-            for( auto &entry : aliases )
-            {
-                auto it = this -> find( entry.first.c_str() );
-                if( it == this -> end() )
-                    CSP_THROW(ValueError, "Invalid Enum alias, unrecognized enum value " << entry.first);
-
-                if( this -> find( entry.second.c_str() ) != this -> end() )
-                    CSP_THROW(ConfigException, "Attempting to add conflicting alias " << entry.second << " to "
-                              << typeid(EnumTraits).name());
-
-                (*this)[strdup(entry.second.c_str())] = it -> second;
-            }
-        }
     };
 
     //This is defined by INIT macro

@@ -1,4 +1,4 @@
-name: csp-dev
+name: csp
 channels:
   - conda-forge
   - nodefaults

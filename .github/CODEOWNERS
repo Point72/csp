@@ -3,6 +3,7 @@
 
 # Packaging code
 .bumpversion.cfg @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @czgdp1807
+conda @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @czgdp1807
 CMakeLists.txt @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @czgdp1807
 Makefile @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @czgdp1807
 MANIFEST.in @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @czgdp1807

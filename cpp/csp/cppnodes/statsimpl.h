@@ -825,11 +825,11 @@ double kurtCompute( double count, double mx, double mx2, double mx3, double mx4,
 
     double kfactor = ( count + 1 ) * ( count - 1 ) / ( ( count - 2 ) * ( count - 3 ) );
     double ub_kurt = kfactor * bias_kurt;
-    if( excess )
-    {
-        double gfactor = ( count - 1 ) / ( count + 1 ) * kfactor;
-        ub_kurt -= 3 * gfactor;
-    }
+    double gfactor = ( count - 1 ) / ( count + 1 ) * kfactor;
+    ub_kurt -= 3 * gfactor;
+    if( !excess )
+        ub_kurt += 3;
+        
     return ub_kurt;
 }
 

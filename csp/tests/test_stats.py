@@ -406,7 +406,7 @@ class TestStats(unittest.TestCase):
             skew_t_unbias = csp.stats.skew(x, timedelta(seconds=500), timedelta(seconds=2))
             skew_n_bias = csp.stats.skew(x, 500, 2, bias=True)
             kurt_t_excess = csp.stats.kurt(x, timedelta(seconds=500), timedelta(seconds=2))
-            kurt_n = csp.stats.kurt(x, 500, 2, excess=False)
+            kurt_n = csp.stats.kurt(x, 500, 2, bias=False, excess=False)
 
             csp.add_graph_output("var_t", var_t)
             csp.add_graph_output("var_n", var_n)
@@ -456,10 +456,12 @@ class TestStats(unittest.TestCase):
         np.testing.assert_almost_equal(expected_skew_unbias[1:, 1].astype(float), unbiased_skew, decimal=7)
         np.testing.assert_almost_equal(expected_kurt_excess[1:, 1].astype(float), excess_kurtosis, decimal=7)
 
-        # only scipy has unbiased skew or non-excess kurtosis to test against, not worth the dependency
+        # only scipy has unbiased skew to test against, not worth the dependency
         # instead, just ensure parameters are being passed correctly by ensuring results are different
         np.testing.assert_equal(np.all(np.not_equal(unbiased_skew[:50], biased_skew[:50])), True)
-        np.testing.assert_equal(np.all(np.not_equal(excess_kurtosis[:50], kurtosis[:50])), True)
+
+        # can test for non-excess kurtosis easily (assuming our excess kurtosis is correct, of course...)
+        np.testing.assert_almost_equal(excess_kurtosis, kurtosis - 3, decimal=7)
 
     def test_ema(self):
         dvalues = np.random.uniform(low=-100, high=100, size=(1000,))

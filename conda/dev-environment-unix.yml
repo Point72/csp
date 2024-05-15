@@ -26,13 +26,11 @@ dependencies:
  - mdformat>=0.7.17,<0.8
  - ninja
  - numpy
- - pillow
- - psutil
- - pyarrow=16
  - pandas
  - pillow
  - polars
  - psutil
+ - pyarrow=16
  - pytz
  - pytest
  - pytest-asyncio

@@ -39,9 +39,9 @@ build-debug:  ## build the library ( DEBUG ) - May need a make clean when switch
 
 build-conda:  ## build the library in Conda
 ifeq ($(OS),Windows_NT)
-	set CSP_USE_VCPKG=0 && python setup.py build build_ext --inplace
+	python setup.py build build_ext --csp_no_vcpkg --inplace
 else
-	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- -j$(NPROC)
+	python setup.py build build_ext --csp_no_vcpkg --inplace -- -- -j$(NPROC)
 endif
 
 install:  ## install library

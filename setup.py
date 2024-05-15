@@ -7,8 +7,12 @@ import sys
 from shutil import which
 from skbuild import setup
 
+CSP_USE_VCPKG = True
+if "--csp_no_vcpkg" in sys.argv:
+    CSP_USE_VCPKG = False
+    sys.argv.remove("--csp_no_vcpkg")
+
 # CMake Options
-CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
 CMAKE_OPTIONS = (
     ("CSP_BUILD_NO_CXX_ABI", "0"),
     ("CSP_BUILD_TESTS", "1"),

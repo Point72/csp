@@ -57,7 +57,7 @@ if(WIN32)
      target_compile_definitions(csp_parquet_adapter PUBLIC PARQUET_STATIC)
    else()
      # use dynamic variants
-     # Until we manage to get the vcpkg fix for ws3_32.dll that comes with arrow 16, manually fix the error here
+     # Until we manage to get the fix for ws3_32.dll in arrow-16 into conda, manually fix the error here
      get_target_property(LINK_LIBS Arrow::arrow_shared INTERFACE_LINK_LIBRARIES)
      string(REPLACE "ws2_32.dll" "ws2_32" FIXED_LINK_LIBS "${LINK_LIBS}")
      set_target_properties(Arrow::arrow_shared PROPERTIES INTERFACE_LINK_LIBRARIES "${FIXED_LINK_LIBS}")

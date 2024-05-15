@@ -7,45 +7,47 @@ dependencies:
  - build
  - bump2version>=1
  - cmake
- - codespell
+ - codespell>=2.2.6,<2.3
  - compilers
  - cyrus-sasl
  - exprtk
  - graphviz
+ - python-graphviz
  - gtest
  - httpx>=0.20,<1
  - isort>=5,<6
  - libarrow=16
- - libboost-headers
  - librdkafka
+ - libboost-headers
  - lz4-c
- - mamba
  - make
- - mdformat
+ - mamba
+ - mdformat>=0.7.17,<0.8
  - ninja
  - numpy
+ - pillow
+ - psutil
+ - pyarrow=16
  - pandas
  - pillow
  - polars
  - psutil
- - pyarrow=16
+ - pytz
  - pytest
  - pytest-asyncio
  - pytest-cov
  - pytest-sugar
- - python-graphviz
+ - python<3.13
  - python-rapidjson
- - python<3.12
- - pytz
  - rapidjson
  - requests
  - ruamel.yaml
- - ruff
+ - ruff>=0.3,<0.4
  - scikit-build
  - slack-sdk
  - sqlalchemy
  - threadpoolctl
  - tornado
  - twine
- - websocketpp
  - wheel
+ - websocketpp

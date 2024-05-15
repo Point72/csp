@@ -5,13 +5,6 @@
 #include <time.h>
 
 //TODO move Likely.h defines into Platform.h
-
-#ifdef __linux__
-typedef uint64_t binding_int_t;
-#else
-typedef int64_t binding_int_t;
-#endif
-
 #ifdef WIN32
 #define NOMINMAX
 #include <windows.h>

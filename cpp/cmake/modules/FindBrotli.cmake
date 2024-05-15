@@ -31,10 +31,7 @@
 #  BROTLI_SHARED_LIB, path to libbrotli's shared library
 #  BROTLI_FOUND, whether brotli has been found
 
-if( WIN32 )
-    #find_package(brotli CONFIG REQUIRED)
-    message( "TODO" )
-else ()
+if( NOT WIN32 )
     if( NOT "${BROTLI_HOME}" STREQUAL "")
         file( TO_CMAKE_PATH "${BROTLI_HOME}" _native_path )
         list( APPEND _brotli_roots ${_native_path} )

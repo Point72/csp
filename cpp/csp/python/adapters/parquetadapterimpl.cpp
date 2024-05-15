@@ -468,20 +468,20 @@ inline DialectGenericListReaderInterface::Ptr create_numpy_array_reader_impl( co
                 csp::CspType::Type::BOOL, csp::CspType::Type::STRING>::invoke( type.get(),
                                                                                []( auto tag ) -> DialectGenericListReaderInterface::Ptr
                                                                                {
-                                                                                    using TagType = decltype(tag);
-                                                                                    using CValueType = typename TagType::type;
-                                                                                    auto numpy_dtype = PyArray_DescrFromType(
-                                                                                            csp::python::NPY_TYPE<CValueType>::value );
+                                                                                   using TagType = decltype(tag);
+                                                                                   using CValueType = typename TagType::type;
+                                                                                   auto numpy_dtype = PyArray_DescrFromType(
+                                                                                           csp::python::NPY_TYPE<CValueType>::value );
 
-                                                                                    if( numpy_dtype -> type_num == NPY_UNICODE )
-                                                                                    {
-                                                                                        return std::make_shared<NumpyUnicodeReaderImpl>();
-                                                                                    }
-                                                                                    else
-                                                                                    {
-                                                                                        return std::make_shared<NumpyArrayReaderImpl<CValueType>>(
-                                                                                                numpy_dtype );
-                                                                                    }
+                                                                                   if( numpy_dtype -> type_num == NPY_UNICODE )
+                                                                                   {
+                                                                                       return std::make_shared<NumpyUnicodeReaderImpl>();
+                                                                                   }
+                                                                                   else
+                                                                                   {
+                                                                                       return std::make_shared<NumpyArrayReaderImpl<CValueType>>(
+                                                                                               numpy_dtype );
+                                                                                   }
                                                                                }
         );
     }

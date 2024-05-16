@@ -1361,6 +1361,13 @@ class TestEngine(unittest.TestCase):
             queue_wait_time=timedelta(days=1),
         )
 
+    def test_start_realtime_in_future(self):
+        import pytz
+
+        t = datetime.now(pytz.UTC) + timedelta(seconds=1)
+        res = csp.run(csp.const(123), starttime=t, endtime=t, realtime=True)[0][0]
+        self.assertEqual(res[1], 123)
+
     def test_threaded_run(self):
         # simple test
         runner = csp.run_on_thread(

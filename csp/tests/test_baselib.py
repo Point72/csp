@@ -759,15 +759,28 @@ class TestBaselib(unittest.TestCase):
             )
             gated_x = csp.gate(x, gate)
             validate(gated_x, gate)
-            csp.add_graph_output("gate", gated_x)
 
-        res = csp.run(g, starttime=datetime(2022, 5, 13), endtime=timedelta(seconds=20))["gate"]
+            release = csp.timer(timedelta(seconds=5), True)  # only release every 5 seconds
+            gated_release_x = csp.gate(x, release, release_on_tick=True)
+            validate(gated_release_x, release)
+
+            csp.add_graph_output("gate", gated_x)
+            csp.add_graph_output("gate_rel_on_tick", gated_release_x)
+
+        out = csp.run(g, starttime=datetime(2022, 5, 13), endtime=timedelta(seconds=20))
+        res = out["gate"]
         all_values = functools.reduce(lambda x, y: x + y, [v[1] for v in res])
 
         p = 0
         for x in all_values:
             self.assertEqual(x, p + 1)
             p = x
+
+        release_res = out["gate_rel_on_tick"]
+        all_values = functools.reduce(lambda x, y: x + y, [[v[1]] for v in release_res])
+        for i, x in enumerate(all_values):
+            # Only release every 5 seconds
+            self.assertEqual(x, [j + 1 for j in range(i * 5, (i + 1) * 5)])
 
     def test_drop_dups(self):
         @csp.graph

@@ -504,17 +504,18 @@ def flatten(x: [ts["T"]]) -> ts["T"]:
 
 # TODO cppimpl
 @node
-def gate(x: ts["T"], release: ts[bool]) -> ts[["T"]]:
+def gate(x: ts["T"], release: ts[bool], release_on_tick: bool = False) -> ts[["T"]]:
     """ "gate" the input.
     if release is false, input will be held until release is true.
-    when release ticks true, all gated inputs will tick in one shot"""
+    when release ticks true, all gated inputs will tick in one shot
+    If release_on_tick is true, release gated input only on release tick"""
     with csp.state():
         s_pending = []
 
     if csp.ticked(x):
         s_pending.append(x)
 
-    if csp.valid(release) and release and len(s_pending):
+    if csp.valid(release) and release and (not release_on_tick or csp.ticked(release)) and len(s_pending):
         out = s_pending
         s_pending = []
         return out

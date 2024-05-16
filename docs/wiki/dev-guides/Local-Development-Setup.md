@@ -12,7 +12,7 @@
 ## Step 1: Build CSP from Source
 
 To work on CSP, you are going to need to build it from source. See
-[Build CSP from Source](Build-CSP-from-Source) for
+[Build CSP from Source](Build-CSP-from-Source.md) for
 detailed build instructions.
 
 Once you've built CSP from a `git` clone, you will also need to
@@ -80,7 +80,7 @@ key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/add
 
 ## Guidelines
 
-After developing a change locally, ensure that both [lints](Build-CSP-from-Source#lint-and-autoformat) and [tests](Build-CSP-from-Source#testing) pass. Commits should be squashed into logical units, and all commits must be signed (e.g. with the `-s` git flag). CSP requires [Developer Certificate of Origin](https://en.wikipedia.org/wiki/Developer_Certificate_of_Origin) for all contributions.
+After developing a change locally, ensure that both [lints](Build-CSP-from-Source.md#lint-and-autoformat) and [tests](Build-CSP-from-Source.md#testing) pass. Commits should be squashed into logical units, and all commits must be signed (e.g. with the `-s` git flag). CSP requires [Developer Certificate of Origin](https://en.wikipedia.org/wiki/Developer_Certificate_of_Origin) for all contributions.
 
 If your work is still in-progress, open a [draft pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests#draft-pull-requests). Otherwise, open a normal pull request. It might take a few days for a maintainer to review and provide feedback, so please be patient. If a maintainer asks for changes, please make said changes and squash your commits if necessary. If everything looks good to go, a maintainer will approve and merge your changes for inclusion in the next release.
 

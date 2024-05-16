@@ -1,0 +1,57 @@
+site_name: CSP
+
+docs_dir: wiki
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+
+exclude_docs: |
+  _Sidebar.md
+  _Footer.md
+
+nav:
+  - Home: Home.md
+  - User guide:
+    - Get Started (Tutorials):
+      - get-started/Installation.md
+      - get-started/First-Steps.md
+    - Concepts:
+      - concepts/CSP-Node.md
+      - concepts/CSP-Graph.md
+      - concepts/Historical-Buffers.md
+      - concepts/Execution-Modes.md
+      - concepts/Adapters.md
+    - How-to guides:
+      - how-tos/Use-Statistical-Nodes.md
+      - how-tos/Use-Adapters.md
+      - how-tos/Add-Cycles-in-Graphs.md
+      - how-tos/Create-Dynamic-Baskets.md
+      - Write Adapters:
+        - how-tos/Write-Historical-Input-Adapters.md
+        - how-tos/Write-Realtime-Input-Adapters.md
+        - how-tos/Write-Output-Adapters.md
+      - how-tos/Profile-CSP-Code.md
+    - References:
+      - API Reference:
+        - api-references/Base-Nodes-API.md
+        - api-references/Base-Adapters-API.md
+        - api-references/Math-and-Logic-Nodes-API.md
+        - api-references/Statistical-Nodes-API.md
+        - api-references/Functional-Methods-API.md
+        - Adapters (Kafka, Parquet, DBReader) API: api-references/Input-Output-Adapters-API.md
+        - api-references/Random-Time-Series-Generators-API.md
+        - api-references/csp.Struct-API.md
+        - api-references/csp.dynamic-API.md
+        - api-references/csp.profiler-API.md
+      - references/Examples.md
+      - Glossary of Terms: references/Glossary.md
+
+  - Developer Guide:
+    - Contributing: dev-guides/Contribute.md
+    - Development Setup: dev-guides/Local-Development-Setup.md
+    - dev-guides/Build-CSP-from-Source.md
+    - GitHub Conventions (for maintainers): dev-guides/GitHub-Conventions.md
+    - Release Process (for maintainers): dev-guides/Release-Process.md
+    - dev-guides/Roadmap.md

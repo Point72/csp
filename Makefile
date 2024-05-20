@@ -1,15 +1,5 @@
 EXTRA_ARGS :=
 
-ifneq ($(OS),Windows_NT)
-UNAME := $(shell uname)
-ifeq ($(UNAME), Linux)
-NPROC = $(shell nproc)
-endif
-ifeq ($(UNAME), Darwin)
-NPROC = $(shell sysctl -n hw.physicalcpu)
-endif
-endif
-
 #########
 # BUILD #
 #########
@@ -28,21 +18,13 @@ develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
 build:  ## build the library
-ifeq ($(OS),Windows_NT)
 	python setup.py build build_ext --inplace
-else
-	python setup.py build build_ext --inplace -- -- -j$(NPROC)
-endif
 
 build-debug:  ## build the library ( DEBUG ) - May need a make clean when switching from regular build to build-debug and vice versa
-	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace -- -- -j$(NPROC)
+	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
 
 build-conda:  ## build the library in Conda
-ifeq ($(OS),Windows_NT)
-	python setup.py build build_ext --csp_no_vcpkg --inplace
-else
-	python setup.py build build_ext --csp_no_vcpkg --inplace -- -- -j$(NPROC)
-endif
+	python setup.py build build_ext --csp-no-vcpkg --inplace
 
 install:  ## install library
 	python -m pip install .

@@ -294,8 +294,6 @@ jobs:
 
         - name: Set up Caches
           uses: ./.github/actions/setup-caches
-          with:
-            cibuildwheel: '${{ matrix.cibuildwheel }}'
 
         - name: Set up dependencies
           uses: ./.github/actions/setup-dependencies
@@ -584,8 +582,6 @@ jobs:
 
         - name: Set up Caches
           uses: ./.github/actions/setup-caches
-          with:
-            cibuildwheel: 'cp39'
 
         - name: Install python dependencies
           run: make requirements

@@ -9,9 +9,9 @@ from skbuild import setup
 
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
 # Allow arg to override default / env
-if "--csp_no_vcpkg" in sys.argv:
+if "--csp-no-vcpkg" in sys.argv:
     CSP_USE_VCPKG = False
-    sys.argv.remove("--csp_no_vcpkg")
+    sys.argv.remove("--csp-no-vcpkg")
 
 # CMake Options
 CMAKE_OPTIONS = (

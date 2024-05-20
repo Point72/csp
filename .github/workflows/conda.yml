@@ -82,6 +82,8 @@ jobs:
           if: ${{ runner.os != 'Windows' }}
 
         - name: Python Build Steps ( Windows )
+          env:
+            CSP_GENERATOR: "Visual Studio 16 2019"
           run: make build-conda
           shell: cmd /C call {0}
           if: ${{ runner.os == 'Windows' }}

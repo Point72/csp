@@ -140,8 +140,8 @@ class TestMath(unittest.TestCase):
         # version built against was compiled with slightly different math args?
         EPSILONS = {}
         if sys.platform == "win32":
-            EPSILONS[csp.arcsinh] = 1e12
-            EPSILONS[csp.arccosh] = 1e12
+            EPSILONS[csp.arcsinh] = 1e-12
+            EPSILONS[csp.arccosh] = 1e-12
 
         @csp.graph
         def graph():
@@ -212,7 +212,7 @@ class TestMath(unittest.TestCase):
 
         EPSILONS = {}
         if sys.platform == "win32":
-            EPSILONS[csp.arctanh] = 1e12
+            EPSILONS[csp.arctanh] = 1e-12
 
         @csp.graph
         def graph():

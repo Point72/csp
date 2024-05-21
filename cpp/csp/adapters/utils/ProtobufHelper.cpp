@@ -4,9 +4,6 @@
 #include <csp/core/System.h>
 #include <csp/engine/PartialSwitchCspType.h>
 
-//# Oh windows...
-#undef GetMessage
-
 namespace proto = google::protobuf;
 
 namespace csp::adapters::utils

@@ -8,7 +8,7 @@
 namespace csp
 {
 
-// Note that this is intentionally exported with CSPTYPESIMPL_EXPORT because the actual impl is compiled itno the dialect specific impl library
+// Note that this is intentionally exported with CSPTYPESIMPL_EXPORT because the actual impl is compiled into the dialect specific impl library
 struct CSPTYPESIMPL_EXPORT DialectGenericType
 {
 public:

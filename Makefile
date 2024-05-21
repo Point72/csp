@@ -7,7 +7,7 @@ EXTRA_ARGS :=
 
 requirements:  ## install python dev and runtime dependencies
 ifeq ($(OS),Windows_NT)
-	Powershell.exe -executionpolicy bypass -noprofile ./make_requirements.ps1
+	Powershell.exe -executionpolicy bypass -noprofile .\ci\scripts\windows\make_requirements.ps1
 else
 	python -m pip install toml
 	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["build-system"]["requires"]))'`
@@ -89,7 +89,7 @@ test-cpp: ## Make C++ unit tests
 ifneq ($(OS),Windows_NT)
 	for f in ./csp/tests/bin/*; do $$f; done || (echo "TEST FAILED" && exit 1)
 else
-	run_cpp_tests.bat
+	.\ci\scripts\windows\run_cpp_tests.bat
 endif
 
 coverage-py:

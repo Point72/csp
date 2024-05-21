@@ -467,6 +467,7 @@ template<>
 inline PyObject * toPython( const TimeDelta & td )
 {
     INIT_PYDATETIME;
+
     if( td == TimeDelta::NONE() )
         Py_RETURN_NONE;
 
@@ -504,6 +505,7 @@ template<>
 inline PyObject * toPython( const Date & d )
 {
     INIT_PYDATETIME;
+
     if ( d == Date::NONE())
         Py_RETURN_NONE;
 
@@ -514,6 +516,7 @@ template<>
 inline Date fromPython( PyObject * o )
 {
     INIT_PYDATETIME;
+
     if( o == Py_None )
         return Date::NONE();
 
@@ -532,6 +535,7 @@ template<>
 inline PyObject * toPython( const Time & t )
 {
     INIT_PYDATETIME;
+
     if( t == Time::NONE())
         Py_RETURN_NONE;
 
@@ -542,6 +546,7 @@ template<>
 inline Time fromPython( PyObject * o )
 {
     INIT_PYDATETIME;
+
     if( o == Py_None )
         return Time::NONE();
 
@@ -564,6 +569,7 @@ template<>
 inline PyObject * toPython( const DateTime & dt )
 {
     INIT_PYDATETIME;
+
     DateTimeEx dtEx( dt );
     return toPythonCheck( PyDateTime_FromDateAndTime( dtEx.year(), dtEx.month(), dtEx.day(), dtEx.hour(), dtEx.minute(), dtEx.second(), dtEx.microseconds() ) );
 }
@@ -572,6 +578,7 @@ template<>
 inline DateTime fromPython( PyObject * o )
 {
     INIT_PYDATETIME;
+
     if( o == Py_None )
         return DateTime::NONE();
 

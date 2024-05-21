@@ -221,7 +221,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         MAX_RECORDS = 100
         start_idx = 0
         while start_idx < len(snapshots):
-            msg = {"messageType": "snap", "data": snapshots[start_idx : start_idx + MAX_RECORDS]}
+            msg = {
+                "messageType": "snap",
+                "data": snapshots[start_idx : start_idx + MAX_RECORDS],
+            }
             self.send(msg)
             start_idx += MAX_RECORDS
 
@@ -325,7 +328,11 @@ class TableAdapter:
         self.columns = {}
         self.schema = {}
 
-    def publish(self, value: ts[object], field_map: typing.Union[typing.Dict[str, str], str, None] = None):
+    def publish(
+        self,
+        value: ts[object],
+        field_map: typing.Union[typing.Dict[str, str], str, None] = None,
+    ):
         """
         :param value - timeseries to publish onto this table
         :param field_map: if publishing structs, a dictionary of struct field -> perspective fieldname ( if None will pass struct fields as is )
@@ -385,27 +392,26 @@ class WebsocketAdapterManager:
     def __init__(
         self,
         uri: str,
-        verbose_log: bool = False,
         reconnect_interval: timedelta = timedelta(seconds=2),
         headers: Dict[str, str] = None,
     ):
         """
         uri: str
             where to connect
-        verbose_log: bool = False
-            should the websocket client also log using the builtin
         reconnect_interval: timedelta = timedelta(seconds=2)
             time interval to wait before trying to reconnect (must be >= 1 second)
         headers: Dict[str, str] = None
             headers to apply to the request during the handshake
         """
         assert reconnect_interval >= timedelta(seconds=1)
+        resp = urllib.parse.urlparse(uri)
         self._properties = dict(
-            uri=uri,
-            verbose_log=verbose_log,
+            host=resp.hostname,
+            port=str(resp.port) or "80",
+            route=resp.path,
+            use_ssl=uri.startswith("wss"),
             reconnect_interval=reconnect_interval,
             headers=headers if headers else {},
-            use_tls=uri.startswith("wss"),
         )
 
     def subscribe(
@@ -433,7 +439,7 @@ class WebsocketAdapterManager:
     def send(self, x: ts["T"]):
         return _websocket_output_adapter_def(self, x)
 
-    def update_headers(self, x: ts[List[str]]):
+    def update_headers(self, x: ts[List[WebsocketHeaderUpdate]]):
         return _websocket_header_update_adapter_def(self, x)
 
     def status(self, push_mode=csp.PushMode.NON_COLLAPSING):

@@ -19,8 +19,9 @@ dependencies:
  - httpx>=0.20,<1
  - isort>=5,<6
  - libarrow=16
+ - libboost>=1.80.0
+ - libboost-headers>=1.80.0
  - librdkafka
- - libboost-headers
  - lz4-c
  - mamba
  - mdformat>=0.7.17,<0.8
@@ -51,5 +52,4 @@ dependencies:
  - twine
  - unzip
  - wheel
- - websocketpp
  - zip

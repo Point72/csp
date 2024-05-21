@@ -16,7 +16,8 @@ dependencies:
  - httpx>=0.20,<1
  - isort>=5,<6
  - libarrow=16
- - libboost-headers
+ - libboost>=1.80.0
+ - libboost-headers>=1.80.0
  - librdkafka
  - lz4-c
  - make
@@ -48,4 +49,3 @@ dependencies:
  - tornado
  - twine
  - wheel
- - websocketpp

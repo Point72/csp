@@ -7,6 +7,7 @@ from csp.impl.mem_cache import csp_memoized_graph_object, function_full_name
 from csp.impl.types.instantiation_type_resolver import GraphOutputTypeResolver
 from csp.impl.wiring.graph_parser import GraphParser
 from csp.impl.wiring.outputs import OutputsContainer
+from csp.impl.wiring.signature import USE_PYDANTIC
 from csp.impl.wiring.special_output_names import UNNAMED_OUTPUT_NAME
 
 
@@ -83,12 +84,33 @@ class GraphDefMeta(type):
             assert res is None
 
         if res is not None:
-            _ = GraphOutputTypeResolver(
-                function_name=self._signature._name,
-                output_definitions=expected_outputs,
-                values=outputs_raw,
-                forced_tvars=tvars,
-            )
+            if USE_PYDANTIC:
+                from pydantic import ValidationError
+
+                from csp.impl.types.pydantic_type_resolver import TVarValidationContext
+
+                from .signature import OUTPUT_PREFIX
+
+                outputs_dict = {
+                    f"{OUTPUT_PREFIX}{out.name}" if out.name else OUTPUT_PREFIX: arg
+                    for arg, out in zip(outputs_raw, expected_outputs)
+                }
+                output_model = self._signature._output_model
+                context = TVarValidationContext(
+                    forced_tvars=tvars,
+                )
+                try:
+                    _ = output_model.model_validate(outputs_dict, context=context)
+                except ValidationError as e:
+                    processed_msg = str(e).replace(OUTPUT_PREFIX, "")
+                    raise TypeError(f"Output type validation error(s).\n{processed_msg}") from None
+            else:
+                _ = GraphOutputTypeResolver(
+                    function_name=self._signature._name,
+                    output_definitions=expected_outputs,
+                    values=outputs_raw,
+                    forced_tvars=tvars,
+                )
         if signature.special_outputs:
             if expected_outputs[0].name is None:
                 res = next(iter(res._values()))

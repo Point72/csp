@@ -82,6 +82,8 @@ develop = [
     "requests",  # symphony
     "threadpoolctl",  # test_random
     "tornado",  # profiler, perspective, websocket
+    # type checking
+    "pydantic>=2",
 ]
 showgraph = [
     "graphviz",
@@ -97,6 +99,7 @@ test = [
     "httpx>=0.20,<1",
     "polars",
     "psutil",
+    "pydantic>=2",
     "requests",
     "slack-sdk>=3",
     "sqlalchemy",

@@ -33,6 +33,7 @@ dependencies:
  - pillow
  - polars
  - psutil
+ - pydantic>2
  - pytz
  - pytest
  - pytest-asyncio

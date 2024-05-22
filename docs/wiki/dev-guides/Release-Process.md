@@ -108,7 +108,7 @@ development environment.
 
    Similarly, `make minor` and `make major` will update the version
    numbers for minor and major releases, respectively. Double-check
-   that the version numbers have been updated correctly with `git  diff`, and then `git commit` the change.
+   that the version numbers have been updated correctly with `git  diff`, and then `git commit -s` the change.
 
 1. Push your branch to GitHub, and trigger a "full" test run on the branch.
 

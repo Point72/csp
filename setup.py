@@ -7,15 +7,20 @@ import sys
 from shutil import which
 from skbuild import setup
 
-# CMake Options
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
+# Allow arg to override default / env
+if "--csp-no-vcpkg" in sys.argv:
+    CSP_USE_VCPKG = False
+    sys.argv.remove("--csp-no-vcpkg")
+
+# CMake Options
 CMAKE_OPTIONS = (
     ("CSP_BUILD_NO_CXX_ABI", "0"),
     ("CSP_BUILD_TESTS", "1"),
     ("CSP_MANYLINUX", "0"),
     ("CSP_BUILD_KAFKA_ADAPTER", "1"),
     ("CSP_BUILD_PARQUET_ADAPTER", "1"),
-    ("CSP_BUILD_WS_CLIENT_ADAPTER", "1"),
+    ("CSP_BUILD_WS_CLIENT_ADAPTER", str(int(platform.system() != "Windows"))),
     # NOTE:
     # - omit vcpkg, need to test for presence
     # - omit ccache, need to test for presence
@@ -24,6 +29,8 @@ CMAKE_OPTIONS = (
 
 if sys.platform == "linux":
     VCPKG_TRIPLET = "x64-linux"
+elif sys.platform == "win32":
+    VCPKG_TRIPLET = "x64-windows-static-md"
 else:
     VCPKG_TRIPLET = None
 

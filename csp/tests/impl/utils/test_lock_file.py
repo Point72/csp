@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import threading
 import time
@@ -39,6 +40,7 @@ class _SimpleOneEventCondVar:
                 self._lock.release()
 
 
+@unittest.skipIf(sys.platform == "win32", "Not supported on windows")
 class TestLockFile(unittest.TestCase):
     def test_multiple_threads(self):
         for shared in [True, False]:

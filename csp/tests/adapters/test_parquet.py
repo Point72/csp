@@ -32,13 +32,13 @@ parquet_filename = os.path.join(os.path.dirname(__file__), "parquet_test_data.pa
 arrow_filename = os.path.join(os.path.dirname(__file__), "arrow_test_data.arrow")
 
 
-class TestParquetReader(unittest.TestCase):
+class TestParquet(unittest.TestCase):
     def do_test_body(self, filename, arrow=False):
+        temp_file = tempfile.NamedTemporaryFile(prefix="csp_unit_tests", mode="w")
+        temp_file.close()
+
         @csp.graph
         def write_ts_to_file(x: csp.ts["T"]):
-            temp_file = tempfile.NamedTemporaryFile(prefix="csp_unit_tests", mode="w")
-            temp_file.close()
-            csp.schedule_on_engine_stop(lambda: os.unlink(temp_file.name))
             if arrow:
                 config = ParquetOutputConfig(write_arrow_binary=True)
             else:
@@ -85,6 +85,7 @@ class TestParquetReader(unittest.TestCase):
             csp.add_graph_output("all", all)
 
         result = csp.run(graph, starttime=datetime(2020, 3, 3, 9, 30))
+        os.unlink(temp_file.name)
         self.assertEqual(len(result["aapl"]), 4)
         self.assertTrue(all(v[1].SYMBOL == "AAPL" for v in result["aapl"]))
 

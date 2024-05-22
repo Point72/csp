@@ -197,7 +197,7 @@ protected:
     void readCurValue() override;
 };
 
-template< long UNIT >
+template< int64_t UNIT >
 class DatetimeColumnAdapter : public BaseTypedColumnAdapter<csp::DateTime, arrow::TimestampArray>
 {
 public:
@@ -207,7 +207,7 @@ protected:
     void readCurValue() override;
 };
 
-template< long UNIT >
+template< int64_t UNIT >
 class DurationColumnAdapter : public BaseTypedColumnAdapter<csp::TimeDelta, arrow::DurationArray>
 {
 public:
@@ -217,7 +217,7 @@ protected:
     void readCurValue() override;
 };
 
-template< long UNIT, typename ArrowDateArray >
+template< int64_t UNIT, typename ArrowDateArray >
 class DateColumnAdapter : public BaseTypedColumnAdapter<csp::Date, ArrowDateArray>
 {
 public:
@@ -227,7 +227,7 @@ protected:
     void readCurValue() override;
 };
 
-template< long UNIT, typename ArrowTimeArray >
+template< int64_t UNIT, typename ArrowTimeArray >
 class TimeColumnAdapter : public BaseTypedColumnAdapter<csp::Time, ArrowTimeArray>
 {
 public:

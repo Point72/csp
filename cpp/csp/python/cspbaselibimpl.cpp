@@ -1,3 +1,4 @@
+#include <csp/python/Common.h>
 #include <csp/python/PyCppNode.h>
 #include <csp/engine/CppNode.h>
 #include <csp/python/Conversions.h>
@@ -6,6 +7,7 @@
 
 static void * init_nparray()
 {
+    csp::python::AcquireGIL gil;
     import_array();
     return nullptr;
 }

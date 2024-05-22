@@ -13,27 +13,25 @@ find_package(Python ${CSP_PYTHON_VERSION} EXACT REQUIRED COMPONENTS Interpreter)
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -c
           "from __future__ import print_function;import pyarrow;print(pyarrow.get_include(), end='')"
-          OUTPUT_VARIABLE __pyarrow_include_path)
+          OUTPUT_VARIABLE PYARROW_INCLUDE_DIR)
 # Find out the lib path
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -c
           "from __future__ import print_function;import pyarrow;print(pyarrow.get_library_dirs()[0], end='')"
-          OUTPUT_VARIABLE __pyarrow_libs_path)
+          OUTPUT_VARIABLE PYARROW_LIB_DIR)
 # Find out the version path
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -c
           "from __future__ import print_function;import pyarrow;print(pyarrow.__version__, end='')"
   OUTPUT_VARIABLE __pyarrow_version)
 
-find_path(PYARROW_INCLUDE_DIR arrow/python/pyarrow.h
-  HINTS "${__pyarrow_include_path}" "${PYTHON_INCLUDE_PATH}" NO_DEFAULT_PATH)
-
-find_path(PYARROW_LIB_DIR libarrow_python.so
-  HINTS "${__pyarrow_libs_path}" "${PYTHON_INCLUDE_PATH}" NO_DEFAULT_PATH)
-
 if(PYARROW_INCLUDE_DIR AND PYARROW_LIB_DIR)
   set(PYARROW_FOUND 1 CACHE INTERNAL "Python pyarrow found")
-  set(PYARROW_LIBRARY libarrow_python.so)
+  if(NOT WIN32)
+    set(PYARROW_LIBRARY libarrow_python.so)
+  else()
+    set(PYARROW_LIBRARY ${PYARROW_LIB_DIR}/arrow_python.lib)
+  endif()
 endif()
 
 include(FindPackageHandleStandardArgs)

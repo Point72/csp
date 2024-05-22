@@ -32,7 +32,7 @@ private:
 };
 
 //This is the root engine wrapper object
-class PyEngine final: public PyObject
+class CSPIMPL_EXPORT PyEngine final: public PyObject
 {
 public:
     PyEngine( const Dictionary & settings );

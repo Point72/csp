@@ -2,6 +2,7 @@
 #define _IN_CSP_CORE_DYNAMICBITSET_H
 
 #include <csp/core/Likely.h>
+#include <csp/core/Platform.h>
 #include <type_traits>
 
 namespace csp
@@ -154,27 +155,19 @@ public:
 private:
     using nbit_type = uint8_t;
 
+#ifndef WIN32
+#define CLZ_CONSTEXPR constexpr
+#else
+#define CLZ_CONSTEXPR 
+#endif
+
     template<typename value_type, 
         std::enable_if_t<std::is_unsigned<value_type>::value, bool> = true>
     static constexpr nbit_type nbits() { return sizeof( value_type ) * 8; }
 
-    template<typename U, 
-        std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
-    static constexpr nbit_type log2( U n )           { return nbits<uint32_t>() - __builtin_clz( n ) - 1; }
-    static constexpr nbit_type log2( uint64_t n )    { return nbits<uint64_t>() - __builtin_clzl( n ) - 1; }
-
-    // clz (count leading zeros) returns number of leading zeros before MSB (i.e. clz(00110..) = 2 )
-    // __builtin_clz auto-promotes to 32-bits: need to subtract off extra leading zeros
-    static constexpr nbit_type clz( uint8_t n )  { return __builtin_clz( n ) - 24; }
-    static constexpr nbit_type clz( uint16_t n ) { return __builtin_clz( n ) - 16; }
-    static constexpr nbit_type clz( uint32_t n ) { return __builtin_clz( n ); }
-    static constexpr nbit_type clz( uint64_t n ) { return __builtin_clzl( n ); }
-
-    // ffs (find first set) returns offset of first set bit (i.e. ffs(..0110) = 2 ), with ffs(0) = 0
-    template<typename U, 
-        std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
-    static constexpr nbit_type ffs( U n )           { return __builtin_ffs( n ); }
-    static constexpr nbit_type ffs( uint64_t n )    { return __builtin_ffsl( n ); }
+    template<typename U, std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
+    static CLZ_CONSTEXPR nbit_type log2( U n )           { return nbits<uint32_t>() - clz(static_cast<uint32_t>( n )) - 1; } //upcast to 32 bit to avoid truncation for log2
+    static CLZ_CONSTEXPR nbit_type log2(uint64_t n)      { return nbits<uint64_t>() - clz(n) - 1; }
 
     static constexpr node_type mask( nbit_type bitIndex )  { return ( node_type )1 << bitIndex; }
 
@@ -188,8 +181,8 @@ private:
         return ( index_type )bit + ( node << _logBits );
     }
 
-    static constexpr nbit_type _bits    = nbits<NodeT>();
-    static constexpr nbit_type _logBits = log2( _bits );
+    static constexpr nbit_type _bits               = nbits<NodeT>();
+    static inline CLZ_CONSTEXPR nbit_type _logBits = log2( _bits );
 
     node_type * m_nodes;
     index_type  m_size;

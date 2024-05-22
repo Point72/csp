@@ -18,19 +18,20 @@ The signal count variable is maintained to ensure that multiple engine threads s
 An interrupt should cause all running engines to stop, but should not affect future runs in the same process.
 Thus, each root engine keeps track of the signal count when its created. When an interrupt occurs, one engine thread
 handles the interrupt by incrementing the count. Then, all other root engines detect the signal by comparing their
-initial count to the current count. 
+initial count to the current count.
 
 Future runs after the interrupt remain unaffected since they are initialized with the updated signal count, and will
 only consider themselves "interupted" if another signal is received during their execution.
 */
 
-static struct sigaction g_prevSIGTERMaction;
+static void (*g_prevSIGTERMhandler)(int) = nullptr;
 
 static void handle_SIGTERM( int signum )
 {
     g_SIGNAL_COUNT++;
-    if( g_prevSIGTERMaction.sa_handler )
-        (*g_prevSIGTERMaction.sa_handler)( signum );
+
+    if(g_prevSIGTERMhandler)
+        (*g_prevSIGTERMhandler)( signum );
 }
 
 static bool install_signal_handlers()
@@ -42,14 +43,18 @@ static bool install_signal_handlers()
         std::lock_guard<std::mutex> guard( s_lock );
         if( !s_installed )
         {
-            struct sigaction newhandler;
+#ifndef WIN32
+            struct sigaction newhandler, prev_handler;
             sigemptyset( &newhandler.sa_mask );
             newhandler.sa_handler = handle_SIGTERM;
             newhandler.sa_flags = 0;
 
-            if( sigaction(SIGINT,&newhandler, &g_prevSIGTERMaction ) != 0 )
+            if( sigaction(SIGINT,&newhandler, &prev_handler) != 0 )
                 printf( "Failed to set SIGTERM handler: %s", strerror( errno ) );
-            
+            g_prevSIGTERMhandler = prev_handler.sa_handler;
+#else
+            g_prevSIGTERMhandler = signal(SIGINT, handle_SIGTERM);
+#endif
             s_installed = true;
         }
     }

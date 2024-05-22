@@ -3,6 +3,7 @@
 
 #include <csp/core/Hash.h>
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -70,13 +71,13 @@ auto UnknownOnInvalidValue(int) -> decltype(T::UNKNOWN_ON_INVALID_VALUE) { retur
 template<typename T>
 bool UnknownOnInvalidValue(long) { return false; }
 
+START_PACKED
 template<typename EnumTraits>
 struct Enum : public EnumTraits
 {
     using EnumV = typename EnumTraits::_enum;
     using Mapping = std::vector<std::string>;
 
-    //these checks for enum is for the SubVenue "hack"
     using UType = typename EnumUTypeHelper<EnumV, std::is_enum<EnumV>::value>::type;
 
     template<typename = std::enable_if<std::is_enum<EnumV>::value> >
@@ -169,22 +170,6 @@ protected:
 
             return it->second;
         }
-
-        void addAliases( const Aliases &aliases ) 
-        {
-            for( auto &entry : aliases )
-            {
-                auto it = this -> find( entry.first.c_str() );
-                if( it == this -> end() )
-                    CSP_THROW(ValueError, "Invalid Enum alias, unrecognized enum value " << entry.first);
-
-                if( this -> find( entry.second.c_str() ) != this -> end() )
-                    CSP_THROW(ConfigException, "Attempting to add conflicting alias " << entry.second << " to "
-                              << typeid(EnumTraits).name());
-
-                (*this)[strdup(entry.second.c_str())] = it -> second;
-            }
-        }
     };
 
     //This is defined by INIT macro
@@ -196,7 +181,7 @@ protected:
         return s_reverseMap; 
     }
 
-} __attribute__((packed));
+} END_PACKED;
 
 template<typename EnumTraits>
 Enum<EnumTraits>::Enum( UType v ) 

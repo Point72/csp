@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import pytz
 import string
+import sys
 import tempfile
 import time as Time
 import unittest
@@ -107,9 +108,12 @@ class TestProfiler(unittest.TestCase):
 
         prof = p.results()
 
-        self.assertGreater(prof.average_cycle_time, 1.0)
+        epsilon = 0.0
+        if sys.platform == "win32":
+            epsilon = 0.05  # Clock resolution on windows is pretty bad
+        self.assertGreater(prof.average_cycle_time + epsilon, 1.0)
         self.assertGreater(prof.max_cycle_time, 1.0)
-        self.assertGreater(prof.node_stats["sleep_for"]["total_time"], 2.0)
+        self.assertGreater(prof.node_stats["sleep_for"]["total_time"] + epsilon, 2.0)
         self.assertGreater(prof.node_stats["sleep_for"]["max_time"], 1.0)
         self.assertEqual(prof.node_stats["sleep_for"]["executions"], 2)
         self.assertEqual(prof.cycle_count, 2)

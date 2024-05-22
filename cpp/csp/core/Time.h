@@ -2,13 +2,13 @@
 #define _IN_CSP_CORE_TIME_H
 
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/core/System.h>
 #include <math.h>
 #include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
 #include <time.h>
 #include <limits>
 #include <string>
@@ -394,7 +394,7 @@ inline Time::Time( int hour, int minute, int second, int32_t nanosecond )
     if( nanosecond >= NANOS_PER_SECOND || nanosecond < 0 )
         CSP_THROW( ValueError, "Nanosecond out of range: " << nanosecond );
 
-    m_ticks = ( hour * 3600 + minute * 60 + second ) * NANOS_PER_SECOND + nanosecond;
+    m_ticks = ( int64_t( hour ) * 3600 + int64_t( minute ) * 60 + int64_t( second ) ) * NANOS_PER_SECOND + nanosecond;
 }
 
 inline Time& Time::operator +=( const TimeDelta & delta )
@@ -450,7 +450,6 @@ class DateTime
 {
 public:
     DateTime() : DateTime( DateTime::NONE() ) {}
-    DateTime( const timeval & tv );
     DateTime( int year, int month, int day,
               int hour = 0, int minute = 0, int second = 0, int nanosecond = 0 );
     DateTime( Date date, Time time );
@@ -506,7 +505,7 @@ public:
     DateTime& operator +=( const TimeDelta & delta ) { m_ticks += delta.asNanoseconds(); return *this; }
     DateTime& operator -=( const TimeDelta & delta ) { m_ticks -= delta.asNanoseconds(); return *this; }
 
-    static constexpr DateTime NONE() { return DateTime( std::numeric_limits<int64_t>::min() ); }
+    static constexpr DateTime NONE()      { return DateTime(std::numeric_limits<int64_t>::min()); }
     static constexpr DateTime MIN_VALUE() { return DateTime( std::numeric_limits<int64_t>::min() + 1 ); }  //min reserved for NONE
     static constexpr DateTime MAX_VALUE() { return DateTime( std::numeric_limits<int64_t>::max() ); }
 
@@ -536,11 +535,6 @@ inline DateTime::DateTime( int year, int month, int day,
 
 }
 
-inline DateTime::DateTime( const timeval & tv )
-{
-    m_ticks = tv.tv_sec * NANOS_PER_SECOND + tv.tv_usec * NANOS_PER_MICROSECOND;
-}
-
 inline DateTime::DateTime( Date date, Time time ) :
     DateTime( date.year(), date.month(), date.day(), time.hour(), time.minute(), time.second(), time.nanosecond() )
 {
@@ -549,7 +543,11 @@ inline DateTime::DateTime( Date date, Time time ) :
 inline DateTime DateTime::now()
 {
     timespec ts;
+#ifdef WIN32
+    timespec_get(&ts, TIME_UTC);
+#else
     clock_gettime( CLOCK_REALTIME, &ts );
+#endif
     return DateTime( ts.tv_sec * NANOS_PER_SECOND + ts.tv_nsec );
 }
 

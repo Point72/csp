@@ -1,13 +1,14 @@
 #ifndef _IN_CSP_ENGINE_PROFILER_H
 #define _IN_CSP_ENGINE_PROFILER_H
 
+#include <csp/core/Platform.h>
+#include <csp/core/Time.h>
+#include <csp/engine/Dictionary.h>
 #include <algorithm>
 #include <fstream>
 #include <numeric>
 #include <stack>
 #include <vector>
-#include <csp/engine/Dictionary.h>
-#include <csp/core/Time.h>
 
 namespace csp
 {
@@ -151,7 +152,7 @@ class Profiler
 
         struct ProfStat
         {
-            int64_t m_exec;
+            int64_t m_exec = 0;
             TimeDelta m_maxTime = TimeDelta::ZERO();
             TimeDelta m_totalTime = TimeDelta::ZERO();
 

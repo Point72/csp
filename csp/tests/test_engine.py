@@ -1067,13 +1067,18 @@ class TestEngine(unittest.TestCase):
 
         results = csp.run(graph, 4, False, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)[0]
         self.assertEqual(len(results), 4)
+
         self.assertTrue(all((results[i][0] - results[i - 1][0]) == timer_interval for i in range(1, len(results))))
         # Assert lag from engine -> wallclock on last tick is greater than minimum expected amount
         self.assertGreater(results[-1][1] - results[-1][0], (delay - timer_interval) * len(results))
 
         results = csp.run(graph, 5, True, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)[0]
         self.assertEqual(len(results), 5)
-        self.assertTrue(all((results[i][0] - results[i - 1][0]) > delay for i in range(2, len(results))))
+        eps = timedelta()
+        # Windows clock resolution is...
+        if sys.platform == "win32":
+            eps = timedelta(milliseconds=50)
+        self.assertTrue(all((results[i][0] - results[i - 1][0]) + eps > delay for i in range(2, len(results))))
 
     def test_timer_exception(self):
         with self.assertRaisesRegex(ValueError, "csp.timer interval must be > 0"):
@@ -1222,6 +1227,8 @@ class TestEngine(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "csp graph information is not available"):
             csp.engine_start_time()
 
+    # SIGINT wont work on windows ( https://docs.python.org/3/library/os.html#os.kill ), may not be worth the trouble to make this test work on windows
+    @unittest.skipIf(sys.platform == "win32", "tests needs windows port")
     def test_ctrl_c(self):
         pid = os.fork()
         if pid == 0:
@@ -1319,8 +1326,9 @@ class TestEngine(unittest.TestCase):
         for d in [
             datetime(2020, 12, 24, 1, 2, 3, 123456),
             datetime(1970, 1, 1),
-            datetime(1969, 5, 6, 2, 3, 4),
-            datetime(1969, 5, 6, 2, 3, 4, 123456),
+            # Negative Epochs times are not supported on windows
+            datetime(1969, 5, 6, 2, 3, 4) if sys.platform != "win32" else datetime(1970, 1, 1),
+            datetime(1969, 5, 6, 2, 3, 4, 123456) if sys.platform != "win32" else datetime(1970, 1, 1),
             # Edge cases, DateTime MIN / MAX
             datetime(1678, 1, 1) if sys.platform == "linux" else datetime(1970, 1, 1),
             datetime(2261, 12, 31, 23, 59, 59, 999999),
@@ -2057,6 +2065,8 @@ class TestEngine(unittest.TestCase):
         csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta())
         self.assertTrue(status["started"] and status["stopped"])
 
+    # SIGINT wont work on windows ( https://docs.python.org/3/library/os.html#os.kill ), may not be worth the trouble to make this test work on windows
+    @unittest.skipIf(sys.platform == "win32", "tests needs windows port")
     def test_interrupt_stops_all_nodes(self):
         @csp.node
         def n(l: list, idx: int):

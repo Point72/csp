@@ -286,7 +286,8 @@ void NumpyInputAdapter<int64_t>::setValue( int64_t & value, void * data )
         }
         case NPY_LONGLTR:
         {
-            value = *(int64_t *)(data);
+            const long * const val = (const long*)data;
+            value = static_cast<int64_t>(*val);
             break;
         }
         default:

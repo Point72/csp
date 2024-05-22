@@ -3,7 +3,6 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
- - bison
  - brotli
  - build
  - bump2version>=1
@@ -12,16 +11,15 @@ dependencies:
  - compilers
  - cyrus-sasl
  - exprtk
- - flex
  - graphviz
- - python-graphviz
  - gtest
  - httpx>=0.20,<1
  - isort>=5,<6
  - libarrow=16
- - librdkafka
  - libboost-headers
+ - librdkafka
  - lz4-c
+ - make
  - mamba
  - mdformat>=0.7.17,<0.8
  - ninja
@@ -31,13 +29,14 @@ dependencies:
  - polars
  - psutil
  - pyarrow=16
- - pytz
  - pytest
  - pytest-asyncio
  - pytest-cov
  - pytest-sugar
  - python<3.13
+ - python-graphviz
  - python-rapidjson
+ - pytz
  - rapidjson
  - requests
  - ruamel.yaml
@@ -45,11 +44,8 @@ dependencies:
  - scikit-build
  - slack-sdk
  - sqlalchemy
- - tar
  - threadpoolctl
  - tornado
  - twine
- - unzip
  - wheel
  - websocketpp
- - zip

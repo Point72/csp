@@ -75,7 +75,7 @@ KafkaAdapterManager::KafkaAdapterManager( csp::Engine * engine, const Dictionary
                                                                                                   m_consumerIdx( 0 ),
                                                                                                   m_producerPollThreadActive( false )
 {
-    m_maxThreads = properties.get<binding_int_t>( "max_threads" );
+    m_maxThreads = properties.get<uint64_t>( "max_threads" );
     m_pollTimeoutMs = properties.get<TimeDelta>( "poll_timeout" ).asMilliseconds();
 
     m_eventCb = std::make_unique<EventCb>( this );

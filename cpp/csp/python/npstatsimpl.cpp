@@ -5,6 +5,8 @@
 #include <numpy/npy_math.h> // need to be included before csp
 
 //Include first so that csp dialect types are defined
+#include <csp/python/Common.h>
+#include <csp/python/PyCspType.h>
 #include <csp/python/PyCspType.h>
 #include <csp/python/PyObjectPtr.h>
 
@@ -28,6 +30,7 @@ using namespace csp::cppnodes;
 
 static void * init_nparray()
 {
+    csp::python::AcquireGIL gil;
     import_array();
     return nullptr;
 }
@@ -139,8 +142,8 @@ class NumPyIterator
         int64_t m_size;
         int64_t m_index;
         char* m_data;
-        long* m_strides;
-        long* m_dims;
+        npy_intp* m_strides;
+        npy_intp * m_dims;
         std::vector<int64_t> m_stridedDimensions;
         std::vector<int64_t> m_current;
         bool m_valid;
@@ -169,7 +172,7 @@ struct PyShape
 
     PyShape( PyObject* arr ) : PyShape( ( PyArrayObject* ) arr ) { }
 
-    PyShape( std::vector<long> dims, int64_t n )
+    PyShape( std::vector<npy_intp> dims, int64_t n )
     {
         m_dims = dims;
         m_n = n;
@@ -208,7 +211,7 @@ struct PyShape
 
     bool operator==( const PyShape & rhs ) const { return !( *this != rhs ); }
 
-    std::vector<long> m_dims;
+    std::vector<npy_intp> m_dims;
     int64_t m_n;
 
 };

@@ -138,9 +138,11 @@ manylinux-x86_64-image = "manylinux_2_28"
 [tool.cibuildwheel.macos]
 before-all ="make dependencies-mac"
 archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
-environment = {}
 
 [tool.cibuildwheel.windows]
+before-all = "make dependencies-win"
+before-build = "make requirements"
+
 archs = "AMD64"
 skip = "*win32 *arm_64"
 

@@ -1,11 +1,13 @@
 #ifndef _IN_CSP_PYTHON_CONVERSIONS_H
 #define _IN_CSP_PYTHON_CONVERSIONS_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/PartialSwitchCspType.h>
 #include <csp/engine/Struct.h>
 #include <csp/engine/TimeSeriesProvider.h>
+#include <csp/python/Common.h>
 #include <csp/python/CspTypeFactory.h>
 #include <csp/python/Exception.h>
 #include <csp/python/PyCspEnum.h>
@@ -13,7 +15,6 @@
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
 #include <csp/python/PyStructList.h>
-#include <datetime.h>
 #include <Python.h>
 #include <string>
 #include <variant>
@@ -187,7 +188,7 @@ inline double fromPython( PyObject * o )
         //allow ints as floats
         if( PyLong_Check( o ) )
         {
-            int64_t rv = PyLong_AsLong( o );
+            int64_t rv = PyLong_AsLongLong( o );
             if( rv == -1 && PyErr_Occurred() )
                 CSP_THROW( PythonPassthrough, "" );
             return rv;
@@ -209,7 +210,7 @@ inline PyObject * toPython( const double & value )
 template<>
 inline PyObject * toPython( const int64_t & value )
 {
-    return toPythonCheck( PyLong_FromLong( value ) );
+    return toPythonCheck( PyLong_FromLongLong( value ) );
 }
 
 template<>
@@ -218,7 +219,7 @@ inline int64_t fromPython( PyObject * o )
     if( !PyLong_Check( o ) )
         CSP_THROW( TypeError, "Invalid int type, expected long (int) got " << Py_TYPE( o ) -> tp_name );
 
-    int64_t rv = PyLong_AsLong( o );
+    int64_t rv = PyLong_AsLongLong( o );
     if( rv == -1 && PyErr_Occurred() )
         CSP_THROW( PythonPassthrough, "" );
     return rv;
@@ -229,7 +230,7 @@ inline int64_t fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const uint64_t & value )
 {
-    return toPythonCheck( PyLong_FromUnsignedLong( value ) );
+    return toPythonCheck( PyLong_FromUnsignedLongLong( value ) );
 }
 
 template<>
@@ -238,7 +239,7 @@ inline uint64_t fromPython( PyObject * o )
     if( !PyLong_Check( o ) )
         CSP_THROW( TypeError, "Invalid int type, expected long (int) got " << Py_TYPE( o ) -> tp_name );
 
-    uint64_t rv = PyLong_AsUnsignedLong( o );
+    uint64_t rv = PyLong_AsUnsignedLongLong( o );
     if( rv == ( uint64_t ) -1 && PyErr_Occurred() )
         CSP_THROW( PythonPassthrough, "" );
     return rv;
@@ -465,6 +466,8 @@ inline CspEnum fromPython( PyObject * o, const CspType & type )
 template<>
 inline PyObject * toPython( const TimeDelta & td )
 {
+    INIT_PYDATETIME;
+
     if( td == TimeDelta::NONE() )
         Py_RETURN_NONE;
 
@@ -474,6 +477,8 @@ inline PyObject * toPython( const TimeDelta & td )
 template<>
 inline TimeDelta fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( o == Py_None )
         return TimeDelta::NONE();
 
@@ -499,6 +504,8 @@ inline TimeDelta fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const Date & d )
 {
+    INIT_PYDATETIME;
+
     if ( d == Date::NONE())
         Py_RETURN_NONE;
 
@@ -508,6 +515,8 @@ inline PyObject * toPython( const Date & d )
 template<>
 inline Date fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( o == Py_None )
         return Date::NONE();
 
@@ -525,6 +534,8 @@ inline Date fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const Time & t )
 {
+    INIT_PYDATETIME;
+
     if( t == Time::NONE())
         Py_RETURN_NONE;
 
@@ -534,6 +545,8 @@ inline PyObject * toPython( const Time & t )
 template<>
 inline Time fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( o == Py_None )
         return Time::NONE();
 
@@ -555,6 +568,8 @@ inline Time fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const DateTime & dt )
 {
+    INIT_PYDATETIME;
+
     DateTimeEx dtEx( dt );
     return toPythonCheck( PyDateTime_FromDateAndTime( dtEx.year(), dtEx.month(), dtEx.day(), dtEx.hour(), dtEx.minute(), dtEx.second(), dtEx.microseconds() ) );
 }
@@ -562,6 +577,8 @@ inline PyObject * toPython( const DateTime & dt )
 template<>
 inline DateTime fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( o == Py_None )
         return DateTime::NONE();
 
@@ -609,6 +626,8 @@ inline DateTime fromPython( PyObject * o )
 template<>
 inline DateTimeOrTimeDelta fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( PyDateTime_Check( o ) )
         return fromPython<DateTime>( o );
 
@@ -666,6 +685,8 @@ inline std::vector<Dictionary::Data> fromPython( PyObject * o )
 template<>
 inline Dictionary::Value fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( PyBool_Check( o ) )
         return fromPython<bool>( o );
     else if( PyLong_Check( o ) )
@@ -840,15 +861,6 @@ struct FromPython<std::vector<StorageT>>
 //timeserise helper method
 PyObject * lastValueToPython( const csp::TimeSeriesProvider * ts );
 PyObject * valueAtIndexToPython( const csp::TimeSeriesProvider * ts, int32_t index );
-
-static bool _initPyDateTimeAPI()
-{
-    PyDateTime_IMPORT;
-    return true;
-}
-
-//init datetime API once up front for this cpp object
-static bool _initDateTimeAPI = _initPyDateTimeAPI();
 
 }
 

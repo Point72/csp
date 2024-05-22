@@ -29,6 +29,9 @@ struct EngineOwned
     //little trick here to force all derivations to fail
     void * operator new( size_t sz ) = delete;
     void * operator new( size_t sz, Engine * ) { return ::operator new( sz ); }
+
+    void operator delete( void * ptr, Engine * ) { ::operator delete(ptr); }
+    void operator delete( void* ptr )            { ::operator delete(ptr); }
 };
 
 class Engine

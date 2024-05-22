@@ -12,7 +12,7 @@ namespace csp::python
 
 class PyEngine;
 
-class PyOutputAdapterWrapper final: public PyObject
+class CSPIMPL_EXPORT PyOutputAdapterWrapper final: public PyObject
 {
 public:
     PyOutputAdapterWrapper( OutputAdapter * adapter ) : m_adapter( adapter )

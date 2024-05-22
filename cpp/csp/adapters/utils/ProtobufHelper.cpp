@@ -1,5 +1,6 @@
 #include <csp/adapters/utils/ProtobufHelper.h>
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/core/System.h>
 #include <csp/engine/PartialSwitchCspType.h>
 

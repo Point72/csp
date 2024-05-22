@@ -4,7 +4,6 @@
 #include <iostream>
 #include <csp/engine/TypeCast.h>
 
-
 template< typename T, typename B >
 auto getConverter( std::shared_ptr<const csp::CspType> curType )
 {

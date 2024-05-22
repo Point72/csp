@@ -1,11 +1,15 @@
 #ifndef _IN_CSP_CORE_BASIC_ALLOCATOR_H
 #define _IN_CSP_CORE_BASIC_ALLOCATOR_H
 
+#include <csp/core/Platform.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 #include <list>
 #include <string>
+
+#ifdef __linux__
+#include <sys/mman.h>
+#endif
 
 namespace csp
 {
@@ -68,9 +72,11 @@ inline BasicAllocator::~BasicAllocator()
 {
     for( auto & entry : m_arenas )
     {
+#ifdef __linux__
         if( entry.mmap )
             munmap( entry.buffer, entry.size );
         else
+#endif
             ::free( entry.buffer );
     }       
 }

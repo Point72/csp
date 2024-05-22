@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string.h>
 #include <csp/core/Likely.h>
+#include <csp/core/Platform.h>
 
 namespace csp
 {
@@ -12,9 +13,14 @@ namespace csp
 class Exception : public std::exception
 {
 public:
-    Exception( const char * exType, const std::string & description ) : m_exType( exType ), m_description( description ), m_line ( -1 ) { setbt(); }
     Exception( const char * exType, const std::string & description, const char * file, const char * func, int line ) :
-        m_exType( exType ), m_description( description ), m_file( file ), m_function( func ), m_line( line ) { setbt(); }
+        m_exType( exType ), m_description( description ), m_file( file ), m_function( func ), m_line( line ), m_backtracemessages( nullptr )
+    { 
+        setbt();
+    }
+
+    Exception(const char* exType, const std::string& description) : Exception(exType, description, "", "", -1)
+    {}
     ~Exception() { free( m_backtracemessages ); }
     Exception( const Exception & );
     Exception( Exception&& );
@@ -71,9 +77,9 @@ CSP_DECLARE_EXCEPTION( OSError,            RuntimeException )
 CSP_DECLARE_EXCEPTION( OutOfMemoryError,   RuntimeException )
 CSP_DECLARE_EXCEPTION( FileNotFoundError,  IOError )
 
-
 template<typename T>
-[[noreturn]] void throw_exc(T&& e) __attribute__ ((noinline));
+[[noreturn]] NO_INLINE void throw_exc(T&& e);
+
 template<typename T>
 [[noreturn]] inline void throw_exc(T&& e) {throw e;}
 

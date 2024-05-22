@@ -1,13 +1,15 @@
 #ifndef _IN_CSP_CORE_DIALECTGENERICTYPE_H
 #define _IN_CSP_CORE_DIALECTGENERICTYPE_H
 
+#include <csp/core/Platform.h>
 #include <cstddef>
 #include <functional>
 
 namespace csp
 {
 
-struct DialectGenericType
+// Note that this is intentionally exported with CSPTYPESIMPL_EXPORT because the actual impl is compiled into the dialect specific impl library
+struct CSPTYPESIMPL_EXPORT DialectGenericType
 {
 public:
     DialectGenericType();
@@ -29,7 +31,7 @@ private:
     [[maybe_unused]] void* m_data;
 };
 
-std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj );
+CSPTYPESIMPL_EXPORT std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj );
 
 }
 

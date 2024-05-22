@@ -226,6 +226,8 @@ def _setup(x, interval, min_window, trigger, sampler, reset, weights=None, ignor
         )
 
     if interval is None:
+        if recalc is not None:
+            raise ValueError("The recalc parameter cannot be used with an expanding window (it is redundant)")
         interval = timedelta()
 
     if min_window is None:

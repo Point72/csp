@@ -2061,11 +2061,6 @@ public:
             s_pending_recalc = true;
         }
 
-        if( csp.ticked( recalc ) )
-        {
-            s_pending_recalc = true;
-        }
-
         if( csp.ticked( sampler ) )
         {
             // Handle removals if needed
@@ -2096,8 +2091,10 @@ public:
 
             // Handle removals
             if( !s_removals.empty() && !s_pending_recalc )
+            {
                 std::swap( removals_.reserveSpace(), s_removals );
-            s_removals.clear();
+                s_removals.clear();
+            }
 
             if( s_pending_recalc && !s_value_buffer.empty() )
             {
@@ -2186,8 +2183,11 @@ protected:
 
     STATE_VAR( bool, s_first{true} );
     STATE_VAR( bool, s_expanding{false} );
+
     STATE_VAR( VariableSizeWindowBuffer<T>, s_value_buffer{} );
     STATE_VAR( VariableSizeWindowBuffer<DateTime>, s_time_buffer{} );
+
+    STATE_VAR( std::vector<T>, s_additions{} ); // only used for expanding window optimization
 
     TS_NAMED_OUTPUT_RENAMED( std::vector<T>, additions, additions_ );
     TS_NAMED_OUTPUT_RENAMED( std::vector<T>, removals, removals_ );
@@ -2213,9 +2213,14 @@ public:
     {
         if( csp.ticked( reset ) )
         {
-            s_value_buffer.clear();
-            s_time_buffer.clear();
-            s_pending_removals = 0;
+            if( s_expanding )
+                s_additions.clear();
+            else
+            {
+                s_value_buffer.clear();
+                s_time_buffer.clear();
+                s_pending_removals = 0;
+            }
         }
 
         if( csp.ticked( recalc ) )
@@ -2229,21 +2234,40 @@ public:
             if( csp.ticked( x ) )
             {
                 node -> validateShape();
-                s_value_buffer.push( x );
+                if( s_expanding )
+                    s_additions.push_back( x );
+                else
+                    s_value_buffer.push( x );
             }
             else
             {
                 node -> checkValid();
-                s_value_buffer.push( node -> createNan() );
+                if( s_expanding )
+                    s_additions.push_back( node -> createNan() );
+                else
+                    s_value_buffer.push( node -> createNan() );
             }
-            s_time_buffer.push( now() );
+            if( !s_expanding )
+                s_time_buffer.push( now() );
         }
 
         if( csp.ticked( trigger ) || ( s_first && csp.ticked( x ) && csp.ticked( sampler ) ) )
         {
             s_first = false;
 
-            DateTime threshold = ( s_expanding ? DateTime::MIN_VALUE() : now() - interval );
+            if( s_expanding )
+            {
+                // fast track expanding window calculations
+                // we just need to swap in all additions with no checks 
+                if( !s_additions.empty() )
+                {
+                    std::swap( additions_.reserveSpace(), s_additions );
+                    s_additions.clear(); // keep allocated memory
+                }
+                return;
+            }
+            
+            DateTime threshold = now() - interval;
             // Handle removals
             int64_t count = csp.count( sampler );
             std::vector<T>* removals = nullptr;

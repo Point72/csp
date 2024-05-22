@@ -127,13 +127,13 @@ show-version:
 	@ bump2version --dry-run --allow-dirty pyproject.toml --list | grep current | awk -F= '{print $$2}'
 
 patch:
-	bump2version patch
+	bump2version patch --no-commit
 
 minor:
-	bump2version minor
+	bump2version minor --no-commit
 
 major:
-	bump2version major
+	bump2version major --no-commit
 
 ########
 # DIST #
@@ -205,7 +205,6 @@ dependencies-vcpkg:  ## install dependencies via vcpkg
 
 dependencies-win:  ## install dependencies via windows
 	choco install cmake curl winflexbison ninja unzip zip --no-progress -y
-	
 
 ############################################################################################
 # Thanks to Francoise at marmelab.com for this

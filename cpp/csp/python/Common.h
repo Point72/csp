@@ -2,7 +2,6 @@
 #define _IN_CSP_PYTHON_COMMON_H
 
 #include <Python.h>
-#include <datetime.h>
 
 #define IS_PRE_PYTHON_3_11 (PY_MAJOR_VERSION < 3 || (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 11) )
 

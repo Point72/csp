@@ -127,13 +127,13 @@ show-version:
 	@ bump2version --dry-run --allow-dirty pyproject.toml --list | grep current | awk -F= '{print $$2}'
 
 patch:
-	bump2version patch --no-commit
+	bump2version patch
 
 minor:
-	bump2version minor --no-commit
+	bump2version minor
 
 major:
-	bump2version major --no-commit
+	bump2version major
 
 ########
 # DIST #

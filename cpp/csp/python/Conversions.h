@@ -16,6 +16,7 @@
 #include <csp/python/PyStruct.h>
 #include <csp/python/PyStructList.h>
 #include <Python.h>
+#include <datetime.h>
 #include <string>
 #include <variant>
 

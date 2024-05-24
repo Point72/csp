@@ -64,7 +64,7 @@ jobs:
         - name: Set up Caches
           uses: ./.github/actions/setup-caches
           with:
-            cibuildwheel: 'cp312'
+            vcpkg: false
 
         - name: Python Lint Steps
           run: make lint

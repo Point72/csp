@@ -38,19 +38,11 @@ public:
         return *this;
     }
 
-    bool operator==( const PyPtr & rhs ) const
-    {
-        if( m_obj == rhs.m_obj )
-            return true;
+    bool operator==( const PyPtr & rhs ) const { return generic_compare( rhs, Py_EQ ); }
 
-        if( !m_obj || !rhs.m_obj )
-            return false;
+    bool operator<( const PyPtr & rhs ) const { return generic_compare( rhs, Py_LT ); }
 
-        int rv = PyObject_RichCompareBool( m_obj, rhs.m_obj, Py_EQ );
-        if( rv == -1 )
-            CSP_THROW( PythonPassthrough, "" );
-        return rv == 1;
-    }
+    bool operator>( const PyPtr & rhs ) const { return generic_compare( rhs, Py_GT ); }
 
     operator bool() const { return m_obj != nullptr; }
 
@@ -101,6 +93,17 @@ private:
     PyPtr( PyObjectOwn * o ) { m_obj = ( PYOBJECT_T * ) o; }
 
     PYOBJECT_T * m_obj;
+
+    bool generic_compare( const PyPtr & rhs, int opid ) const
+    {
+        if( !m_obj || !rhs.m_obj )
+            CSP_THROW( PythonPassthrough, "" );
+        
+        int rv = PyObject_RichCompareBool( m_obj, rhs.m_obj, opid );
+        if( rv == -1 )
+            CSP_THROW( PythonPassthrough, "" );
+        return rv;
+    }
 };
 
 using PyObjectPtr     = PyPtr<PyObject>;

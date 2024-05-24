@@ -2,7 +2,7 @@ import numpy
 import typing
 
 import csp.typing
-from csp.impl.types.typing_utils import CspTypingUtils
+from csp.impl.types.typing_utils import CspTypingUtils, FastList
 
 
 class ContainerTypeNormalizer:
@@ -56,6 +56,8 @@ class ContainerTypeNormalizer:
     @classmethod
     def normalized_type_to_actual_python_type(cls, typ, level=0):
         if CspTypingUtils.is_generic_container(typ):
+            if CspTypingUtils.get_origin(typ) is FastList and level == 0:
+                return [cls.normalized_type_to_actual_python_type(typ.__args__[0], level + 1), True]
             if CspTypingUtils.get_origin(typ) is typing.List and level == 0:
                 return [cls.normalized_type_to_actual_python_type(typ.__args__[0], level + 1)]
             return cls._NORMALIZED_TYPE_MAPPING.get(CspTypingUtils.get_origin(typ), typ)

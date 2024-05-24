@@ -78,6 +78,10 @@ struct CSPTYPESIMPL_EXPORT PyStruct : public PyObject
     static PyTypeObject PyType;
 };
 
+// Array struct field printing function
+template<typename ElemT>
+void repr_array( const std::vector<ElemT> & val, const CspType & elemType, std::string & tl_repr, bool show_unset );
+
 }
 
 #endif

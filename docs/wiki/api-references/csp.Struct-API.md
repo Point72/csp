@@ -64,6 +64,72 @@ csp.run( my_graph, starttime = datetime( 2020, 1, 1 ))
 
 `trades` is defined as a timeseries of `Trade` objects. On line 13 we access the `size` field of the `trades` timeseries, then accumulate the sizes to get `cumqty` edge.
 
+## List fields
+
+List fields in a `csp.Struct` can be specified as three different types - untyped Python list, typed regular list and typed `FastList`.
+
+A Python list field keeps its value as a Python object, it is not typed. It can be created by annotating the field as `list`.
+
+A regular list field is typed and internally implemented as a subclass of the Python list class, so it behaves exactly like Python list and passes the `isinstance` check for list. It can be created by annotating the field as `typing.List[T]` or `[T]`.
+
+A `FastList` field is typed and a more efficient implementation, implementing all Python list operations natively in C++. However, it doesn't pass `isinstance` check for list. It can be created by annotating the field as `csp.impl.types.typing_utils.FastList[T]`.
+
+Example of using Python list field:
+
+```python
+import csp
+
+class A(csp.Struct):
+    a: list
+
+s = A(a = [1, 'x'])
+
+s.a.append(True)
+
+print(f"Using Python list field: value {s.a}, type {type(s.a)}, is Python list: {isinstance(s.a, list)}")
+
+
+>>> Using Python list field: value [1, 'x', True], type <class 'list'>, is Python list: True
+```
+
+Example of using regular list field:
+
+```python
+from typing import List
+import csp
+
+class A(csp.Struct):
+    a: List[int]
+
+s = A(a = [1, 2])
+
+s.a.append(3)
+
+print(f"Using list field: value {s.a}, type {type(s.a)}, is Python list: {isinstance(s.a, list)}")
+
+
+>>> Using list field: value [1, 2, 3], type <class '_cspimpl.PyStructList'>, is Python list: True
+```
+
+Example of using `FastList` field:
+
+```python
+import csp
+from csp.impl.types.typing_utils import FastList
+
+class A(csp.Struct):
+    a: FastList[int]
+
+s = A(a = [1, 2])
+
+s.a.append(3)
+
+print(f"Using FastList field: value {s.a}, type {type(s.a)}, is Python list: {isinstance(s.a, list)}")
+
+
+>>> Using FastList field: value [1, 2, 3], type <class '_cspimpl.PyStructFastList'>, is Python list: False
+```
+
 ## Available methods
 
 - **`clear(self)`** clear all fields on the struct

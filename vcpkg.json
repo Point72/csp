@@ -4,6 +4,7 @@
   "dependencies": [
     "abseil",
     "arrow",
+    "boost-beast",
     "brotli",
     "exprtk",
     "gtest",
@@ -19,8 +20,7 @@
     "protobuf",
     "rapidjson",
     "thrift",
-    "utf8proc",
-    "websocketpp"
+    "utf8proc"
   ],
   "overrides": [
     {

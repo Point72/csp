@@ -170,19 +170,21 @@ private:
 class CspArrayType : public CspType
 {
 public:
-    CspArrayType( CspTypePtr elemType ) : CspType( CspType::Type::ARRAY ),
-                                          m_elemType( elemType )
+    CspArrayType( CspTypePtr elemType, bool isPyStructFastList = false ) :
+        CspType( CspType::Type::ARRAY ), m_elemType( elemType ), m_isPyStructFastList( isPyStructFastList )
     {}
     ~CspArrayType() {}
 
     const CspTypePtr & elemType() const { return m_elemType; }
+    bool isPyStructFastList() const     { return m_isPyStructFastList; }
 
     //Used by BURST mode to avoid creating more instances of CspArrayTypes than needed
     //returns CspArrayType with the given elemType
-    static CspTypePtr & create( const CspTypePtr & elemType );
+    static CspTypePtr & create( const CspTypePtr & elemType, bool isPyStructFastList = false );
 
 private:
     CspTypePtr m_elemType;
+    bool       m_isPyStructFastList;
 };
 
 template<> struct CspType::TypeTraits::fromCType<bool>                     { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::BOOL;            };

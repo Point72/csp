@@ -1,11 +1,12 @@
 import io
 import ruamel.yaml
 import typing
+from copy import deepcopy
 
 import csp
 from csp.impl.__csptypesimpl import _csptypesimpl
 from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
-from csp.impl.types.typing_utils import CspTypingUtils
+from csp.impl.types.typing_utils import CspTypingUtils, FastList
 
 # Avoid recreating this object every call its expensive!
 g_YAML = ruamel.yaml.YAML()
@@ -29,6 +30,9 @@ class StructMeta(_csptypesimpl.PyStructMeta):
         if annotations:
             for k, v in annotations.items():
                 actual_type = v
+                # Lists need to be normalized too as potentially we need to add a boolean flag to use FastList
+                if v == FastList:
+                    raise TypeError(f"{v} annotation is not supported without args")
                 if CspTypingUtils.is_generic_container(v):
                     actual_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(v)
                     if CspTypingUtils.is_generic_container(actual_type):
@@ -39,10 +43,15 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                         "struct field '%s' expected field annotation as a type got '%s'" % (k, type(v).__name__)
                     )
 
-                if isinstance(actual_type, list) and (len(actual_type) != 1 or not isinstance(actual_type[0], type)):
+                if isinstance(actual_type, list) and (
+                    len(actual_type) not in (1, 2)
+                    or not isinstance(actual_type[0], type)
+                    or (len(actual_type) == 2 and (not isinstance(actual_type[1], bool) or not actual_type[1]))
+                    or (isinstance(v, list) and len(actual_type) != 1)
+                ):
                     raise TypeError(
-                        "struct field '%s' expected list field annotation to be single element list of type got '%s'"
-                        % (k, type(v).__name__)
+                        "struct field '%s' expected list field annotation to be a single-element list of type got '%s'"
+                        % (k, (actual_type))
                     )
 
                 metadata_typed[k] = v
@@ -108,7 +117,9 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
             )
         elif isinstance(obj, dict):
             return {k: cls._obj_to_python(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple, set)):
+        elif (
+            isinstance(obj, (list, tuple, set)) or type(obj).__name__ == "FastList"
+        ):  # hack for FastList that is not a list
             return type(obj)(cls._obj_to_python(v) for v in obj)
         elif isinstance(obj, csp.Enum):
             return obj.name  # handled in _obj_from_python
@@ -123,7 +134,7 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
     def _obj_from_python(cls, json, obj_type):
         obj_type = ContainerTypeNormalizer.normalize_type(obj_type)
         if CspTypingUtils.is_generic_container(obj_type):
-            if CspTypingUtils.get_origin(obj_type) in (typing.List, typing.Set, typing.Tuple):
+            if CspTypingUtils.get_origin(obj_type) in (typing.List, typing.Set, typing.Tuple, FastList):
                 return_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(obj_type)
                 (expected_item_type,) = obj_type.__args__
                 return_type = list if isinstance(return_type, list) else return_type
@@ -208,7 +219,7 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
 def defineStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
     """Helper method to dynamically create struct types"""
 
-    dct = defaults.copy()
+    dct = deepcopy(defaults)
     dct["__annotations__"] = metadata
     clazz = StructMeta(name, (base,), dct)
     return clazz
@@ -217,8 +228,8 @@ def defineStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
 def defineNestedStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
     """Helper method to dynamically create nested struct types.
     metadata and defaults can be a nested dictionaries"""
-    metadata = metadata.copy()
-    defaults = defaults.copy()
+    metadata = deepcopy(metadata)
+    defaults = deepcopy(defaults)
     child_structs = {
         field: defineNestedStruct(f"{name}_{field}", submeta, defaults.get(field, {}))
         for field, submeta in metadata.items()

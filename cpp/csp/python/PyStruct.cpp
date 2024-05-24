@@ -3,6 +3,7 @@
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
+#include <csp/python/PyStructFastList_impl.h>
 #include <csp/python/PyStructList_impl.h>
 #include <csp/python/PyStructToJson.h>
 #include <unordered_set>
@@ -477,11 +478,8 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
 
 // Struct printing code
 
-// forward declarations
+// forward declaration
 void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset );
-
-template<typename ElemT>
-void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset );
 
 // helper functions for formatting to Python standard
 void format_bool( const bool val, std::string & tl_repr ) {  tl_repr += ( ( val ? "True" : "False" ) ); }
@@ -555,14 +553,14 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
             auto const * arrayType = static_cast<const CspArrayType*>( field -> type().get() );
             const CspType * elemType = arrayType -> elemType().get();
 
-            switchCspType( elemType, [ field, struct_, &arrayType, &tl_repr, show_unset ]( auto tag )
+            switchCspType( elemType, [ field, struct_, &elemType, &tl_repr, show_unset ]( auto tag )
             {
                 //workaround for MS compiler bug, separate into two using lines... :/
                 using TagType = decltype( tag );
                 using CElemType = typename TagType::type;
                 using ArrayType = typename CspType::Type::toCArrayType<CElemType>::type;
                 const ArrayType & val = field -> value<ArrayType>( struct_ );
-                repr_array( val, *arrayType, tl_repr, show_unset );
+                repr_array( val, *elemType, tl_repr, show_unset );
             } );
 
             break;
@@ -585,7 +583,7 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
 }
 
 template<typename StorageT>
-void repr_array( const std::vector<StorageT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset )
+void repr_array( const std::vector<StorageT> & val, const CspType & elemType, std::string & tl_repr, bool show_unset )
 {
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
     tl_repr += "[";
@@ -611,11 +609,11 @@ void repr_array( const std::vector<StorageT> & val, const CspArrayType & arrayTy
         else if constexpr( std::is_integral<ElemT>::value )
             tl_repr += std::to_string( *it );
         else if constexpr( is_vector<ElemT>::value )
-            repr_array( *it, static_cast<const CspArrayType&>( arrayType.elemType() ), tl_repr, show_unset ); // recursive, allows for nested arrays!
+            repr_array( *it, elemType, tl_repr, show_unset ); // recursive, allows for nested arrays!
         else
         {
             // if the element is an enum, generic or datetime type, convert to python
-            PyObjectPtr attr = PyObjectPtr::own( toPython( *it, *( arrayType.elemType().get() ) ) );
+            PyObjectPtr attr = PyObjectPtr::own( toPython( *it, elemType ) );
             format_pyobject( attr, tl_repr );
         }
     }
@@ -1022,7 +1020,6 @@ REGISTER_TYPE_INIT( &PyStructMeta::PyType, "PyStructMeta" )
 REGISTER_TYPE_INIT( &PyStruct::PyType,     "PyStruct" )
 
 // Instantiate all templates for PyStructList class
-template struct PyStructList<bool>;
 template struct PyStructList<int8_t>;
 template struct PyStructList<uint8_t>;
 template struct PyStructList<int16_t>;
@@ -1040,5 +1037,24 @@ template struct PyStructList<std::string>;
 template struct PyStructList<DialectGenericType>;
 template struct PyStructList<StructPtr>;
 template struct PyStructList<CspEnum>;
+
+// Instantiate all templates for PyStructFastList class
+template struct PyStructFastList<int8_t>;
+template struct PyStructFastList<uint8_t>;
+template struct PyStructFastList<int16_t>;
+template struct PyStructFastList<uint16_t>;
+template struct PyStructFastList<int32_t>;
+template struct PyStructFastList<uint32_t>;
+template struct PyStructFastList<int64_t>;
+template struct PyStructFastList<uint64_t>;
+template struct PyStructFastList<double>;
+template struct PyStructFastList<DateTime>;
+template struct PyStructFastList<TimeDelta>;
+template struct PyStructFastList<Date>;
+template struct PyStructFastList<Time>;
+template struct PyStructFastList<std::string>;
+template struct PyStructFastList<DialectGenericType>;
+template struct PyStructFastList<StructPtr>;
+template struct PyStructFastList<CspEnum>;
 
 }

@@ -7,7 +7,8 @@ set(CSPTYPESIMPL_PUBLIC_HEADERS
         PyStructList.h
         PyStructList_impl.h
         PyStructFastList.h
-        PyStructFastList_impl.h)
+        PyStructFastList_impl.h
+        VectorWrapper.h )
 
 add_library(csptypesimpl
             csptypesimpl.cpp
@@ -15,10 +16,8 @@ add_library(csptypesimpl
             PyCspEnum.cpp
             PyCspType.cpp
             PyStruct.cpp
-            PyStructToJson.cpp
-            PyStructList_impl.h
-            PyStructFastList_impl.h
-            VectorWrapper.h)
+            PyStructToJson.cpp)
+
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
 target_compile_definitions(csptypesimpl PUBLIC RAPIDJSON_HAS_STDSTRING=1)
 target_link_libraries(csptypesimpl csp_core csp_types)

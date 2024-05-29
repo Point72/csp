@@ -17,7 +17,7 @@ class Trade(csp.Struct):
 
 ## Build computing nodes
 
-To calculate volume-weighted averages, you need the cumulative sum of previous trade prices and quantities. Hence, your csp node needs to store stateful information. You can use [`csp.state`] to declare stateful variables that bound to the node.
+To calculate volume-weighted averages, you need the cumulative sum of previous trade prices and quantities. Hence, your csp node needs to store stateful information. You can use \[`csp.state`\] to declare stateful variables that bound to the node.
 
 A csp node can return multiple named outputs, denoted as `csp.Outputs` type, created using the `csp.output` function. The individual return values can be accessed with dot notation.
 

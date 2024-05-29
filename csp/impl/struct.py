@@ -121,10 +121,6 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
             return obj
 
     @classmethod
-    def _preprocess_dict_from_python(cls, d):
-        return d
-
-    @classmethod
     def _obj_from_python(cls, json, obj_type):
         obj_type = ContainerTypeNormalizer.normalize_type(obj_type)
         if CspTypingUtils.is_generic_container(obj_type):
@@ -148,7 +144,6 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         elif issubclass(obj_type, Struct):
             if not isinstance(json, dict):
                 raise TypeError("Representation of struct as json is expected to be of dict type")
-            json = obj_type._preprocess_dict_from_python(json)
             res = obj_type()
             for k, v in json.items():
                 expected_type = obj_type.__full_metadata_typed__.get(k, None)

@@ -106,17 +106,11 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         return csp.struct_collectts(cls, kwargs)
 
     @classmethod
-    def _postprocess_dict_to_python(cls, d):
-        return d
-
-    @classmethod
     def _obj_to_python(cls, obj):
         if isinstance(obj, Struct):
-            return obj._postprocess_dict_to_python(
-                {k: cls._obj_to_python(getattr(obj, k)) for k in obj.__full_metadata_typed__ if hasattr(obj, k)}
-            )
+            return {k: cls._obj_to_python(getattr(obj, k)) for k in obj.__full_metadata_typed__ if hasattr(obj, k)}
         elif isinstance(obj, dict):
-            return {k: cls._obj_to_python(v) for k, v in obj.items()}
+            return type(obj)({k: cls._obj_to_python(v) for k, v in obj.items()})  # type() for derived dict types
         elif (
             isinstance(obj, (list, tuple, set)) or type(obj).__name__ == "FastList"
         ):  # hack for FastList that is not a list

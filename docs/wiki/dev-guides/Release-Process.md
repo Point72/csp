@@ -75,6 +75,7 @@ Follow these steps when it's time to tag a new release. Before doing
 this, you will need to ensure `bump2version` is installed into your
 development environment.
 
+> \[!NOTE\]
 > The following steps assume you are pushing to the main `Point72/csp`
 > repo. If you are working from a personal fork, use the corresponding
 > remote (e.g. `upstream`) instead of `origin` in all git commands.

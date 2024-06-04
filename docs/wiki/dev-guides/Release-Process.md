@@ -10,6 +10,7 @@
     - [Download release artifacts from github actions](#download-release-artifacts-from-github-actions)
     - [Optionally upload to testpypi to test "pip install"](#optionally-upload-to-testpypi-to-test-pip-install)
     - [Upload to pypi](#upload-to-pypi)
+  - [Releasing to conda-forge](#releasing-to-conda-forge)
 - [Dealing with release mistakes](#dealing-with-release-mistakes)
 
 ## Doing a "normal" release
@@ -75,8 +76,9 @@ this, you will need to ensure `bump2version` is installed into your
 development environment.
 
 > The following steps assume you are pushing to the main `Point72/csp`
-> repo. If you are working from a personal fork, use `upstream`
-> instead of `origin` in all git commands except for the final tag push.
+> repo. If you are working from a personal fork, use the corresponding
+> remote (e.g. `upstream`) instead of `origin` in all git commands.
+> Ensure tags are still pushed to `Point72/csp` directly.
 
 1. Ensure your local clone of `csp` is synced up with GitHub, including
    any tags that have been pushed since you last synced:
@@ -250,24 +252,14 @@ https://pypi.org/project/csp/<version number>/
 
 ### Releasing to conda-forge
 
-The conda-forge release process is largely automated. Maintainers who
+The `conda-forge` release process is largely automated. Maintainers who
 are listed under the `extra.recipe-maintainers` field in the `csp`
 recipe hosted in [the conda-forge feedstock
 repository](https://github.com/conda-forge/csp-feedstock/blob/main/recipe/meta.yaml)
 should be automatically subscribed to notifications for the
-repository. Soon after a new release is uploaded to PyPI, the
-`regro-cf-autotick` bot will automatically create a pull request
-updating the package version. This may take several hours, you can check
-[the status page](https://conda-forge.org/status/#version_updates) if
-you are impatient. If the conda-forge package build is green on the pull
-request opened by the bot, a package maintainer can merge the pull
-request which will publish the new package version to conda-forge. Any
-failing CI due to build changes or changes in dependencies should be
-fixed by updating the conda recipe stored in the feedstock. See [the
-conda-forge
-docs](https://conda-forge.org/docs/maintainer/updating_pkgs/#pushing-to-regro-cf-autotick-bot-branch)
-for more instructions on updating automatically generated version update
-pull requests on conda-forge.
+repository. The [conda-forge maintainer documentation](https://conda-forge.org/docs/maintainer/updating_pkgs/)
+has the relevant guidelines and procedures, and should be read thoroughly before
+making any changes.
 
 ## Dealing with release mistakes
 

@@ -3,7 +3,7 @@ import tempfile
 from datetime import datetime, timedelta
 
 import csp
-from csp.adapters.parquet import ParquetOutputConfig, ParquetWriter, ParquetReader
+from csp.adapters.parquet import ParquetOutputConfig, ParquetReader, ParquetWriter
 
 
 class Example(csp.Struct):

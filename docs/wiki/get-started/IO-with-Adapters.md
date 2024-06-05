@@ -27,9 +27,9 @@ In a graph, create some sample values for `Example` and use `ParquetWriter` to s
 
 1. The `timestamp_column_name` is how csp preserves the timestamps. Since you need to read this file back into csp, you can provide a column name. If this was the final output and the time stamp information is not required, you can provide `None`.
 
-2. You can provide optional configurations to `clearconfig` in the `ParquetOutputConfig` format (which can set `allow_overwrite`, , `batch_size`, `compression`, `write_arrow_binary`).
+1. You can provide optional configurations to `clearconfig` in the `ParquetOutputConfig` format (which can set `allow_overwrite`, , `batch_size`, `compression`, `write_arrow_binary`).
 
-3. Use `publish_struct` to publish (write) the data as Time Series.
+1. Use `publish_struct` to publish (write) the data as Time Series.
 
 ```python
 @csp.graph

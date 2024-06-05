@@ -6,6 +6,7 @@
 #include <csp/python/PyStructFastList_impl.h>
 #include <csp/python/PyStructList_impl.h>
 #include <csp/python/PyStructToJson.h>
+#include <csp/python/PyStructToDict.h>
 #include <unordered_set>
 #include <type_traits>
 
@@ -936,6 +937,28 @@ PyObject * PyStruct_all_fields_set( PyStruct * self )
     return toPython( self -> struct_ -> allFieldsSet() );
 }
 
+PyObject * PyStruct_to_dict( PyStruct * self, PyObject * args, PyObject * kwargs )
+{
+    CSP_BEGIN_METHOD;
+
+    // NOTE: Consider grouping customization properties into a dictionary
+    PyObject * callable = nullptr;
+    if( PyArg_ParseTuple( args, "O:to_dict", &callable ) )
+    {
+        if( ( callable != Py_None ) && !PyCallable_Check( callable ) )
+        {
+            CSP_THROW( TypeError, "Parameter must be callable or None got " + std::string( Py_TYPE( callable ) -> tp_name ) );
+        }
+    }
+    if( callable == Py_None )
+        callable = nullptr;
+    auto struct_ptr = self -> struct_;
+    auto pyobj_ptr = structToDict( struct_ptr, callable );
+    return pyobj_ptr.release();
+
+    CSP_RETURN_NULL;
+}
+
 PyObject * PyStruct_to_json( PyStruct * self, PyObject * args, PyObject * kwargs )
 {
     CSP_BEGIN_METHOD;
@@ -969,6 +992,7 @@ static PyMethodDef PyStruct_methods[] = {
     { "update_from",    (PyCFunction) PyStruct_update_from,    METH_O,      "update from struct. struct must be same type or a derived type. unset fields will be not be copied" },
     { "update",         (PyCFunction) PyStruct_update,         METH_VARARGS | METH_KEYWORDS, "update from key=val.  given fields will be set on struct.  other fields will remain as is in struct" },
     { "all_fields_set", (PyCFunction) PyStruct_all_fields_set, METH_NOARGS, "return true if all fields on the struct are set" },
+    { "to_dict",        (PyCFunction) PyStruct_to_dict,        METH_VARARGS | METH_KEYWORDS, "return a python dict of the struct by recursively converting struct members into python dicts" },
     { "to_json",        (PyCFunction) PyStruct_to_json,        METH_VARARGS | METH_KEYWORDS, "return a json string of the struct by recursively converting struct members into json format" },
     { NULL}
 };

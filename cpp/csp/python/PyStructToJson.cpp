@@ -137,8 +137,8 @@ inline rapidjson::Value toJson( const StructPtr& val, const CspType& typ, rapidj
 template<>
 inline rapidjson::Value toJson( const DialectGenericType& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
-    auto py_obj = toPython<DialectGenericType>( val );
-    return pyObjectToJson( py_obj, doc, callable, false );
+    auto py_obj = PyObjectPtr::own( toPython<DialectGenericType>( val ) );
+    return pyObjectToJson( py_obj.get(), doc, callable, false );
 }
 
 // Helper function to convert arrays in csp Structs into json lists recursively
@@ -375,14 +375,13 @@ rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyO
         else
         {
             // Not a known type
-            auto arglist = Py_BuildValue( "(O)", value );
             // We expect callback to return a py object consisting of either csp types or dicts and lists
-            PyObject * res_py_obj = PyObject_CallObject( callable, arglist );
+            auto res_py_obj = PyObjectPtr::own( PyObject_CallFunction( callable, "(O)", value ) );
             if( res_py_obj )
             {
                 // NOTE: We could add checks to verify the returned py object is jsonified,
                 // but that would have performance implications
-                return pyObjectToJson( res_py_obj, doc, callable, true );
+                return pyObjectToJson( res_py_obj.get(), doc, callable, true );
             }
             else
             {

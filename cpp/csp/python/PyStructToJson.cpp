@@ -67,6 +67,8 @@ inline rapidjson::Value toJson( const std::string& val, const CspType& typ, rapi
 template<>
 inline rapidjson::Value toJson( const TimeDelta& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
+    if( val.isNone() ) return rapidjson::Value();
+
     // Convert TimeDelta to <sign><seconds>.<microseconds>
     // sign( 1 ) + seconds ( 18 ) + '.'( 1 ) + microseconds( 9 ) + '\0'( 1 )
     char buf[32] = {};
@@ -82,6 +84,8 @@ inline rapidjson::Value toJson( const TimeDelta& val, const CspType& typ, rapidj
 template<>
 inline rapidjson::Value toJson( const Date& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
+    if( val.isNone() ) return rapidjson::Value();
+
     // Convert Date to <year>-<month>-<day>
     // year( 4 ) + '-'( 1 ) + month( 2 ) + '-'( 1 ) + day( 2 ) + '\0'( 1 )
     char buf[32] = {};
@@ -95,6 +99,8 @@ inline rapidjson::Value toJson( const Date& val, const CspType& typ, rapidjson::
 template<>
 inline rapidjson::Value toJson( const Time& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
+    if( val.isNone() ) return rapidjson::Value();
+
     // Convert the Time to <hours>:<minutes>:<seconds>.<microseconds>
     // hours( 2 ) + ':'( 1 ) + minutes( 2 ) + ':'( 1 ) + seconds( 2 ) + '.'( 1 ) + micros( 6 ) + '\0'( 1 )
     char buf[48] = {};
@@ -109,6 +115,8 @@ inline rapidjson::Value toJson( const Time& val, const CspType& typ, rapidjson::
 template<>
 inline rapidjson::Value toJson( const DateTime& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
+    if( val.isNone() ) return rapidjson::Value();
+
     // Convert the datetime value into an ISO 8601 formatted string
     DateTimeEx dtx( val );
 

@@ -1457,6 +1457,11 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 123}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
+        dt = None
+        test_struct = MyStruct(i=456, dt=dt, d=None, t=None, td=None)
+        result_dict = {"i": 456, "dt": None, "d": None, "t": None, "td": None}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
         dt = datetime(2024, 3, 8)
         dt_utc = datetime(2024, 3, 8, tzinfo=pytz.utc)
         test_struct = MyStruct(i=456, dt=dt)

@@ -161,8 +161,19 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
     def from_dict(cls, json: dict):
         return cls._obj_from_python(json, cls)
 
-    def to_dict(self):
-        return self._obj_to_python(self)
+    def to_dict_depr(self):
+        res = self._obj_to_python(self)
+        return res
+
+    def to_dict(self, callback=None):
+        """Create a dictionary representation of the struct
+
+        Args:
+            callback: Optional function to parse types that are not supported by default in csp and convert them to
+                      dicts csp by default can parse Structs, lists, sets, tuples, dicts, datetimes, and primitive types
+        """
+        res = super().to_dict(callback)
+        return res
 
     def to_json(self, callback=lambda x: x):
         return super().to_json(callback)

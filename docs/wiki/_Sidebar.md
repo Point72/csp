@@ -12,8 +12,8 @@ Notes for editors:
 
 - [Installation](Installation)
 - [First steps](First-Steps)
-
-<!-- Add more pages when ready -->
+- [More with CSP](More-with-CSP)
+- [IO with Adapters](IO-with-Adapters)
 
 **Concepts**
 

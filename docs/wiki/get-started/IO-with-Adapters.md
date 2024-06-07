@@ -2,7 +2,7 @@ In [First Steps](First-Steps) and [More with csp](More-with-CSP) you created exa
 
 csp has [several built-in "adapters" to access certain types of data](Input-Output-Adapters-API), including Kafka and Parquet. csp requires friendly (Time Series) data types, and the I/O adapters form the interface between the data types. You can also write your own adapters for other data types, check the corresponding how-to guides for more details.
 
-In this tutorial, you and write to and read from Parquet files on the local file system.
+In this tutorial, you write to, and read from, Parquet files on the local file system.
 
 csp has the `ParquetWriter` and `ParquetReader` adapters to stream data to and from Parquet files. Check out the complete [API in the Reference documentation](https://github.com/Point72/csp/wiki/Input-Output-Adapters-API#parquet).
 
@@ -23,11 +23,11 @@ class Example(csp.Struct):
 
 ## Write to a Parquet file
 
-In a graph, create some sample values for `Example` and use `ParquetWriter` to steam it to a Parquet file.
+In a graph, create some sample values for `Example` and use `ParquetWriter` to stream it to a Parquet file.
 
 1. The `timestamp_column_name` is how csp preserves the timestamps. Since you need to read this file back into csp, you can provide a column name. If this was the final output and the time stamp information is not required, you can provide `None`.
 
-1. You can provide optional configurations to `clearconfig` in the `ParquetOutputConfig` format (which can set `allow_overwrite`, , `batch_size`, `compression`, `write_arrow_binary`).
+1. You can provide optional configurations to `config` in the `ParquetOutputConfig` format (which can set `allow_overwrite`, , `batch_size`, `compression`, `write_arrow_binary`).
 
 1. Use `publish_struct` to publish (write) the data as Time Series.
 
@@ -45,7 +45,7 @@ def write_struct(file_name: str):
         ],
     )
     writer = ParquetWriter(
-        file_name=file_name, timestamp_column_name="csp_time", clearconfig=ParquetOutputConfig(allow_overwrite=True)
+        file_name=file_name, timestamp_column_name="csp_time", config=ParquetOutputConfig(allow_overwrite=True)
     )
     writer.publish_struct(curve)
 ```
@@ -57,7 +57,7 @@ You can use `ParquetReader` with a `time_column`, and read all the `Example` row
 ```python
 @csp.graph
 def read_struct(file_name: str):
-    struct_reader = ParquetReader(struct_file_name, time_column="csp_time")
+    struct_reader = ParquetReader(file_name, time_column="csp_time")
     struct_all = struct_reader.subscribe_all(Example)
     csp.print("struct_all", struct_all)
 ```

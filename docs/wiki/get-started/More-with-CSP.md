@@ -88,7 +88,7 @@ def my_graph():
 The next step is to separate the buying and selling transactions that are captured in `Trade.buy` and calculate the VWAP. You can use the [csp.split](Base-Nodes-API#cspsplit) function for this. It splits input based on a boolean flag.
 
 > \[!TIP\]
-> To perform the opposite operation of a merge you can use [csp.merge](Base-Nodes-API#cspmerge).
+> To perform the opposite operation of a split you can use [csp.merge](Base-Nodes-API#cspmerge).
 
 ```python
 buysell = csp.split(trades.buy, trades)
@@ -136,6 +136,6 @@ if __name__ == "__main__":
 
 As expected, the graph for this workflow show the split of buy & sell Trades, calculation of VWAP for each followed by using the VWAP-Stucts in profit-and-loss calculations:
 
-![Output of show_graph](../imges/pnl-graph.png)
+![Output of show_graph](../images/pnl-graph.png)
 
 Check out the [trade profit-and-loss example](https://github.com/Point72/csp/blob/main/examples/01_basics/e4_trade_pnl.py) to learn more.

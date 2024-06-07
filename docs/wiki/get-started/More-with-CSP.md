@@ -136,6 +136,6 @@ if __name__ == "__main__":
 
 As expected, the graph for this workflow show the split of buy & sell Trades, calculation of VWAP for each followed by using the VWAP-Stucts in profit-and-loss calculations:
 
-![Output of show_graph](../images/pnl-graph.png)
+![Output of show_graph](images/pnl-graph.png)
 
 Check out the [trade profit-and-loss example](https://github.com/Point72/csp/blob/main/examples/01_basics/e4_trade_pnl.py) to learn more.

@@ -1,6 +1,7 @@
 csp is a graph-based stream processing library, where you create directed graphs for real-time event streaming workflows.
 In this introductory tutorial, you will write a csp program to calculate the Bid-Ask Spread for specified `bid` and `ask` values.
 
+> \[!TIP\]
 > The bid–ask spread is the difference between the prices quoted for an immediate sale (ask) and an immediate purchase (bid) for stocks, futures contracts, options, or currency pairs in some auction scenario.
 > ~ [Bid–ask spread on Wikipedia](https://en.wikipedia.org/wiki/Bid%E2%80%93ask_spread)
 
@@ -37,7 +38,7 @@ def spread(bid: ts[float], ask: ts[float]) -> ts[float]:
 
 The `bid` and `ask` values are expected to be Time Series values.
 
-> \[!NOTE\]
+> \[!IMPORTANT\]
 > csp nodes is strictly typed, and the type is enforced by the C++ engine.
 
 This node needs to be executed each time the `ask` and `bid` values change, so we use the following built-in nodes:

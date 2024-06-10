@@ -129,7 +129,7 @@ Adapter managers function the same way for output adapters as for input adapters
 ### InputOutputAdapter - Python
 
 As a as last example, lets tie everything together and implement a managed push input adapter combined with a managed output adapter.
-This example is available in [e_14_user_adapters_06_adaptermanager_inputoutput.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_user_adapters_06_adaptermanager_inputoutput.py).
+This example is available in [e7_adaptermanager_inputoutput.py](https://github.com/Point72/csp/blob/main/examples/04_writing_adapters/e7_adaptermanager_inputoutput.py).
 
 First, we will define our adapter manager.
 In this example, we're going to cheat a little bit and combine our adapter manager (graph time) and our adapter manager impl (run time).

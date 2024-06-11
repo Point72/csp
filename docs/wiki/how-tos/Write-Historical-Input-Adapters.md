@@ -118,7 +118,7 @@ x = csp.curve(int, [ (t1, v1), (t2, v2), .. ])
 csp.print('x', x)
 ```
 
-See example [e_14_user_adapters_01_pullinput.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_user_adapters_01_pullinput.py) for more details.
+See example [e2_pullinput.pyy](https://github.com/Point72/csp/blob/main/examples/04_writing_adapters/e2_pullinput.py) for more details.
 
 ### PullInputAdapter - C++
 
@@ -223,7 +223,7 @@ class CSVReader:
   Note that subscribe returns a `CSVReadAdapter` instance.
   `CSVReadAdapter` is the *--graph--* time representation of the edge (similar to how we defined `csp.curve` above).
   We pass it `self` as its first argument, which will be used to create the AdapterManager *--impl--*
-- **`\_create`**: the method to create the *--impl--* object from the given *--graph--* time representation of the manager
+- **`_create`**: the method to create the *--impl--* object from the given *--graph--* time representation of the manager
 
 The `CSVReader` would then be used in graph building code like so:
 
@@ -412,4 +412,4 @@ CSVReadAdapter = py_managed_adapter_def(                     # 6
 - **line 3**: this is where the instance of an adapter *--impl--* registers itself with the `CSVReaderImpl`.
 - **line 6+**: this is where we define `CSVReadAdapter`, the *--graph--* time representation of a CSV adapter, returned from `CSVReader.subscribe`
 
-See example [e_14_user_adapters_02_adaptermanager_siminput.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_user_adapters_02_adaptermanager_siminput.py) for another example of how to write a managed sim adapter manager.
+See example [e3_adaptermanager_pullinput.py](https://github.com/Point72/csp/blob/main/examples/04_writing_adapters/e3_adaptermanager_pullinput.py) for another example of how to write a managed sim adapter manager.

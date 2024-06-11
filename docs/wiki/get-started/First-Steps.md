@@ -39,7 +39,7 @@ def spread(bid: ts[float], ask: ts[float]) -> ts[float]:
 The `bid` and `ask` values are expected to be Time Series values.
 
 > \[!IMPORTANT\]
-> csp nodes is strictly typed, and the type is enforced by the C++ engine.
+> csp nodes are strictly typed, and the type is enforced by the C++ engine.
 
 This node needs to be executed each time the `ask` and `bid` values change, so we use the following built-in nodes:
 

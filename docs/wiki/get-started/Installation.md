@@ -10,9 +10,6 @@ pip install csp
 
 ## Install with `conda`
 
-> \[!WARNING\]
-> Currently, only supported on MacOS and Linux
-
 ```bash
 conda install csp --channel conda-forge
 ```

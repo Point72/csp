@@ -11,7 +11,7 @@ try:
     import tornado.web
     import tornado.websocket
 except ImportError:
-    raise ImportError("perspective adapter requires tornado package")
+    raise ModuleNotFoundError("csp's perspective adapter requires `tornado`")
 
 
 try:
@@ -19,9 +19,9 @@ try:
 
     MAJOR, MINOR, PATCH = map(int, __version__.split("."))
     if (MAJOR, MINOR, PATCH) < (0, 6, 2):
-        raise ImportError("perspective adapter requires 0.6.2 or greater of the perspective-python package")
+        raise ModuleNotFoundError("csp's perspective adapter requires `perspective-python>=0.6.2`")
 except ImportError:
-    raise ImportError("perspective adapter requires 0.6.2 or greater of the perspective-python package")
+    raise ModuleNotFoundError("csp's perspective adapter requires `perspective-python>=0.6.2`")
 
 
 # Run perspective update in a separate tornado loop

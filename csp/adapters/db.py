@@ -25,11 +25,8 @@ try:
         _SQLALCHEMY_2 = False
 
     import sqlalchemy as db
-
-    _HAS_SQLALCHEMY = True
 except (PackageNotFoundError, ValueError, TypeError, ImportError):
-    _HAS_SQLALCHEMY = False
-    db = None
+    raise ModuleNotFoundError("csp's db adapter requires `sqlalchemy`")
 
 
 class TimeAccessor(ABC):
@@ -199,8 +196,6 @@ class DBReader:
         :param log_query: set to True to see what query was generated to access the data
         :param use_raw_user_query: Don't do any alteration to user query, assume it contains all the needed columns and sorting
         """
-        if not _HAS_SQLALCHEMY:
-            raise RuntimeError("Could not find SQLAlchemy installation")
         self._connection = connection
         self._table_name = table_name
         self._schema_name = schema_name

@@ -1,6 +1,5 @@
 import http.client
 import json
-import requests
 import ssl
 import threading
 from logging import getLogger
@@ -13,6 +12,11 @@ from csp import ts
 from csp.impl.enum import Enum
 from csp.impl.pushadapter import PushInputAdapter
 from csp.impl.wiring import py_push_adapter_def
+
+try:
+    import requests
+except ImportError:
+    raise ModuleNotFoundError("csp's symphony adapter requires `requests`")
 
 __all__ = ["SymphonyAdapter", "SymphonyMessage"]
 

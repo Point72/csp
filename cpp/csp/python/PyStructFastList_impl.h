@@ -9,6 +9,7 @@
 #include <csp/python/PyStructFastList.h>
 #include <csp/python/VectorWrapper.h>
 #include <algorithm>
+#include <iostream>
 
 // The Py_TPFLAGS_SEQUENCE flag is used for 'match' statement to work. It is not available prior Python 3.10, so need to use conditional compilation
 #define IS_PYTHON_3_10_OR_GREATER ( PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 10 )
@@ -511,6 +512,15 @@ static PyObject * PyStructFastList_Reversed( PyStructFastList<StorageT> * self, 
     CSP_RETURN_NULL;
 }
 
+/* Dummy pickle the object */
+template<typename StorageT>
+static PyObject * PyStructFastList_getstate( PyStructFastList<StorageT> * self, PyObject *Py_UNUSED(ignored))
+{
+    std::cout<< "------------------------GETSTATE-----------------------------------" << std::endl;
+    PyObject *ret = Py_BuildValue("{ss}", "dummy", "Dummy");
+    return ret;
+}
+
 template<typename StorageT>
 static PyMethodDef PyStructFastList_methods[] = {
     { "__getitem__",   ( PyCFunction ) py_struct_fast_list_subscript<StorageT>,  METH_VARARGS,                  NULL },
@@ -527,6 +537,7 @@ static PyMethodDef PyStructFastList_methods[] = {
     { "extend",        ( PyCFunction ) PyStructFastList_Extend<StorageT>,        METH_VARARGS,                  NULL },
     { "remove",        ( PyCFunction ) PyStructFastList_Remove<StorageT>,        METH_VARARGS,                  NULL },
     { "clear",         ( PyCFunction ) PyStructFastList_Clear<StorageT>,         METH_NOARGS,                   NULL },
+    {"__getstate__", (PyCFunction) PyStructFastList_getstate<StorageT>, METH_NOARGS, NULL},
     { NULL},
 };
 

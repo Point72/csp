@@ -1,3 +1,6 @@
+#ifndef _IN_CSP_CPPNODES_STATSIMPL_H
+#define _IN_CSP_CPPNODES_STATSIMPL_H
+
 #include <csp/engine/CppNode.h>
 #include <csp/engine/WindowBuffer.h>
 
@@ -1582,8 +1585,9 @@ class EMA
                 }
                 else
                 {
-                    m_ema = ( pow( m_ema * ( 1 - m_alpha ), m_offset ) + m_alpha * x ) /
+                    m_ema = ( m_ema * pow( ( 1 - m_alpha ), m_offset ) + m_alpha * x ) / 
                         ( pow( 1 - m_alpha, m_offset ) + m_alpha );
+                    m_offset = 1;
                 }
             }
         }
@@ -1730,6 +1734,12 @@ class AlphaDebiasEMA
                     w0 = 1 - m_decay;
                 m_sqsum += pow( w0, 2 );
                 m_wsum += w0;
+                if( !m_adjust )
+                {
+                    double correction = decay_factor + w0;
+                    m_wsum /= correction;
+                    m_sqsum /= ( correction * correction );
+                }
             }
             else
             {
@@ -2358,3 +2368,5 @@ public:
 };
 
 }
+
+#endif // _IN_CSP_CPPNODES_STATSIMPL_H

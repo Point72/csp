@@ -465,6 +465,11 @@ class TestStats(unittest.TestCase):
 
     def test_ema(self):
         dvalues = np.random.uniform(low=-100, high=100, size=(1000,))
+        for i in range(1000):
+            p = np.random.rand()
+            if p < 0.1:
+                dvalues[i] = np.nan
+
         st = datetime(2020, 1, 1)
 
         @csp.graph
@@ -473,10 +478,12 @@ class TestStats(unittest.TestCase):
             ema = csp.stats.ema(x, alpha=0.1, adjust=False)
             ema_var = csp.stats.ema_var(x, min_periods=3, span=20, adjust=True, bias=True)
             ema_std = csp.stats.ema_std(x, min_periods=3, span=20, adjust=True, bias=False)
+            ema_std2 = csp.stats.ema_std(x, min_periods=3, span=20, adjust=False, ignore_na=False, bias=False)
 
             csp.add_graph_output("ema", ema)
             csp.add_graph_output("ema_v", ema_var)
             csp.add_graph_output("ema_s", ema_std)
+            csp.add_graph_output("ema_s2", ema_std2)
 
         values = pd.Series(dvalues)
         pd_alpha = values.ewm(alpha=0.1, adjust=False).mean()
@@ -484,12 +491,16 @@ class TestStats(unittest.TestCase):
         pd_var = pd_span.var(bias=True)
         pd_std = pd_span.std(bias=False)
 
+        pd_span2 = values.ewm(span=20, adjust=False, ignore_na=False)
+        pd_std2 = pd_span2.std(bias=False)
+
         results = csp.run(graph, starttime=st, endtime=st + timedelta(milliseconds=1000))
 
         # floats, ensure accurate to 1e-6
         np.testing.assert_almost_equal(np.array(pd_alpha), np.array(results["ema"])[:, 1], decimal=7)
         np.testing.assert_almost_equal(np.array(pd_var)[2:], np.array(results["ema_v"])[:, 1], decimal=7)
         np.testing.assert_almost_equal(np.array(pd_std)[2:], np.array(results["ema_s"])[:, 1], decimal=7)
+        np.testing.assert_almost_equal(np.array(pd_std2)[2:], np.array(results["ema_s2"])[:, 1], decimal=7)
 
     def test_triggers(self):
         dvalues = [i + 1 for i in range(20)]

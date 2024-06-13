@@ -1376,6 +1376,84 @@ class TestCspStruct(unittest.TestCase):
         r = repr(a)
         self.assertTrue(repr(raw) in r)
 
+    def test_to_dict_recursion(self):
+        class MyStruct(csp.Struct):
+            l1: list
+            l2: list
+            d1: dict
+            d2: dict
+            t1: tuple
+            t2: tuple
+
+        test_struct = MyStruct(l1=[1], l2=[2])
+        result_dict = {"l1": [1], "l2": [2]}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
+        test_struct = MyStruct(l1=[1], l2=[2])
+        test_struct.l1.append(test_struct.l2)
+        test_struct.l2.append(test_struct.l1)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(l1=[1])
+        test_struct.l1.append(test_struct.l1)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(l1=[1])
+        test_struct.l1.append(test_struct)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        result_dict = {"d1": {1: 1}, "d2": {2: 2}}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        test_struct.d1["d2"] = test_struct.d2
+        test_struct.d2["d1"] = test_struct.d1
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        test_struct.d1["d1"] = test_struct.d1
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        test_struct.d1["d1"] = test_struct
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(t1=(1, 1), t2=(2, 2))
+        result_dict = {"t1": (1, 1), "t2": (2, 2)}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
+        test_struct = MyStruct(t1=(1, 1))
+        test_struct.t1 = (1, 2, test_struct)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+    def test_to_dict_postprocess(self):
+        class MySubStruct(csp.Struct):
+            i: int = 0
+
+            def postprocess_to_dict(obj):
+                obj["postprocess_called"] = True
+                return obj
+
+        class MyStruct(csp.Struct):
+            i: int = 1
+            mss: MySubStruct = MySubStruct()
+
+            def postprocess_to_dict(obj):
+                obj["postprocess_called"] = True
+                return obj
+
+        test_struct = MyStruct()
+        result_dict = {"i": 1, "postprocess_called": True, "mss": {"i": 0, "postprocess_called": True}}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
     def test_to_json_primitives(self):
         class MyStruct(csp.Struct):
             b: bool = True

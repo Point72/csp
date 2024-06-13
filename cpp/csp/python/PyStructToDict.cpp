@@ -108,6 +108,14 @@ PyObjectPtr parseStructToDictRecursive( const StructPtr& self, PyObject * callab
             } );
         PyDict_SetItemString( new_dict.get(), key.c_str(), py_obj.get() );
     }
+
+    // Optional postprocess hook in python to allow caller to customize to_dict behavior for struct
+    PyObject * py_type = ( PyObject * ) meta -> pyType();
+    if( PyObject_HasAttrString( py_type, "postprocess_to_dict" ) )
+    {
+        auto postprocess_dict_callable = PyObjectPtr::own( PyObject_GetAttrString( py_type, "postprocess_to_dict" ) );
+        new_dict = PyObjectPtr::check( PyObject_CallFunction( postprocess_dict_callable.get(), "(O)", new_dict.get() ) );
+    }
     return new_dict;
 }
 

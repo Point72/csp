@@ -24,7 +24,7 @@ dependencies:
  - mamba
  - mdformat>=0.7.17,<0.8
  - ninja
- - numpy
+ - numpy<2
  - pandas
  - pillow
  - polars

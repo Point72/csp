@@ -45,7 +45,7 @@ test                           run the tests
 
 ## Prerequisites
 
-CSP has a few system-level dependencies which you can install from your machine package manager. Other package managers like `conda`, `nix`, etc, should also work fine. Currently, CSP relies on the `GNU` compiler toolchain only.
+CSP has a few system-level dependencies which you can install from your machine package manager. Other package managers like `conda`, `nix`, etc, should also work fine.
 
 ## Building with Conda on Linux
 

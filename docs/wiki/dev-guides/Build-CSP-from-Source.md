@@ -196,7 +196,7 @@ By default, we pull and build dependencies with [vcpkg](https://vcpkg.io/en/). W
 
 ## Lint and Autoformat
 
-CSP has listing and auto formatting.
+CSP has linting and auto formatting.
 
 | Language | Linter         | Autoformatter  | Description |
 | :------- | :------------- | :------------- | :---------- |

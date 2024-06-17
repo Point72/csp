@@ -203,6 +203,8 @@ CSP has linting and auto formatting.
 | C++      | `clang-format` | `clang-format` | Style       |
 | Python   | `ruff`         | `ruff`         | Style       |
 | Python   | `isort`        | `isort`        | Imports     |
+| Markdown | `mdformat`     | `mdformat`     | Style       |
+| Markdown | `codespell`    |                | Spelling    |
 
 **C++ Linting**
 

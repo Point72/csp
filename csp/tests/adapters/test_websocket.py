@@ -117,3 +117,12 @@ class TestWebsocket(unittest.TestCase):
         msgs = csp.run(g, n, starttime=datetime.now(pytz.UTC), realtime=True)
         assert len(msgs["recv"]) == n
         assert msgs["recv"][0][1] != msgs["recv"][-1][1]
+
+    def test_unkown_host_graceful_shutdown(self):
+        @csp.graph
+        def g():
+            ws = WebsocketAdapterManager("wss://localhost/")
+            assert ws._properties["port"] == "443"
+            csp.stop_engine(ws.status())
+
+        csp.run(g, starttime=datetime.now(pytz.UTC), realtime=True)

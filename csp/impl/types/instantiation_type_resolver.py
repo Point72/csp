@@ -10,7 +10,7 @@ from csp.impl.types.common_definitions import ArgKind, BasketKind, InputDef, Out
 from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
 from csp.impl.types.numpy_type_util import map_numpy_dtype_to_python_type
 from csp.impl.types.tstype import AttachType, SnapKeyType, SnapType, TsType, isTsDynamicBasket
-from csp.impl.types.typing_utils import CspTypingUtils, FastList, PyStructList
+from csp.impl.types.typing_utils import CspTypingUtils, FastList
 from csp.impl.wiring.edge import Edge
 
 
@@ -255,7 +255,6 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
             and (
                 CspTypingUtils.get_origin(typ) is expected_generic_meta
                 or (expected_generic_meta is typing.List and CspTypingUtils.get_origin(typ) is FastList)
-                or (expected_generic_meta is typing.List and CspTypingUtils.get_origin(typ) is PyStructList)
             )
         ) or (
             not is_generic_container

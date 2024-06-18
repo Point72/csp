@@ -12,11 +12,6 @@ class FastList(typing.Generic[T]):
         raise NotImplementedError("Can not init FastList class")
 
 
-class PyStructList(typing.Generic[T]):
-    def __init__(self):
-        raise NotImplementedError("Can not init PyStructList class")
-
-
 class CspTypingUtils37:
     _ORIGIN_COMPAT_MAP = {list: typing.List, set: typing.Set, dict: typing.Dict, tuple: typing.Tuple}
     _ARRAY_ORIGINS = (csp.typing.Numpy1DArray, csp.typing.NumpyNDArray)

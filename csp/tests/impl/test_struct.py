@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import pickle
 import pytz
 import typing
 import unittest
@@ -167,6 +168,14 @@ class SimpleClass:
 
     def __init__(self, x: int):
         self.x = x
+
+
+class SimpleStructForPickleList(csp.Struct):
+    a: typing.List[int]
+
+
+class SimpleStructForPickleFastList(csp.Struct):
+    a: FastList[int]
 
 
 # Common set of values for Struct list field tests
@@ -2744,6 +2753,35 @@ class TestCspStruct(unittest.TestCase):
 
         p = csp.unroll(csp.const(A(a=[1, 2, 3])).a)
         q = csp.unroll(csp.const(B(a=[1, 2, 3])).a)
+
+    def test_list_field_pickle(self):
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
+        # Not using pystruct_list_test_values, as pickling tests are of different semantics (picklability of struct fields matters).
+        v = [1, 5, 2]
+
+        s = SimpleStructForPickleList(a=[v[0], v[1], v[2]])
+
+        t = pickle.loads(pickle.dumps(s))
+
+        self.assertEqual(t.a, s.a)
+        self.assertEqual(type(t.a), type(s.a))
+
+        b = pickle.loads(pickle.dumps(s.a))
+
+        self.assertEqual(b, s.a)
+        self.assertEqual(type(b), list)
+
+        s = SimpleStructForPickleFastList(a=[v[0], v[1], v[2]])
+
+        t = pickle.loads(pickle.dumps(s))
+
+        self.assertEqual(t.a, s.a)
+        self.assertEqual(type(t.a), type(s.a))
+
+        b = pickle.loads(pickle.dumps(s.a))
+
+        self.assertEqual(b, s.a)
+        self.assertEqual(type(b), list)
 
 
 if __name__ == "__main__":

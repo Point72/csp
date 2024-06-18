@@ -464,17 +464,19 @@ class TestStats(unittest.TestCase):
         np.testing.assert_almost_equal(excess_kurtosis, kurtosis - 3, decimal=7)
 
     def test_ema(self):
-        dvalues = np.random.uniform(low=-100, high=100, size=(1000,))
-        for i in range(1000):
+        N = 1000
+        dvalues = np.random.uniform(low=-100, high=100, size=(N,))
+        dvalues[0] = np.nan  # this forces edge cases around first value being nan
+        for i in range(N):
             p = np.random.rand()
-            if p < 0.1:
+            if p < 0.2:
                 dvalues[i] = np.nan
 
         st = datetime(2020, 1, 1)
 
         @csp.graph
         def graph():
-            x = csp.curve(typ=float, data=[(st + timedelta(milliseconds=i + 1), dvalues[i]) for i in range(1000)])
+            x = csp.curve(typ=float, data=[(st + timedelta(milliseconds=i + 1), dvalues[i]) for i in range(N)])
             ema = csp.stats.ema(x, alpha=0.1, adjust=False)
             ema_var = csp.stats.ema_var(x, min_periods=3, span=20, adjust=True, bias=True)
             ema_std = csp.stats.ema_std(x, min_periods=3, span=20, adjust=True, bias=False)
@@ -496,11 +498,19 @@ class TestStats(unittest.TestCase):
 
         results = csp.run(graph, starttime=st, endtime=st + timedelta(milliseconds=1000))
 
-        # floats, ensure accurate to 1e-6
-        np.testing.assert_almost_equal(np.array(pd_alpha), np.array(results["ema"])[:, 1], decimal=7)
-        np.testing.assert_almost_equal(np.array(pd_var)[2:], np.array(results["ema_v"])[:, 1], decimal=7)
-        np.testing.assert_almost_equal(np.array(pd_std)[2:], np.array(results["ema_s"])[:, 1], decimal=7)
-        np.testing.assert_almost_equal(np.array(pd_std2)[2:], np.array(results["ema_s2"])[:, 1], decimal=7)
+        # floats, ensure accurate to 1.5e-7
+        np.testing.assert_allclose(
+            np.array(pd_alpha), np.array(results["ema"])[:, 1].astype(np.float64), atol=1.5e-7, equal_nan=True
+        )
+        np.testing.assert_allclose(
+            np.array(pd_var)[2:], np.array(results["ema_v"])[:, 1].astype(np.float64), atol=1.5e-7, equal_nan=True
+        )
+        np.testing.assert_allclose(
+            np.array(pd_std)[2:], np.array(results["ema_s"])[:, 1].astype(np.float64), atol=1.5e-7, equal_nan=True
+        )
+        np.testing.assert_allclose(
+            np.array(pd_std2)[2:], np.array(results["ema_s2"])[:, 1].astype(np.float64), atol=1.5e-7, equal_nan=True
+        )
 
     def test_triggers(self):
         dvalues = [i + 1 for i in range(20)]

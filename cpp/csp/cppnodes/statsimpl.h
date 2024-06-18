@@ -1572,7 +1572,7 @@ class EMA
                 m_ema = x;
                 m_first = false;
             }
-            else if( unlikely( isnan( x ) ) && !m_ignore_na )
+            else if( unlikely( isnan( x ) ) && !m_ignore_na && likely( !m_first ) )
             {
                 m_offset++;
             }
@@ -1603,7 +1603,7 @@ class EMA
 
         double compute() const
         {
-            return m_ema;
+            return unlikely( m_first ) ? std::numeric_limits<double>::quiet_NaN() : m_ema;
         }
 
     private:
@@ -1714,7 +1714,7 @@ class AlphaDebiasEMA
 
         void add( double x )
         {
-            if( m_first )
+            if( m_first && likely( !isnan( x ) ) )
             {
                 m_wsum = 1;
                 m_sqsum = 1;
@@ -1741,7 +1741,7 @@ class AlphaDebiasEMA
                     m_sqsum /= ( correction * correction );
                 }
             }
-            else
+            else if ( likely( !m_first ) )
             {
                 m_offset++;
                 m_nan_count++;

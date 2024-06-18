@@ -522,7 +522,8 @@ static PyObject * PyStructFastList_reduce( PyStructFastList<StorageT> * self, Py
     for( typename VectorWrapper<StorageT>::IndexType index = 0; index < sz; ++index )
     {
         PyObject * value = PyList_GET_ITEM( list.ptr(), index );
-        PyTuple_SET_ITEM( args, index, Py_NewRef( value ) );
+        Py_INCREF( value );
+        PyTuple_SET_ITEM( args, index, value );
     }
     PyObject * result = Py_BuildValue( "O(O)", &PyList_Type, args );
     Py_INCREF( result );

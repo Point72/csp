@@ -517,16 +517,8 @@ static PyObject * PyStructFastList_reduce( PyStructFastList<StorageT> * self, Py
     CSP_BEGIN_METHOD;
     
     typename VectorWrapper<StorageT>::IndexType sz = self -> vector.size();
-    PyObject * args = PyTuple_New( sz );
     PyObjectPtr list = PyObjectPtr::own( toPython( self -> vector.getVector(), self -> arrayType ) );
-    for( typename VectorWrapper<StorageT>::IndexType index = 0; index < sz; ++index )
-    {
-        PyObject * value = PyList_GET_ITEM( list.ptr(), index );
-        Py_INCREF( value );
-        PyTuple_SET_ITEM( args, index, value );
-    }
-    PyObject * result = Py_BuildValue( "O(O)", &PyList_Type, args );
-    Py_INCREF( result );
+    PyObject * result = Py_BuildValue( "O(O)", &PyList_Type, list.ptr() );
     return result;
 
     CSP_RETURN_NULL;

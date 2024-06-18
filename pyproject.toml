@@ -19,7 +19,7 @@ requires-python = ">=3.8"
 
 dependencies = [
     "backports.zoneinfo; python_version<'3.9'",
-    "numpy",
+    "numpy<2",
     "packaging",
     "pandas",
     "psutil",

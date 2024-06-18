@@ -2758,7 +2758,7 @@ class TestCspStruct(unittest.TestCase):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
         # Not using pystruct_list_test_values, as pickling tests are of different semantics (picklability of struct fields matters).
         v = [1, 5, 2]
-        
+
         s = SimpleStructForPickleList(a=[v[0], v[1], v[2]])
 
         t = pickle.loads(pickle.dumps(s))

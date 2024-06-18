@@ -203,10 +203,7 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         for k in self.__full_metadata_typed__:
             v = getattr(self, k, csp.UNSET)
             if v is not csp.UNSET:
-                if not isinstance(v, list):
-                    kwargs[k] = v
-                else:
-                    kwargs[k] = list(v)
+                kwargs[k] = v
         return kwargs
 
     def __setstate__(self, state):

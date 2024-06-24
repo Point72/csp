@@ -124,6 +124,7 @@ def my_graph():
     print("Start of graph building")
 
     adapter_manager = MyAdapterManager(timedelta(seconds=0.75))
+    adapter_manager.engine_shutdown()
     symbols = ["AAPL", "IBM", "TSLA", "GS", "JPM"]
     for symbol in symbols:
         # If your data source happens to tick multiple times on the same timeseries

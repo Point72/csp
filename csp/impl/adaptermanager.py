@@ -23,6 +23,13 @@ class AdapterManagerImpl(_cspimpl.PyAdapterManager):
         NOTE: Simulation Adapters should overload this method!
         """
         return None
+    
+    def engine_shutdown(self, exc):
+        # rename cpp function to _engine_shutdown
+        # users are going to call this with no args
+        # then here, get the traceback, conver to str, and then pass to _engine_shutdown (cpp side)
+        # also: clean up code, check to make sure its a string in C++, check to make sure the exception they give is an exception
+        pass
 
 
 class ManagedSimInputAdapter(_cspimpl.PyManagedSimInputAdapter):

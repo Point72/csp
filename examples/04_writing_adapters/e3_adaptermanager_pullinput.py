@@ -28,6 +28,7 @@ class MyAdapterManager:
         """
         print("MyAdapterManager::__init__")
         self._interval = interval
+        self._impl = None
 
     def subscribe(self, symbol, push_mode=csp.PushMode.NON_COLLAPSING):
         """User facing API to subscribe to a timeseries stream from this adapter manager"""
@@ -39,9 +40,8 @@ class MyAdapterManager:
         """This method will get called at engine build time, at which point the graph time manager representation
         will create the actual impl that will be used for runtime
         """
-        print("MyAdapterManager::_create")
-        # Normally you would pass the arguments down into the impl here
-        return MyAdapterManagerImpl(engine, self._interval)
+        self._impl = MyAdapterManagerImpl(engine, self._interval)
+        return self._impl
 
 
 # This is the actual manager impl that will be created and executed during runtime
@@ -86,6 +86,7 @@ class MyAdapterManagerImpl(AdapterManagerImpl):
         """
 
         # Generate random data, simulate some number of rows per timeslice
+        self.engine_shutdown( "hello world! error!" )
         num_rows = random.randint(0, 10)
 
         symbols = list(self._inputs.keys())
@@ -124,7 +125,6 @@ def my_graph():
     print("Start of graph building")
 
     adapter_manager = MyAdapterManager(timedelta(seconds=0.75))
-    adapter_manager.engine_shutdown()
     symbols = ["AAPL", "IBM", "TSLA", "GS", "JPM"]
     for symbol in symbols:
         # If your data source happens to tick multiple times on the same timeseries

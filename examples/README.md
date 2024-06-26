@@ -1,11 +1,159 @@
 # `csp` examples
 
-- [Basics](./01_basics/)
-- [Intermediate](./02_intermediate/)
-- [Adapters](./03_using_adapters/)
-- [Writing Adapters](./04_writing_adapters/)
-- [Writing C++ Nodes and Adapters](./05_cpp/)
-- [Advanced](./06_advanced/)
-- [End to End Examples](./07_end_to_end/)
-- [Just for fun!](./98_just_for_fun/)
-- [Developer Tools](./99_developer_tools/)
+<table>
+    <thead>
+        <tr>
+            <th>Type</th>
+            <th>Example</th>
+            <th>Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Basic -->
+        <tr>
+            <td rowspan=4><a href="./01_basics/">Basics</a></td>
+            <td><a href="./01_basics/e1_basic.py">Basic Graph</a></td>
+            <td>Basic addition of constant integers</td>
+        </tr>
+        <tr>
+            <td><a href="./01_basics/e2_ticking.py">Ticking Graphs</a></td>
+            <td>Cumulative sum of streaming integers</td>
+        </tr>
+        <tr>
+            <td><a href="./01_basics/e3_show_graph.py">Visualizing a Graph</a></td>
+            <td>Calculate ask-bid spread of trade with graph visualization</td>
+        </tr>
+        <tr>
+            <td><a href="./01_basics/e4_trade_pnl.py">Complete Example (Trading)</a></td>
+            <td>Calculate Volume Weighted Average price (VWAP) and the Profit and Loss (PnL) of a trade</td>
+        </tr>
+        <!-- Intermediate -->
+        <tr>
+            <td rowspan=4><a href="./02_intermediate/">Intermediate</a></td>
+            <td><a href="./02_intermediate/e1_feedback.py">Graph Loops (<code>csp.feedback</code>)</a></td>
+            <td>Add cycles in an acyclic graph</td>
+        </tr>
+        <tr>
+            <td><a href="./e02_intermediate/2_stats.py">Statistics Nodes</a></td>
+            <td>Statistical computations like rolling VWAP, Exponential Moving Average (EMA), and cumulative volume of
+                trades</td>
+        </tr>
+        <tr>
+            <td><a href="./02_intermediate/e3_numpy_stats.py">Statistics Nodes with Numpy</a></td>
+            <td>Rolling window statistics on a set of three symbols using NumPy ndarrays</td>
+        </tr>
+        <tr>
+            <td><a href="./02_intermediate/e4_exprtk.py">Expression Nodes with <code>exprtk</code></a></td>
+            <td>Calculate mathematical expressions with streaming data</td>
+        </tr>
+        <!-- Using Adapters -->
+        <tr>
+            <td rowspan=4><a href="./03_using_adapters/">Using Adapters</a></td>
+            <td><a href="./03_using_adapters/kafka/e1_kafka.py">Kafka Adapter Example</a></td>
+            <td>
+                Stream data from a Kafka bus using `KafkaAdapterManager` and `MessageMapper`s
+            </td>
+        </tr>
+        <tr>
+            <td><a href="./03_using_adapters/parquet/e1_parquet_write_read.py">Parquet Adapter Example</a></td>
+            <td>
+                Read and write CSP-friendly data from/to Parquet files
+            </td>
+        </tr>
+        <tr>
+            <td><a href="./03_using_adapters/websocket/e1_websocket_client.py">Websocket Client</a></td>
+            <td>
+                Send and receive messages over a websocket connection
+            </td>
+        </tr>
+        <tr>
+            <td><a href="./03_using_adapters/websocket/e2_websocket_output.py">Websocket Output</a></td>
+            <td>
+                Send data over a websocket connection and view HTML output
+            </td>
+        </tr>
+        <!-- Writing Adapters -->
+        <tr>
+            <td rowspan=7><a href="./04_writing_adapters/">Writing Adapters</a></td>
+            <td><a href="./04_writing_adapters/e1_generic_push_adapter.py">Generic Push Adapter</a></td>
+        </tr>
+        <tr>
+            <td colspan=2><a href="./04_writing_adapters/e2_pullinput.py">Pull Input Adapter</a></td>
+        </tr>
+        <tr>
+            <td colspan=2><a href="./04_writing_adapters/e3_adaptermanager_pullinput.py">Pull Input Adapter with Adapter
+                    Manager</a></td>
+        </tr>
+        <tr>
+            <td colspan=2><a href="./04_writing_adapters/e4_pushinput.py">Push Input Adapter</a></td>
+        </tr>
+        <tr>
+            <td colspan=2><a href="./04_writing_adapters/e5_adaptermanager_pushinput.py">Push Input Adapter with Adapter
+                    Manager</a></td>
+        </tr>
+        <tr>
+            <td colspan=2><a href="./04_writing_adapters/e6_outputadapter.py">Output Adapter</a></td>
+        </tr>
+        <tr>
+            <td colspan=2><a href="./04_writing_adapters/e7_adaptermanager_inputoutput.py">Complete Input/Output Adapter with
+                    Adapter Manager</a></td>
+        </tr>
+        <!-- Writing C++ Nodes and Adapters -->
+        <tr>
+            <td rowspan=2><a href="./05_cpp/">Writing C++ Nodes and Adapters</a></td>
+            <td colspan=2><a href="./05_cpp/1_cpp_node/">C++ Node</a></td>
+        </tr>
+        <tr>
+            <td colspan=2><a href="./05_cpp/2_cpp_node_with_struct/">C++ Node with <code>csp.Struct</code></a></td>
+        </tr>
+        <!-- Advanced -->
+        <tr>
+            <td rowspan=2><a href="./06_advanced/">Advanced</a></td>
+            <td><a href="./06_advanced/e1_dynamic.py">Dynamic Graphs</a></td>
+            <td>
+                TODO
+            </td>
+        </tr>
+        <tr>
+            <td><a href="./06_advanced/e2_pandas_extension.py">Pandas Extension</a></td>
+            <td>
+                TODO
+            </td>
+        </tr>
+        <!-- End-to-end examples -->
+        <tr>
+            <td rowspan=3><a href="./07_end_to_end/">End-to-end examples</a></td>
+            <td><a href="./07_end_to_end/mta.ipynb">MTA Subway Data</a></td>
+            <td>
+                TODO
+            </td>
+        </tr>
+        <tr>
+            <td><a href="./07_end_to_end/seismic_waveform.ipynb">Seismic Data with obspy</a></td>
+            <td>
+                TODO
+            </td>
+        </tr>
+        <tr>
+            <td><a href="./07_end_to_end/wikimedia.ipynb">Wikipedia Updates and Edits</a></td>
+            <td>
+                TODO
+            </td>
+        </tr>
+        <!-- Others -->
+        <tr>
+            <td><a href="./98_just_for_fun/">Just for fun!</a></td>
+            <td><a href="./98_just_for_fun/e1_csp_nand_computer.py">NAND Computer</a></td>
+            <td>
+                TODO
+            </td>
+        </tr>
+        <tr>
+            <td><a href="./99_developer_tools/">Developer Tools</a></td>
+            <td><a href="./99_developer_tools/e1_profiling.py">Profiling <code>csp</code> code</a></td>
+            <td>
+                TODO
+            </td>
+        </tr>
+    </tbody>
+</table>

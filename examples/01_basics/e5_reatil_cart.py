@@ -1,3 +1,10 @@
+"""
+A retail cart example that:
+- Tracks the real-time total of a cart (as items are added and removed)
+- Gives a 10% discount if the purchase is made within XX minutes
+- Tracks the total sales and number of purchases
+"""
+
 from datetime import datetime, timedelta
 
 import csp

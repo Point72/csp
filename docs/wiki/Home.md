@@ -16,23 +16,42 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
 - **PyData interoperability:** Use your favorite libraries from the Scientific Python Ecosystem for numerical and statistical computations
 - **Functional/declarative style:** Write concise and composable code for stream processing by building graphs in Python
 
-<!-- ## Applications -->
-
 ## Get Started
 
 - [Install CSP](Installation) and [write your first CSP program](First-Steps)
 - Learn more about [nodes](CSP-Node), [graphs](CSP-Graph), and [execution modes](Execution-Modes)
 - Learn to extend CSP with [adapters](Adapters)
 
-<!-- - Check out the [examples](Examples) for various CSP features and use cases -->
+## Applications
 
-> \[!TIP\]
-> Find relevant docs with GitHub’s search function, use `repo:Point72/csp type:wiki <search terms>` to search the documentation Wiki Pages.
+<table>
+  <tr>
+    <td>Seismic waveform data processing</td>
+    <td>NYC real-time transportation analysis</td>
+    <td>Wikimedia page edits monitoring</td>
+  </tr>
+  <tr>
+    <td>
+      <img src="images/seismic-waveform-example.png" width="300px">
+    </td>
+    <td>
+      <img src="images/mta-example.png" width="300px">
+    </td>
+    <td>
+      <img src="images/wikimedia-example.png" width="300px">
+    </td>
+  </tr>
+</table>
+
+Check out the [examples directory](https://github.com/Point72/csp/tree/main/examples) for more CSP features and use cases.
 
 ## Community
 
 - [Contribute](Contribute) to CSP and help improve the project
 - Read about future plans in the [project roadmap](Roadmap)
+
+> \[!TIP\]
+> Find relevant docs with GitHub’s search function, use `repo:Point72/csp type:wiki <search terms>` to search the documentation Wiki Pages.
 
 ## License
 

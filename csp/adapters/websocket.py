@@ -405,6 +405,9 @@ class WebsocketAdapterManager:
         """
         assert reconnect_interval >= timedelta(seconds=1)
         resp = urllib.parse.urlparse(uri)
+        if resp.hostname is None:
+            raise ValueError(f"Failed to parse host from URI: {uri}")
+
         self._properties = dict(
             host=resp.hostname,
             # if no port is explicitly present in the uri, the resp.port is None

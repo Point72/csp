@@ -13,7 +13,7 @@
         <tr>
             <td rowspan=4><a href="./01_basics/">Basics</a></td>
             <td><a href="./01_basics/e1_basic.py">Basic Graph</a></td>
-            <td>Basic addition of constant integers</td>
+            <td>Basic sum of constant integers</td>
         </tr>
         <tr>
             <td><a href="./01_basics/e2_ticking.py">Ticking Graphs</a></td>
@@ -21,11 +21,11 @@
         </tr>
         <tr>
             <td><a href="./01_basics/e3_show_graph.py">Visualizing a Graph</a></td>
-            <td>Calculate ask-bid spread of trade with graph visualization</td>
+            <td>Ask-bid spread of trade with graph visualization</td>
         </tr>
         <tr>
             <td><a href="./01_basics/e4_trade_pnl.py">Complete Example (Trading)</a></td>
-            <td>Calculate Volume Weighted Average price (VWAP) and the Profit and Loss (PnL) of a trade</td>
+            <td>Volume Weighted Average price (VWAP) and the Profit and Loss (PnL) of a trade</td>
         </tr>
         <!-- Intermediate -->
         <tr>
@@ -111,13 +111,13 @@
             <td rowspan=2><a href="./06_advanced/">Advanced</a></td>
             <td><a href="./06_advanced/e1_dynamic.py">Dynamic Graphs</a></td>
             <td>
-                TODO
+                Update shape of graph at runtime
             </td>
         </tr>
         <tr>
             <td><a href="./06_advanced/e2_pandas_extension.py">Pandas Extension</a></td>
             <td>
-                TODO
+                Use CSP within a pandas DataFrame
             </td>
         </tr>
         <!-- End-to-end examples -->
@@ -125,19 +125,19 @@
             <td rowspan=3><a href="./07_end_to_end/">End-to-end examples</a></td>
             <td><a href="./07_end_to_end/mta.ipynb">MTA Subway Data</a></td>
             <td>
-                TODO
+                Access real-time NYC Transportation data feed
             </td>
         </tr>
         <tr>
             <td><a href="./07_end_to_end/seismic_waveform.ipynb">Seismic Data with obspy</a></td>
             <td>
-                TODO
+                Analyze Seismic waveform data and compare it with batch processing methods
             </td>
         </tr>
         <tr>
             <td><a href="./07_end_to_end/wikimedia.ipynb">Wikipedia Updates and Edits</a></td>
             <td>
-                TODO
+                Monitor live updates to all Wikimedia sites
             </td>
         </tr>
         <!-- Others -->
@@ -145,14 +145,14 @@
             <td><a href="./98_just_for_fun/">Just for fun!</a></td>
             <td><a href="./98_just_for_fun/e1_csp_nand_computer.py">NAND Computer</a></td>
             <td>
-                TODO
+                Understand <code>csp.node</code> & <code>csp.graph</code> by connecting NAND logic gates
             </td>
         </tr>
         <tr>
             <td><a href="./99_developer_tools/">Developer Tools</a></td>
             <td><a href="./99_developer_tools/e1_profiling.py">Profiling <code>csp</code> code</a></td>
             <td>
-                TODO
+                Profile a CSP Graph, view static attributes and runtime performance
             </td>
         </tr>
     </tbody>

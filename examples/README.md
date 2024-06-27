@@ -75,7 +75,7 @@
         <!-- Writing Adapters -->
         <tr>
             <td rowspan=7><a href="./04_writing_adapters/">Writing Adapters</a></td>
-            <td><a href="./04_writing_adapters/e1_generic_push_adapter.py">Generic Push Adapter</a></td>
+            <td colspan=2><a href="./04_writing_adapters/e1_generic_push_adapter.py">Generic Push Adapter</a></td>
         </tr>
         <tr>
             <td colspan=2><a href="./04_writing_adapters/e2_pullinput.py">Pull Input Adapter</a></td>

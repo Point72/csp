@@ -32,13 +32,19 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
   </tr>
   <tr>
     <td>
-      <img src="images/seismic-waveform-example.png" width="300px">
+      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/seismic_waveform.ipynb">
+        <img src="images/seismic-waveform-example.png" width="300px">
+      </a>
     </td>
     <td>
-      <img src="images/mta-example.png" width="300px">
+      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/mta.ipynb">
+        <img src="images/mta-example.png" width="300px">
+      </a>
     </td>
     <td>
-      <img src="images/wikimedia-example.png" width="300px">
+      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/wikimedia.ipynb">
+        <img src="images/wikimedia-example.png" width="300px">
+      </a>
     </td>
   </tr>
 </table>

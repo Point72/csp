@@ -116,7 +116,7 @@ def my_graph():
 
     csp.print("Cart items", current_cart.items)
     csp.print("Cart total", current_cart.total)
-    csp.print("Discount %", (1.0-discount)*100)
+    csp.print("Discount", discount)
     csp.print("Total sales", purchases.sale)
     csp.print("Purchases", purchases.qty)
 

@@ -79,7 +79,6 @@ develop = [
     "psutil",  # test_engine/test_history
     "slack-sdk>=3",  # slack
     "sqlalchemy",  # db
-    "requests",  # symphony
     "threadpoolctl",  # test_random
     "tornado",  # profiler, perspective, websocket
 ]
@@ -104,7 +103,7 @@ test = [
     "tornado",
 ]
 symphony = [
-    "requests",
+    "csp-adapter-symphony",
 ]
 slack = [
     "slack-sdk>=3",

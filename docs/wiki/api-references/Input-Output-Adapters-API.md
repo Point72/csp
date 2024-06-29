@@ -15,7 +15,6 @@
     - [Publishing](#publishing)
 - [DBReader](#dbreader)
   - [TimeAccessor](#timeaccessor)
-- [Symphony](#symphony)
 - [Slack](#slack)
 
 ## Kafka
@@ -350,10 +349,6 @@ Both of these calls expect `typ` to be a `csp.Struct` type.
 `subscribe` is used to subscribe to a stream for the given symbol (symbol_column is required when creating DBReader)
 
 `subscribe_all` is used to retrieve all the data resulting from the request as a single timeseries.
-
-## Symphony
-
-The Symphony adapter allows for reading and writing of messages from the [Symphony](https://symphony.com/) message platform using [`requests`](https://requests.readthedocs.io/en/latest/) and the [Symphony SDK](https://docs.developers.symphony.com/).
 
 ## Slack
 

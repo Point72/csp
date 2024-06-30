@@ -47,7 +47,7 @@ def _client_cert_post(host: str, request_url: str, cert_file: str, key_file: str
     response = connection.getresponse()
 
     if response.status != 200:
-        raise Exception(
+        raise RuntimeError(
             f"Cannot connect for symphony handshake to https://{host}{request_url}: {response.status}:{response.reason}"
         )
     data = response.read().decode("utf-8")
@@ -275,7 +275,7 @@ class SymphonyReaderPushAdapterImpl(PushInputAdapter):
         # get symphony session
         resp, datafeed_id = _sync_create_data_feed(self._datafeed_create_url, self._header)
         if resp.status_code not in (200, 201, 204):
-            raise Exception(
+            raise RuntimeError(
                 f"ERROR: bad status ({resp.status_code}) from _sync_create_data_feed, cannot start Symphony reader"
             )
         else:
@@ -285,7 +285,7 @@ class SymphonyReaderPushAdapterImpl(PushInputAdapter):
         for room in self._rooms:
             room_id = self._room_mapper.get_room_id(room)
             if not room_id:
-                raise Exception(f"ERROR: unable to find Symphony room named {room}")
+                raise RuntimeError(f"ERROR: unable to find Symphony room named {room}")
             self._room_ids.add(room_id)
 
         # start reader thread

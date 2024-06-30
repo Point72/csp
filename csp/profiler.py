@@ -382,7 +382,7 @@ class ProfilerUIHandler(TornadoRequestHandler):
             try:
                 import matplotlib  # noqa: F401
             except ImportError:
-                raise Exception("You must have matplotlib installed to display profiling data graphs.")
+                raise ModuleNotFoundError("You must have matplotlib installed to display profiling data graphs.")
 
     def get(self):
         try:
@@ -478,7 +478,7 @@ class Profiler:
     def init_profiler(self):
         if self.http_port is not None:
             if not HAS_TORNADO:
-                raise Exception("You must have tornado installed to use the HTTP profiling extension.")
+                raise ModuleNotFoundError("You must have tornado installed to use the HTTP profiling extension.")
 
             adapter = GenericPushAdapter(Future)
             application = tornado.web.Application(

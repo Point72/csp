@@ -109,6 +109,9 @@ symphony = [
 slack = [
     "slack-sdk>=3",
 ]
+perspective = [
+    "csp-adapter-perspective",
+]
 
 [tool.check-manifest]
 ignore = []

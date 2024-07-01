@@ -14,7 +14,7 @@ namespace csp::python
 
 class PythonTracebackException : public std::exception {
 public:
-    PythonTracebackException(const std::string& message) : message_(message) {}
+    PythonTracebackException( const std::string& message ) : message_( message ) {}
 
     const char* what() const noexcept override {
         return message_.c_str();
@@ -82,20 +82,14 @@ private:
 static PyObject * PyAdapterManager_PyObject_starttime( PyAdapterManager_PyObject * self ) { return toPython( self -> manager -> starttime() ); }
 static PyObject * PyAdapterManager_PyObject_endtime( PyAdapterManager_PyObject * self )   { return toPython( self -> manager -> endtime() ); }
 
-static PyObject * PyAdapterManager_PyObject_engine_shutdown( PyAdapterManager_PyObject * self, PyObject * args, PyObject * kwds )
+static PyObject * PyAdapterManager_PyObject__engine_shutdown( PyAdapterManager_PyObject * self, PyObject * args, PyObject * kwargs)
 {
     CSP_BEGIN_METHOD;
 
-    const char* msg;
-    if (!PyArg_ParseTuple(args, "s", &msg)) {
-        return NULL;  // Parsing failed
-    }
+    const char * msg;
+    PyArg_ParseTuple( args, "s", &msg );
 
-    std::cout << "error msg " << msg << std::endl;
-    std::exception_ptr eptr = std::make_exception_ptr(PythonTracebackException(std::string(msg)));
-    std::cout << "Shutdown called in cpp" << std::endl;
-    self -> manager -> rootEngine() -> shutdown( eptr );
-    std::cout << "Shutdown successful in cpp" << std::endl;
+    self -> manager -> rootEngine() -> shutdown( std::make_exception_ptr( PythonTracebackException( msg ) ) );
 
     CSP_RETURN_NONE;
 }
@@ -115,9 +109,9 @@ static int PyAdapterManager_init( PyAdapterManager_PyObject *self, PyObject *arg
 }
 
 static PyMethodDef PyAdapterManager_methods[] = {
-    { "starttime", (PyCFunction) PyAdapterManager_PyObject_starttime, METH_NOARGS, "starttime" },
-    { "endtime",   (PyCFunction) PyAdapterManager_PyObject_endtime,   METH_NOARGS, "endtime" },
-    { "engine_shutdown",   (PyCFunction) PyAdapterManager_PyObject_engine_shutdown,  METH_VARARGS, "engine_shutdown" },
+    { "starttime",          (PyCFunction) PyAdapterManager_PyObject_starttime, METH_NOARGS, "starttime" },
+    { "endtime",            (PyCFunction) PyAdapterManager_PyObject_endtime,    METH_NOARGS, "endtime" },
+    { "_engine_shutdown",   (PyCFunction) PyAdapterManager_PyObject__engine_shutdown,  METH_VARARGS, "_engine_shutdown" },
     {NULL}
 };
 

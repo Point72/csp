@@ -8,9 +8,6 @@
 #include <signal.h>
 #include <mutex>
 
-#include <iostream>
-#include <exception>
-
 namespace csp
 {
 
@@ -151,7 +148,6 @@ void RootEngine::processEndCycle()
 
 void RootEngine::runSim( DateTime end )
 {
-    std::cout << "cycle " << m_cycleCount << std::endl;
     m_inRealtime = false;
     while( m_scheduler.hasEvents() && m_state == State::RUNNING && !interrupted() )
     {
@@ -166,8 +162,7 @@ void RootEngine::runSim( DateTime end )
 
         processEndCycle();
     }
-
-    std::cout << "Execution terminated" << std::endl;
+    
     m_now = std::min( m_now, end );
 }
 
@@ -244,13 +239,10 @@ void RootEngine::run( DateTime start, DateTime end )
 {
     try
     {
-        std::cout << "pre pre run " << m_state << std::endl;
         preRun( start, end );
-        std::cout << "post pre run " << m_state << std::endl;
         m_exception_mutex.lock();
         if( m_state != State::SHUTDOWN )
             m_state = State::RUNNING;
-        std::cout << "state reset? " << m_state << std::endl;
         m_exception_mutex.unlock();
 
         if( m_settings.realtime )

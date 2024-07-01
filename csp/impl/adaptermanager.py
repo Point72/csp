@@ -1,5 +1,6 @@
 """This is for Python-defined adapters, not meant to be used for c++ implemented adapters"""
 
+import traceback
 import csp
 from csp.impl.__cspimpl import _cspimpl
 import traceback

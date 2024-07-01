@@ -240,6 +240,27 @@ class TestPushAdapter(unittest.TestCase):
         result = list(x[1] for x in result)
         self.assertEqual(result, expected)
 
+    def test_engine_shutdown_wrong_exception_type(self):
+        class DummyAdapterManager(AdapterManagerImpl):
+            def __init__(self):
+                pass
+
+            def _create(self, engine, memo):
+                super().__init__(engine)
+                return self
+
+        def graph():
+            mgr = DummyAdapterManager()
+            # mgr.engine_shutdown('not an exception')
+            mgr.engine_shutdown(Exception('a'))
+
+        with self.assertRaises(TypeError) as e:
+            csp.run(
+                graph,
+                starttime=datetime.utcnow(),
+                endtime=timedelta(1),
+                realtime=True,
+            )
 
 if __name__ == "__main__":
     unittest.main()

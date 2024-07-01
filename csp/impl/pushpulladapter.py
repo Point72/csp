@@ -1,3 +1,4 @@
+import traceback
 from csp.impl.__cspimpl import _cspimpl
 
 PushGroup = _cspimpl.PushGroup
@@ -10,6 +11,9 @@ class PushPullInputAdapter(_cspimpl.PyPushPullInputAdapter):
 
     def stop(self):
         pass
+
+    def engine_shutdown(self, exc):
+        self._engine_shutdown(''.join(traceback.format_exception(exc)).strip())
 
     # base class
     # def push_tick( self, time, value )

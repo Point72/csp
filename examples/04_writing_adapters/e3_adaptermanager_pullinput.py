@@ -86,7 +86,6 @@ class MyAdapterManagerImpl(AdapterManagerImpl):
         """
 
         # Generate random data, simulate some number of rows per timeslice
-        self.engine_shutdown( "hello world! error!" )
         num_rows = random.randint(0, 10)
 
         symbols = list(self._inputs.keys())

@@ -13,7 +13,8 @@ class PushPullInputAdapter(_cspimpl.PyPushPullInputAdapter):
         pass
 
     def engine_shutdown(self, exc):
-        self._engine_shutdown(''.join(traceback.format_exception(exc)).strip())
+        tb = ''.join(traceback.format_exception(exc))
+        self._engine_shutdown(tb)
 
     # base class
     # def push_tick( self, time, value )

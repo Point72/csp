@@ -215,8 +215,8 @@ struct PyPushInputAdapter_PyObject
 };
 
 static PyMethodDef PyPushInputAdapter_PyObject_methods[] = {
-    { "push_tick",        (PyCFunction) PyPushInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
-    { "_engine_shutdown", (PyCFunction) PyPushInputAdapter_PyObject::engineShutdown,  METH_VARARGS, "engine shutdown" },
+    { "push_tick",          (PyCFunction) PyPushInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
+    { "_engine_shutdown",   (PyCFunction) PyPushInputAdapter_PyObject::engineShutdown,  METH_VARARGS, "engine shutdown" },
     {NULL}
 };
 

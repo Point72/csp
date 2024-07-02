@@ -240,27 +240,50 @@ class TestPushAdapter(unittest.TestCase):
         result = list(x[1] for x in result)
         self.assertEqual(result, expected)
 
-    def test_engine_shutdown_wrong_exception_type(self):
-        class DummyAdapterManager(AdapterManagerImpl):
+    def test_adapter_engine_shutdown(self):
+        class MyPushAdapterManager:
             def __init__(self):
-                pass
+                self._group = PushGroup()
+
+            def subscribe(self, typ: type, push_mode: PushMode):
+                return test_adapter(self, typ, push_mode=push_mode, push_group=self._group)
 
             def _create(self, engine, memo):
+                return MyPushAdapterManagerImpl(engine, self)
+
+        class MyPushAdapterManagerImpl(AdapterManagerImpl):
+            def __init__(self, engine, rep):
                 super().__init__(engine)
-                return self
+                self._rep = rep
+                self._adapters = set()
+
+            def process_next_sim_timeslice(self, now):
+                for adapter in self._adapters:
+                    adapter.engine_shutdown(ValueError('Dummy exception message'))
+
+            def start(self, starttime, endtime):
+                pass
+
+        class MyPushAdapter(PushInputAdapter):
+            def __init__(self, mgrImpl, typ):
+                self._type = typ
+                mgrImpl._adapters.add(self)
+
+
+        test_adapter = py_push_adapter_def("test", MyPushAdapter, ts["T"], MyPushAdapterManager, typ="T")
+
+        @csp.node
+        def check(nc: ts["T"]):
+            if csp.ticked(nc):
+                pass
 
         def graph():
-            mgr = DummyAdapterManager()
-            # mgr.engine_shutdown('not an exception')
-            mgr.engine_shutdown(Exception('a'))
+            mgr = MyPushAdapterManager()
+            nc = mgr.subscribe(int, push_mode=PushMode.NON_COLLAPSING)
+            check(nc)
 
-        with self.assertRaises(TypeError) as e:
-            csp.run(
-                graph,
-                starttime=datetime.utcnow(),
-                endtime=timedelta(1),
-                realtime=True,
-            )
+        with self.assertRaisesRegex(Exception, 'ValueError: Dummy exception message'):
+            csp.run(graph, starttime=datetime(2020,1,1), endtime=timedelta(seconds=1))
 
 if __name__ == "__main__":
     unittest.main()

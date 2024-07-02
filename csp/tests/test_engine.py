@@ -850,6 +850,24 @@ class TestEngine(unittest.TestCase):
         with self.assertRaisesRegex(Exception, 'ValueError: Dummy exception message'):
             csp.run(graph, starttime=datetime(2020,1,1), endtime=timedelta(seconds=1))
 
+    def test_engine_shutdown_wrong_exception_type(self):
+        from csp.impl.adaptermanager import AdapterManagerImpl
+
+        class TestAdapterManager(AdapterManagerImpl):
+            def __init__(self):
+                pass
+
+            def _create(self, engine, memo):
+                super().__init__(engine)
+                return self
+
+        def graph():
+            mgr = TestAdapterManager()
+            mgr.engine_shutdown('not an exception')
+
+        with self.assertRaisesRegex(TypeError, 'Exception expected for value, str found') as e:
+            csp.run(graph, starttime=datetime.utcnow(), endtime=timedelta(1))
+
     def test_feedback(self):
         # Dummy example
         class Request(csp.Struct):

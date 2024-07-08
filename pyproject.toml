@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "cmake",
+    "cmake<3.30",
     "oldest-supported-numpy",
     "pyarrow>=7.0.0",
     "ruamel.yaml",

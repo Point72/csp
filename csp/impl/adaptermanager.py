@@ -2,6 +2,7 @@
 
 import csp
 from csp.impl.__cspimpl import _cspimpl
+from csp.impl.error_handling import format_engine_shutdown_stack
 
 
 class AdapterManagerImpl(_cspimpl.PyAdapterManager):
@@ -23,6 +24,9 @@ class AdapterManagerImpl(_cspimpl.PyAdapterManager):
         NOTE: Simulation Adapters should overload this method!
         """
         return None
+
+    def engine_shutdown(self, msg):
+        self._engine_shutdown(format_engine_shutdown_stack(msg))
 
 
 class ManagedSimInputAdapter(_cspimpl.PyManagedSimInputAdapter):

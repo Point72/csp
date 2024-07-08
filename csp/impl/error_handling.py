@@ -1,5 +1,6 @@
 import ast
 import os
+import traceback
 
 import csp.impl
 from csp.impl.__cspimpl import _cspimpl
@@ -48,3 +49,13 @@ def set_print_full_exception_stack(new_value: bool):
     res = ExceptionContext.PRINT_EXCEPTION_FULL_STACK
     ExceptionContext.PRINT_EXCEPTION_FULL_STACK = new_value
     return res
+
+
+def format_engine_shutdown_stack(msg: str):
+    tb = traceback.format_stack()
+    tb = tb[:-2]  # remove traceback call and internal engine shutdown method
+    if len(tb) > 1:
+        tb = tb[-2:]  # only keep the current function and the caller (adapter manager)
+    tb.append(msg)  # add the user's error message
+    tb = "".join(tb)  # format into a single string
+    return tb

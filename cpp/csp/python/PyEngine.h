@@ -2,6 +2,7 @@
 #define _IN_CSP_PYTHON_PYENGINE_H
 
 #include <csp/core/Time.h>
+#include <csp/python/Exception.h>
 #include <csp/engine/RootEngine.h>
 #include <csp/python/PyObjectPtr.h>
 #include <Python.h>
@@ -53,6 +54,21 @@ private:
     bool        m_ownEngine;
     Engine    * m_engine;
 };
+
+// Generic engine shutdown function for push-type adapters
+template<typename T>
+PyObject * PyEngine_shutdown( T * self, PyObject * args, PyObject * kwargs )
+{
+    CSP_BEGIN_METHOD;
+
+    const char * msg;
+    if( !PyArg_ParseTuple( args, "s", &msg ) )
+        return NULL;
+
+    self -> adapter -> rootEngine() -> shutdown( std::make_exception_ptr( TracebackStringException( msg ) ) );
+
+    CSP_RETURN_NONE;
+}
 
 };
 

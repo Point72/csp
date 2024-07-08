@@ -8,6 +8,17 @@
 namespace csp::python
 {
 
+class TracebackStringException : public std::exception
+{
+public:
+    TracebackStringException( const char * message ) : m_message( message ) {}
+
+    const char * what() const noexcept override { return m_message; }
+
+private:
+    const char * m_message;
+};
+
 class PythonPassthrough : public csp::Exception
 {
 public:

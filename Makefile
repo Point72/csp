@@ -127,16 +127,16 @@ dockerdown:  ## spin up docker compose services for adapter testing
 .PHONY: show-version patch minor major
 
 show-version:
-	@ bump2version --dry-run --allow-dirty pyproject.toml --list | grep current | awk -F= '{print $$2}'
+	@ bump-my-version show current_version
 
 patch:
-	bump2version patch
+	bump-my-version bump patch
 
 minor:
-	bump2version minor
+	bump-my-version bump minor
 
 major:
-	bump2version major
+	bump-my-version bump major
 
 ########
 # DIST #

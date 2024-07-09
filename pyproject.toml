@@ -56,7 +56,7 @@ Tracker = "https://github.com/point72/csp/issues"
 [project.optional-dependencies]
 develop = [
     # build/dist
-    "bump2version>=1.0.0",
+    "bump-my-version",
     "build",
     "ruamel.yaml",
     "scikit-build",
@@ -109,6 +109,32 @@ symphony = [
 slack = [
     "csp-adapter-slack",
 ]
+
+[tool.bumpversion]
+current_version = "0.0.5"
+commit = false
+tag = false
+commit_args = "-s"
+
+[[tool.bumpversion.files]]
+filename = "csp/__init__.py"
+search = '__version__ = "{current_version}"'
+replace = '__version__ = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "setup.py"
+search = 'version="{current_version}"'
+replace = 'version="{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "CMakeLists.txt"
+search = 'project(csp VERSION "{current_version}")'
+replace = 'project(csp VERSION "{new_version}")'
 
 [tool.check-manifest]
 ignore = []

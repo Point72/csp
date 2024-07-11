@@ -166,7 +166,7 @@ class TestPushPullAdapter(unittest.TestCase):
                 while self._running and idx < len(self._data):
                     if idx and self._shutdown_before_live:
                         time.sleep(0.1)
-                        self.engine_shutdown("Dummy exception message")
+                        self.shutdown_engine(ValueError("Dummy exception message"))
                     t, v = self._data[idx]
                     self.push_tick(False, t, v)
                     idx += 1
@@ -177,7 +177,7 @@ class TestPushPullAdapter(unittest.TestCase):
                     self.push_tick(True, datetime.utcnow(), len(self._data) + 1)
                     if idx and not self._shutdown_before_live:
                         time.sleep(0.1)
-                        self.engine_shutdown("Dummy exception message")
+                        self.shutdown_engine(TypeError("Dummy exception message"))
                     idx += 1
 
         MyPushPullAdapter = py_pushpull_adapter_def(
@@ -190,9 +190,9 @@ class TestPushPullAdapter(unittest.TestCase):
             adapter = MyPushPullAdapter(int, data, shutdown_before_live)
             csp.print("adapter", adapter)
 
-        with self.assertRaisesRegex(Exception, "Dummy exception message"):
+        with self.assertRaisesRegex(ValueError, "Dummy exception message"):
             csp.run(graph, True, starttime=datetime(2020, 1, 1, 1))
-        with self.assertRaisesRegex(Exception, "Dummy exception message"):
+        with self.assertRaisesRegex(TypeError, "Dummy exception message"):
             csp.run(
                 graph,
                 False,

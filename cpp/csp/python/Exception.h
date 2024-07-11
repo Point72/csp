@@ -8,17 +8,6 @@
 namespace csp::python
 {
 
-class TracebackStringException : public std::exception
-{
-public:
-    TracebackStringException( const char * message ) : m_message( message ) {}
-
-    const char * what() const noexcept override { return m_message; }
-
-private:
-    const char * m_message;
-};
-
 class PythonPassthrough : public csp::Exception
 {
 public:
@@ -27,20 +16,19 @@ public:
         csp::Exception( exType, r, file, func, line )
     {
         //Fetch the current error to clear out the error indicator while the stack gets unwound
+        //We own the references to all the members assigned in PyErr_Fetch
+        //We need to hold the reference since PyErr_Restore takes back a reference to each of its arguments
         PyErr_Fetch( &m_type, &m_value, &m_traceback );
     }
 
     PythonPassthrough( PyObject * pyException ) :
-        m_pyException( pyException ),
-        m_type( PyObject_Type( pyException ) ),
-        m_value( PyObject_Str( pyException ) ),
-        m_traceback( PyException_GetTraceback( pyException ) ),
-        csp::Exception( PyUnicode_AsUTF8( m_type ), std::string( PyUnicode_AsUTF8( m_value ) ) )
+        csp::Exception( "", "" )
     {
-        Py_INCREF( pyException );
+        // Note: all of these methods return strong references, so we own them like in the other constructor
+        m_type = PyObject_Type( pyException );
+        m_value = PyObject_Str( pyException );
+        m_traceback = PyException_GetTraceback( pyException );
     }
-
-    ~PythonPassthrough() { Py_DECREF( m_pyException ); }
 
     void restore()
     {
@@ -62,8 +50,6 @@ private:
     PyObject * m_type;
     PyObject * m_value;
     PyObject * m_traceback;
-    PyObject * m_pyException;
-
 };
 
 CSP_DECLARE_EXCEPTION( AttributeError, ::csp::Exception );

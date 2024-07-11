@@ -261,7 +261,7 @@ class TestPushAdapter(unittest.TestCase):
                 while self._running:
                     if pushed:
                         time.sleep(0.1)
-                        self.engine_shutdown("Dummy exception message")
+                        self.shutdown_engine(TypeError("Dummy exception message"))
                     else:
                         self.push_tick(0)
                         pushed = True
@@ -281,7 +281,7 @@ class TestPushAdapter(unittest.TestCase):
             node(adapter)
             csp.print("adapter", adapter)
 
-        with self.assertRaisesRegex(Exception, "Dummy exception message"):
+        with self.assertRaisesRegex(TypeError, "Dummy exception message"):
             csp.run(graph, starttime=datetime.utcnow(), realtime=True)
         self.assertEqual(status["count"], 1)
 

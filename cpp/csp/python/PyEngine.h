@@ -61,11 +61,14 @@ PyObject * PyEngine_shutdown( T * self, PyObject * args, PyObject * kwargs )
 {
     CSP_BEGIN_METHOD;
 
-    const char * msg;
-    if( !PyArg_ParseTuple( args, "s", &msg ) )
+    PyObject * pyException;
+    if( !PyArg_ParseTuple( args, "O", &pyException ) )
         return NULL;
 
-    self -> adapter -> rootEngine() -> shutdown( std::make_exception_ptr( TracebackStringException( msg ) ) );
+    if( !PyExceptionInstance_Check( pyException ) )
+       CSP_THROW( TypeError, "Expected Exception object as argument for shutdown_engine: got " << Py_TYPE( pyException ) -> tp_name );
+
+    self -> adapter -> rootEngine() -> shutdown( std::make_exception_ptr( PythonPassthrough( pyException ) ) );
 
     CSP_RETURN_NONE;
 }

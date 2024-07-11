@@ -125,7 +125,7 @@ struct PyPushPullInputAdapter_PyObject
 static PyMethodDef PyPushPullInputAdapter_PyObject_methods[] = {
     { "push_tick",              (PyCFunction) PyPushPullInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
     { "flag_replay_complete",   (PyCFunction) PyPushPullInputAdapter_PyObject::flagReplayComplete, METH_VARARGS, "finish replay ticks" },
-    { "_engine_shutdown",       (PyCFunction) PyEngine_shutdown<PyPushPullInputAdapter_PyObject>,  METH_VARARGS, "engine shutdown" },
+    { "shutdown_engine",        (PyCFunction) PyEngine_shutdown<PyPushPullInputAdapter_PyObject>,  METH_VARARGS, "shutdown engine" },
     {NULL}
 };
 

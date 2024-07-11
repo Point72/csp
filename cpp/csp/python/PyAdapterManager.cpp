@@ -6,7 +6,6 @@
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyObjectPtr.h>
 #include <memory>
-#include<iostream>
 
 namespace csp::python
 {
@@ -69,19 +68,17 @@ private:
 static PyObject * PyAdapterManager_PyObject_starttime( PyAdapterManager_PyObject * self ) { return toPython( self -> manager -> starttime() ); }
 static PyObject * PyAdapterManager_PyObject_endtime( PyAdapterManager_PyObject * self )   { return toPython( self -> manager -> endtime() ); }
 
-static PyObject * PyAdapterManager_PyObject__engine_shutdown( PyAdapterManager_PyObject * self, PyObject * args, PyObject * kwargs)
+static PyObject * PyAdapterManager_PyObject_shutdown_engine( PyAdapterManager_PyObject * self, PyObject * args, PyObject * kwargs )
 {
     CSP_BEGIN_METHOD;
 
-    PyObject * pyException  = nullptr;
-    
+    PyObject * pyException;
     if( !PyArg_ParseTuple( args, "O", &pyException ) )
         return NULL;
-
-    PyObject * type = PyObject_Type( pyException );
-    PyObject * val = PyObject_Str( pyException );
-    PyObject * traceback = PyException_GetTraceback( pyException );
     
+    if( !PyExceptionInstance_Check( pyException ) )
+       CSP_THROW( TypeError, "Expected Exception object as argument for shutdown_engine: got " << Py_TYPE( pyException ) -> tp_name );
+
     self -> manager -> rootEngine() -> shutdown( std::make_exception_ptr( PythonPassthrough( pyException ) ) );
 
     CSP_RETURN_NONE;
@@ -104,7 +101,7 @@ static int PyAdapterManager_init( PyAdapterManager_PyObject *self, PyObject *arg
 static PyMethodDef PyAdapterManager_methods[] = {
     { "starttime",          (PyCFunction) PyAdapterManager_PyObject_starttime, METH_NOARGS, "starttime" },
     { "endtime",            (PyCFunction) PyAdapterManager_PyObject_endtime,    METH_NOARGS, "endtime" },
-    { "_engine_shutdown",   (PyCFunction) PyAdapterManager_PyObject__engine_shutdown,  METH_VARARGS, "_engine_shutdown" },
+    { "shutdown_engine",    (PyCFunction) PyAdapterManager_PyObject_shutdown_engine,  METH_VARARGS, "shutdown_engine" },
     {NULL}
 };
 

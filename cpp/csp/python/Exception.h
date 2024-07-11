@@ -30,6 +30,18 @@ public:
         PyErr_Fetch( &m_type, &m_value, &m_traceback );
     }
 
+    PythonPassthrough( PyObject * pyException ) :
+        m_pyException( pyException ),
+        m_type( PyObject_Type( pyException ) ),
+        m_value( PyObject_Str( pyException ) ),
+        m_traceback( PyException_GetTraceback( pyException ) ),
+        csp::Exception( PyUnicode_AsUTF8( m_type ), std::string( PyUnicode_AsUTF8( m_value ) ) )
+    {
+        Py_INCREF( pyException );
+    }
+
+    ~PythonPassthrough() { Py_DECREF( m_pyException ); }
+
     void restore()
     {
         if( !description().empty() )
@@ -50,6 +62,7 @@ private:
     PyObject * m_type;
     PyObject * m_value;
     PyObject * m_traceback;
+    PyObject * m_pyException;
 
 };
 

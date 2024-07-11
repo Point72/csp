@@ -1370,7 +1370,10 @@ class Rank
                 else
                     m_mintree.insert( x );
             #else
-                m_tree.insert( x );
+                if( m_method == MAX )
+                    m_maxtree.insert( x );
+                else
+                    m_mintree.insert( x );
             #endif
             }
         }
@@ -1385,21 +1388,20 @@ class Rank
                 else
                     ost_erase( m_mintree, x );
             #else
-                m_tree.erase( m_tree.find( x ) );
+                if ( m_method == MAX )
+                    m_maxtree.erase ( m_maxtree.find( x ) );
+                else
+                    m_mintree.erase ( m_mintree.find( x ) );
             #endif
             }
         }
 
         void reset()
         {
-        #ifdef __linux__
             if( m_method == MAX )
                 m_maxtree.clear();
             else
                 m_mintree.clear();
-        #else
-            m_tree.clear();
-        #endif
         }
 
         double compute() const
@@ -1442,30 +1444,39 @@ class Rank
                 }
             }
         #else
-            if( likely( !isnan( m_lastval ) && m_tree.size() > 0 ) )
+            if( likely( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) )
             {
                 switch( m_method )
                 {
                     case MIN:
                     {
-                        return std::distance( m_tree.begin(), m_tree.find( m_lastval ) );
+                        if ( m_mintree.size() == 1 )
+                            return 0;
+                        return m_mintree.get<0>().find_rank( m_lastval );
                     }
                     case MAX:
                     {
-                        auto end_range = m_tree.equal_range( m_lastval ).second;
-                        return std::distance( m_tree.begin(), std::prev( end_range ) );
+                        if ( m_maxtree.size() == 1 )
+                            return 0;
+                        return m_maxtree.size() - 1 - m_maxtree.get<0>().find_rank( m_lastval );
                     }
                     case AVG:
                     {
-                        auto range = m_tree.equal_range( m_lastval );
-                        return std::distance( m_tree.begin(), range.first ) + ( double )std::distance( range.first, std::prev( range.second ) ) / 2;
+                        if ( m_mintree.size() == 1 )
+                            return 0;
+                        
+                        int min_rank = m_mintree.get<0>().find_rank( m_lastval );
+                        int max_rank = min_rank;
+                        auto it = m_mintree.get<0>().nth( min_rank );
+                        it++;
+                        for( ; it != m_mintree.end() && *it == m_lastval ; it++ ) max_rank++;
+                        return ( double )( min_rank + max_rank ) / 2;
                     }
                     default:
                         break;
                 }
             }
         #endif
-
             return std::numeric_limits<double>::quiet_NaN();
         }
 
@@ -1475,7 +1486,8 @@ class Rank
         ost<std::less_equal<double>> m_mintree;
         ost<std::greater_equal<double>> m_maxtree;
     #else
-        std::multiset<double> m_tree;
+        ost<std::less<double>> m_mintree;
+        ost<std::greater<double>> m_maxtree;
     #endif
         double m_lastval;
 

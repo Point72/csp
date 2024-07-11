@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import pickle
 import pytz
 import typing
 import unittest
@@ -167,6 +168,14 @@ class SimpleClass:
 
     def __init__(self, x: int):
         self.x = x
+
+
+class SimpleStructForPickleList(csp.Struct):
+    a: typing.List[int]
+
+
+class SimpleStructForPickleFastList(csp.Struct):
+    a: FastList[int]
 
 
 # Common set of values for Struct list field tests
@@ -1375,6 +1384,84 @@ class TestCspStruct(unittest.TestCase):
 
         r = repr(a)
         self.assertTrue(repr(raw) in r)
+
+    def test_to_dict_recursion(self):
+        class MyStruct(csp.Struct):
+            l1: list
+            l2: list
+            d1: dict
+            d2: dict
+            t1: tuple
+            t2: tuple
+
+        test_struct = MyStruct(l1=[1], l2=[2])
+        result_dict = {"l1": [1], "l2": [2]}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
+        test_struct = MyStruct(l1=[1], l2=[2])
+        test_struct.l1.append(test_struct.l2)
+        test_struct.l2.append(test_struct.l1)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(l1=[1])
+        test_struct.l1.append(test_struct.l1)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(l1=[1])
+        test_struct.l1.append(test_struct)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        result_dict = {"d1": {1: 1}, "d2": {2: 2}}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        test_struct.d1["d2"] = test_struct.d2
+        test_struct.d2["d1"] = test_struct.d1
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        test_struct.d1["d1"] = test_struct.d1
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        test_struct.d1["d1"] = test_struct
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(t1=(1, 1), t2=(2, 2))
+        result_dict = {"t1": (1, 1), "t2": (2, 2)}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
+        test_struct = MyStruct(t1=(1, 1))
+        test_struct.t1 = (1, 2, test_struct)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+    def test_to_dict_postprocess(self):
+        class MySubStruct(csp.Struct):
+            i: int = 0
+
+            def postprocess_to_dict(obj):
+                obj["postprocess_called"] = True
+                return obj
+
+        class MyStruct(csp.Struct):
+            i: int = 1
+            mss: MySubStruct = MySubStruct()
+
+            def postprocess_to_dict(obj):
+                obj["postprocess_called"] = True
+                return obj
+
+        test_struct = MyStruct()
+        result_dict = {"i": 1, "postprocess_called": True, "mss": {"i": 0, "postprocess_called": True}}
+        self.assertEqual(test_struct.to_dict(), result_dict)
 
     def test_to_json_primitives(self):
         class MyStruct(csp.Struct):
@@ -2744,6 +2831,35 @@ class TestCspStruct(unittest.TestCase):
 
         p = csp.unroll(csp.const(A(a=[1, 2, 3])).a)
         q = csp.unroll(csp.const(B(a=[1, 2, 3])).a)
+
+    def test_list_field_pickle(self):
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
+        # Not using pystruct_list_test_values, as pickling tests are of different semantics (picklability of struct fields matters).
+        v = [1, 5, 2]
+
+        s = SimpleStructForPickleList(a=[v[0], v[1], v[2]])
+
+        t = pickle.loads(pickle.dumps(s))
+
+        self.assertEqual(t.a, s.a)
+        self.assertEqual(type(t.a), type(s.a))
+
+        b = pickle.loads(pickle.dumps(s.a))
+
+        self.assertEqual(b, s.a)
+        self.assertEqual(type(b), list)
+
+        s = SimpleStructForPickleFastList(a=[v[0], v[1], v[2]])
+
+        t = pickle.loads(pickle.dumps(s))
+
+        self.assertEqual(t.a, s.a)
+        self.assertEqual(type(t.a), type(s.a))
+
+        b = pickle.loads(pickle.dumps(s.a))
+
+        self.assertEqual(b, s.a)
+        self.assertEqual(type(b), list)
 
 
 if __name__ == "__main__":

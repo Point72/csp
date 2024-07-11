@@ -165,6 +165,7 @@ class TestPushPullAdapter(unittest.TestCase):
                 idx = 0
                 while self._running and idx < len(self._data):
                     if idx and self._shutdown_before_live:
+                        time.sleep(0.1)
                         self.engine_shutdown("Dummy exception message")
                     t, v = self._data[idx]
                     self.push_tick(False, t, v)
@@ -175,6 +176,7 @@ class TestPushPullAdapter(unittest.TestCase):
                 while self._running:
                     self.push_tick(True, datetime.utcnow(), len(self._data) + 1)
                     if idx and not self._shutdown_before_live:
+                        time.sleep(0.1)
                         self.engine_shutdown("Dummy exception message")
                     idx += 1
 

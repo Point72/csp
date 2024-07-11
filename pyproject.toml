@@ -14,12 +14,12 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.0.4"
+version = "0.0.5"
 requires-python = ">=3.8"
 
 dependencies = [
     "backports.zoneinfo; python_version<'3.9'",
-    "numpy",
+    "numpy<2",
     "packaging",
     "pandas",
     "psutil",
@@ -79,7 +79,6 @@ develop = [
     "psutil",  # test_engine/test_history
     "slack-sdk>=3",  # slack
     "sqlalchemy",  # db
-    "requests",  # symphony
     "threadpoolctl",  # test_random
     "tornado",  # profiler, perspective, websocket
 ]
@@ -104,7 +103,7 @@ test = [
     "tornado",
 ]
 symphony = [
-    "requests",
+    "csp-adapter-symphony",
 ]
 slack = [
     "slack-sdk>=3",

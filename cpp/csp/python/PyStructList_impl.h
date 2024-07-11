@@ -298,15 +298,29 @@ static PyObject * py_struct_list_inplace_repeat( PyObject * sself, Py_ssize_t n 
 }
 
 template<typename StorageT>
+static PyObject * PyStructList_reduce( PyStructList<StorageT> * self, PyObject * Py_UNUSED( ignored ) )
+{
+    CSP_BEGIN_METHOD;
+    
+    typename VectorWrapper<StorageT>::IndexType sz = self -> vector.size();
+    PyObjectPtr list = PyObjectPtr::own( toPython( self -> vector.getVector(), self -> arrayType ) );
+    PyObject * result = Py_BuildValue( "O(O)", &PyList_Type, list.ptr() );
+    return result;
+
+    CSP_RETURN_NULL;
+}
+
+template<typename StorageT>
 static PyMethodDef PyStructList_methods[] = {
-    { "append",   ( PyCFunction ) PyStructList_Append<StorageT>,   METH_VARARGS,                  NULL },
-    { "insert",   ( PyCFunction ) PyStructList_Insert<StorageT>,   METH_VARARGS,                  NULL },
-    { "pop",      ( PyCFunction ) PyStructList_Pop<StorageT>,      METH_VARARGS,                  NULL },
-    { "reverse",  ( PyCFunction ) PyStructList_Reverse<StorageT>,  METH_NOARGS,                   NULL },
-    { "sort",     ( PyCFunction ) PyStructList_Sort<StorageT>,     METH_VARARGS | METH_KEYWORDS,  NULL },
-    { "extend",   ( PyCFunction ) PyStructList_Extend<StorageT>,   METH_VARARGS,                  NULL },
-    { "remove",   ( PyCFunction ) PyStructList_Remove<StorageT>,   METH_VARARGS,                  NULL },
-    { "clear",    ( PyCFunction ) PyStructList_Clear<StorageT>,    METH_NOARGS,                   NULL },
+    { "append",     ( PyCFunction ) PyStructList_Append<StorageT>,   METH_VARARGS,                  NULL },
+    { "insert",     ( PyCFunction ) PyStructList_Insert<StorageT>,   METH_VARARGS,                  NULL },
+    { "pop",        ( PyCFunction ) PyStructList_Pop<StorageT>,      METH_VARARGS,                  NULL },
+    { "reverse",    ( PyCFunction ) PyStructList_Reverse<StorageT>,  METH_NOARGS,                   NULL },
+    { "sort",       ( PyCFunction ) PyStructList_Sort<StorageT>,     METH_VARARGS | METH_KEYWORDS,  NULL },
+    { "extend",     ( PyCFunction ) PyStructList_Extend<StorageT>,   METH_VARARGS,                  NULL },
+    { "remove",     ( PyCFunction ) PyStructList_Remove<StorageT>,   METH_VARARGS,                  NULL },
+    { "clear",      ( PyCFunction ) PyStructList_Clear<StorageT>,    METH_NOARGS,                   NULL },
+    {"__reduce__",  ( PyCFunction ) PyStructList_reduce<StorageT>,   METH_NOARGS,                   NULL },
     { NULL},
 };
 

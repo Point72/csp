@@ -260,6 +260,7 @@ class TestPushAdapter(unittest.TestCase):
                 pushed = False
                 while self._running:
                     if pushed:
+                        time.sleep(0.1)
                         self.engine_shutdown("Dummy exception message")
                     else:
                         self.push_tick(0)

@@ -26,7 +26,7 @@ class AdapterManagerImpl(_cspimpl.PyAdapterManager):
         return None
 
     def engine_shutdown(self, msg):
-        self._engine_shutdown(format_engine_shutdown_stack(msg))
+        self._engine_shutdown(Exception('test')) # temporary for testing purposes
 
 
 class ManagedSimInputAdapter(_cspimpl.PyManagedSimInputAdapter):

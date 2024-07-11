@@ -405,14 +405,23 @@ class WebsocketAdapterManager:
         """
         assert reconnect_interval >= timedelta(seconds=1)
         resp = urllib.parse.urlparse(uri)
+        if resp.hostname is None:
+            raise ValueError(f"Failed to parse host from URI: {uri}")
+
         self._properties = dict(
             host=resp.hostname,
-            port=str(resp.port) or "80",
-            route=resp.path,
+            # if no port is explicitly present in the uri, the resp.port is None
+            port=self._sanitize_port(uri, resp.port),
+            route=resp.path or "/",  # resource shouldn't be empty string
             use_ssl=uri.startswith("wss"),
             reconnect_interval=reconnect_interval,
             headers=headers if headers else {},
         )
+
+    def _sanitize_port(self, uri: str, port):
+        if port:
+            return str(port)
+        return "443" if uri.startswith("wss") else "80"
 
     def subscribe(
         self,

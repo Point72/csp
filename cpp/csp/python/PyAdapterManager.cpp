@@ -6,6 +6,7 @@
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyObjectPtr.h>
 #include <memory>
+#include<iostream>
 
 namespace csp::python
 {
@@ -72,11 +73,16 @@ static PyObject * PyAdapterManager_PyObject__engine_shutdown( PyAdapterManager_P
 {
     CSP_BEGIN_METHOD;
 
-    const char * msg;
-    if( !PyArg_ParseTuple( args, "s", &msg ) )
+    PyObject * pyException  = nullptr;
+    
+    if( !PyArg_ParseTuple( args, "O", &pyException ) )
         return NULL;
 
-    self -> manager -> rootEngine() -> shutdown( std::make_exception_ptr( TracebackStringException( msg ) ) );
+    PyObject * type = PyObject_Type( pyException );
+    PyObject * val = PyObject_Str( pyException );
+    PyObject * traceback = PyException_GetTraceback( pyException );
+    
+    self -> manager -> rootEngine() -> shutdown( std::make_exception_ptr( PythonPassthrough( pyException ) ) );
 
     CSP_RETURN_NONE;
 }

@@ -1,3 +1,6 @@
+#ifndef _IN_CSP_CPPNODES_STATSIMPL_H
+#define _IN_CSP_CPPNODES_STATSIMPL_H
+
 #include <csp/engine/CppNode.h>
 #include <csp/engine/WindowBuffer.h>
 
@@ -1569,7 +1572,7 @@ class EMA
                 m_ema = x;
                 m_first = false;
             }
-            else if( unlikely( isnan( x ) ) && !m_ignore_na )
+            else if( unlikely( isnan( x ) ) && !m_ignore_na && likely( !m_first ) )
             {
                 m_offset++;
             }
@@ -1582,8 +1585,9 @@ class EMA
                 }
                 else
                 {
-                    m_ema = ( pow( m_ema * ( 1 - m_alpha ), m_offset ) + m_alpha * x ) /
+                    m_ema = ( m_ema * pow( ( 1 - m_alpha ), m_offset ) + m_alpha * x ) / 
                         ( pow( 1 - m_alpha, m_offset ) + m_alpha );
+                    m_offset = 1;
                 }
             }
         }
@@ -1599,7 +1603,7 @@ class EMA
 
         double compute() const
         {
-            return m_ema;
+            return unlikely( m_first ) ? std::numeric_limits<double>::quiet_NaN() : m_ema;
         }
 
     private:
@@ -1710,7 +1714,7 @@ class AlphaDebiasEMA
 
         void add( double x )
         {
-            if( m_first )
+            if( m_first && likely( !isnan( x ) ) )
             {
                 m_wsum = 1;
                 m_sqsum = 1;
@@ -1728,10 +1732,16 @@ class AlphaDebiasEMA
                     w0 = 1.0;
                 else
                     w0 = 1 - m_decay;
-                m_sqsum += pow( w0, 2 );
+                m_sqsum += w0 * w0;
                 m_wsum += w0;
+                if( !m_adjust )
+                {
+                    double correction = decay_factor + w0;
+                    m_wsum /= correction;
+                    m_sqsum /= ( correction * correction );
+                }
             }
-            else
+            else if ( likely( !m_first ) )
             {
                 m_offset++;
                 m_nan_count++;
@@ -1746,7 +1756,7 @@ class AlphaDebiasEMA
                 double wh = pow( m_decay, lookback );
                 if( !m_adjust )
                     wh *= ( 1- m_decay );
-                m_sqsum -= pow( wh, 2 );
+                m_sqsum -= wh * wh;
                 m_wsum -= wh;
                 if( m_wsum < EPSILON || m_sqsum < EPSILON )
                 {
@@ -1767,7 +1777,7 @@ class AlphaDebiasEMA
 
         double compute() const
         {
-            double wsum_sq = pow( m_wsum, 2 );
+            double wsum_sq = m_wsum * m_wsum;
             if( abs( wsum_sq - m_sqsum ) > EPSILON )
                 return wsum_sq / ( wsum_sq - m_sqsum );
             else
@@ -1794,7 +1804,7 @@ class HalflifeEMA
 
         HalflifeEMA( TimeDelta halflife, DateTime start )
         {
-            m_halflife = halflife;
+            m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
             m_last_tick = start;
             reset();
         }
@@ -1808,12 +1818,9 @@ class HalflifeEMA
             if( likely( !isnan( x ) ) )
             {
                 TimeDelta delta_t = now - m_last_tick;
-                double decay_duration = ( double )( delta_t.asNanoseconds() ) / ( m_halflife.asNanoseconds() );
-                double decay = exp( -( decay_duration ) * log( 2 ) );
-                m_ema *= decay;
-                m_norm *= decay;
-                m_ema += x;
-                m_norm++;
+                double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
+                m_ema = decay * m_ema + x;
+                m_norm = decay * m_norm + 1.0;
                 m_last_tick = now;
             }
         }
@@ -1832,7 +1839,7 @@ class HalflifeEMA
 
         double m_ema;
         double m_norm;
-        TimeDelta m_halflife;
+        double m_decay_factor;
         DateTime m_last_tick;
 
 };
@@ -1844,7 +1851,7 @@ class HalflifeDebiasEMA
 
         HalflifeDebiasEMA( TimeDelta halflife, DateTime start )
         {
-            m_halflife = halflife;
+            m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
             m_last_tick = start;
             reset();
         }
@@ -1858,11 +1865,9 @@ class HalflifeDebiasEMA
             if( likely( !isnan( x ) ) )
             {
                 TimeDelta delta_t = now - m_last_tick;
-                double decay = exp( -( delta_t/m_halflife ) * log( 2 ) );
-                m_sqsum *= pow( decay, 2 );
-                m_wsum *= decay;
-                m_sqsum++;
-                m_wsum++;
+                double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
+                m_sqsum = decay * decay * m_sqsum + 1.0;
+                m_wsum = decay * m_wsum + 1.0;
                 m_last_tick = now;
             }
         }
@@ -1874,7 +1879,7 @@ class HalflifeDebiasEMA
 
         double compute() const
         {
-            double wsum_sq = pow( m_wsum, 2 );
+            double wsum_sq = m_wsum * m_wsum;
             if( wsum_sq != m_sqsum )
                 return wsum_sq / ( wsum_sq - m_sqsum );
             else
@@ -1885,7 +1890,7 @@ class HalflifeDebiasEMA
 
         double m_wsum;
         double m_sqsum;
-        TimeDelta m_halflife;
+        double m_decay_factor;
         DateTime m_last_tick;
 };
 
@@ -2358,3 +2363,5 @@ public:
 };
 
 }
+
+#endif // _IN_CSP_CPPNODES_STATSIMPL_H

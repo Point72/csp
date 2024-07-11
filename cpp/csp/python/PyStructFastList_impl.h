@@ -512,6 +512,19 @@ static PyObject * PyStructFastList_Reversed( PyStructFastList<StorageT> * self, 
 }
 
 template<typename StorageT>
+static PyObject * PyStructFastList_reduce( PyStructFastList<StorageT> * self, PyObject * Py_UNUSED( ignored) )
+{
+    CSP_BEGIN_METHOD;
+    
+    typename VectorWrapper<StorageT>::IndexType sz = self -> vector.size();
+    PyObjectPtr list = PyObjectPtr::own( toPython( self -> vector.getVector(), self -> arrayType ) );
+    PyObject * result = Py_BuildValue( "O(O)", &PyList_Type, list.ptr() );
+    return result;
+
+    CSP_RETURN_NULL;
+}
+
+template<typename StorageT>
 static PyMethodDef PyStructFastList_methods[] = {
     { "__getitem__",   ( PyCFunction ) py_struct_fast_list_subscript<StorageT>,  METH_VARARGS,                  NULL },
     { "copy",          ( PyCFunction ) PyStructFastList_Copy<StorageT>,          METH_NOARGS,                   NULL },
@@ -527,6 +540,7 @@ static PyMethodDef PyStructFastList_methods[] = {
     { "extend",        ( PyCFunction ) PyStructFastList_Extend<StorageT>,        METH_VARARGS,                  NULL },
     { "remove",        ( PyCFunction ) PyStructFastList_Remove<StorageT>,        METH_VARARGS,                  NULL },
     { "clear",         ( PyCFunction ) PyStructFastList_Clear<StorageT>,         METH_NOARGS,                   NULL },
+    {"__reduce__",     ( PyCFunction ) PyStructFastList_reduce<StorageT>,        METH_NOARGS,                   NULL },
     { NULL},
 };
 

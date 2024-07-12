@@ -825,7 +825,10 @@ class TestEngine(unittest.TestCase):
                 pass
 
             def process_next_sim_timeslice(self, now):
-                self.shutdown_engine(ValueError("Dummy exception message"))
+                try:
+                    [].pop()
+                except IndexError as e:
+                    self.shutdown_engine(e)
 
         class TestAdapterImpl(ManagedSimInputAdapter):
             def __init__(self, manager_impl):
@@ -838,8 +841,12 @@ class TestEngine(unittest.TestCase):
             nc = adapter.subscribe()
             csp.add_graph_output("nc", nc)
 
-        with self.assertRaisesRegex(ValueError, "Dummy exception message"):
+        try:
             csp.run(graph, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+        except IndexError:
+            tb = traceback.format_exc()
+
+        self.assertTrue("[].pop()" in tb)
 
     def test_feedback(self):
         # Dummy example

@@ -29,6 +29,10 @@ if(CSP_BUILD_PARQUET_ADAPTER)
         ${VENDORED_PYARROW_ROOT}/arrow/python/csv.cc
         ${VENDORED_PYARROW_ROOT}/arrow/python/filesystem.cc)
     add_library(parquetadapterimpl SHARED parquetadapterimpl.cpp ${ARROW_PYTHON_SRCS})
+    # Ignore warning regarding static datetime API initialization coming from vendored Arrow code
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        set_target_properties(parquetadapterimpl PROPERTIES COMPILE_OPTIONS "-Wno-unused-variable")
+    endif()
     target_link_libraries(parquetadapterimpl csp_core csp_engine cspimpl csp_parquet_adapter)
     target_include_directories(parquetadapterimpl PUBLIC ${ARROW_INCLUDE_DIR} ${PARQUET_INCLUDE_DIR} "${VENDORED_PYARROW_ROOT}")
     target_compile_definitions(parquetadapterimpl PUBLIC ARROW_PYTHON_STATIC)

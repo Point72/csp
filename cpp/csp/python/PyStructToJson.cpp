@@ -72,7 +72,7 @@ inline rapidjson::Value toJson( const TimeDelta& val, const CspType& typ, rapidj
     // Convert TimeDelta to <sign><seconds>.<microseconds>
     // sign( 1 ) + seconds ( 18 ) + '.'( 1 ) + microseconds( 9 ) + '\0'( 1 )
     char buf[32] = {};
-    auto seconds = val.abs().asSeconds();
+    long seconds = val.abs().asSeconds();
     auto microseconds = static_cast<unsigned>( val.abs().nanoseconds() / NANOS_PER_MICROSECOND );
     auto len = sprintf( buf, "%c%ld.%06u", ( val.sign() >= 0 ) ? '+' : '-', seconds, microseconds );
     rapidjson::Value res;

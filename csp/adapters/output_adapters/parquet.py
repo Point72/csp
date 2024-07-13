@@ -1,8 +1,10 @@
-import numpy
 import os
-from importlib.metadata import PackageNotFoundError, version as get_package_version
-from packaging import version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_package_version
 from typing import Callable, Dict, Optional, TypeVar
+
+import numpy
+from packaging import version
 
 import csp
 from csp.impl.struct import Struct

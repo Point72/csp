@@ -11,7 +11,11 @@ from csp.impl.genericpushadapter import GenericPushAdapter
 from csp.impl.mem_cache import csp_memoized, memoize
 from csp.impl.struct import Struct
 from csp.impl.types.common_definitions import OutputBasket, Outputs, OutputTypeError, PushMode
-from csp.impl.types.tstype import AttachType as attach, DynamicBasket, SnapKeyType as snapkey, SnapType as snap, ts
+from csp.impl.types.tstype import AttachType as attach
+from csp.impl.types.tstype import DynamicBasket
+from csp.impl.types.tstype import SnapKeyType as snapkey
+from csp.impl.types.tstype import SnapType as snap
+from csp.impl.types.tstype import ts
 from csp.impl.wiring import (
     CspParseError,
     DelayedEdge,

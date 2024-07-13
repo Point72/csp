@@ -361,7 +361,7 @@ class SlackOutputAdapterImpl(OutputAdapter):
 _slack_input_adapter = py_push_adapter_def(
     name="SlackInputAdapter",
     adapterimpl=SlackInputAdapterImpl,
-    out_type=ts[[SlackMessage]],
+    out_type=ts[List[SlackMessage]],
     manager_type=SlackAdapterManager,
 )
 _slack_output_adapter = py_output_adapter_def(

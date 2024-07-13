@@ -15,14 +15,14 @@ T = TypeVar("T")
 
 
 @csp.node
-def _basket_valid(xs: [ts[object]]) -> ts[bool]:
+def _basket_valid(xs: List[ts[object]]) -> ts[bool]:
     if csp.valid(xs):
         csp.make_passive(xs)
         return True
 
 
 @csp.node
-def _basket_synchronize(xs: [ts["T"]], threshold: timedelta) -> csp.OutputBasket(List[ts["T"]], shape_of="xs"):
+def _basket_synchronize(xs: List[ts["T"]], threshold: timedelta) -> csp.OutputBasket(List[ts["T"]], shape_of="xs"):
     with csp.alarms():
         a_end = csp.alarm(bool)
 
@@ -662,7 +662,7 @@ class ToCspFrameAccessor(object):
 
 
 @csp.node
-def _collect_numpy(x: [ts[object]], dim: int) -> ts[object]:
+def _collect_numpy(x: List[ts[object]], dim: int) -> ts[object]:
     with csp.state():
         s_array = np.array([np.nan for _ in range(dim)], dtype=object)
 

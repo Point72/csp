@@ -12,6 +12,7 @@ import traceback
 import typing
 import unittest
 from datetime import datetime, timedelta
+from typing import Callable, Dict, List
 
 import csp
 from csp import PushMode, ts
@@ -451,7 +452,7 @@ class TestEngine(unittest.TestCase):
     def test_with_support(self):
         # This test case tests a parsing bug that we had, where "with" statement at the main function block was causing parse error
         class ValueSetter(object):
-            def __init__(self, l: typing.List[int]):
+            def __init__(self, l: List[int]):
                 self._l = l
 
             def __enter__(self):
@@ -461,7 +462,7 @@ class TestEngine(unittest.TestCase):
                 self._l.append(2)
 
         @csp.node
-        def my_node(inp: ts[bool]) -> ts[[int]]:
+        def my_node(inp: ts[bool]) -> ts[List[int]]:
             with csp.state():
                 l = []
             with ValueSetter(l):
@@ -876,8 +877,8 @@ class TestEngine(unittest.TestCase):
 
     def test_list_feedback_typecheck(self):
         @csp.graph
-        def g() -> csp.ts[[int]]:
-            fb = csp.feedback([int])
+        def g() -> csp.ts[List[int]]:
+            fb = csp.feedback(List[int])
             with self.assertRaisesRegex(
                 TypeError, re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
             ):
@@ -891,8 +892,8 @@ class TestEngine(unittest.TestCase):
 
         # Test Typing.List which was a bug "crash on feedback tick"
         @csp.graph
-        def g() -> csp.ts[typing.List[int]]:
-            fb = csp.feedback(typing.List[int])
+        def g() -> csp.ts[List[int]]:
+            fb = csp.feedback(List[int])
             with self.assertRaisesRegex(
                 TypeError, re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
             ):
@@ -908,7 +909,7 @@ class TestEngine(unittest.TestCase):
         '''was a bug "Empty list inside callable annotation raises exception"'''
 
         @csp.graph
-        def graph(v: typing.Dict[str, typing.Callable[[], str]]):
+        def graph(v: Dict[str, Callable[[], str]]):
             pass
 
         csp.run(graph, {"x": (lambda v: v)}, starttime=datetime(2020, 6, 17))
@@ -1086,7 +1087,7 @@ class TestEngine(unittest.TestCase):
 
     def test_list_comprehension_bug(self):
         @csp.node
-        def list_comprehension_bug_node(n_seconds: int, input: csp.ts["T"]) -> csp.ts[["T"]]:
+        def list_comprehension_bug_node(n_seconds: int, input: csp.ts["T"]) -> csp.ts[List["T"]]:
             with csp.start():
                 csp.set_buffering_policy(input, tick_history=timedelta(seconds=30))
 
@@ -1426,7 +1427,7 @@ class TestEngine(unittest.TestCase):
 
         @csp.node
         def basket_wrapper(l: [csp.ts[float]], d: {str: csp.ts[float]}) -> csp.Outputs(
-            l=csp.OutputBasket(typing.List[csp.ts[float]], shape_of="l"),
+            l=csp.OutputBasket(List[csp.ts[float]], shape_of="l"),
             d=csp.OutputBasket(typing.Dict[str, csp.ts[float]], shape_of="d"),
         ):
             if csp.ticked(l):
@@ -1563,7 +1564,7 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(str(ctxt.exception), "In function my_graph: Expected ts[str] for return value, got ts[int]")
 
         @csp.graph
-        def dictbasket_graph(x: csp.ts[int]) -> {str: csp.ts[str]}:
+        def dictbasket_graph(x: csp.ts[int]) -> Dict[str, csp.ts[str]]:
             return csp.output({"a": x})
 
         with self.assertRaises(ArgTypeMismatchError) as ctxt:
@@ -1574,7 +1575,7 @@ class TestEngine(unittest.TestCase):
         )
 
         @csp.graph
-        def listbasket_graph(x: csp.ts[int]) -> [csp.ts[str]]:
+        def listbasket_graph(x: csp.ts[int]) -> List[csp.ts[str]]:
             return csp.output([x])
 
         with self.assertRaises(ArgTypeMismatchError) as ctxt:
@@ -1693,7 +1694,7 @@ class TestEngine(unittest.TestCase):
                 return csp.output({k: v for k, v in x.tickeditems()})
 
         @csp.node
-        def n2(x: [csp.ts["T"]]) -> csp.OutputBasket(typing.List[csp.ts["T"]], shape_of="x"):
+        def n2(x: [csp.ts["T"]]) -> csp.OutputBasket(List[csp.ts["T"]], shape_of="x"):
             if csp.ticked(x):
                 return csp.output({k: v for k, v in x.tickeditems()})
 
@@ -1817,15 +1818,13 @@ class TestEngine(unittest.TestCase):
 
         @csp.graph
         def aux(x: [ts[float]], y: {str: ts[float]}) -> csp.Outputs(
-            o1=csp.OutputBasket(typing.List[ts[float]], shape_of="x"),
+            o1=csp.OutputBasket(List[ts[float]], shape_of="x"),
             o2=csp.OutputBasket(typing.Dict[str, ts[float]], shape_of="y"),
         ):
             return csp.output(o1=x, o2=y)
 
         @csp.graph
-        def g() -> (
-            csp.Outputs(o1=csp.OutputBasket(typing.List[ts[float]]), o2=csp.OutputBasket(typing.Dict[str, ts[float]]))
-        ):
+        def g() -> csp.Outputs(o1=csp.OutputBasket(List[ts[float]]), o2=csp.OutputBasket(typing.Dict[str, ts[float]])):
             res = aux([csp.const(1.0), csp.const(2.0)], {"3": csp.const(3.0), "4": csp.const(4.0)})
             return csp.output(o1=res.o1, o2=res.o2)
 

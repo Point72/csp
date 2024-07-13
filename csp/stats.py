@@ -1,7 +1,7 @@
 import numpy as np
 import typing
 from datetime import datetime, timedelta
-from typing import List, TypeVar
+from typing import List, TypeVar, Union
 
 import csp
 from csp import ts
@@ -58,7 +58,7 @@ Base data processing nodes for statistical functions
 @csp.node(cppimpl=_cspstatsimpl._tick_window_updates)
 def _tick_window_updates(
     x: ts[float], interval: int, trigger: ts[object], sampler: ts[object], reset: ts[object], recalc: ts[object]
-) -> csp.Outputs(additions=ts[[float]], removals=ts[[float]]):
+) -> csp.Outputs(additions=ts[List[float]], removals=ts[List[float]]):
     raise NotImplementedError("_tick_window_updates only implemented in C++")
     return csp.output(additions=0, removals=0)
 
@@ -66,7 +66,7 @@ def _tick_window_updates(
 @csp.node(cppimpl=_cspstatsimpl._time_window_updates)
 def _time_window_updates(
     x: ts[float], interval: timedelta, trigger: ts[object], sampler: ts[object], reset: ts[object], recalc: ts[object]
-) -> csp.Outputs(additions=ts[[float]], removals=ts[[float]]):
+) -> csp.Outputs(additions=ts[List[float]], removals=ts[List[float]]):
     raise NotImplementedError("_time_window_updates only implemented in C++")
     return csp.output(additions=0, removals=0)
 
@@ -74,7 +74,7 @@ def _time_window_updates(
 @csp.node(cppimpl=_cspnpstatsimpl._np_tick_window_updates)
 def _np_tick_window_updates(
     x: ts[np.ndarray], interval: int, trigger: ts[object], sampler: ts[object], reset: ts[object], recalc: ts[object]
-) -> csp.Outputs(additions=ts[[np.ndarray]], removals=ts[[np.ndarray]]):
+) -> csp.Outputs(additions=ts[List[np.ndarray]], removals=ts[List[np.ndarray]]):
     raise NotImplementedError("_np_tick_window_updates only implemented in C++")
     return csp.output(additions=0, removals=0)
 
@@ -87,7 +87,7 @@ def _np_time_window_updates(
     sampler: ts[object],
     reset: ts[object],
     recalc: ts[object],
-) -> csp.Outputs(additions=ts[[np.ndarray]], removals=ts[[np.ndarray]]):
+) -> csp.Outputs(additions=ts[List[np.ndarray]], removals=ts[List[np.ndarray]]):
     raise NotImplementedError("_np_time_window_updates only implemented in C++")
     return csp.output(additions=0, removals=0)
 
@@ -100,7 +100,7 @@ def _window_updates(
     sampler: ts[object],
     reset: ts[object],
     recalc: ts[object],
-) -> csp.Outputs(additions=ts[[typing.Union[float, np.ndarray]]], removals=ts[[typing.Union[float, np.ndarray]]]):
+) -> csp.Outputs(additions=ts[List[Union[float, np.ndarray]]], removals=ts[List[Union[float, np.ndarray]]]):
     """
     :param x: the time-series data
     :param interval: a tick or timedelta interval to calculate over
@@ -353,8 +353,8 @@ Utility nodes for the statistical API
 
 @csp.node(cppimpl=_cspstatsimpl._count)
 def _count(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -366,8 +366,8 @@ def _count(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_count)
 def _np_count(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -379,8 +379,8 @@ def _np_count(
 
 @csp.node(cppimpl=_cspstatsimpl._sum)
 def _sum(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -392,8 +392,8 @@ def _sum(
 
 @csp.node(cppimpl=_cspstatsimpl._kahan_sum)
 def _kahan_sum(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -405,8 +405,8 @@ def _kahan_sum(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_sum)
 def _np_sum(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -418,8 +418,8 @@ def _np_sum(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_kahan_sum)
 def _np_kahan_sum(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -431,8 +431,8 @@ def _np_kahan_sum(
 
 @csp.node(cppimpl=_cspstatsimpl._mean)
 def _mean(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -444,10 +444,10 @@ def _mean(
 
 @csp.node(cppimpl=_cspstatsimpl._weighted_mean)
 def _weighted_mean(
-    x_add: ts[[float]],
-    x_rem: ts[[float]],
-    y_add: ts[[float]],
-    y_rem: ts[[float]],
+    x_add: ts[List[float]],
+    x_rem: ts[List[float]],
+    y_add: ts[List[float]],
+    y_rem: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -459,8 +459,8 @@ def _weighted_mean(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_mean)
 def _np_mean(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -472,8 +472,8 @@ def _np_mean(
 
 @csp.node(cppimpl=_cspstatsimpl._var)
 def _var(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -486,8 +486,8 @@ def _var(
 
 @csp.node(cppimpl=_cspstatsimpl._sem)
 def _sem(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -500,10 +500,10 @@ def _sem(
 
 @csp.node(cppimpl=_cspstatsimpl._weighted_var)
 def _weighted_var(
-    x_add: ts[[float]],
-    x_rem: ts[[float]],
-    y_add: ts[[float]],
-    y_rem: ts[[float]],
+    x_add: ts[List[float]],
+    x_rem: ts[List[float]],
+    y_add: ts[List[float]],
+    y_rem: ts[List[float]],
     arg: int,
     trigger: ts[object],
     reset: ts[object],
@@ -516,10 +516,10 @@ def _weighted_var(
 
 @csp.node(cppimpl=_cspstatsimpl._weighted_sem)
 def _weighted_sem(
-    x_add: ts[[float]],
-    x_rem: ts[[float]],
-    y_add: ts[[float]],
-    y_rem: ts[[float]],
+    x_add: ts[List[float]],
+    x_rem: ts[List[float]],
+    y_add: ts[List[float]],
+    y_rem: ts[List[float]],
     arg: int,
     trigger: ts[object],
     reset: ts[object],
@@ -532,10 +532,10 @@ def _weighted_sem(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_weighted_mean)
 def _np_weighted_mean(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    w_add: ts[[np.ndarray]],
-    w_rem: ts[[np.ndarray]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    w_add: ts[List[np.ndarray]],
+    w_rem: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -547,10 +547,10 @@ def _np_weighted_mean(
 
 @csp.node(cppimpl=_cspstatsimpl._covar)
 def _covar(
-    x_add: ts[[float]],
-    x_rem: ts[[float]],
-    y_add: ts[[float]],
-    y_rem: ts[[float]],
+    x_add: ts[List[float]],
+    x_rem: ts[List[float]],
+    y_add: ts[List[float]],
+    y_rem: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -563,10 +563,10 @@ def _covar(
 
 @csp.node(cppimpl=_cspstatsimpl._corr)
 def _corr(
-    x_add: ts[[float]],
-    x_rem: ts[[float]],
-    y_add: ts[[float]],
-    y_rem: ts[[float]],
+    x_add: ts[List[float]],
+    x_rem: ts[List[float]],
+    y_add: ts[List[float]],
+    y_rem: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -578,12 +578,12 @@ def _corr(
 
 @csp.node(cppimpl=_cspstatsimpl._weighted_covar)
 def _weighted_covar(
-    x_add: ts[[float]],
-    x_rem: ts[[float]],
-    y_add: ts[[float]],
-    y_rem: ts[[float]],
-    w_add: ts[[float]],
-    w_rem: ts[[float]],
+    x_add: ts[List[float]],
+    x_rem: ts[List[float]],
+    y_add: ts[List[float]],
+    y_rem: ts[List[float]],
+    w_add: ts[List[float]],
+    w_rem: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -596,12 +596,12 @@ def _weighted_covar(
 
 @csp.node(cppimpl=_cspstatsimpl._weighted_corr)
 def _weighted_corr(
-    x_add: ts[[float]],
-    x_rem: ts[[float]],
-    y_add: ts[[float]],
-    y_rem: ts[[float]],
-    w_add: ts[[float]],
-    w_rem: ts[[float]],
+    x_add: ts[List[float]],
+    x_rem: ts[List[float]],
+    y_add: ts[List[float]],
+    y_rem: ts[List[float]],
+    w_add: ts[List[float]],
+    w_rem: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -614,8 +614,8 @@ def _weighted_corr(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_var)
 def _np_var(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -628,8 +628,8 @@ def _np_var(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_sem)
 def _np_sem(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -642,10 +642,10 @@ def _np_sem(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_covar)
 def _np_covar(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    w_add: ts[[np.ndarray]],
-    w_rem: ts[[np.ndarray]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    w_add: ts[List[np.ndarray]],
+    w_rem: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -658,10 +658,10 @@ def _np_covar(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_corr)
 def _np_corr(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    w_add: ts[[np.ndarray]],
-    w_rem: ts[[np.ndarray]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    w_add: ts[List[np.ndarray]],
+    w_rem: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -673,10 +673,10 @@ def _np_corr(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_weighted_var)
 def _np_weighted_var(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    w_add: ts[[np.ndarray]],
-    w_rem: ts[[np.ndarray]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    w_add: ts[List[np.ndarray]],
+    w_rem: ts[List[np.ndarray]],
     arg: int,
     trigger: ts[object],
     reset: ts[object],
@@ -689,10 +689,10 @@ def _np_weighted_var(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_weighted_sem)
 def _np_weighted_sem(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    w_add: ts[[np.ndarray]],
-    w_rem: ts[[np.ndarray]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    w_add: ts[List[np.ndarray]],
+    w_rem: ts[List[np.ndarray]],
     arg: int,
     trigger: ts[object],
     reset: ts[object],
@@ -705,12 +705,12 @@ def _np_weighted_sem(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_weighted_covar)
 def _np_weighted_covar(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    y_add: ts[[np.ndarray]],
-    y_rem: ts[[np.ndarray]],
-    w_add: ts[[np.ndarray]],
-    w_rem: ts[[np.ndarray]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    y_add: ts[List[np.ndarray]],
+    y_rem: ts[List[np.ndarray]],
+    w_add: ts[List[np.ndarray]],
+    w_rem: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -723,12 +723,12 @@ def _np_weighted_covar(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_weighted_corr)
 def _np_weighted_corr(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    y_add: ts[[np.ndarray]],
-    y_rem: ts[[np.ndarray]],
-    w_add: ts[[np.ndarray]],
-    w_rem: ts[[np.ndarray]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    y_add: ts[List[np.ndarray]],
+    y_rem: ts[List[np.ndarray]],
+    w_add: ts[List[np.ndarray]],
+    w_rem: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     arg: int,
@@ -741,8 +741,8 @@ def _np_weighted_corr(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_cov_matrix)
 def _np_cov_matrix(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     ddof: int,
@@ -755,8 +755,8 @@ def _np_cov_matrix(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_corr_matrix)
 def _np_corr_matrix(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     ddof: int,
@@ -769,10 +769,10 @@ def _np_corr_matrix(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_weighted_cov_matrix)
 def _np_weighted_cov_matrix(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    w_add: ts[[float]],
-    w_rem: ts[[float]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    w_add: ts[List[float]],
+    w_rem: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     ddof: int,
@@ -785,10 +785,10 @@ def _np_weighted_cov_matrix(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_weighted_corr_matrix)
 def _np_weighted_corr_matrix(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    w_add: ts[[float]],
-    w_rem: ts[[float]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    w_add: ts[List[float]],
+    w_rem: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     ddof: int,
@@ -801,8 +801,8 @@ def _np_weighted_corr_matrix(
 
 @csp.node(cppimpl=_cspstatsimpl._skew)
 def _skew(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     arg: bool,
@@ -816,8 +816,8 @@ def _skew(
 
 @csp.node(cppimpl=_cspstatsimpl._kurt)
 def _kurt(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     arg1: bool,
@@ -832,10 +832,10 @@ def _kurt(
 
 @csp.node(cppimpl=_cspstatsimpl._weighted_skew)
 def _weighted_skew(
-    x_add: ts[[float]],
-    x_rem: ts[[float]],
-    y_add: ts[[float]],
-    y_rem: ts[[float]],
+    x_add: ts[List[float]],
+    x_rem: ts[List[float]],
+    y_add: ts[List[float]],
+    y_rem: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     arg: bool,
@@ -848,10 +848,10 @@ def _weighted_skew(
 
 @csp.node(cppimpl=_cspstatsimpl._weighted_kurt)
 def _weighted_kurt(
-    x_add: ts[[float]],
-    x_rem: ts[[float]],
-    y_add: ts[[float]],
-    y_rem: ts[[float]],
+    x_add: ts[List[float]],
+    x_rem: ts[List[float]],
+    y_add: ts[List[float]],
+    y_rem: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     arg1: bool,
@@ -865,8 +865,8 @@ def _weighted_kurt(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_skew)
 def _np_skew(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     arg: bool,
@@ -880,8 +880,8 @@ def _np_skew(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_kurt)
 def _np_kurt(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     arg1: bool,
@@ -896,10 +896,10 @@ def _np_kurt(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_weighted_skew)
 def _np_weighted_skew(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    w_add: ts[[np.ndarray]],
-    w_rem: ts[[np.ndarray]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    w_add: ts[List[np.ndarray]],
+    w_rem: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     arg: bool,
@@ -912,10 +912,10 @@ def _np_weighted_skew(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_weighted_kurt)
 def _np_weighted_kurt(
-    x_add: ts[[np.ndarray]],
-    x_rem: ts[[np.ndarray]],
-    w_add: ts[[np.ndarray]],
-    w_rem: ts[[np.ndarray]],
+    x_add: ts[List[np.ndarray]],
+    x_rem: ts[List[np.ndarray]],
+    w_add: ts[List[np.ndarray]],
+    w_rem: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     arg1: bool,
@@ -929,8 +929,8 @@ def _np_weighted_kurt(
 
 @csp.node(cppimpl=_cspstatsimpl._first)
 def _first(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -942,8 +942,8 @@ def _first(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_first)
 def _np_first(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -955,8 +955,8 @@ def _np_first(
 
 @csp.node(cppimpl=_cspstatsimpl._last)
 def _last(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -968,8 +968,8 @@ def _last(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_last)
 def _np_last(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -981,8 +981,8 @@ def _np_last(
 
 @csp.node(cppimpl=_cspstatsimpl._unique)
 def _unique(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -995,8 +995,8 @@ def _unique(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_unique)
 def _np_unique(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -1009,8 +1009,8 @@ def _np_unique(
 
 @csp.node(cppimpl=_cspstatsimpl._prod)
 def _prod(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -1022,8 +1022,8 @@ def _prod(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_prod)
 def _np_prod(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -1035,8 +1035,8 @@ def _np_prod(
 
 @csp.node(cppimpl=_cspstatsimpl._quantile)
 def _quantile(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     quants: typing.List[float],
     nq: int,
     interpolation_type: int,
@@ -1051,8 +1051,8 @@ def _quantile(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_quantile)
 def _np_quantile(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     quants: typing.List[float],
     nq: int,
     interpolation_type: int,
@@ -1067,8 +1067,8 @@ def _np_quantile(
 
 @csp.node(cppimpl=_cspstatsimpl._min_max)
 def _min_max(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -1081,8 +1081,8 @@ def _min_max(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_min_max)
 def _np_min_max(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -1095,8 +1095,8 @@ def _np_min_max(
 
 @csp.node(cppimpl=_cspstatsimpl._rank)
 def _rank(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -1110,8 +1110,8 @@ def _rank(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_rank)
 def _np_rank(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     trigger: ts[object],
     reset: ts[object],
     min_data_points: int,
@@ -1126,7 +1126,7 @@ def _np_rank(
 @csp.node(cppimpl=_cspstatsimpl._arg_min_max)
 def _arg_min_max(
     x: ts[float],
-    removals: ts[[float]],
+    removals: ts[List[float]],
     max: bool,
     recent: bool,
     trigger: ts[object],
@@ -1142,7 +1142,7 @@ def _arg_min_max(
 @csp.node(cppimpl=_cspnpstatsimpl._np_arg_min_max)
 def _np_arg_min_max(
     x: ts[np.ndarray],
-    removals: ts[[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     max: bool,
     recent: bool,
     trigger: ts[object],
@@ -1157,8 +1157,8 @@ def _np_arg_min_max(
 
 @csp.node(cppimpl=_cspstatsimpl._ema_compute)
 def _ema_compute(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     alpha: float,
     ignore_na: bool,
     horizon: int,
@@ -1173,8 +1173,8 @@ def _ema_compute(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_ema_compute)
 def _np_ema_compute(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     alpha: float,
     ignore_na: bool,
     horizon: int,
@@ -1189,8 +1189,8 @@ def _np_ema_compute(
 
 @csp.node(cppimpl=_cspstatsimpl._ema_adjusted)
 def _ema_adjusted(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     alpha: float,
     ignore_na: bool,
     horizon: int,
@@ -1205,8 +1205,8 @@ def _ema_adjusted(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_ema_adjusted)
 def _np_ema_adjusted(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     alpha: float,
     ignore_na: bool,
     horizon: int,
@@ -1263,8 +1263,8 @@ def _np_ema_debias_halflife(
 
 @csp.node(cppimpl=_cspstatsimpl._ema_debias_alpha)
 def _ema_debias_alpha(
-    additions: ts[[float]],
-    removals: ts[[float]],
+    additions: ts[List[float]],
+    removals: ts[List[float]],
     alpha: float,
     ignore_na: bool,
     horizon: int,
@@ -1279,8 +1279,8 @@ def _ema_debias_alpha(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_ema_debias_alpha)
 def _np_ema_debias_alpha(
-    additions: ts[[np.ndarray]],
-    removals: ts[[np.ndarray]],
+    additions: ts[List[np.ndarray]],
+    removals: ts[List[np.ndarray]],
     alpha: float,
     ignore_na: bool,
     horizon: int,
@@ -1328,15 +1328,15 @@ def _ema_debias(
 
 @csp.node(cppimpl=_cspstatsimpl._cross_sectional_as_list)
 def _cross_sectional_as_list(
-    additions: ts[[float]], removals: ts[[float]], trigger: ts[object], reset: ts[object]
-) -> ts[[float]]:
+    additions: ts[List[float]], removals: ts[List[float]], trigger: ts[object], reset: ts[object]
+) -> ts[List[float]]:
     raise NotImplementedError("_cross_sectional_as_list only implemented in C++")
     return 0
 
 
 @csp.node(cppimpl=_cspnpstatsimpl._cross_sectional_as_np)
 def _cross_sectional_as_np(
-    additions: ts[[float]], removals: ts[[float]], trigger: ts[object], reset: ts[object]
+    additions: ts[List[float]], removals: ts[List[float]], trigger: ts[object], reset: ts[object]
 ) -> ts[np.ndarray]:
     raise NotImplementedError("_cross_sectional_as_np only implemented in C++")
     return 0
@@ -1344,15 +1344,15 @@ def _cross_sectional_as_np(
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_cross_sectional_as_list)
 def _np_cross_sectional_as_list(
-    additions: ts[[np.ndarray]], removals: ts[[np.ndarray]], trigger: ts[object], reset: ts[object]
-) -> ts[[np.ndarray]]:
+    additions: ts[List[np.ndarray]], removals: ts[List[np.ndarray]], trigger: ts[object], reset: ts[object]
+) -> ts[List[np.ndarray]]:
     raise NotImplementedError("_np_cross_sectional_as_list only implemented in C++")
     return 0
 
 
 @csp.node(cppimpl=_cspnpstatsimpl._np_cross_sectional_as_np)
 def _np_cross_sectional_as_np(
-    additions: ts[[np.ndarray]], removals: ts[[np.ndarray]], trigger: ts[object], reset: ts[object]
+    additions: ts[List[np.ndarray]], removals: ts[List[np.ndarray]], trigger: ts[object], reset: ts[object]
 ) -> ts[np.ndarray]:
     raise NotImplementedError("_np_cross_sectional_as_np only implemented in C++")
     return 0

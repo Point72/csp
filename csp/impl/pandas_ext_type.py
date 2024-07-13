@@ -556,7 +556,7 @@ def _unary_op(x: ts["T"], op: object) -> ts["T"]:
 
 
 @node
-def _reduce(x: [ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts["T"]:
+def _reduce(x: List[ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts["T"]:
     # The choice was made to only emit values if all basket elements are valid.
     # If one wanted to reduce only over valid elements, then in many cases you could pre-apply csp.default
     # with a nan/sentinal value, and then apply a function which ignores these values
@@ -578,14 +578,14 @@ def _reduce(x: [ts["T"]], typ: "T", func: object, args: object = (), kwargs: obj
 
 
 @node
-def _reduce_float(x: [ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts[float]:
+def _reduce_float(x: List[ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts[float]:
     if csp.valid(x):
         data = np.fromiter(x.validvalues(), dtype=typ)
         return func(data, *args, **kwargs)
 
 
 @node
-def _reduce_bool(x: [ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts[bool]:
+def _reduce_bool(x: List[ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts[bool]:
     if csp.valid(x):
         data = np.fromiter(x.validvalues(), dtype=typ)
         return bool(func(data, *args, **kwargs))

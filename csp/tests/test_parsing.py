@@ -47,21 +47,21 @@ class TestParsing(unittest.TestCase):
         with self.assertRaisesRegex(CspParseError, "Invalid use of 'with_shape'"):
 
             @csp.node
-            def foo(x: [str]):
-                __outputs__([ts[int]].with_shape(x=1))
+            def foo(x: List[str]):
+                __outputs__(List[ts[int]].with_shape(x=1))
                 pass
 
         with self.assertRaisesRegex(CspParseError, "__outputs__ must all be named or be single output, cant be both"):
 
             @csp.node
-            def foo(x: [str]):
+            def foo(x: List[str]):
                 __outputs__(ts[int], x=ts[bool])
                 pass
 
         with self.assertRaisesRegex(CspParseError, "__outputs__ single unnamed arg only"):
 
             @csp.node
-            def foo(x: [str]):
+            def foo(x: List[str]):
                 __outputs__(ts[int], ts[bool])
                 pass
 
@@ -70,7 +70,7 @@ class TestParsing(unittest.TestCase):
         ):
 
             @csp.node
-            def foo(x: [str]) -> Outputs(ts[int], ts[bool]):
+            def foo(x: List[str]) -> Outputs(ts[int], ts[bool]):
                 pass
 
         with self.assertRaisesRegex(
@@ -78,7 +78,7 @@ class TestParsing(unittest.TestCase):
         ):
 
             @csp.node
-            def foo(x: [str]) -> Outputs(ts[int], x=ts[bool]):
+            def foo(x: List[str]) -> Outputs(ts[int], x=ts[bool]):
                 pass
 
         with self.assertRaisesRegex(
@@ -86,7 +86,7 @@ class TestParsing(unittest.TestCase):
         ):
 
             @csp.node
-            def foo(x: [str]) -> Outputs(ts[int]):
+            def foo(x: List[str]) -> Outputs(ts[int]):
                 __outputs__(ts[int])
                 pass
 
@@ -96,7 +96,7 @@ class TestParsing(unittest.TestCase):
         ):
 
             @csp.node
-            def foo(x: [str]):
+            def foo(x: List[str]):
                 x = 1
                 __outputs__(ts[int])
 
@@ -1751,11 +1751,11 @@ class TestParsing(unittest.TestCase):
         @csp.node
         def n_cont() -> ts[bool]:
             with csp.alarms():
-                a: ts[[bool]] = csp.alarm([bool])
-                b: ts[[[int]]] = csp.alarm([[int]])
-                c: ts[{str: int}] = csp.alarm({str: int})
-                d: ts[{str: [int]}] = csp.alarm({str: [int]})  # dict of lists
-                e: ts[[{str: bool}]] = csp.alarm([{str: bool}])  # list of dicts
+                a: ts[List[bool]] = csp.alarm(List[bool])
+                b: ts[List[List[int]]] = csp.alarm(List[List[int]])
+                c: ts[Dict[str, int]] = csp.alarm(Dict[str, int])
+                d: ts[Dict[str : List[int]]] = csp.alarm(Dict[str, List[int]])  # dict of lists
+                e: ts[List[Dict[str, bool]]] = csp.alarm(List[Dict[str, bool]])  # list of dicts
 
             with csp.start():
                 csp.schedule_alarm(a, timedelta(seconds=1), [True])

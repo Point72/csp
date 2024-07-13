@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import List
 
 from csp.impl.__cspimpl import _cspimpl
 from csp.impl.mem_cache import csp_memoized_graph_object
@@ -30,7 +31,7 @@ class AdapterDefMeta(type):
             # Note that we augment the returned Edge to be list of expected type, but not the output def
             # output def remains the original type
             if kwargs.get("push_mode", None) == PushMode.BURST:
-                output.tstype = tstype.ts[[output.tstype.typ]]
+                output.tstype = tstype.ts[List[output.tstype.typ]]
 
         return output
 

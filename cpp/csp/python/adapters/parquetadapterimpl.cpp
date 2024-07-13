@@ -303,7 +303,7 @@ public:
                                                          PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
         }
 
-        auto elementSize = PyArray_DESCR( arrayObject ) -> elsize;
+        auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( arrayObject ) );
         auto ndim        = PyArray_NDIM( arrayObject );
 
         CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
@@ -451,7 +451,7 @@ public:
     {
         auto arrayObject = reinterpret_cast<PyArrayObject *>(csp::python::toPythonBorrowed( list ));
         std::wstring_convert<std::codecvt_utf8<char32_t>,char32_t> converter;
-        auto elementSize = PyArray_DESCR( arrayObject ) -> elsize;
+        auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( arrayObject ) );
         auto wideValue = converter.from_bytes( value );
         auto nElementsToCopy = std::min( int(elementSize / sizeof(char32_t)), int( wideValue.size() + 1 ) );
         std::copy_n( wideValue.c_str(), nElementsToCopy, reinterpret_cast<char32_t*>(PyArray_GETPTR1( arrayObject, index )) );

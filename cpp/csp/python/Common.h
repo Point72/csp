@@ -7,6 +7,22 @@
 
 #define INIT_PYDATETIME if( !PyDateTimeAPI ) { PyDateTime_IMPORT; }
 
+// NumPy 2.0 Migration
+#include <numpy/numpyconfig.h>
+
+#if NPY_ABI_VERSION >= 0x02000000
+// Define helper for anything that can't
+// be handled by the below helper macros
+#define CSP_NUMPY_2
+
+#else
+
+// Numpy 2.0 helpers
+#define PyDataType_ELSIZE( descr ) ( ( descr ) -> elsize )
+#define PyDataType_C_METADATA( descr ) ( ( descr ) -> c_metadata )
+
+#endif
+
 namespace csp::python
 {
 

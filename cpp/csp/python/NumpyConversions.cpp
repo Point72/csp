@@ -3,6 +3,7 @@
 
 
 #include <csp/core/Time.h>
+#include <csp/python/Common.h>
 #include <csp/python/NumpyConversions.h>
 
 #include <locale>
@@ -59,7 +60,7 @@ int64_t scalingFromNumpyDtUnit( NPY_DATETIMEUNIT base )
 
 NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr )
 {
-    PyArray_DatetimeDTypeMetaData* dtypeMeta = (PyArray_DatetimeDTypeMetaData*)(descr -> c_metadata);
+    PyArray_DatetimeDTypeMetaData* dtypeMeta = (PyArray_DatetimeDTypeMetaData*)( PyDataType_C_METADATA( descr ) );
     PyArray_DatetimeMetaData* dtMeta = &(dtypeMeta -> meta);
     return dtMeta -> base;
 }
@@ -68,7 +69,7 @@ static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> wstr_converte
 
 void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem_size_bytes )
 {
-    // strings from numpy arrays are fixed width and zero filled.  
+    // strings from numpy arrays are fixed width and zero filled.
     // if the last char is 0, can treat as null terminated, else use full width
 
     if( numpy_type == NPY_UNICODELTR)
@@ -87,7 +88,11 @@ void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem
             out = wstr_converter.to_bytes( wstr );
         }
     }
+#ifdef CSP_NUMPY_2
+    else if( numpy_type == NPY_STRINGLTR )
+#else
     else if( numpy_type == NPY_STRINGLTR || numpy_type == NPY_STRINGLTR2 )
+#endif
     {
         const char * const raw_value = (const char *) data;
 
@@ -144,7 +149,9 @@ void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char )
             // everything works as object
             break;
         case NPY_STRINGLTR:
+#ifndef CSP_NUMPY_2
         case NPY_STRINGLTR2:
+#endif
         case NPY_UNICODELTR:
         case NPY_CHARLTR:
             if( cspType != csp::CspType::Type::STRING )

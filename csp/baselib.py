@@ -2,12 +2,13 @@ import builtins
 import contextlib
 import logging
 import math
-import numpy as np
-import pytz
 import queue
 import threading
 import typing
 from datetime import datetime, timedelta
+
+import numpy as np
+import pytz
 
 import csp
 from csp.impl.__cspimpl import _cspimpl

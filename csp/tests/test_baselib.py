@@ -2,10 +2,11 @@ import functools
 import itertools
 import logging
 import math
-import numpy as np
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum, auto
+
+import numpy as np
 
 import csp
 from csp import ts

@@ -1,7 +1,8 @@
-import numpy as np
 import typing
 from datetime import datetime, timedelta
 from typing import List, TypeVar
+
+import numpy as np
 
 import csp
 from csp import ts

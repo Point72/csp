@@ -1,6 +1,7 @@
-import _pickle
 import unittest
 from datetime import datetime, timedelta
+
+import _pickle
 
 import csp
 from csp import ts

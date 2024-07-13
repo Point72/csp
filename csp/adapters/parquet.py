@@ -1,11 +1,13 @@
 import datetime
 import io
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_package_version
+from typing import TypeVar
+
 import numpy
 import pyarrow
 import pyarrow.parquet
-from importlib.metadata import PackageNotFoundError, version as get_package_version
 from packaging import version
-from typing import TypeVar
 
 import csp
 from csp.adapters.output_adapters.parquet import ParquetOutputConfig, ParquetWriter, resolve_array_shape_column_name

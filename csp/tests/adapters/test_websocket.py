@@ -1,8 +1,9 @@
 import os
-import pytz
 import threading
 import unittest
 from datetime import datetime, timedelta
+
+import pytz
 
 import csp
 from csp import ts

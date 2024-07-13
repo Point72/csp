@@ -1,6 +1,7 @@
-import numpy as np
 import unittest
 from datetime import datetime, timedelta
+
+import numpy as np
 
 import csp
 from csp.random import brownian_motion, brownian_motion_1d, poisson_timer

@@ -15,7 +15,10 @@ except ImportError:
 
 
 try:
-    from perspective import PerspectiveManager, Table as Table_, View as View_, __version__, set_threadpool_size
+    from perspective import PerspectiveManager
+    from perspective import Table as Table_
+    from perspective import View as View_
+    from perspective import __version__, set_threadpool_size
 
     MAJOR, MINOR, PATCH = map(int, __version__.split("."))
     if (MAJOR, MINOR, PATCH) < (0, 6, 2):

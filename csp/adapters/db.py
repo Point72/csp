@@ -8,8 +8,10 @@ try:
 except ImportError:
     from backports import zoneinfo
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_package_version
+
 import pytz
-from importlib.metadata import PackageNotFoundError, version as get_package_version
 from packaging import version
 
 from csp import PushMode, ts

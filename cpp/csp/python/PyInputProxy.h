@@ -34,15 +34,14 @@ public:
 
     PyObject * lastValue() const { return lastValueToPython( ts() ); }
 
-    PyObject * valueAt(ValueType valueType, PyObject *indexArg, PyObject *duplicatePolicyArg,PyObject *defaultValueArg) const;
+    PyObject * valueAt( ValueType valueType, PyObject * indexArg, PyObject * duplicatePolicyArg,
+                        PyObject * defaultValueArg ) const;
 
-    //used by dynamic basket output
+    // used by dynamic basket output
     void setElemId( int64_t elemId ) { m_id.elemId = elemId; }
 
-    PyObject * valuesAt(ValueType valueType, PyObject *startIndexArg,
-                        PyObject *endIndexArg,
-                        PyObject *startIndexPolicyArg,
-                        PyObject *endIndexPolicyArg) const;
+    PyObject * valuesAt( ValueType valueType, PyObject * startIndexArg, PyObject * endIndexArg,
+                         PyObject * startIndexPolicyArg, PyObject * endIndexPolicyArg ) const;
 
     static PyTypeObject PyType;
 
@@ -53,9 +52,9 @@ private:
     TimeSeriesProvider * ts() const;
 
     PyNode * m_node;
-    InputId  m_id;
+    InputId m_id;
 };
 
-}
+} // namespace csp::python
 
 #endif

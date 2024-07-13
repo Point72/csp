@@ -30,7 +30,7 @@ public:
     void forceReplayCompleted();
 
 private:
-    //should align with python side enum
+    // should align with python side enum
     enum class KafkaStartOffset
     {
         EARLIEST   = 1,
@@ -40,22 +40,22 @@ private:
 
     struct TopicData
     {
-        //Key -> Subscriber
-        using SubscriberMap = std::unordered_map<std::string, std::vector<KafkaSubscriber*>>;
-        SubscriberMap      subscribers;
-        KafkaSubscriber *  wildcardSubscriber = nullptr;
-        std::vector<bool>  partitionLive;
-        bool               flaggedReplayComplete = false;
+        // Key -> Subscriber
+        using SubscriberMap = std::unordered_map<std::string, std::vector<KafkaSubscriber *>>;
+        SubscriberMap subscribers;
+        KafkaSubscriber * wildcardSubscriber = nullptr;
+        std::vector<bool> partitionLive;
+        bool flaggedReplayComplete = false;
     };
 
-    std::unordered_map<std::string,TopicData> m_topics;
-    KafkaAdapterManager *                     m_mgr;
-    std::unique_ptr<RdKafka::KafkaConsumer>   m_consumer;
-    std::unique_ptr<RebalanceCb>              m_rebalanceCb;
-    std::unique_ptr<std::thread>              m_pollThread;
-    volatile bool                             m_running;
+    std::unordered_map<std::string, TopicData> m_topics;
+    KafkaAdapterManager * m_mgr;
+    std::unique_ptr<RdKafka::KafkaConsumer> m_consumer;
+    std::unique_ptr<RebalanceCb> m_rebalanceCb;
+    std::unique_ptr<std::thread> m_pollThread;
+    volatile bool m_running;
 };
 
-}
+} // namespace csp::adapters::kafka
 
 #endif

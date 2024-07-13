@@ -1,23 +1,23 @@
-#include <gtest/gtest.h>
 #include <csp/core/Platform.h>
+#include <gtest/gtest.h>
 
 TEST( Platform, clz )
 {
     uint8_t x = 1;
     for( int i = 7; i >= 0; --i, x <<= 1 )
-        ASSERT_EQ( clz( x ), ( uint8_t ) i );
+        ASSERT_EQ( clz( x ), (uint8_t)i );
 
     uint16_t y = 1;
     for( int i = 15; i >= 0; --i, y <<= 1 )
-        ASSERT_EQ( clz( y ), ( uint16_t ) i );
+        ASSERT_EQ( clz( y ), (uint16_t)i );
 
     uint32_t z = 1;
     for( int i = 31; i >= 0; --i, z <<= 1 )
-        ASSERT_EQ( clz( z ), ( uint32_t ) i );
+        ASSERT_EQ( clz( z ), (uint32_t)i );
 
     uint64_t w = 1;
     for( int i = 63; i >= 0; --i, w <<= 1 )
-        ASSERT_EQ( clz( w ), ( uint64_t ) i );
+        ASSERT_EQ( clz( w ), (uint64_t)i );
 }
 
 TEST( Platform, ffs )

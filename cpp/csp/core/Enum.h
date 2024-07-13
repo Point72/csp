@@ -1,21 +1,23 @@
 #ifndef _IN_CSP_CORE_ENUM_H
 #define _IN_CSP_CORE_ENUM_H
 
-#include <csp/core/Hash.h>
+#include <assert.h>
 #include <csp/core/Exception.h>
+#include <csp/core/Hash.h>
 #include <csp/core/Platform.h>
 #include <memory>
+#include <string.h>
 #include <unordered_map>
 #include <vector>
-#include <assert.h>
-#include <string.h>
 
-namespace csp {
+namespace csp
+{
 
 /*
 Example usage:
-Define your enum traits struct which must define a basic enum type named _enum with UNKNOWN = 0 and NUM_TYPES members ( where NUM_TYPES is number of enum values )
-Along with an instance of said enum as a protected member m_value.  You can also add any methods you like on your traits:
+Define your enum traits struct which must define a basic enum type named _enum with UNKNOWN = 0 and NUM_TYPES members (
+where NUM_TYPES is number of enum values ) Along with an instance of said enum as a protected member m_value.  You can
+also add any methods you like on your traits:
 
 struct MyEnumTraits
 {
@@ -44,76 +46,95 @@ using MyEnum = Enum<MyEnumTraits>
 
 //In a cpp file, define your string mappings like so
 INIT_CSP_ENUM( MyEnum,
-    "UNKNOWN", 
-    "A", 
-    "B" 
+    "UNKNOWN",
+    "A",
+    "B"
 );
 
 */
 
 template<typename T>
-struct EnumFriendHelper {
+struct EnumFriendHelper
+{
     typedef T type;
 };
 
 template<typename EnumV, bool B>
-struct EnumUTypeHelper {
+struct EnumUTypeHelper
+{
     using type = typename std::underlying_type<EnumV>::type;
 };
 template<typename EnumV>
-struct EnumUTypeHelper<EnumV, false> {
+struct EnumUTypeHelper<EnumV, false>
+{
     using type = EnumV;
 };
 
 template<typename T>
-auto UnknownOnInvalidValue(int) -> decltype(T::UNKNOWN_ON_INVALID_VALUE) { return T::UNKNOWN_ON_INVALID_VALUE; }
+auto UnknownOnInvalidValue( int ) -> decltype( T::UNKNOWN_ON_INVALID_VALUE )
+{
+    return T::UNKNOWN_ON_INVALID_VALUE;
+}
 
 template<typename T>
-bool UnknownOnInvalidValue(long) { return false; }
+bool UnknownOnInvalidValue( long )
+{
+    return false;
+}
 
 START_PACKED
 template<typename EnumTraits>
 struct Enum : public EnumTraits
 {
-    using EnumV = typename EnumTraits::_enum;
+    using EnumV   = typename EnumTraits::_enum;
     using Mapping = std::vector<std::string>;
 
     using UType = typename EnumUTypeHelper<EnumV, std::is_enum<EnumV>::value>::type;
 
-    template<typename = std::enable_if<std::is_enum<EnumV>::value> >
-    constexpr Enum( EnumV v ) { this->m_value = v; }
+    template<typename = std::enable_if<std::is_enum<EnumV>::value>>
+    constexpr Enum( EnumV v )
+    {
+        this->m_value = v;
+    }
 
     constexpr Enum() { this->m_value = EnumTraits::UNKNOWN; }
 
-    constexpr Enum( const Enum &rhs ) { this->m_value = rhs.m_value; }
+    constexpr Enum( const Enum & rhs ) { this->m_value = rhs.m_value; }
 
-    Enum( const char *s ) { this->m_value = reverseMap().fromString( s ); }
-    Enum( const std::string &s ) : Enum( s.c_str() ) {}
+    Enum( const char * s ) { this->m_value = reverseMap().fromString( s ); }
+    Enum( const std::string & s )
+        : Enum( s.c_str() )
+    {
+    }
     Enum( UType v );
 
-    static const std::string &asString(EnumV v) { return mapping()[ v ]; }
+    static const std::string & asString( EnumV v ) { return mapping()[v]; }
 
-    const std::string &asString() const { return asString( this -> m_value ); }
-    const char *asCString() const { return asString( this -> m_value ).c_str(); }
+    const std::string & asString() const { return asString( this->m_value ); }
+    const char * asCString() const { return asString( this->m_value ).c_str(); }
 
-    //this pulls in all comparison operators for free since w will auto-convert to the raw enum
-    constexpr operator EnumV() const { return this -> m_value; }
+    // this pulls in all comparison operators for free since w will auto-convert to the raw enum
+    constexpr operator EnumV() const { return this->m_value; }
 
-    constexpr UType value() const { return this -> m_value; }
+    constexpr UType value() const { return this->m_value; }
 
-    //common convenience methods
-    bool isKnown() const { return this -> m_value != EnumTraits::UNKNOWN; }
-    bool isUnknown() const { return this -> m_value == EnumTraits::UNKNOWN; }
+    // common convenience methods
+    bool isKnown() const { return this->m_value != EnumTraits::UNKNOWN; }
+    bool isUnknown() const { return this->m_value == EnumTraits::UNKNOWN; }
 
-    struct iterator 
+    struct iterator
     {
-        iterator( int v ) : m_v( v ) {}
+        iterator( int v )
+            : m_v( v )
+        {
+        }
 
-        Enum operator*() { return Enum( ( EnumV ) m_v ); }
-        bool operator==(const iterator &rhs) { return m_v == rhs.m_v; }
-        bool operator!=(const iterator &rhs) { return !(*this == rhs); }
+        Enum operator*() { return Enum( (EnumV)m_v ); }
+        bool operator==( const iterator & rhs ) { return m_v == rhs.m_v; }
+        bool operator!=( const iterator & rhs ) { return !( *this == rhs ); }
 
-        iterator &operator++() {
+        iterator & operator++()
+        {
             ++m_v;
             return *this;
         }
@@ -122,103 +143,109 @@ struct Enum : public EnumTraits
         int m_v;
     };
 
-    static constexpr size_t numTypes() { return ( size_t ) EnumTraits::NUM_TYPES; }
+    static constexpr size_t numTypes() { return (size_t)EnumTraits::NUM_TYPES; }
 
-    static iterator begin() { return iterator(0); }
-    static iterator end() { return iterator(numTypes()); }
+    static iterator begin() { return iterator( 0 ); }
+    static iterator end() { return iterator( numTypes() ); }
 
 protected:
-    using Aliases = std::unordered_multimap<std::string,std::string>;
+    using Aliases = std::unordered_multimap<std::string, std::string>;
 
-    struct ReverseMap : public std::unordered_map<const char *, typename EnumTraits::_enum, hash::CStrHash, hash::CStrEq> 
+    struct ReverseMap
+        : public std::unordered_map<const char *, typename EnumTraits::_enum, hash::CStrHash, hash::CStrEq>
     {
-        using BaseT   = std::unordered_map<const char *, EnumV, hash::CStrHash, hash::CStrEq>;
+        using BaseT = std::unordered_map<const char *, EnumV, hash::CStrHash, hash::CStrEq>;
 
-        ReverseMap( const Mapping &mapping )
+        ReverseMap( const Mapping & mapping )
         {
             int v = 0;
-            for( auto &s : mapping )
+            for( auto & s : mapping )
             {
-                assert( this -> find( s.c_str() ) == this -> end() );
-                (*this)[strdup(s.c_str())] = (EnumV) v++;
+                assert( this->find( s.c_str() ) == this->end() );
+                ( *this )[strdup( s.c_str() )] = (EnumV)v++;
             }
         }
 
-        ~ReverseMap() 
-        {
-            clear();
-        }
+        ~ReverseMap() { clear(); }
 
-        void clear() 
+        void clear()
         {
-            for( auto &entry : *this )
+            for( auto & entry : *this )
                 free( const_cast<char *>( entry.first ) );
 
             BaseT::clear();
         }
 
-        EnumV fromString( const char *s ) const 
+        EnumV fromString( const char * s ) const
         {
-            auto it = this -> find( s );
-            if( it == this -> end() )
+            auto it = this->find( s );
+            if( it == this->end() )
             {
                 if( UnknownOnInvalidValue<EnumTraits>( 0 ) )
                     return EnumTraits::UNKNOWN;
 
-                CSP_THROW( ValueError, "Unrecognized enum value: " << s << " for enum " << typeid( EnumTraits ).name() );
+                CSP_THROW( ValueError,
+                           "Unrecognized enum value: " << s << " for enum " << typeid( EnumTraits ).name() );
             }
 
             return it->second;
         }
     };
 
-    //This is defined by INIT macro
+    // This is defined by INIT macro
     static const Mapping & mapping();
 
-    static const ReverseMap & reverseMap() 
-    { 
+    static const ReverseMap & reverseMap()
+    {
         static ReverseMap s_reverseMap( mapping() );
-        return s_reverseMap; 
+        return s_reverseMap;
     }
 
 } END_PACKED;
 
 template<typename EnumTraits>
-Enum<EnumTraits>::Enum( UType v ) 
+Enum<EnumTraits>::Enum( UType v )
 {
     if( v < 0 || v >= numTypes() )
     {
-        if( UnknownOnInvalidValue<EnumTraits>(0) )
-            this -> m_value = EnumTraits::UNKNOWN;
+        if( UnknownOnInvalidValue<EnumTraits>( 0 ) )
+            this->m_value = EnumTraits::UNKNOWN;
         else
-            CSP_THROW(ValueError, "enum value: " << v << " out of range for enum " << typeid(EnumTraits).name());
-    } else
-        this -> m_value = (EnumV) v;
+            CSP_THROW( ValueError, "enum value: " << v << " out of range for enum " << typeid( EnumTraits ).name() );
+    }
+    else
+        this->m_value = (EnumV)v;
 }
 
 template<typename EnumTraits>
-std::ostream &operator<<(std::ostream &o, Enum<EnumTraits> e) {
+std::ostream & operator<<( std::ostream & o, Enum<EnumTraits> e )
+{
     o << e.asString();
     return o;
 }
-};
+}; // namespace csp
 
-//Make all Enum types hashable
-namespace std {
+// Make all Enum types hashable
+namespace std
+{
 
 template<typename EnumTraits>
-struct hash<csp::Enum<EnumTraits>> {
-    size_t operator()(csp::Enum<EnumTraits> e) const {
-        return std::hash<typename csp::Enum<EnumTraits>::EnumV>()(e);
+struct hash<csp::Enum<EnumTraits>>
+{
+    size_t operator()( csp::Enum<EnumTraits> e ) const
+    {
+        return std::hash<typename csp::Enum<EnumTraits>::EnumV>()( e );
     }
 };
 
-}
+} // namespace std
 
-#define INIT_CSP_ENUM(ENUM, ...)                                \
-    template<> const ENUM::Mapping & ENUM::mapping() {      \
-        static ENUM::Mapping s_mapping( { __VA_ARGS__ } );  \
-        return s_mapping;                                   \
+#define INIT_CSP_ENUM( ENUM, ... )                                                                                     \
+    template<>                                                                                                         \
+    const ENUM::Mapping & ENUM::mapping()                                                                              \
+    {                                                                                                                  \
+        static ENUM::Mapping s_mapping( { __VA_ARGS__ } );                                                             \
+        return s_mapping;                                                                                              \
     }
 
 #endif

@@ -3,9 +3,13 @@
 
 #include <Python.h>
 
-#define IS_PRE_PYTHON_3_11 (PY_MAJOR_VERSION < 3 || (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 11) )
+#define IS_PRE_PYTHON_3_11 ( PY_MAJOR_VERSION < 3 || ( PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 11 ) )
 
-#define INIT_PYDATETIME if( !PyDateTimeAPI ) { PyDateTime_IMPORT; }
+#define INIT_PYDATETIME                                                                                                \
+    if( !PyDateTimeAPI )                                                                                               \
+    {                                                                                                                  \
+        PyDateTime_IMPORT;                                                                                             \
+    }
 
 namespace csp::python
 {
@@ -13,7 +17,7 @@ namespace csp::python
 class AcquireGIL
 {
 public:
-    AcquireGIL()  { m_state = PyGILState_Ensure(); }
+    AcquireGIL() { m_state = PyGILState_Ensure(); }
     ~AcquireGIL() { PyGILState_Release( m_state ); }
 
 private:
@@ -23,13 +27,13 @@ private:
 class ReleaseGIL
 {
 public:
-    ReleaseGIL()  { m_saveState = PyEval_SaveThread(); }
+    ReleaseGIL() { m_saveState = PyEval_SaveThread(); }
     ~ReleaseGIL() { PyEval_RestoreThread( m_saveState ); }
 
 private:
-    PyThreadState *m_saveState;
+    PyThreadState * m_saveState;
 };
 
-}
+} // namespace csp::python
 
 #endif

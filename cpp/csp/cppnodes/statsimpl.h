@@ -25,595 +25,495 @@ static constexpr double EPSILON = 1e-9;
 
 class Count
 {
-    public:
-        Count()
-        {
-            reset();
-        }
+public:
+    Count() { reset(); }
 
-        void add( double x )
-        {
-            m_count++;
-        }
+    void add( double x ) { m_count++; }
 
-        void remove( double x )
-        {
-            m_count--;
-        }
+    void remove( double x ) { m_count--; }
 
-        void reset()
-        {
-            m_count = 0;
-        }
+    void reset() { m_count = 0; }
 
-        double compute() const
-        {
-            return static_cast<double>( m_count );
-        }
+    double compute() const { return static_cast<double>( m_count ); }
 
-    private:
-        int64_t m_count;
+private:
+    int64_t m_count;
 };
 
 class Sum
 {
-    public:
-        Sum()
-        {
-            reset();
-        }
+public:
+    Sum() { reset(); }
 
-        Sum( Sum && rhs ) = default;
+    Sum( Sum && rhs ) = default;
 
-        Sum & operator=( Sum && rhs ) = default;
+    Sum & operator=( Sum && rhs ) = default;
 
-        Sum & operator=( const Sum & rhs ) = delete;
+    Sum & operator=( const Sum & rhs ) = delete;
 
-        void add( double x )
-        {
-            m_sum += x;
-        }
+    void add( double x ) { m_sum += x; }
 
-        void remove( double x )
-        {
-            m_sum -= x;
-        }
+    void remove( double x ) { m_sum -= x; }
 
-        void reset()
-        {
-            m_sum = 0;
-        }
+    void reset() { m_sum = 0; }
 
-        double compute() const
-        {
-            return m_sum;
-        }
+    double compute() const { return m_sum; }
 
-    private:
-        double m_sum;
+private:
+    double m_sum;
 };
 
 class KahanSum
 {
-    public:
-        KahanSum()
-        {
-            reset();
-        }
+public:
+    KahanSum() { reset(); }
 
-        void add( double x )
-        {
-            double y = x - m_comp;
-            double tmp_sum = m_sum + y;
-            m_comp = tmp_sum - m_sum - y;
-            m_sum = tmp_sum;
-        }
+    void add( double x )
+    {
+        double y       = x - m_comp;
+        double tmp_sum = m_sum + y;
+        m_comp         = tmp_sum - m_sum - y;
+        m_sum          = tmp_sum;
+    }
 
-        void remove( double x )
-        {
-            // same as adding negative
-            double y = -x - m_comp;
-            double tmp_sum = m_sum + y;
-            m_comp = tmp_sum - m_sum - y;
-            m_sum = tmp_sum;
-        }
+    void remove( double x )
+    {
+        // same as adding negative
+        double y       = -x - m_comp;
+        double tmp_sum = m_sum + y;
+        m_comp         = tmp_sum - m_sum - y;
+        m_sum          = tmp_sum;
+    }
 
-        void reset()
-        {
-            m_sum = m_comp = 0;
-        }
+    void reset() { m_sum = m_comp = 0; }
 
-        double compute() const
-        {
-            return m_sum;
-        }
+    double compute() const { return m_sum; }
 
-    private:
-        double m_sum;
-        double m_comp;
-
+private:
+    double m_sum;
+    double m_comp;
 };
 
 class Mean
 {
-    public:
-        Mean()
-        {
-            reset();
-        }
+public:
+    Mean() { reset(); }
 
-        void add( double x )
-        {
-            m_count++;
-            m_mean += ( x - m_mean ) / m_count;
-        }
+    void add( double x )
+    {
+        m_count++;
+        m_mean += ( x - m_mean ) / m_count;
+    }
 
-        void remove( double x )
-        {
-            m_count--;
-            if( m_count > 0 )
-                m_mean += ( m_mean - x ) / m_count;
-            else
-                m_mean = 0;
-        }
+    void remove( double x )
+    {
+        m_count--;
+        if( m_count > 0 )
+            m_mean += ( m_mean - x ) / m_count;
+        else
+            m_mean = 0;
+    }
 
-        void reset()
-        {
-            m_mean = m_count = 0;
-        }
+    void reset() { m_mean = m_count = 0; }
 
-        double compute() const
-        {
-            if( m_count > 0 )
-                return m_mean;
-            return std::numeric_limits<double>::quiet_NaN();
-        }
+    double compute() const
+    {
+        if( m_count > 0 )
+            return m_mean;
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 
-    private:
-        double m_mean;
-        int64_t m_count;
+private:
+    double m_mean;
+    int64_t m_count;
 };
 
 class First
 {
-    public:
-        void add( double x )
-        {
-            m_value_buffer.push( x );
-        }
+public:
+    void add( double x ) { m_value_buffer.push( x ); }
 
-        void remove( double x )
-        {
-            m_value_buffer.pop_left();
-        }
+    void remove( double x ) { m_value_buffer.pop_left(); }
 
-        void reset()
-        {
-            m_value_buffer.clear();
-        }
+    void reset() { m_value_buffer.clear(); }
 
-        double compute()
+    double compute()
+    {
+        if( !m_value_buffer.empty() )
         {
-            if( !m_value_buffer.empty() )
-            {
-                return m_value_buffer[-1];
-            }
-            return std::numeric_limits<double>::quiet_NaN();
+            return m_value_buffer[-1];
         }
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 
-    private:
-        VariableSizeWindowBuffer<double> m_value_buffer;
+private:
+    VariableSizeWindowBuffer<double> m_value_buffer;
 };
 
 class Last
 {
-    public:
-        Last()
-        {
-            reset();
-        }
+public:
+    Last() { reset(); }
 
-        void add( double x )
-        {
-            m_last = x;
-            m_count++;
-        }
+    void add( double x )
+    {
+        m_last = x;
+        m_count++;
+    }
 
-        void remove( double x )
-        {
-            m_count--;
-        }
+    void remove( double x ) { m_count--; }
 
-        void reset()
-        {
-            m_count = 0;
-        }
+    void reset() { m_count = 0; }
 
-        double compute()
-        {
-            if( m_count > 0 )
-                return m_last;
-            return std::numeric_limits<double>::quiet_NaN();
-        }
+    double compute()
+    {
+        if( m_count > 0 )
+            return m_last;
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 
-    private:
-        double m_last;
-        double m_count;
+private:
+    double m_last;
+    double m_count;
 };
 
 class Unique
 {
-    public:
+public:
+    Unique() { m_powPrecision = 1; }
 
-        Unique()
-        {
-            m_powPrecision = 1;
-        }
+    Unique( int64_t precision ) { m_powPrecision = pow( 10.0, (double)precision ); }
 
-        Unique( int64_t precision )
-        {
-            m_powPrecision = pow( 10.0, ( double ) precision );
-        }
+    void add( double x )
+    {
+        int64_t rounded_result = (int64_t)( x * m_powPrecision );
+        m_dict[rounded_result]++;
+    }
 
-        void add( double x )
-        {
-            int64_t rounded_result = ( int64_t )( x * m_powPrecision );
-            m_dict[rounded_result]++;
-        }
+    void remove( double x )
+    {
+        int64_t rounded_result = (int64_t)( x * m_powPrecision );
+        auto it                = m_dict.find( rounded_result );
+        if( it->second == 1 )
+            m_dict.erase( rounded_result );
+        else
+            it->second--;
+    }
 
-        void remove( double x )
-        {
-            int64_t rounded_result = ( int64_t )( x * m_powPrecision );
-            auto it = m_dict.find( rounded_result );
-            if( it -> second == 1 )
-                m_dict.erase( rounded_result );
-            else
-                it -> second--;
-        }
+    void reset() { m_dict.clear(); }
 
-        void reset()
-        {
-            m_dict.clear();
-        }
+    double compute() const { return static_cast<double>( m_dict.size() ); }
 
-        double compute() const
-        {
-            return static_cast<double>( m_dict.size() );
-        }
-
-    private:
-
-        std::unordered_map<int64_t, int64_t> m_dict;
-        double m_powPrecision;
+private:
+    std::unordered_map<int64_t, int64_t> m_dict;
+    double m_powPrecision;
 };
 
 class Product
 {
-    public:
-        Product()
-        {
-            reset();
-        }
+public:
+    Product() { reset(); }
 
-        void add( double x )
+    void add( double x )
+    {
+        m_count++;
+        if( x == 0 )
+            m_nzero++;
+        else
+            m_prod *= x;
+    }
+
+    void remove( double x )
+    {
+        m_count--;
+        if( x == 0 )
+            m_nzero--;
+        else
+            m_prod /= x;
+    }
+
+    void reset()
+    {
+        m_prod  = 1.0;
+        m_count = m_nzero = 0;
+    }
+
+    double compute() const
+    {
+        if( m_count > 0 )
         {
-            m_count++;
-            if( x == 0 )
-                m_nzero++;
+            if( m_nzero == 0 )
+                return m_prod;
             else
-                m_prod *= x;
+                return 0;
         }
+        else
+            return std::numeric_limits<double>::quiet_NaN();
+    }
 
-        void remove( double x )
-        {
-            m_count--;
-            if( x == 0 )
-                m_nzero--;
-            else
-                m_prod /= x;
-        }
-
-        void reset()
-        {
-            m_prod = 1.0;
-            m_count = m_nzero = 0;
-        }
-
-        double compute() const
-        {
-            if( m_count > 0 )
-            {
-                if( m_nzero == 0 )
-                    return m_prod;
-                else
-                    return 0;
-            }
-            else
-                return std::numeric_limits<double>::quiet_NaN();
-        }
-
-    private:
-
-        double m_prod;
-        int64_t m_count;
-        int64_t m_nzero;
+private:
+    double m_prod;
+    int64_t m_count;
+    int64_t m_nzero;
 };
 
 class WeightedMean
 {
-    public:
-        WeightedMean()
-        {
-            reset();
-        }
+public:
+    WeightedMean() { reset(); }
 
-        void add( double x, double w )
-        {
-            m_weight += w;
-            if( m_weight > EPSILON )
-                m_wmean += ( x * w - w * m_wmean ) / m_weight;
-        }
+    void add( double x, double w )
+    {
+        m_weight += w;
+        if( m_weight > EPSILON )
+            m_wmean += ( x * w - w * m_wmean ) / m_weight;
+    }
 
-        void remove( double x, double w )
-        {
-            m_weight -= w;
-            if( m_weight > EPSILON )
-                m_wmean -= ( x * w - w * m_wmean ) / m_weight;
-            else
-                m_wmean = m_weight = 0;
-        }
-
-        void reset()
-        {
+    void remove( double x, double w )
+    {
+        m_weight -= w;
+        if( m_weight > EPSILON )
+            m_wmean -= ( x * w - w * m_wmean ) / m_weight;
+        else
             m_wmean = m_weight = 0;
-        }
+    }
 
-        double compute() const
+    void reset() { m_wmean = m_weight = 0; }
+
+    double compute() const
+    {
+        if( m_weight > EPSILON )
         {
-            if( m_weight > EPSILON )
-            {
-                return m_wmean;
-            }
-            return std::numeric_limits<double>::quiet_NaN();
+            return m_wmean;
         }
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 
-    private:
-        double m_wmean;
-        double m_weight;
+private:
+    double m_wmean;
+    double m_weight;
 };
 
 class Variance
 {
-    public:
-        Variance()
+public:
+    Variance()
+    {
+        m_ddof = 1;
+        reset();
+    }
+
+    Variance( int64_t ddof )
+        : Variance()
+    {
+        m_ddof = ddof;
+    }
+
+    void add( double x )
+    {
+        m_count++;
+        m_dx = x - m_mean;
+        m_mean += m_dx / m_count;
+        m_unnormVar += ( x - m_mean ) * m_dx;
+    }
+
+    void remove( double x )
+    {
+        m_count--;
+        if( m_count == 0 )
         {
-            m_ddof = 1;
-            reset();
+            m_mean = m_unnormVar = 0;
+            return;
         }
+        m_dx = x - m_mean;
+        m_mean -= m_dx / m_count;
+        m_unnormVar -= ( x - m_mean ) * m_dx;
+    }
 
-        Variance( int64_t ddof ) : Variance()
-        {
-            m_ddof = ddof;
-        }
+    void reset() { m_mean = m_unnormVar = m_count = 0; }
 
-        void add( double x )
-        {
-            m_count++;
-            m_dx = x - m_mean;
-            m_mean += m_dx / m_count;
-            m_unnormVar += ( x - m_mean ) * m_dx;
-        }
+    double compute() const
+    {
+        if( m_count > m_ddof )
+            return ( m_unnormVar < 0 ? 0 : m_unnormVar / ( m_count - m_ddof ) );
 
-        void remove( double x )
-        {
-            m_count--;
-            if( m_count == 0 )
-            {
-                m_mean = m_unnormVar = 0;
-                return;
-            }
-            m_dx = x - m_mean;
-            m_mean -= m_dx / m_count;
-            m_unnormVar -= ( x - m_mean ) * m_dx;
-        }
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 
-        void reset()
-        {
-            m_mean = m_unnormVar = m_count = 0;
-        }
-
-        double compute() const
-        {
-            if( m_count > m_ddof )
-                return ( m_unnormVar < 0 ? 0 : m_unnormVar / ( m_count - m_ddof ) );
-
-            return std::numeric_limits<double>::quiet_NaN();
-        }
-
-    private:
-
-        double m_mean;
-        double m_unnormVar;
-        double m_dx;
-        double m_count;
-        int64_t m_ddof;
+private:
+    double m_mean;
+    double m_unnormVar;
+    double m_dx;
+    double m_count;
+    int64_t m_ddof;
 };
 
 class WeightedVariance
 {
-    public:
-        WeightedVariance()
-        {
-            m_ddof = 1;
-            reset();
-        }
+public:
+    WeightedVariance()
+    {
+        m_ddof = 1;
+        reset();
+    }
 
-        WeightedVariance( int64_t ddof ) : WeightedVariance()
-        {
-            m_ddof = ddof;
-        }
+    WeightedVariance( int64_t ddof )
+        : WeightedVariance()
+    {
+        m_ddof = ddof;
+    }
 
-        void add( double x, double w )
-        {
-            if( w <= 0 )
-                return;
-            m_wsum += w;
-            m_dx = x - m_wmean;
-            m_wmean += ( w / m_wsum ) * m_dx;
-            m_unnormWVar += w * ( x - m_wmean ) * m_dx;
-        }
+    void add( double x, double w )
+    {
+        if( w <= 0 )
+            return;
+        m_wsum += w;
+        m_dx = x - m_wmean;
+        m_wmean += ( w / m_wsum ) * m_dx;
+        m_unnormWVar += w * ( x - m_wmean ) * m_dx;
+    }
 
-        void remove( double x, double w )
-        {
-            m_wsum -= w;
-            if( m_wsum < EPSILON )
-            {
-                m_wsum = m_wmean = m_unnormWVar = 0;
-                return;
-            }
-            m_dx = x - m_wmean;
-            m_wmean -= ( w / m_wsum ) * m_dx;
-            m_unnormWVar -= w * ( x - m_wmean ) * m_dx;
-        }
-
-        void reset()
+    void remove( double x, double w )
+    {
+        m_wsum -= w;
+        if( m_wsum < EPSILON )
         {
             m_wsum = m_wmean = m_unnormWVar = 0;
+            return;
         }
+        m_dx = x - m_wmean;
+        m_wmean -= ( w / m_wsum ) * m_dx;
+        m_unnormWVar -= w * ( x - m_wmean ) * m_dx;
+    }
 
-        double compute() const
-        {
-            if( m_wsum > m_ddof )
-                return ( m_unnormWVar < 0 ? 0 : m_unnormWVar / ( m_wsum - m_ddof ) );
+    void reset() { m_wsum = m_wmean = m_unnormWVar = 0; }
 
-            return std::numeric_limits<double>::quiet_NaN();
-        }
+    double compute() const
+    {
+        if( m_wsum > m_ddof )
+            return ( m_unnormWVar < 0 ? 0 : m_unnormWVar / ( m_wsum - m_ddof ) );
 
-    private:
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 
-        double m_wsum;
-        double m_wmean;
-        double m_unnormWVar;
-        double m_dx;
-        int64_t m_ddof;
+private:
+    double m_wsum;
+    double m_wmean;
+    double m_unnormWVar;
+    double m_dx;
+    int64_t m_ddof;
 };
 
 class Covariance
 {
-    public:
-        Covariance()
+public:
+    Covariance()
+    {
+        m_ddof = 1;
+        reset();
+    }
+
+    Covariance( int64_t ddof )
+        : Covariance()
+    {
+        m_ddof = ddof;
+    }
+
+    void add( double x, double y )
+    {
+        m_count++;
+        m_dx = x - m_mux;
+        m_mux += m_dx / m_count;
+        m_muy += ( y - m_muy ) / m_count;
+        m_unnormCov += m_dx * ( y - m_muy );
+    }
+
+    void remove( double x, double y )
+    {
+        m_count--;
+        if( m_count == 0 )
         {
-            m_ddof = 1;
-            reset();
+            m_mux = m_muy = m_unnormCov = 0;
+            return;
         }
 
-        Covariance( int64_t ddof ) : Covariance()
-        {
-            m_ddof = ddof;
-        }
+        m_dx = x - m_mux;
+        m_mux -= m_dx / m_count;
+        m_muy -= ( y - m_muy ) / m_count;
+        m_unnormCov -= m_dx * ( y - m_muy );
+    }
 
-        void add( double x, double y )
-        {
-            m_count++;
-            m_dx = x - m_mux;
-            m_mux += m_dx / m_count;
-            m_muy += ( y - m_muy ) / m_count;
-            m_unnormCov += m_dx * ( y - m_muy );
-        }
+    void reset() { m_mux = m_muy = m_unnormCov = m_count = 0; }
 
-        void remove( double x, double y )
-        {
-            m_count--;
-            if( m_count == 0 )
-            {
-                m_mux = m_muy = m_unnormCov = 0;
-                return;
-            }
+    double compute() const
+    {
+        return ( m_count > m_ddof ? m_unnormCov / ( m_count - m_ddof ) : std::numeric_limits<double>::quiet_NaN() );
+    }
 
-            m_dx = x - m_mux;
-            m_mux -= m_dx / m_count;
-            m_muy -= ( y - m_muy ) / m_count;
-            m_unnormCov -= m_dx * ( y - m_muy );
-        }
-
-        void reset()
-        {
-            m_mux = m_muy = m_unnormCov = m_count = 0;
-        }
-
-        double compute() const
-        {
-            return ( m_count > m_ddof ? m_unnormCov / ( m_count - m_ddof ) : std::numeric_limits<double>::quiet_NaN() );
-        }
-
-    private:
-
-        double m_mux;
-        double m_muy;
-        double m_unnormCov;
-        double m_dx;
-        double m_count;
-        int64_t m_ddof;
+private:
+    double m_mux;
+    double m_muy;
+    double m_unnormCov;
+    double m_dx;
+    double m_count;
+    int64_t m_ddof;
 };
 
 class WeightedCovariance
 {
-    public:
-        WeightedCovariance()
+public:
+    WeightedCovariance()
+    {
+        m_ddof = 1;
+        reset();
+    }
+
+    WeightedCovariance( int64_t ddof )
+        : WeightedCovariance()
+    {
+        m_ddof = ddof;
+    }
+
+    void add( double x, double y, double w )
+    {
+        if( w <= 0 )
+            return;
+        m_wsum += w;
+        m_dx = x - m_wmux;
+        m_wmux += ( w / m_wsum ) * m_dx;
+        m_wmuy += ( w / m_wsum ) * ( y - m_wmuy );
+        m_unnormWCov += w * m_dx * ( y - m_wmuy );
+    }
+
+    void remove( double x, double y, double w )
+    {
+        m_wsum -= w;
+        if( m_wsum < EPSILON )
         {
-            m_ddof = 1;
-            reset();
+            m_wsum = m_wmux = m_wmuy = m_unnormWCov = 0;
+            return;
         }
+        m_dx = x - m_wmux;
+        m_wmux -= ( w / m_wsum ) * m_dx;
+        m_wmuy -= ( w / m_wsum ) * ( y - m_wmuy );
+        m_unnormWCov -= w * m_dx * ( y - m_wmuy );
+    }
 
-        WeightedCovariance( int64_t ddof ) : WeightedCovariance()
-        {
-            m_ddof = ddof;
-        }
+    void reset() { m_wmux = m_wmuy = m_unnormWCov = m_wsum = 0; }
 
-        void add( double x, double y, double w )
-        {
-            if( w <= 0 )
-                return;
-            m_wsum += w;
-            m_dx = x - m_wmux;
-            m_wmux += ( w / m_wsum ) * m_dx;
-            m_wmuy += ( w / m_wsum ) * ( y - m_wmuy );
-            m_unnormWCov += w * m_dx * ( y - m_wmuy );
-        }
+    double compute() const
+    {
+        return ( m_wsum > m_ddof ? m_unnormWCov / ( m_wsum - m_ddof ) : std::numeric_limits<double>::quiet_NaN() );
+    }
 
-        void remove( double x, double y, double w )
-        {
-            m_wsum -= w;
-            if( m_wsum < EPSILON )
-            {
-                m_wsum = m_wmux = m_wmuy = m_unnormWCov = 0;
-                return;
-            }
-            m_dx = x - m_wmux;
-            m_wmux -= ( w / m_wsum ) * m_dx;
-            m_wmuy -= ( w / m_wsum ) * ( y - m_wmuy );
-            m_unnormWCov -= w * m_dx * ( y - m_wmuy );
-        }
+private:
+    double m_wmux;
+    double m_wmuy;
+    double m_unnormWCov;
+    double m_dx;
 
-        void reset()
-        {
-            m_wmux = m_wmuy = m_unnormWCov = m_wsum = 0;
-        }
-
-        double compute() const
-        {
-            return ( m_wsum > m_ddof ? m_unnormWCov / ( m_wsum - m_ddof ) : std::numeric_limits<double>::quiet_NaN() );
-        }
-
-    private:
-
-        double m_wmux;
-        double m_wmuy;
-        double m_unnormWCov;
-        double m_dx;
-
-        double m_wsum;
-        int64_t m_ddof;
+    double m_wsum;
+    int64_t m_ddof;
 };
 
 double corrCompute( double cov, double vx, double vy )
@@ -625,190 +525,186 @@ double corrCompute( double cov, double vx, double vy )
 
 class Correlation
 {
-    public:
-        Correlation()
-        {
-            reset();
-        }
+public:
+    Correlation() { reset(); }
 
-        Correlation( int64_t arg ) : Correlation() { }
+    Correlation( int64_t arg )
+        : Correlation()
+    {
+    }
 
-        void add( double x, double y )
-        {
-            m_cov.add( x, y );
-            m_vx.add( x );
-            m_vy.add( y );
-        }
+    void add( double x, double y )
+    {
+        m_cov.add( x, y );
+        m_vx.add( x );
+        m_vy.add( y );
+    }
 
-        void remove( double x, double y )
-        {
-            m_cov.remove( x, y );
-            m_vx.remove( x );
-            m_vy.remove( y );
-        }
+    void remove( double x, double y )
+    {
+        m_cov.remove( x, y );
+        m_vx.remove( x );
+        m_vy.remove( y );
+    }
 
-        void reset()
-        {
-            m_cov.reset();
-            m_vx.reset();
-            m_vy.reset();
-        }
+    void reset()
+    {
+        m_cov.reset();
+        m_vx.reset();
+        m_vy.reset();
+    }
 
-        double compute() const
-        {
-            return corrCompute( m_cov.compute(), m_vx.compute(), m_vy.compute() );
-        }
+    double compute() const { return corrCompute( m_cov.compute(), m_vx.compute(), m_vy.compute() ); }
 
-    private:
-        Covariance m_cov;
-        Variance   m_vx;
-        Variance   m_vy;
+private:
+    Covariance m_cov;
+    Variance m_vx;
+    Variance m_vy;
 };
 
 class WeightedCorrelation
 {
-    public:
-        WeightedCorrelation()
-        {
-            reset();
-        }
+public:
+    WeightedCorrelation() { reset(); }
 
-        WeightedCorrelation( int64_t arg ) : WeightedCorrelation() { }
+    WeightedCorrelation( int64_t arg )
+        : WeightedCorrelation()
+    {
+    }
 
-        void add( double x, double y, double w )
-        {
-            m_cov.add( x, y, w );
-            m_vx.add( x, w );
-            m_vy.add( y, w );
-        }
+    void add( double x, double y, double w )
+    {
+        m_cov.add( x, y, w );
+        m_vx.add( x, w );
+        m_vy.add( y, w );
+    }
 
-        void remove( double x, double y, double w )
-        {
-            m_cov.remove( x, y, w );
-            m_vx.remove( x, w );
-            m_vy.remove( y, w );
-        }
+    void remove( double x, double y, double w )
+    {
+        m_cov.remove( x, y, w );
+        m_vx.remove( x, w );
+        m_vy.remove( y, w );
+    }
 
-        void reset()
-        {
-            m_cov.reset();
-            m_vx.reset();
-            m_vy.reset();
-        }
+    void reset()
+    {
+        m_cov.reset();
+        m_vx.reset();
+        m_vy.reset();
+    }
 
-        double compute() const
-        {
-            return corrCompute( m_cov.compute(), m_vx.compute(), m_vy.compute() );
-        }
+    double compute() const { return corrCompute( m_cov.compute(), m_vx.compute(), m_vy.compute() ); }
 
-    private:
-        WeightedCovariance m_cov;
-        WeightedVariance   m_vx;
-        WeightedVariance   m_vy;
+private:
+    WeightedCovariance m_cov;
+    WeightedVariance m_vx;
+    WeightedVariance m_vy;
 };
 
 class StandardError
 {
-    public:
-        StandardError()
-        {
-            m_ddof = 1;
-            reset();
-        }
+public:
+    StandardError()
+    {
+        m_ddof = 1;
+        reset();
+    }
 
-        StandardError( int64_t ddof ) : StandardError()
-        {
-            m_ddof = ddof;
-            m_var = Variance( ddof );
-        }
+    StandardError( int64_t ddof )
+        : StandardError()
+    {
+        m_ddof = ddof;
+        m_var  = Variance( ddof );
+    }
 
-        void add( double x )
-        {
-            m_count++;
-            m_var.add( x );
-        }
+    void add( double x )
+    {
+        m_count++;
+        m_var.add( x );
+    }
 
-        void remove( double x )
-        {
-            m_count--;
-            m_var.remove( x );
-        }
+    void remove( double x )
+    {
+        m_count--;
+        m_var.remove( x );
+    }
 
-        void reset()
-        {
-            m_count = 0;
-            m_var.reset();
-        }
+    void reset()
+    {
+        m_count = 0;
+        m_var.reset();
+    }
 
-        double compute() const
-        {
-            return ( m_count > m_ddof ? sqrt( m_var.compute() / ( m_count - m_ddof ) ) : std::numeric_limits<double>::quiet_NaN() );
-        }
+    double compute() const
+    {
+        return ( m_count > m_ddof ? sqrt( m_var.compute() / ( m_count - m_ddof ) )
+                                  : std::numeric_limits<double>::quiet_NaN() );
+    }
 
-    private:
-        Variance m_var;
-        int64_t m_ddof;
-        double m_count;
+private:
+    Variance m_var;
+    int64_t m_ddof;
+    double m_count;
 };
 
 class WeightedStandardError
 {
-    public:
-        WeightedStandardError()
-        {
-            m_ddof = 1;
-            reset();
-        }
+public:
+    WeightedStandardError()
+    {
+        m_ddof = 1;
+        reset();
+    }
 
-        WeightedStandardError( int64_t ddof ) : WeightedStandardError()
-        {
-            m_ddof = ddof;
-            m_var = WeightedVariance( ddof );
-        }
+    WeightedStandardError( int64_t ddof )
+        : WeightedStandardError()
+    {
+        m_ddof = ddof;
+        m_var  = WeightedVariance( ddof );
+    }
 
-        void add( double x, double w )
-        {
-            m_wsum += w;
-            m_var.add( x, w );
-        }
+    void add( double x, double w )
+    {
+        m_wsum += w;
+        m_var.add( x, w );
+    }
 
-        void remove( double x, double w )
-        {
-            m_wsum -= w;
-            if( m_wsum < EPSILON )
-                m_wsum = 0;
-            m_var.remove( x, w );
-        }
-
-        void reset()
-        {
+    void remove( double x, double w )
+    {
+        m_wsum -= w;
+        if( m_wsum < EPSILON )
             m_wsum = 0;
-            m_var.reset();
-        }
+        m_var.remove( x, w );
+    }
 
-        double compute() const
-        {
-            return ( m_wsum > m_ddof && m_wsum > EPSILON ? sqrt( m_var.compute() / ( m_wsum - m_ddof ) ) : std::numeric_limits<double>::quiet_NaN() );
-        }
+    void reset()
+    {
+        m_wsum = 0;
+        m_var.reset();
+    }
 
-    private:
-        WeightedVariance m_var;
-        int64_t m_ddof;
-        double m_wsum;
+    double compute() const
+    {
+        return ( m_wsum > m_ddof && m_wsum > EPSILON ? sqrt( m_var.compute() / ( m_wsum - m_ddof ) )
+                                                     : std::numeric_limits<double>::quiet_NaN() );
+    }
+
+private:
+    WeightedVariance m_var;
+    int64_t m_ddof;
+    double m_wsum;
 };
-
-
 
 double skewCompute( double count, double mx, double mx3, double vx, bool bias )
 {
     if( count <= 2 || vx < EPSILON )
-            return std::numeric_limits<double>::quiet_NaN();
+        return std::numeric_limits<double>::quiet_NaN();
 
     double bias_skew = ( mx3 - 3 * mx * vx - mx * mx * mx ) / ( vx * sqrt( vx ) );
     if( bias )
         return bias_skew;
 
-    double factor = sqrt( count * ( count - 1 ) ) / ( count- 2 );
+    double factor = sqrt( count * ( count - 1 ) ) / ( count - 2 );
     return factor * bias_skew;
 }
 
@@ -822,7 +718,7 @@ double kurtCompute( double count, double mx, double mx2, double mx3, double mx4,
     if( bias )
     {
         if( excess )
-            return bias_kurt-3;
+            return bias_kurt - 3;
         return bias_kurt;
     }
 
@@ -832,271 +728,266 @@ double kurtCompute( double count, double mx, double mx2, double mx3, double mx4,
     ub_kurt -= 3 * gfactor;
     if( !excess )
         ub_kurt += 3;
-        
+
     return ub_kurt;
 }
 
 class Skew
 {
-    public:
-        Skew()
-        {
-            m_vx = Variance( 0 );
-            m_bias = false;
-            reset();
-        }
+public:
+    Skew()
+    {
+        m_vx   = Variance( 0 );
+        m_bias = false;
+        reset();
+    }
 
-        Skew( bool bias ) : Skew()
-        {
-            m_bias = bias;
-        }
+    Skew( bool bias )
+        : Skew()
+    {
+        m_bias = bias;
+    }
 
-        void add( double x )
-        {
-            m_count++;
-            m_mx.add( x );
-            m_mx3.add( x*x*x );
-            m_vx.add( x );
-        }
+    void add( double x )
+    {
+        m_count++;
+        m_mx.add( x );
+        m_mx3.add( x * x * x );
+        m_vx.add( x );
+    }
 
-        void remove( double x )
-        {
-            m_count--;
-            m_mx.remove( x );
-            m_mx3.remove( x*x*x );
-            m_vx.remove( x );
-        }
+    void remove( double x )
+    {
+        m_count--;
+        m_mx.remove( x );
+        m_mx3.remove( x * x * x );
+        m_vx.remove( x );
+    }
 
-        void reset()
-        {
-            m_mx.reset();
-            m_mx3.reset();
-            m_vx.reset();
-            m_count = 0;
-        }
+    void reset()
+    {
+        m_mx.reset();
+        m_mx3.reset();
+        m_vx.reset();
+        m_count = 0;
+    }
 
-        double compute() const
-        {
-            return skewCompute( m_count, m_mx.compute(), m_mx3.compute(), m_vx.compute(), m_bias );
-        }
+    double compute() const { return skewCompute( m_count, m_mx.compute(), m_mx3.compute(), m_vx.compute(), m_bias ); }
 
-    private:
-
-        Mean m_mx;
-        Mean m_mx3;
-        Variance m_vx;
-        double m_count;
-        bool m_bias;
+private:
+    Mean m_mx;
+    Mean m_mx3;
+    Variance m_vx;
+    double m_count;
+    bool m_bias;
 };
 
 class WeightedSkew
 {
-    public:
-        WeightedSkew()
-        {
-            m_vx = WeightedVariance( 0 );
-            m_bias = false;
-            reset();
-        }
+public:
+    WeightedSkew()
+    {
+        m_vx   = WeightedVariance( 0 );
+        m_bias = false;
+        reset();
+    }
 
-        WeightedSkew( bool bias ) : WeightedSkew()
-        {
-            m_bias = bias;
-        }
+    WeightedSkew( bool bias )
+        : WeightedSkew()
+    {
+        m_bias = bias;
+    }
 
-        void add( double x, double w )
-        {
-            m_count++;
-            m_mx.add( x, w );
-            m_mx3.add( x*x*x, w );
-            m_vx.add( x, w );
-        }
+    void add( double x, double w )
+    {
+        m_count++;
+        m_mx.add( x, w );
+        m_mx3.add( x * x * x, w );
+        m_vx.add( x, w );
+    }
 
-        void remove( double x, double w )
-        {
-            m_count--;
-            m_mx.remove( x, w );
-            m_mx3.remove( x*x*x, w );
-            m_vx.remove( x, w );
-        }
+    void remove( double x, double w )
+    {
+        m_count--;
+        m_mx.remove( x, w );
+        m_mx3.remove( x * x * x, w );
+        m_vx.remove( x, w );
+    }
 
-        void reset()
-        {
-            m_mx.reset();
-            m_mx3.reset();
-            m_vx.reset();
-            m_count = 0;
-        }
+    void reset()
+    {
+        m_mx.reset();
+        m_mx3.reset();
+        m_vx.reset();
+        m_count = 0;
+    }
 
-        double compute() const
-        {
-            return skewCompute( m_count, m_mx.compute(), m_mx3.compute(), m_vx.compute(), m_bias );
-        }
+    double compute() const { return skewCompute( m_count, m_mx.compute(), m_mx3.compute(), m_vx.compute(), m_bias ); }
 
-    private:
-
-        WeightedMean m_mx;
-        WeightedMean m_mx3;
-        WeightedVariance m_vx;
-        double m_count;
-        bool m_bias;
+private:
+    WeightedMean m_mx;
+    WeightedMean m_mx3;
+    WeightedVariance m_vx;
+    double m_count;
+    bool m_bias;
 };
 
 class Kurtosis
 {
-    public:
-        Kurtosis()
-        {
-            m_vx = Variance( 0 );
-            m_bias = false;
-            m_excess = true;
-            reset();
-        }
+public:
+    Kurtosis()
+    {
+        m_vx     = Variance( 0 );
+        m_bias   = false;
+        m_excess = true;
+        reset();
+    }
 
-        Kurtosis( bool bias, bool excess ) : Kurtosis()
-        {
-            m_bias = bias;
-            m_excess = excess;
-        }
+    Kurtosis( bool bias, bool excess )
+        : Kurtosis()
+    {
+        m_bias   = bias;
+        m_excess = excess;
+    }
 
-        void add( double x )
-        {
-            m_count++;
-            double val = x;
-            m_mx.add( val );
-            m_vx.add( val );
-            val *= x;
-            m_mx2.add( val );
-            val *= x;
-            m_mx3.add( val );
-            val *= x;
-            m_mx4.add( val );
+    void add( double x )
+    {
+        m_count++;
+        double val = x;
+        m_mx.add( val );
+        m_vx.add( val );
+        val *= x;
+        m_mx2.add( val );
+        val *= x;
+        m_mx3.add( val );
+        val *= x;
+        m_mx4.add( val );
+    }
 
-        }
+    void remove( double x )
+    {
+        m_count--;
+        double val = x;
+        m_mx.remove( val );
+        m_vx.remove( val );
+        val *= x;
+        m_mx2.remove( val );
+        val *= x;
+        m_mx3.remove( val );
+        val *= x;
+        m_mx4.remove( val );
+    }
 
-        void remove( double x )
-        {
-            m_count--;
-            double val = x;
-            m_mx.remove( val );
-            m_vx.remove( val );
-            val *= x;
-            m_mx2.remove( val );
-            val *= x;
-            m_mx3.remove( val );
-            val *= x;
-            m_mx4.remove( val );
-        }
+    void reset()
+    {
+        m_mx.reset();
+        m_mx2.reset();
+        m_mx3.reset();
+        m_mx4.reset();
+        m_vx.reset();
+        m_count = 0;
+    }
 
-        void reset()
-        {
-            m_mx.reset();
-            m_mx2.reset();
-            m_mx3.reset();
-            m_mx4.reset();
-            m_vx.reset();
-            m_count = 0;
-        }
+    double compute() const
+    {
+        return kurtCompute( m_count, m_mx.compute(), m_mx2.compute(), m_mx3.compute(), m_mx4.compute(), m_vx.compute(),
+                            m_bias, m_excess );
+    }
 
-        double compute() const
-        {
-            return kurtCompute( m_count, m_mx.compute(), m_mx2.compute(), m_mx3.compute(), m_mx4.compute(), m_vx.compute(), m_bias, m_excess );
-        }
-
-    private:
-
-        Mean m_mx;
-        Mean m_mx2;
-        Mean m_mx3;
-        Mean m_mx4;
-        Variance m_vx;
-        double m_count;
-        bool m_bias;
-        bool m_excess;
+private:
+    Mean m_mx;
+    Mean m_mx2;
+    Mean m_mx3;
+    Mean m_mx4;
+    Variance m_vx;
+    double m_count;
+    bool m_bias;
+    bool m_excess;
 };
 
 class WeightedKurtosis
 {
-    public:
-        WeightedKurtosis()
-        {
-            m_vx = WeightedVariance( 0 );
-            m_bias = false;
-            m_excess = true;
-            reset();
-        }
+public:
+    WeightedKurtosis()
+    {
+        m_vx     = WeightedVariance( 0 );
+        m_bias   = false;
+        m_excess = true;
+        reset();
+    }
 
-        WeightedKurtosis( bool bias, bool excess ) : WeightedKurtosis()
-        {
-            m_bias = bias;
-            m_excess = excess;
-        }
+    WeightedKurtosis( bool bias, bool excess )
+        : WeightedKurtosis()
+    {
+        m_bias   = bias;
+        m_excess = excess;
+    }
 
-        void add( double x, double w )
-        {
-            m_count++;
-            double val = x;
-            m_mx.add( val, w );
-            m_vx.add( val, w );
-            val *= x;
-            m_mx2.add( val, w );
-            val *= x;
-            m_mx3.add( val, w );
-            val *= x;
-            m_mx4.add( val, w );
-        }
+    void add( double x, double w )
+    {
+        m_count++;
+        double val = x;
+        m_mx.add( val, w );
+        m_vx.add( val, w );
+        val *= x;
+        m_mx2.add( val, w );
+        val *= x;
+        m_mx3.add( val, w );
+        val *= x;
+        m_mx4.add( val, w );
+    }
 
-        void remove( double x, double w )
-        {
-            m_count--;
-            double val = x;
-            m_mx.remove( val, w );
-            m_vx.remove( val, w );
-            val *= x;
-            m_mx2.remove( val, w );
-            val *= x;
-            m_mx3.remove( val, w );
-            val *= x;
-            m_mx4.remove( val, w );
-        }
+    void remove( double x, double w )
+    {
+        m_count--;
+        double val = x;
+        m_mx.remove( val, w );
+        m_vx.remove( val, w );
+        val *= x;
+        m_mx2.remove( val, w );
+        val *= x;
+        m_mx3.remove( val, w );
+        val *= x;
+        m_mx4.remove( val, w );
+    }
 
-        void reset()
-        {
-            m_mx.reset();
-            m_mx2.reset();
-            m_mx3.reset();
-            m_mx4.reset();
-            m_vx.reset();
-            m_count = 0;
-        }
+    void reset()
+    {
+        m_mx.reset();
+        m_mx2.reset();
+        m_mx3.reset();
+        m_mx4.reset();
+        m_vx.reset();
+        m_count = 0;
+    }
 
-        double compute() const
-        {
-            return kurtCompute( m_count, m_mx.compute(), m_mx2.compute(), m_mx3.compute(), m_mx4.compute(), m_vx.compute(), m_bias, m_excess );
-        }
+    double compute() const
+    {
+        return kurtCompute( m_count, m_mx.compute(), m_mx2.compute(), m_mx3.compute(), m_mx4.compute(), m_vx.compute(),
+                            m_bias, m_excess );
+    }
 
-    private:
-
-        WeightedMean m_mx;
-        WeightedMean m_mx2;
-        WeightedMean m_mx3;
-        WeightedMean m_mx4;
-        WeightedVariance m_vx;
-        double m_count;
-        bool m_bias;
-        bool m_excess;
+private:
+    WeightedMean m_mx;
+    WeightedMean m_mx2;
+    WeightedMean m_mx3;
+    WeightedMean m_mx4;
+    WeightedVariance m_vx;
+    double m_count;
+    bool m_bias;
+    bool m_excess;
 };
 
 #ifdef __linux__
 template<typename Comparator>
 using ost = __gnu_pbds::tree<double, __gnu_pbds::null_type, Comparator, __gnu_pbds::rb_tree_tag,
-    __gnu_pbds::tree_order_statistics_node_update>;
+                             __gnu_pbds::tree_order_statistics_node_update>;
 
 template<typename Comparator>
-void ost_erase( ost<Comparator> &t, double & v )
+void ost_erase( ost<Comparator> & t, double & v )
 {
     int rank = t.order_of_key( v );
-    auto it = t.find_by_order( rank );
+    auto it  = t.find_by_order( rank );
     t.erase( it );
 }
 #endif
@@ -1105,185 +996,185 @@ class Quantile
 {
     enum Interpolate
     {
-        LINEAR, LOWER, HIGHER, MIDPOINT, NEAREST
+        LINEAR,
+        LOWER,
+        HIGHER,
+        MIDPOINT,
+        NEAREST
     };
 
-    public:
-        Quantile( const std::vector<Dictionary::Data> & quants, int64_t interpolation )
+public:
+    Quantile( const std::vector<Dictionary::Data> & quants, int64_t interpolation )
+    {
+        m_quants        = quants;
+        m_interpolation = interpolation;
+    }
+
+    Quantile( Quantile && rhs )
+    {
+        m_quants        = rhs.m_quants;
+        m_interpolation = rhs.m_interpolation;
+        m_tree          = std::move( rhs.m_tree );
+    }
+
+    Quantile & operator=( Quantile && rhs )
+    {
+        m_quants        = rhs.m_quants;
+        m_interpolation = rhs.m_interpolation;
+        m_tree          = std::move( rhs.m_tree );
+
+        return *this;
+    }
+
+    Quantile()                                   = default;
+    Quantile( const Quantile & rhs )             = delete;
+    Quantile & operator=( const Quantile & rhs ) = delete;
+
+    void add( double x ) { m_tree.insert( x ); }
+
+    void remove( double x )
+    {
+#ifdef __linux__
+        ost_erase( m_tree, x );
+#else
+        m_tree.erase( m_tree.find( x ) );
+#endif
+    }
+
+    void reset() { m_tree.clear(); }
+
+    double compute( int index ) const
+    {
+        // Compute which values to find
+        if( m_tree.size() == 0 )
         {
-            m_quants = quants;
-            m_interpolation = interpolation;
+            return std::numeric_limits<double>::quiet_NaN();
         }
 
-        Quantile( Quantile && rhs )
+        double target = std::get<double>( m_quants[index]._data ) * ( m_tree.size() - 1 );
+        int ft        = floor( target );
+        int ct        = ceil( target );
+
+        double qtl = 0.0;
+#ifdef __linux__
+        switch( m_interpolation )
         {
-            m_quants = rhs.m_quants;
-            m_interpolation = rhs.m_interpolation;
-            m_tree = std::move( rhs.m_tree );
-        }
-
-        Quantile & operator=( Quantile && rhs )
-        {
-            m_quants = rhs.m_quants;
-            m_interpolation = rhs.m_interpolation;
-            m_tree = std::move( rhs.m_tree );
-
-            return *this;
-        }
-
-        Quantile() = default;
-        Quantile( const Quantile & rhs ) = delete;
-        Quantile & operator=( const Quantile & rhs ) = delete;
-
-        void add( double x )
-        {
-            m_tree.insert( x );
-        }
-
-        void remove( double x )
-        {
-        #ifdef __linux__
-            ost_erase( m_tree, x );
-        #else
-            m_tree.erase( m_tree.find( x ) );
-        #endif
-        }
-
-        void reset()
-        {
-            m_tree.clear();
-        }
-
-        double compute( int index ) const
-        {
-            // Compute which values to find
-            if( m_tree.size() == 0 )
-            {
-                return std::numeric_limits<double>::quiet_NaN();
-            }
-
-            double target = std::get<double>( m_quants[index]._data ) * ( m_tree.size() - 1 );
-            int ft = floor( target );
-            int ct = ceil( target );
-
-            double qtl = 0.0;
-        #ifdef __linux__
-            switch ( m_interpolation )
-            {
-                case LINEAR:
-                    if( ft == target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        double lower = *m_tree.find_by_order( ft );
-                        double higher = *m_tree.find_by_order( ct );
-                        qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
-                    }
-                    break;
-                case LOWER:
+            case LINEAR:
+                if( ft == target )
+                {
                     qtl = *m_tree.find_by_order( ft );
-                    break;
-                case HIGHER:
+                }
+                else
+                {
+                    double lower  = *m_tree.find_by_order( ft );
+                    double higher = *m_tree.find_by_order( ct );
+                    qtl           = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
+                }
+                break;
+            case LOWER:
+                qtl = *m_tree.find_by_order( ft );
+                break;
+            case HIGHER:
+                qtl = *m_tree.find_by_order( ct );
+                break;
+            case MIDPOINT:
+                if( ft == target )
+                {
+                    qtl = *m_tree.find_by_order( ft );
+                }
+                else
+                {
+                    double lower  = *m_tree.find_by_order( ft );
+                    double higher = *m_tree.find_by_order( ct );
+                    qtl           = ( higher + lower ) / 2;
+                }
+                break;
+            case NEAREST:
+                if( target - ft < ct - target )
+                {
+                    qtl = *m_tree.find_by_order( ft );
+                }
+                else
+                {
                     qtl = *m_tree.find_by_order( ct );
-                    break;
-                case MIDPOINT:
-                    if( ft == target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        double lower = *m_tree.find_by_order( ft );
-                        double higher = *m_tree.find_by_order( ct );
-                        qtl = ( higher+lower ) / 2;
-                    }
-                    break;
-                case NEAREST:
-                    if( target - ft < ct - target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        qtl = *m_tree.find_by_order( ct );
-                    }
-                    break;
-                default:
-                    break;
-            }
-        #else
-            auto it = m_tree.begin();
-            std::advance( it, ft );
-            switch ( m_interpolation )
-            {
-                case LINEAR:
-                    if( ft == target )
-                    {
-                        qtl = *it;
-                    }
-                    else
-                    {
-                        double lower = *it;
-                        double higher = *++it;
-                        qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
-                    }
-                    break;
-                case LOWER:
-                    qtl = *it;
-                    break;
-                case HIGHER:
-                    qtl = ( ft == ct ? *it : *++it );
-                    break;
-                case MIDPOINT:
-                    if( ft == target )
-                    {
-                        qtl = *it;
-                    }
-                    else
-                    {
-                        double lower = *it;
-                        double higher = *++it;
-                        qtl = ( higher+lower ) / 2;
-                    }
-                    break;
-                case NEAREST:
-                    if( target - ft <= ct - target )
-                    {
-                        qtl = *it;
-                    }
-                    else
-                    {
-                        qtl = *++it;
-                    }
-                    break;
-                default:
-                    break;
-            }
-        #endif
-            return qtl;
+                }
+                break;
+            default:
+                break;
         }
+#else
+        auto it = m_tree.begin();
+        std::advance( it, ft );
+        switch( m_interpolation )
+        {
+            case LINEAR:
+                if( ft == target )
+                {
+                    qtl = *it;
+                }
+                else
+                {
+                    double lower  = *it;
+                    double higher = *++it;
+                    qtl           = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
+                }
+                break;
+            case LOWER:
+                qtl = *it;
+                break;
+            case HIGHER:
+                qtl = ( ft == ct ? *it : *++it );
+                break;
+            case MIDPOINT:
+                if( ft == target )
+                {
+                    qtl = *it;
+                }
+                else
+                {
+                    double lower  = *it;
+                    double higher = *++it;
+                    qtl           = ( higher + lower ) / 2;
+                }
+                break;
+            case NEAREST:
+                if( target - ft <= ct - target )
+                {
+                    qtl = *it;
+                }
+                else
+                {
+                    qtl = *++it;
+                }
+                break;
+            default:
+                break;
+        }
+#endif
+        return qtl;
+    }
 
-    private:
-    
-    #ifdef __linux__
-        ost<std::less_equal<double>> m_tree;
-    #else
-        std::multiset<double> m_tree;
-    #endif
-        std::vector<Dictionary::Data> m_quants;
-        int64_t m_interpolation;
+private:
+#ifdef __linux__
+    ost<std::less_equal<double>> m_tree;
+#else
+    std::multiset<double> m_tree;
+#endif
+    std::vector<Dictionary::Data> m_quants;
+    int64_t m_interpolation;
 };
 
 class AscendingMinima
 {
 public:
-    AscendingMinima( bool max ) : m_max( max ) {}
-    AscendingMinima( AscendingMinima && rhs ) = default;
+    AscendingMinima( bool max )
+        : m_max( max )
+    {
+    }
+    AscendingMinima( AscendingMinima && rhs )             = default;
     AscendingMinima & operator=( AscendingMinima && rhs ) = default;
 
-    AscendingMinima() = default;
+    AscendingMinima()                              = default;
     AscendingMinima( const AscendingMinima & rhs ) = delete;
 
     void add( double x )
@@ -1303,10 +1194,7 @@ public:
         }
     }
 
-    void reset()
-    {
-        m_value_buffer.clear();
-    }
+    void reset() { m_value_buffer.clear(); }
 
     double compute()
     {
@@ -1326,692 +1214,686 @@ class Rank
 {
     enum RankMethod
     {
-        MIN, MAX, AVG
+        MIN,
+        MAX,
+        AVG
     };
 
     enum NanOption
     {
-        KEEP, LAST
+        KEEP,
+        LAST
     };
 
-    public:
-        Rank() = default;
+public:
+    Rank() = default;
 
-        Rank( int64_t method, int64_t nanopt )
+    Rank( int64_t method, int64_t nanopt )
+    {
+        m_method = method;
+        m_nanopt = nanopt;
+    }
+
+    // no copy as always
+    Rank( Rank && rhs )                  = default;
+    Rank & operator=( Rank && rhs )      = default;
+    Rank( const Rank & rhs )             = delete;
+    Rank & operator=( const Rank & rhs ) = delete;
+
+    void add( double x )
+    {
+        if( unlikely( isnan( x ) ) )
         {
-            m_method = method;
-            m_nanopt = nanopt;
+            if( m_nanopt == KEEP )
+                m_lastval = std::numeric_limits<double>::quiet_NaN();
         }
-
-        // no copy as always
-        Rank( Rank && rhs ) = default;
-        Rank & operator=( Rank && rhs ) = default;
-        Rank( const Rank & rhs ) = delete;
-        Rank & operator=( const Rank & rhs ) = delete;
-
-        void add( double x )
+        else
         {
-            if( unlikely( isnan( x ) ) )
-            {
-                if( m_nanopt == KEEP )
-                    m_lastval = std::numeric_limits<double>::quiet_NaN();
-            }
-            else
-            {
-                m_lastval = x;
-            #ifdef __linux__
-                if( m_method == MAX )
-                    m_maxtree.insert( x );
-                else
-                    m_mintree.insert( x );
-            #else
-                m_tree.insert( x );
-            #endif
-            }
-        }
-
-        void remove( double x )
-        {
-            if( likely( !isnan( x ) ) )
-            {
-            #ifdef __linux__
-                if( m_method == MAX )
-                    ost_erase( m_maxtree, x );
-                else
-                    ost_erase( m_mintree, x );
-            #else
-                m_tree.erase( m_tree.find( x ) );
-            #endif
-            }
-        }
-
-        void reset()
-        {
-        #ifdef __linux__
+            m_lastval = x;
+#ifdef __linux__
             if( m_method == MAX )
-                m_maxtree.clear();
+                m_maxtree.insert( x );
             else
-                m_mintree.clear();
-        #else
-            m_tree.clear();
-        #endif
+                m_mintree.insert( x );
+#else
+            m_tree.insert( x );
+#endif
         }
+    }
 
-        double compute() const
+    void remove( double x )
+    {
+        if( likely( !isnan( x ) ) )
         {
-            // Verify tree is not empty and lastValue is valid
-            // Last value can only ever be NaN if the "keep" nan option is used
-        #ifdef __linux__
-            if( likely( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) )
-            {
-                switch( m_method )
-                {
-                    case MIN:
-                    {
-                        if( m_mintree.size() == 1 )
-                            return 0;
-                        return m_mintree.order_of_key( m_lastval );
-                    }
-                    case MAX:
-                    {
-                        if( m_maxtree.size() == 1 )
-                            return 0;
-                        return m_maxtree.size() - 1 - m_maxtree.order_of_key( m_lastval );
-                    }
-                    case AVG:
-                    {
-                        // Need to iterate to find average rank
-                        if( m_mintree.size() == 1 )
-                            return 0;
-
-                        int min_rank = m_mintree.order_of_key( m_lastval );
-                        int max_rank = min_rank;
-                        auto it = m_mintree.find_by_order( min_rank );
-                        it++;
-                        for( ; it != m_mintree.end() && *it == m_lastval ; it++ ) max_rank++;
-                        return ( double )( min_rank + max_rank ) / 2;
-                    }
-
-                    default:
-                        break;
-                }
-            }
-        #else
-            if( likely( !isnan( m_lastval ) && m_tree.size() > 0 ) )
-            {
-                switch( m_method )
-                {
-                    case MIN:
-                    {
-                        return std::distance( m_tree.begin(), m_tree.find( m_lastval ) );
-                    }
-                    case MAX:
-                    {
-                        auto end_range = m_tree.equal_range( m_lastval ).second;
-                        return std::distance( m_tree.begin(), std::prev( end_range ) );
-                    }
-                    case AVG:
-                    {
-                        auto range = m_tree.equal_range( m_lastval );
-                        return std::distance( m_tree.begin(), range.first ) + ( double )std::distance( range.first, std::prev( range.second ) ) / 2;
-                    }
-                    default:
-                        break;
-                }
-            }
-        #endif
-
-            return std::numeric_limits<double>::quiet_NaN();
+#ifdef __linux__
+            if( m_method == MAX )
+                ost_erase( m_maxtree, x );
+            else
+                ost_erase( m_mintree, x );
+#else
+            m_tree.erase( m_tree.find( x ) );
+#endif
         }
+    }
 
-    private:
+    void reset()
+    {
+#ifdef __linux__
+        if( m_method == MAX )
+            m_maxtree.clear();
+        else
+            m_mintree.clear();
+#else
+        m_tree.clear();
+#endif
+    }
 
-    #ifdef __linux__
-        ost<std::less_equal<double>> m_mintree;
-        ost<std::greater_equal<double>> m_maxtree;
-    #else
-        std::multiset<double> m_tree;
-    #endif
-        double m_lastval;
+    double compute() const
+    {
+        // Verify tree is not empty and lastValue is valid
+        // Last value can only ever be NaN if the "keep" nan option is used
+#ifdef __linux__
+        if( likely( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) )
+        {
+            switch( m_method )
+            {
+                case MIN:
+                {
+                    if( m_mintree.size() == 1 )
+                        return 0;
+                    return m_mintree.order_of_key( m_lastval );
+                }
+                case MAX:
+                {
+                    if( m_maxtree.size() == 1 )
+                        return 0;
+                    return m_maxtree.size() - 1 - m_maxtree.order_of_key( m_lastval );
+                }
+                case AVG:
+                {
+                    // Need to iterate to find average rank
+                    if( m_mintree.size() == 1 )
+                        return 0;
 
-        int64_t m_method;
-        int64_t m_nanopt;
+                    int min_rank = m_mintree.order_of_key( m_lastval );
+                    int max_rank = min_rank;
+                    auto it      = m_mintree.find_by_order( min_rank );
+                    it++;
+                    for( ; it != m_mintree.end() && *it == m_lastval; it++ )
+                        max_rank++;
+                    return (double)( min_rank + max_rank ) / 2;
+                }
+
+                default:
+                    break;
+            }
+        }
+#else
+        if( likely( !isnan( m_lastval ) && m_tree.size() > 0 ) )
+        {
+            switch( m_method )
+            {
+                case MIN:
+                {
+                    return std::distance( m_tree.begin(), m_tree.find( m_lastval ) );
+                }
+                case MAX:
+                {
+                    auto end_range = m_tree.equal_range( m_lastval ).second;
+                    return std::distance( m_tree.begin(), std::prev( end_range ) );
+                }
+                case AVG:
+                {
+                    auto range = m_tree.equal_range( m_lastval );
+                    return std::distance( m_tree.begin(), range.first )
+                        + (double)std::distance( range.first, std::prev( range.second ) ) / 2;
+                }
+                default:
+                    break;
+            }
+        }
+#endif
+
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+private:
+#ifdef __linux__
+    ost<std::less_equal<double>> m_mintree;
+    ost<std::greater_equal<double>> m_maxtree;
+#else
+    std::multiset<double> m_tree;
+#endif
+    double m_lastval;
+
+    int64_t m_method;
+    int64_t m_nanopt;
 };
 
 class ArgMinMax
 {
-    public:
-        ArgMinMax() = default;
-        ArgMinMax( bool max, bool recent ) : m_recent( recent ), m_monoQueue( max ) {}
+public:
+    ArgMinMax() = default;
+    ArgMinMax( bool max, bool recent )
+        : m_recent( recent )
+        , m_monoQueue( max )
+    {
+    }
 
-        ArgMinMax( ArgMinMax && rhs ) = default;
-        ArgMinMax & operator=( ArgMinMax && rhs ) = default;
+    ArgMinMax( ArgMinMax && rhs )             = default;
+    ArgMinMax & operator=( ArgMinMax && rhs ) = default;
 
-        // no copy
-        ArgMinMax( const ArgMinMax & rhs ) = delete;
-        ArgMinMax & operator=( const ArgMinMax & rhs ) = delete;
+    // no copy
+    ArgMinMax( const ArgMinMax & rhs )             = delete;
+    ArgMinMax & operator=( const ArgMinMax & rhs ) = delete;
 
-        void add( double x, DateTime t )
+    void add( double x, DateTime t )
+    {
+        m_monoQueue.add( x );
+        auto & it = m_treemap[x];
+        it.m_count++;
+        if( m_recent )
+            it.m_lasttime = t;
+        else
+            it.m_alltimes.push( t );
+    }
+
+    void remove( double x )
+    {
+        m_monoQueue.remove( x );
+        auto it = m_treemap.find( x );
+        it->second.m_count--;
+        if( !it->second.m_count ) // don't let map grow unbounded
+            m_treemap.erase( it );
+        else if( !m_recent )
+            it->second.m_alltimes.pop_left();
+    }
+
+    void reset()
+    {
+        m_monoQueue.reset();
+        m_treemap.clear();
+    }
+
+    DateTime compute()
+    {
+        if( m_treemap.size() > 0 )
         {
-            m_monoQueue.add( x );
-            auto & it = m_treemap[x];
-            it.m_count++;
+            double arg_val = m_monoQueue.compute();
             if( m_recent )
-                it.m_lasttime = t;
+                return m_treemap[arg_val].m_lasttime;
             else
-                it.m_alltimes.push( t );
+                return m_treemap[arg_val].m_alltimes[-1];
         }
 
-        void remove( double x )
-        {
-            m_monoQueue.remove( x );
-            auto it = m_treemap.find( x );
-            it->second.m_count--;
-            if( !it->second.m_count ) // don't let map grow unbounded
-                m_treemap.erase( it );
-            else if( !m_recent )
-                it->second.m_alltimes.pop_left();
-        }
+        return DateTime::fromNanoseconds( 0 );
+    }
 
-        void reset()
-        {
-            m_monoQueue.reset();
-            m_treemap.clear();
-        }
+private:
+    struct TreeData
+    {
+        TreeData & operator=( const TreeData & rhs ) = delete;
+        TreeData & operator=( TreeData && rhs )      = default;
 
-        DateTime compute()
-        {
-            if( m_treemap.size() > 0 )
-            {
-                double arg_val = m_monoQueue.compute();
-                if( m_recent )
-                    return m_treemap[arg_val].m_lasttime;
-                else
-                    return m_treemap[arg_val].m_alltimes[-1];
-            }
+        int m_count = 0;
+        DateTime m_lasttime;
+        VariableSizeWindowBuffer<DateTime> m_alltimes;
+    };
 
-            return DateTime::fromNanoseconds( 0 );
-        }
-
-    private:
-        struct TreeData
-        {
-            TreeData & operator=( const TreeData & rhs ) = delete;
-            TreeData & operator=( TreeData && rhs ) = default;
-
-            int m_count = 0;
-            DateTime m_lasttime;
-            VariableSizeWindowBuffer<DateTime> m_alltimes;
-        };
-
-        bool m_recent;
-        AscendingMinima m_monoQueue;
-        std::map<double, TreeData> m_treemap;
+    bool m_recent;
+    AscendingMinima m_monoQueue;
+    std::map<double, TreeData> m_treemap;
 };
 
 class EMA
 {
-    public:
-        EMA() = default;
+public:
+    EMA() = default;
 
-        EMA( double alpha, bool ignore_na, int64_t horizon, bool adjust )
+    EMA( double alpha, bool ignore_na, int64_t horizon, bool adjust )
+    {
+        m_alpha     = alpha;
+        m_ignore_na = ignore_na;
+        reset();
+    }
+
+    EMA( EMA && rhs ) = default;
+
+    EMA & operator=( EMA && rhs ) = default;
+
+    void add( double x )
+    {
+        if( unlikely( m_first ) && !isnan( x ) )
         {
-            m_alpha = alpha;
-            m_ignore_na = ignore_na;
-            reset();
+            m_ema   = x;
+            m_first = false;
         }
-
-        EMA( EMA && rhs ) = default;
-
-        EMA & operator=( EMA && rhs ) = default;
-
-        void add( double x )
+        else if( unlikely( isnan( x ) ) && !m_ignore_na && likely( !m_first ) )
         {
-            if( unlikely( m_first ) && !isnan( x ) )
+            m_offset++;
+        }
+        else if( likely( !isnan( x ) ) )
+        {
+            double delta = x - m_ema;
+            if( m_offset == 1 )
             {
-                m_ema = x;
-                m_first = false;
+                m_ema += m_alpha * delta;
             }
-            else if( unlikely( isnan( x ) ) && !m_ignore_na && likely( !m_first ) )
+            else
             {
-                m_offset++;
-            }
-            else if( likely( !isnan( x ) ) )
-            {
-                double delta = x - m_ema;
-                if( m_offset == 1 )
-                {
-                    m_ema += m_alpha * delta;
-                }
-                else
-                {
-                    m_ema = ( m_ema * pow( ( 1 - m_alpha ), m_offset ) + m_alpha * x ) / 
-                        ( pow( 1 - m_alpha, m_offset ) + m_alpha );
-                    m_offset = 1;
-                }
+                m_ema = ( m_ema * pow( ( 1 - m_alpha ), m_offset ) + m_alpha * x )
+                    / ( pow( 1 - m_alpha, m_offset ) + m_alpha );
+                m_offset = 1;
             }
         }
+    }
 
-        void remove( double x ) { }
+    void remove( double x ) {}
 
-        void reset()
-        {
-            m_ema = 0;
-            m_offset = 1;
-            m_first = true;
-        }
+    void reset()
+    {
+        m_ema    = 0;
+        m_offset = 1;
+        m_first  = true;
+    }
 
-        double compute() const
-        {
-            return unlikely( m_first ) ? std::numeric_limits<double>::quiet_NaN() : m_ema;
-        }
+    double compute() const { return unlikely( m_first ) ? std::numeric_limits<double>::quiet_NaN() : m_ema; }
 
-    private:
+private:
+    double m_ema;
+    int64_t m_offset;
+    bool m_first;
 
-        double m_ema;
-        int64_t m_offset;
-        bool m_first;
-
-        double m_alpha;
-        bool m_ignore_na;
+    double m_alpha;
+    bool m_ignore_na;
 };
 
 class AdjustedEMA
 {
-    public:
-        AdjustedEMA() = default;
+public:
+    AdjustedEMA() = default;
 
-        AdjustedEMA( double alpha, bool ignore_na, int64_t horizon, bool adjust )
+    AdjustedEMA( double alpha, bool ignore_na, int64_t horizon, bool adjust )
+    {
+        m_decay     = 1 - alpha;
+        m_ignore_na = ignore_na;
+        m_horizon   = horizon;
+        reset();
+    }
+
+    AdjustedEMA( AdjustedEMA && rhs ) = default;
+
+    AdjustedEMA & operator=( AdjustedEMA && rhs ) = default;
+
+    void add( double x )
+    {
+        if( likely( !isnan( x ) ) )
         {
-            m_decay = 1 - alpha;
-            m_ignore_na = ignore_na;
-            m_horizon = horizon;
-            reset();
-        }
-
-        AdjustedEMA( AdjustedEMA && rhs ) = default;
-
-        AdjustedEMA & operator=( AdjustedEMA && rhs ) = default;
-
-        void add( double x )
-        {
-            if( likely( !isnan( x ) ) )
-            {
-                double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
-                m_ema *= decay_factor;
-                m_norm *= decay_factor;
-                m_offset = 1;
-                m_ema += x;
-                m_norm++;
-            }
-            else
-            {
-                m_offset++;
-                m_nan_count++;
-            }
-        }
-
-        void remove( double x )
-        {
-            if( likely( !isnan( x ) ) )
-            {
-                double lookback = ( m_ignore_na ? m_horizon - m_nan_count : m_horizon - m_offset + 1 );
-                double decay_factor = pow( m_decay, lookback );
-                m_norm -= decay_factor;
-                m_ema -= x * decay_factor;
-
-                // EMA may go to zero with a non-zero normalizer due to lots of 0 values in the time series: they are separate conditions
-                if( abs( m_ema ) < EPSILON )
-                    m_ema = 0;
-            }
-            else
-                m_nan_count--;
-        }
-
-        void reset()
-        {
-            m_ema = m_norm = m_nan_count = 0;
+            double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
+            m_ema *= decay_factor;
+            m_norm *= decay_factor;
             m_offset = 1;
+            m_ema += x;
+            m_norm++;
         }
-
-        double compute() const
+        else
         {
-            if( m_norm > 0 ) // may be 0 if calc is triggered before any ticks are received
-                return m_ema / m_norm;
-
-            return std::numeric_limits<double>::quiet_NaN();
+            m_offset++;
+            m_nan_count++;
         }
+    }
 
-    private:
+    void remove( double x )
+    {
+        if( likely( !isnan( x ) ) )
+        {
+            double lookback     = ( m_ignore_na ? m_horizon - m_nan_count : m_horizon - m_offset + 1 );
+            double decay_factor = pow( m_decay, lookback );
+            m_norm -= decay_factor;
+            m_ema -= x * decay_factor;
 
-        double m_ema;
-        double m_norm;
-        int64_t m_offset;
-        double m_nan_count;
+            // EMA may go to zero with a non-zero normalizer due to lots of 0 values in the time series: they are
+            // separate conditions
+            if( abs( m_ema ) < EPSILON )
+                m_ema = 0;
+        }
+        else
+            m_nan_count--;
+    }
 
-        double m_decay;
-        bool m_ignore_na;
-        int64_t m_horizon;
+    void reset()
+    {
+        m_ema = m_norm = m_nan_count = 0;
+        m_offset                     = 1;
+    }
+
+    double compute() const
+    {
+        if( m_norm > 0 ) // may be 0 if calc is triggered before any ticks are received
+            return m_ema / m_norm;
+
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+private:
+    double m_ema;
+    double m_norm;
+    int64_t m_offset;
+    double m_nan_count;
+
+    double m_decay;
+    bool m_ignore_na;
+    int64_t m_horizon;
 };
 
 class AlphaDebiasEMA
 {
-    public:
-        AlphaDebiasEMA() = default;
+public:
+    AlphaDebiasEMA() = default;
 
-        AlphaDebiasEMA( double alpha, bool ignore_na, int64_t horizon, bool adjust )
+    AlphaDebiasEMA( double alpha, bool ignore_na, int64_t horizon, bool adjust )
+    {
+        m_decay     = 1 - alpha;
+        m_ignore_na = ignore_na;
+        m_horizon   = horizon;
+        m_adjust    = adjust;
+        reset();
+    }
+
+    AlphaDebiasEMA( AlphaDebiasEMA && rhs ) = default;
+
+    AlphaDebiasEMA & operator=( AlphaDebiasEMA && rhs ) = default;
+
+    void add( double x )
+    {
+        if( m_first && likely( !isnan( x ) ) )
         {
-            m_decay = 1 - alpha;
-            m_ignore_na = ignore_na;
-            m_horizon = horizon;
-            m_adjust = adjust;
-            reset();
+            m_wsum  = 1;
+            m_sqsum = 1;
+            m_first = false;
         }
-
-        AlphaDebiasEMA( AlphaDebiasEMA && rhs ) = default;
-
-        AlphaDebiasEMA & operator=( AlphaDebiasEMA && rhs ) = default;
-
-        void add( double x )
+        else if( likely( !isnan( x ) ) )
         {
-            if( m_first && likely( !isnan( x ) ) )
-            {
-                m_wsum = 1;
-                m_sqsum = 1;
-                m_first = false;
-            }
-            else if( likely( !isnan( x ) ) )
-            {
-                double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
-                m_wsum *= decay_factor;
-                m_sqsum *= decay_factor * decay_factor;
-                m_offset = 1;
-
-                double w0;
-                if( m_adjust )
-                    w0 = 1.0;
-                else
-                    w0 = 1 - m_decay;
-                m_sqsum += w0 * w0;
-                m_wsum += w0;
-                if( !m_adjust )
-                {
-                    double correction = decay_factor + w0;
-                    m_wsum /= correction;
-                    m_sqsum /= ( correction * correction );
-                }
-            }
-            else if ( likely( !m_first ) )
-            {
-                m_offset++;
-                m_nan_count++;
-            }
-        }
-
-        void remove( double x )
-        {
-            if( likely( !isnan( x ) ))
-            {
-                double lookback = ( m_ignore_na ? m_horizon - m_nan_count : m_horizon - m_offset + 1 );
-                double wh = pow( m_decay, lookback );
-                if( !m_adjust )
-                    wh *= ( 1- m_decay );
-                m_sqsum -= wh * wh;
-                m_wsum -= wh;
-                if( m_wsum < EPSILON || m_sqsum < EPSILON )
-                {
-                    m_wsum = 0;
-                    m_sqsum = 0;
-                }
-            }
-            else
-                m_nan_count--;
-        }
-
-        void reset()
-        {
-            m_wsum = m_sqsum = m_nan_count = 0;
+            double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
+            m_wsum *= decay_factor;
+            m_sqsum *= decay_factor * decay_factor;
             m_offset = 1;
-            m_first = true;
-        }
 
-        double compute() const
-        {
-            double wsum_sq = m_wsum * m_wsum;
-            if( abs( wsum_sq - m_sqsum ) > EPSILON )
-                return wsum_sq / ( wsum_sq - m_sqsum );
+            double w0;
+            if( m_adjust )
+                w0 = 1.0;
             else
-                return std::numeric_limits<double>::quiet_NaN();
+                w0 = 1 - m_decay;
+            m_sqsum += w0 * w0;
+            m_wsum += w0;
+            if( !m_adjust )
+            {
+                double correction = decay_factor + w0;
+                m_wsum /= correction;
+                m_sqsum /= ( correction * correction );
+            }
         }
+        else if( likely( !m_first ) )
+        {
+            m_offset++;
+            m_nan_count++;
+        }
+    }
 
-    private:
+    void remove( double x )
+    {
+        if( likely( !isnan( x ) ) )
+        {
+            double lookback = ( m_ignore_na ? m_horizon - m_nan_count : m_horizon - m_offset + 1 );
+            double wh       = pow( m_decay, lookback );
+            if( !m_adjust )
+                wh *= ( 1 - m_decay );
+            m_sqsum -= wh * wh;
+            m_wsum -= wh;
+            if( m_wsum < EPSILON || m_sqsum < EPSILON )
+            {
+                m_wsum  = 0;
+                m_sqsum = 0;
+            }
+        }
+        else
+            m_nan_count--;
+    }
 
-        double m_wsum;
-        double m_sqsum;
-        int64_t m_offset;
-        double m_nan_count;
-        bool m_first;
+    void reset()
+    {
+        m_wsum = m_sqsum = m_nan_count = 0;
+        m_offset                       = 1;
+        m_first                        = true;
+    }
 
-        double m_decay;
-        int64_t m_horizon;
-        bool m_ignore_na, m_adjust;
+    double compute() const
+    {
+        double wsum_sq = m_wsum * m_wsum;
+        if( abs( wsum_sq - m_sqsum ) > EPSILON )
+            return wsum_sq / ( wsum_sq - m_sqsum );
+        else
+            return std::numeric_limits<double>::quiet_NaN();
+    }
+
+private:
+    double m_wsum;
+    double m_sqsum;
+    int64_t m_offset;
+    double m_nan_count;
+    bool m_first;
+
+    double m_decay;
+    int64_t m_horizon;
+    bool m_ignore_na, m_adjust;
 };
 
 class HalflifeEMA
 {
-    public:
-        HalflifeEMA() = default;
+public:
+    HalflifeEMA() = default;
 
-        HalflifeEMA( TimeDelta halflife, DateTime start )
+    HalflifeEMA( TimeDelta halflife, DateTime start )
+    {
+        m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
+        m_last_tick    = start;
+        reset();
+    }
+
+    HalflifeEMA( HalflifeEMA && rhs ) = default;
+
+    HalflifeEMA & operator=( HalflifeEMA && rhs ) = default;
+
+    void add( double x, DateTime now )
+    {
+        if( likely( !isnan( x ) ) )
         {
-            m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
-            m_last_tick = start;
-            reset();
+            TimeDelta delta_t = now - m_last_tick;
+            double decay      = exp( m_decay_factor * delta_t.asNanoseconds() );
+            m_ema             = decay * m_ema + x;
+            m_norm            = decay * m_norm + 1.0;
+            m_last_tick       = now;
         }
+    }
 
-        HalflifeEMA( HalflifeEMA && rhs ) = default;
+    void reset() { m_ema = m_norm = 0; }
 
-        HalflifeEMA & operator=( HalflifeEMA && rhs ) = default;
+    double compute() const { return m_ema / m_norm; }
 
-        void add( double x, DateTime now )
-        {
-            if( likely( !isnan( x ) ) )
-            {
-                TimeDelta delta_t = now - m_last_tick;
-                double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
-                m_ema = decay * m_ema + x;
-                m_norm = decay * m_norm + 1.0;
-                m_last_tick = now;
-            }
-        }
-
-        void reset()
-        {
-            m_ema = m_norm = 0;
-        }
-
-        double compute() const
-        {
-            return m_ema / m_norm;
-        }
-
-    private:
-
-        double m_ema;
-        double m_norm;
-        double m_decay_factor;
-        DateTime m_last_tick;
-
+private:
+    double m_ema;
+    double m_norm;
+    double m_decay_factor;
+    DateTime m_last_tick;
 };
 
 class HalflifeDebiasEMA
 {
-    public:
-        HalflifeDebiasEMA() = default;
+public:
+    HalflifeDebiasEMA() = default;
 
-        HalflifeDebiasEMA( TimeDelta halflife, DateTime start )
+    HalflifeDebiasEMA( TimeDelta halflife, DateTime start )
+    {
+        m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
+        m_last_tick    = start;
+        reset();
+    }
+
+    HalflifeDebiasEMA( HalflifeDebiasEMA && rhs ) = default;
+
+    HalflifeDebiasEMA & operator=( HalflifeDebiasEMA && rhs ) = default;
+
+    void add( double x, DateTime now )
+    {
+        if( likely( !isnan( x ) ) )
         {
-            m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
-            m_last_tick = start;
-            reset();
+            TimeDelta delta_t = now - m_last_tick;
+            double decay      = exp( m_decay_factor * delta_t.asNanoseconds() );
+            m_sqsum           = decay * decay * m_sqsum + 1.0;
+            m_wsum            = decay * m_wsum + 1.0;
+            m_last_tick       = now;
         }
+    }
 
-        HalflifeDebiasEMA( HalflifeDebiasEMA && rhs ) = default;
+    void reset() { m_wsum = m_sqsum = 0; }
 
-        HalflifeDebiasEMA & operator=( HalflifeDebiasEMA && rhs ) = default;
+    double compute() const
+    {
+        double wsum_sq = m_wsum * m_wsum;
+        if( wsum_sq != m_sqsum )
+            return wsum_sq / ( wsum_sq - m_sqsum );
+        else
+            return std::numeric_limits<double>::quiet_NaN();
+    }
 
-        void add( double x, DateTime now )
-        {
-            if( likely( !isnan( x ) ) )
-            {
-                TimeDelta delta_t = now - m_last_tick;
-                double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
-                m_sqsum = decay * decay * m_sqsum + 1.0;
-                m_wsum = decay * m_wsum + 1.0;
-                m_last_tick = now;
-            }
-        }
-
-        void reset()
-        {
-            m_wsum = m_sqsum = 0;
-        }
-
-        double compute() const
-        {
-            double wsum_sq = m_wsum * m_wsum;
-            if( wsum_sq != m_sqsum )
-                return wsum_sq / ( wsum_sq - m_sqsum );
-            else
-                return std::numeric_limits<double>::quiet_NaN();
-        }
-
-    private:
-
-        double m_wsum;
-        double m_sqsum;
-        double m_decay_factor;
-        DateTime m_last_tick;
+private:
+    double m_wsum;
+    double m_sqsum;
+    double m_decay_factor;
+    DateTime m_last_tick;
 };
 
 // NaN handling generic code for the DataValidator class
 struct NanCheck
 {
-    template <typename FloatingT, typename ...V, std::enable_if_t<std::is_floating_point<FloatingT>::value, bool> = true>
+    template<typename FloatingT, typename... V, std::enable_if_t<std::is_floating_point<FloatingT>::value, bool> = true>
     static inline bool any_nan( FloatingT val, V... args )
     {
         return isnan( val ) || any_nan( args... );
     }
 
-    template <typename NonFloatingT, typename ...V, std::enable_if_t<!std::is_floating_point<NonFloatingT>::value, bool> = false>
+    template<typename NonFloatingT, typename... V,
+             std::enable_if_t<!std::is_floating_point<NonFloatingT>::value, bool> = false>
     static inline bool any_nan( NonFloatingT val, V... args )
     {
         return any_nan( args... );
     }
 
-    static inline bool any_nan()
-    {
-        return false;
-    }
+    static inline bool any_nan() { return false; }
 };
 
 // Validates min_data_points and takes care of NaN handling
 template<typename T>
 class DataValidator
 {
-    public:
-        DataValidator() = default;
+public:
+    DataValidator() = default;
 
-        DataValidator( DataValidator && rhs ) = default;
+    DataValidator( DataValidator && rhs ) = default;
 
-        DataValidator( const DataValidator & rhs ) = default;
+    DataValidator( const DataValidator & rhs ) = default;
 
-        DataValidator & operator=( DataValidator && rhs ) = default;
+    DataValidator & operator=( DataValidator && rhs ) = default;
 
-        DataValidator & operator=( const DataValidator & rhs ) = default;
+    DataValidator & operator=( const DataValidator & rhs ) = default;
 
-        template<typename ...V>
-        DataValidator( int64_t min_data_points, bool ignore_na, V... args ) :
-            m_mdp( min_data_points ), m_igna( ignore_na ), m_stat ( args... ) { }
+    template<typename... V>
+    DataValidator( int64_t min_data_points, bool ignore_na, V... args )
+        : m_mdp( min_data_points )
+        , m_igna( ignore_na )
+        , m_stat( args... )
+    {
+    }
 
-        void add( double x )
+    void add( double x )
+    {
+        if( isnan( x ) )
         {
-            if( isnan( x ) )
-            {
-                m_nans++;
-                if( m_process_na || ( m_consider_na && !m_igna ) )
-                    m_stat.add( x );
-            }
-            else
-            {
-                m_points++;
+            m_nans++;
+            if( m_process_na || ( m_consider_na && !m_igna ) )
                 m_stat.add( x );
-            }
         }
-
-        template<typename ...V>
-        void add( V... args )
+        else
         {
-            if( NanCheck::any_nan( args...) )
-                m_nans++;
-            else
-            {
-                m_points++;
-                m_stat.add( args... );
-            }
+            m_points++;
+            m_stat.add( x );
         }
+    }
 
-        template<typename ...V>
-        void remove( V... args )
+    template<typename... V>
+    void add( V... args )
+    {
+        if( NanCheck::any_nan( args... ) )
+            m_nans++;
+        else
         {
-            if( NanCheck::any_nan( args...) )
-            {
-                m_nans--;
-                if( m_process_na || ( m_consider_na && !m_igna ) )
-                    m_stat.remove( args... );
-            }
-            else
-            {
-                m_points--;
+            m_points++;
+            m_stat.add( args... );
+        }
+    }
+
+    template<typename... V>
+    void remove( V... args )
+    {
+        if( NanCheck::any_nan( args... ) )
+        {
+            m_nans--;
+            if( m_process_na || ( m_consider_na && !m_igna ) )
                 m_stat.remove( args... );
-            }
         }
-
-        template<typename ...V>
-        double compute( V... args )
+        else
         {
-            if( ( !m_igna && (m_nans > 0  && !m_consider_na ) ) || m_points < m_mdp )
-                return std::numeric_limits<double>::quiet_NaN();
-
-            return m_stat.compute( args... );
+            m_points--;
+            m_stat.remove( args... );
         }
+    }
 
-        DateTime compute_dt() // needed for argmin/max
-        {
-            if( ( !m_igna && m_nans > 0 ) || m_points < m_mdp )
-                return DateTime::fromNanoseconds( 0 );
+    template<typename... V>
+    double compute( V... args )
+    {
+        if( ( !m_igna && ( m_nans > 0 && !m_consider_na ) ) || m_points < m_mdp )
+            return std::numeric_limits<double>::quiet_NaN();
 
-            return m_stat.compute();
-        }
+        return m_stat.compute( args... );
+    }
 
-        void reset()
-        {
-            m_nans = 0;
-            m_points = 0;
-            m_stat.reset();
-        }
+    DateTime compute_dt() // needed for argmin/max
+    {
+        if( ( !m_igna && m_nans > 0 ) || m_points < m_mdp )
+            return DateTime::fromNanoseconds( 0 );
 
-    private:
-        int64_t m_nans = 0;
-        int64_t m_points = 0;
-        int64_t m_mdp = 0;
-        bool m_igna = false;
-        T m_stat;
-        static constexpr bool m_process_na = ( std::is_same<T,EMA>::value || std::is_same<T,AdjustedEMA>::value || std::is_same<T,AlphaDebiasEMA>::value
-                        || std::is_same<T,HalflifeEMA>::value || std::is_same<T,HalflifeDebiasEMA>::value || std::is_same<T,Rank>::value );
-        static constexpr bool m_consider_na = ( std::is_same<T,First>::value || std::is_same<T,Last>::value );
+        return m_stat.compute();
+    }
+
+    void reset()
+    {
+        m_nans   = 0;
+        m_points = 0;
+        m_stat.reset();
+    }
+
+private:
+    int64_t m_nans   = 0;
+    int64_t m_points = 0;
+    int64_t m_mdp    = 0;
+    bool m_igna      = false;
+    T m_stat;
+    static constexpr bool m_process_na
+        = ( std::is_same<T, EMA>::value || std::is_same<T, AdjustedEMA>::value || std::is_same<T, AlphaDebiasEMA>::value
+            || std::is_same<T, HalflifeEMA>::value || std::is_same<T, HalflifeDebiasEMA>::value
+            || std::is_same<T, Rank>::value );
+    static constexpr bool m_consider_na = ( std::is_same<T, First>::value || std::is_same<T, Last>::value );
 };
-
 
 // Generic window update nodes
 
@@ -2026,12 +1908,12 @@ protected:
     TS_INPUT( Generic, reset );
     TS_INPUT( Generic, recalc );
 
-    STATE_VAR( bool, s_first{true} );
-    STATE_VAR( int64_t, s_last_call{0} );
-    STATE_VAR( int64_t, s_last_count{0} );
-    STATE_VAR( bool, s_pending_recalc{false} );
+    STATE_VAR( bool, s_first{ true } );
+    STATE_VAR( int64_t, s_last_call{ 0 } );
+    STATE_VAR( int64_t, s_last_count{ 0 } );
+    STATE_VAR( bool, s_pending_recalc{ false } );
 
-    STATE_VAR( FixedSizeWindowBuffer<T>, s_value_buffer{interval} );
+    STATE_VAR( FixedSizeWindowBuffer<T>, s_value_buffer{ interval } );
     STATE_VAR( std::vector<T>, s_removals{} );
 
     TS_NAMED_OUTPUT_RENAMED( std::vector<T>, additions, additions_ );
@@ -2041,8 +1923,10 @@ protected:
     const char * name() const override { return "_tick_window_updates"; }
 
 public:
-    _generic_tick_window_updates( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef ) : csp::CppNode( engine, nodedef )
-    {}
+    _generic_tick_window_updates( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef )
+        : csp::CppNode( engine, nodedef )
+    {
+    }
 
     START()
     {
@@ -2069,29 +1953,29 @@ public:
         if( csp.ticked( sampler ) )
         {
             // Handle removals if needed
-            if( s_value_buffer.full() && s_removals.size() < ( size_t )s_last_count )
+            if( s_value_buffer.full() && s_removals.size() < (size_t)s_last_count )
             {
                 T v = s_value_buffer.pop_left();
                 s_removals.push_back( v );
             }
 
-            NodeT * node = static_cast<NodeT*>( this ); // CRTP
+            NodeT * node = static_cast<NodeT *>( this ); // CRTP
             if( csp.ticked( x ) )
             {
                 // Ensure size is consistent for NumPy case - do nothing for floats
-                node -> validateShape();
+                node->validateShape();
                 s_value_buffer.push( x );
             }
             else
             {
-                node -> checkValid();
-                s_value_buffer.push( node -> createNan() );
+                node->checkValid();
+                s_value_buffer.push( node->createNan() );
             }
         }
 
-        if( csp.ticked( trigger ) || ( s_first && csp.ticked( x ) && csp.ticked( sampler )  ) )
+        if( csp.ticked( trigger ) || ( s_first && csp.ticked( x ) && csp.ticked( sampler ) ) )
         {
-            s_first = false;
+            s_first             = false;
             int64_t total_count = csp.count( sampler );
 
             // Handle removals
@@ -2104,33 +1988,33 @@ public:
             if( s_pending_recalc && !s_value_buffer.empty() )
             {
                 // Copy entire buffer to additions for fresh calculation
-                std::vector<T>* additions = &additions_.reserveSpace();
-                additions -> reserve( s_value_buffer.count() );
+                std::vector<T> * additions = &additions_.reserveSpace();
+                additions->reserve( s_value_buffer.count() );
                 s_value_buffer.copy_values( additions );
                 s_pending_recalc = false;
             }
             else
             {
                 // Handle incremental additions since last call
-                size_t ticks = total_count - s_last_call;
-                size_t sz = s_value_buffer.count();
+                size_t ticks       = total_count - s_last_call;
+                size_t sz          = s_value_buffer.count();
                 int64_t add_cutoff = std::min( ticks, sz );
-                int64_t offset = add_cutoff-1;
+                int64_t offset     = add_cutoff - 1;
 
-                std::vector<T>* additions = nullptr;
+                std::vector<T> * additions = nullptr;
                 while( offset >= 0 )
                 {
                     if( !additions ) // reserve memory
                     {
                         additions = &additions_.reserveSpace();
-                        additions -> clear();
+                        additions->clear();
                     }
-                    additions -> push_back( s_value_buffer[offset] );
+                    additions->push_back( s_value_buffer[offset] );
                     offset--;
                 }
             }
 
-            s_last_call = total_count;
+            s_last_call  = total_count;
             s_last_count = s_value_buffer.count(); // needed for no improper removals
         }
     }
@@ -2140,7 +2024,6 @@ template<typename T, typename NodeT>
 DECLARE_CPPNODE( _generic_time_window_updates )
 {
 protected:
-
     TS_INPUT( T, x );
     SCALAR_INPUT( TimeDelta, interval );
     TS_INPUT( Generic, trigger );
@@ -2149,19 +2032,16 @@ protected:
     TS_INPUT( Generic, recalc );
 
     STATE_VAR( DateTime, s_last_call );
-    STATE_VAR( bool, s_pending_recalc{false} );
-    STATE_VAR( int64_t, s_last_tick{0} );
+    STATE_VAR( bool, s_pending_recalc{ false } );
+    STATE_VAR( int64_t, s_last_tick{ 0 } );
 
-    STATE_VAR( size_t,  s_pending_removals{0} );
+    STATE_VAR( size_t, s_pending_removals{ 0 } );
     // This keeps track of how many additions have been published without corresponding removals
-    // Its to fix a rare bug when trigger is separate from the data, and the data has multiple ticks at the same timestamp
-    // In this case the first data tick gets picked up on trigger and sent with additions, but the second tick does NOT
-    // get picked up, because trigger already finished.  Then when its time to remove, the value that wasnt sent on additions
-    // gets added to removed because its past the timestamp... example:
-    // import csp
-    // from datetime import datetime, timedelta
-    // import csp.stats
-    // data = [
+    // Its to fix a rare bug when trigger is separate from the data, and the data has multiple ticks at the same
+    // timestamp In this case the first data tick gets picked up on trigger and sent with additions, but the second tick
+    // does NOT get picked up, because trigger already finished.  Then when its time to remove, the value that wasnt
+    // sent on additions gets added to removed because its past the timestamp... example: import csp from datetime
+    // import datetime, timedelta import csp.stats data = [
     //   (datetime(2023, 2, 17,17, 17, 34), 23.0),
     //   (datetime(2023, 2, 17,17, 22, 43), 22.0),
     //   (datetime(2023, 2, 17,17, 22, 43), 22.0),
@@ -2186,8 +2066,8 @@ protected:
     //
     // We use a simple counter to work around this issue, we wont output a removal if there are no pending remaining
 
-    STATE_VAR( bool, s_first{true} );
-    STATE_VAR( bool, s_expanding{false} );
+    STATE_VAR( bool, s_first{ true } );
+    STATE_VAR( bool, s_expanding{ false } );
 
     STATE_VAR( VariableSizeWindowBuffer<T>, s_value_buffer{} );
     STATE_VAR( VariableSizeWindowBuffer<DateTime>, s_time_buffer{} );
@@ -2201,9 +2081,10 @@ protected:
     const char * name() const override { return "_time_window_updates"; }
 
 public:
-
-    _generic_time_window_updates( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef ) : csp::CppNode( engine, nodedef )
-    {}
+    _generic_time_window_updates( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef )
+        : csp::CppNode( engine, nodedef )
+    {
+    }
 
     START()
     {
@@ -2235,10 +2116,10 @@ public:
 
         if( csp.ticked( sampler ) )
         {
-            NodeT * node = static_cast<NodeT*>( this ); // CRTP
+            NodeT * node = static_cast<NodeT *>( this ); // CRTP
             if( csp.ticked( x ) )
             {
-                node -> validateShape();
+                node->validateShape();
                 if( s_expanding )
                     s_additions.push_back( x );
                 else
@@ -2246,11 +2127,11 @@ public:
             }
             else
             {
-                node -> checkValid();
+                node->checkValid();
                 if( s_expanding )
-                    s_additions.push_back( node -> createNan() );
+                    s_additions.push_back( node->createNan() );
                 else
-                    s_value_buffer.push( node -> createNan() );
+                    s_value_buffer.push( node->createNan() );
             }
             if( !s_expanding )
                 s_time_buffer.push( now() );
@@ -2263,7 +2144,7 @@ public:
             if( s_expanding )
             {
                 // fast track expanding window calculations
-                // we just need to swap in all additions with no checks 
+                // we just need to swap in all additions with no checks
                 if( !s_additions.empty() )
                 {
                     std::swap( additions_.reserveSpace(), s_additions );
@@ -2271,24 +2152,24 @@ public:
                 }
                 return;
             }
-            
+
             DateTime threshold = now() - interval;
             // Handle removals
-            int64_t count = csp.count( sampler );
-            std::vector<T>* removals = nullptr;
+            int64_t count             = csp.count( sampler );
+            std::vector<T> * removals = nullptr;
             while( !s_value_buffer.empty() && s_time_buffer[-1] <= threshold )
             {
                 DateTime time = s_time_buffer.pop_left();
-                T val = s_value_buffer.pop_left();
+                T val         = s_value_buffer.pop_left();
 
                 if( !s_pending_recalc && time <= s_last_call && s_pending_removals )
                 {
                     if( !removals ) // reserve memory
                     {
                         removals = &removals_.reserveSpace();
-                        removals -> clear();
+                        removals->clear();
                     }
-                    removals -> push_back( val );
+                    removals->push_back( val );
                     --s_pending_removals;
                 }
             }
@@ -2297,27 +2178,27 @@ public:
             if( s_pending_recalc && !s_value_buffer.empty() )
             {
                 // Copy entire buffer to additions for fresh calculation
-                std::vector<T>* additions = &additions_.reserveSpace();
-                additions -> reserve( s_value_buffer.count() );
+                std::vector<T> * additions = &additions_.reserveSpace();
+                additions->reserve( s_value_buffer.count() );
                 s_value_buffer.copy_values( additions );
-                s_pending_recalc = false;
-                s_pending_removals = additions -> size();
+                s_pending_recalc   = false;
+                s_pending_removals = additions->size();
             }
             else
             {
                 // Handle additions incrementally
-                int64_t sz = s_time_buffer.count();
+                int64_t sz     = s_time_buffer.count();
                 int64_t offset = std::min( count - s_last_tick, sz ) - 1;
 
-                std::vector<T>* additions = nullptr;
+                std::vector<T> * additions = nullptr;
                 while( offset >= 0 )
                 {
                     if( !additions ) // reserve memory
                     {
                         additions = &additions_.reserveSpace();
-                        additions -> clear();
+                        additions->clear();
                     }
-                    additions -> push_back( s_value_buffer[offset] );
+                    additions->push_back( s_value_buffer[offset] );
                     offset--;
                     ++s_pending_removals;
                 }
@@ -2333,7 +2214,6 @@ template<typename T, typename OutputT, typename NodeT>
 DECLARE_CPPNODE( _generic_cross_sectional )
 {
 protected:
-
     TS_INPUT( std::vector<T>, additions );
     TS_INPUT( std::vector<T>, removals );
     TS_INPUT( Generic, trigger );
@@ -2345,9 +2225,10 @@ protected:
     const char * name() const override { return "_cross_sectional"; }
 
 public:
-
-    _generic_cross_sectional( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef ) : csp::CppNode( engine, nodedef )
-    {}
+    _generic_cross_sectional( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef )
+        : csp::CppNode( engine, nodedef )
+    {
+    }
 
     INVOKE()
     {
@@ -2358,10 +2239,10 @@ public:
         if( csp.ticked( additions ) )
             s_window.extend( additions.lastValue() );
         if( csp.ticked( trigger ) )
-            static_cast<NodeT*>( this ) -> computeCrossSectional(); // CRTP
+            static_cast<NodeT *>( this )->computeCrossSectional(); // CRTP
     }
 };
 
-}
+} // namespace csp::cppnodes
 
 #endif // _IN_CSP_CPPNODES_STATSIMPL_H

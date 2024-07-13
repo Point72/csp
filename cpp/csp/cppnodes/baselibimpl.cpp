@@ -1,5 +1,5 @@
-#include <csp/engine/Dictionary.h>
 #include <csp/engine/CppNode.h>
+#include <csp/engine/Dictionary.h>
 #include <numeric>
 
 namespace csp::cppnodes
@@ -12,18 +12,14 @@ def sample(trigger: ts['Y'], x: ts['T']):
 */
 DECLARE_CPPNODE( sample )
 {
-    INIT_CPPNODE( sample )
-    {}
+    INIT_CPPNODE( sample ) {}
 
     TS_INPUT( Generic, trigger );
     TS_INPUT( Generic, x );
 
     TS_OUTPUT( Generic );
 
-    START()
-    {
-        csp.make_passive( x );
-    }
+    START() { csp.make_passive( x ); }
 
     INVOKE()
     {
@@ -42,16 +38,14 @@ def firstN(x: ts['T'], N: int):
 
 DECLARE_CPPNODE( firstN )
 {
-    INIT_CPPNODE( firstN )
-    {
-    }
+    INIT_CPPNODE( firstN ) {}
 
-    TS_INPUT(     Generic, x );
+    TS_INPUT( Generic, x );
     SCALAR_INPUT( int64_t, N );
 
     TS_OUTPUT( Generic );
 
-    STATE_VAR( int, s_count{0} );
+    STATE_VAR( int, s_count{ 0 } );
 
     START()
     {
@@ -77,16 +71,12 @@ def count(x: ts['T']):
 */
 DECLARE_CPPNODE( count )
 {
-    INIT_CPPNODE( count )
-    {}
+    INIT_CPPNODE( count ) {}
 
     TS_INPUT( Generic, x );
     TS_OUTPUT( int64_t );
 
-    INVOKE()
-    {
-        RETURN( csp.count( x ) );
-    }
+    INVOKE() { RETURN( csp.count( x ) ); }
 };
 
 EXPORT_CPPNODE( count );
@@ -99,8 +89,7 @@ def _delay_by_timedelta(x: ts['T'], delay: timedelta):
 */
 DECLARE_CPPNODE( _delay_by_timedelta )
 {
-    INIT_CPPNODE( _delay_by_timedelta )
-    {}
+    INIT_CPPNODE( _delay_by_timedelta ) {}
 
     TS_INPUT( Generic, x );
     SCALAR_INPUT( TimeDelta, delay );
@@ -132,8 +121,7 @@ DECLARE_CPPNODE( _delay_by_ticks )
 
     TS_OUTPUT( Generic );
 
-    INIT_CPPNODE( _delay_by_ticks )
-    {}
+    INIT_CPPNODE( _delay_by_ticks ) {}
 
     START()
     {
@@ -147,11 +135,12 @@ DECLARE_CPPNODE( _delay_by_ticks )
     {
         if( csp.ticked( x ) && csp.count( x ) > delay )
         {
-            switchCspType( x.type(), [this]( auto tag )
-            {
-                using ElemT = typename decltype(tag)::type;
-                RETURN( x.valueAtIndex<ElemT>( delay ) );
-            } );
+            switchCspType( x.type(),
+                           [this]( auto tag )
+                           {
+                               using ElemT = typename decltype( tag )::type;
+                               RETURN( x.valueAtIndex<ElemT>( delay ) );
+                           } );
         }
     }
 };
@@ -166,8 +155,7 @@ def merge(x: ts['T'], y : ts[ 'T' ] ):
 */
 DECLARE_CPPNODE( merge )
 {
-    INIT_CPPNODE( merge )
-    {}
+    INIT_CPPNODE( merge ) {}
 
     TS_INPUT( Generic, x );
     TS_INPUT( Generic, y );
@@ -185,7 +173,6 @@ DECLARE_CPPNODE( merge )
 
 EXPORT_CPPNODE( merge );
 
-
 /*
 @csp.node(cppimpl=_cspbaselibimpl.split)
 def split(flag: ts[bool], x: ts['T']):
@@ -194,18 +181,14 @@ def split(flag: ts[bool], x: ts['T']):
 */
 DECLARE_CPPNODE( split )
 {
-    INIT_CPPNODE( split )
-    {}
+    INIT_CPPNODE( split ) {}
 
-    TS_INPUT( bool,    flag );
+    TS_INPUT( bool, flag );
     TS_INPUT( Generic, x );
     TS_NAMED_OUTPUT_RENAMED( Generic, false, false_ );
-    TS_NAMED_OUTPUT_RENAMED( Generic, true,  true_ );
+    TS_NAMED_OUTPUT_RENAMED( Generic, true, true_ );
 
-    START()
-    {
-        csp.make_passive( flag );
-    }
+    START() { csp.make_passive( flag ); }
 
     INVOKE()
     {
@@ -228,8 +211,7 @@ def cast_int_to_float(x: csp.ts[int]):
 */
 DECLARE_CPPNODE( cast_int_to_float )
 {
-    INIT_CPPNODE( cast_int_to_float )
-    {}
+    INIT_CPPNODE( cast_int_to_float ) {}
 
     TS_INPUT( int64_t, x );
     TS_OUTPUT( double );
@@ -250,17 +232,13 @@ def filter(flag: ts[bool], x: ts['T']):
 */
 DECLARE_CPPNODE( filter )
 {
-    INIT_CPPNODE( filter )
-    {}
+    INIT_CPPNODE( filter ) {}
 
-    TS_INPUT( bool,    flag );
+    TS_INPUT( bool, flag );
     TS_INPUT( Generic, x );
     TS_OUTPUT( Generic );
 
-    START()
-    {
-        csp.make_passive( flag );
-    }
+    START() { csp.make_passive( flag ); }
 
     INVOKE()
     {
@@ -278,8 +256,7 @@ def _drop_dups_float(x: ts[float], eps: float):
 */
 DECLARE_CPPNODE( _drop_dups_float )
 {
-    INIT_CPPNODE( _drop_dups_float )
-    {}
+    INIT_CPPNODE( _drop_dups_float ) {}
 
     TS_INPUT( double, x );
 
@@ -287,17 +264,17 @@ DECLARE_CPPNODE( _drop_dups_float )
 
     TS_OUTPUT( double );
 
-    STATE_VAR( bool, s_first{true} );
+    STATE_VAR( bool, s_first{ true } );
     STATE_VAR( double, s_prev{} );
 
     INVOKE()
     {
         if( csp.ticked( x ) )
         {
-            if( s_first || ( isnan( x ) != isnan( s_prev ) ) || ( !isnan( x ) && fabs( x - s_prev ) >= eps ))
+            if( s_first || ( isnan( x ) != isnan( s_prev ) ) || ( !isnan( x ) && fabs( x - s_prev ) >= eps ) )
             {
                 s_first = false;
-                s_prev = x;
+                s_prev  = x;
                 RETURN( x );
             }
         }
@@ -336,9 +313,9 @@ def unroll(x: ts[['T']]):
 */
 DECLARE_CPPNODE( unroll )
 {
-    TS_INPUT(  Generic,  x );
-    ALARM(     Generic,  alarm );
-    STATE_VAR( uint32_t, s_pending{0} );
+    TS_INPUT( Generic, x );
+    ALARM( Generic, alarm );
+    STATE_VAR( uint32_t, s_pending{ 0 } );
 
     TS_OUTPUT( Generic );
 
@@ -346,54 +323,55 @@ DECLARE_CPPNODE( unroll )
 
     INIT_CPPNODE( unroll )
     {
-        //we need to access type information using the input / outout defs because the actual
-        //ts() instances arent created at this point
+        // we need to access type information using the input / outout defs because the actual
+        // ts() instances arent created at this point
         auto & x_def = tsinputDef( "x" );
-        if( x_def.type -> type() != CspType::Type::ARRAY )
-            CSP_THROW( TypeError, "unroll expected ts array type, got " << x_def.type -> type() );
+        if( x_def.type->type() != CspType::Type::ARRAY )
+            CSP_THROW( TypeError, "unroll expected ts array type, got " << x_def.type->type() );
 
         auto * aType = static_cast<const CspArrayType *>( x_def.type.get() );
-        elemType = aType -> elemType();
+        elemType     = aType->elemType();
 
-        //we cant easily support unrolling list of typed lists ( ts[ [[int]] ] ).  Since we dont recurse type info more than one level
-        //the input elemType would be DIALECT_GENERIC, but the output type would be the correct ARRAY:Type type.  Briding the two here is
-        //complex and not (currently) wirht the effort, so fallback to python by throwing NotImplemented
+        // we cant easily support unrolling list of typed lists ( ts[ [[int]] ] ).  Since we dont recurse type info more
+        // than one level the input elemType would be DIALECT_GENERIC, but the output type would be the correct
+        // ARRAY:Type type.  Briding the two here is complex and not (currently) wirht the effort, so fallback to python
+        // by throwing NotImplemented
         auto & out_def = tsoutputDef( "" );
-        if( out_def.type -> type() == CspType::Type::ARRAY )
+        if( out_def.type->type() == CspType::Type::ARRAY )
             CSP_THROW( NotImplemented, "unroll cppimpl doesnt currently support unrolloing lists of typed lists" );
     }
 
     INVOKE()
     {
-        //single switch up front, no need to do it multiple times
-        switchCspType( elemType, [this]( auto tag )
-        {
-            using ElemT  = typename decltype(tag)::type;
-            using ArrayT = typename CspType::Type::toCArrayType<ElemT>::type;
+        // single switch up front, no need to do it multiple times
+        switchCspType( elemType,
+                       [this]( auto tag )
+                       {
+                           using ElemT  = typename decltype( tag )::type;
+                           using ArrayT = typename CspType::Type::toCArrayType<ElemT>::type;
 
-            if( csp.ticked( x ) )
-            {
-                auto & v = x.lastValue<ArrayT>();
-                size_t sz = v.size();
-                if( likely( sz > 0 ) )
-                {
-                    size_t idx = 0;
-                    if( !s_pending )
-                        CSP_OUTPUT( static_cast<ElemT>( v[idx++] ) );
+                           if( csp.ticked( x ) )
+                           {
+                               auto & v  = x.lastValue<ArrayT>();
+                               size_t sz = v.size();
+                               if( likely( sz > 0 ) )
+                               {
+                                   size_t idx = 0;
+                                   if( !s_pending )
+                                       CSP_OUTPUT( static_cast<ElemT>( v[idx++] ) );
 
-                    s_pending += sz - idx;
-                    for( ; idx < sz; ++idx )
-                        csp.schedule_alarm( alarm, TimeDelta::ZERO(), static_cast<ElemT>( v[idx] ) );
-                }
-            }
+                                   s_pending += sz - idx;
+                                   for( ; idx < sz; ++idx )
+                                       csp.schedule_alarm( alarm, TimeDelta::ZERO(), static_cast<ElemT>( v[idx] ) );
+                               }
+                           }
 
-            if( csp.ticked( alarm ) )
-            {
-                --s_pending;
-                RETURN( alarm.lastValue<ElemT>() );
-            }
-
-        } );
+                           if( csp.ticked( alarm ) )
+                           {
+                               --s_pending;
+                               RETURN( alarm.lastValue<ElemT>() );
+                           }
+                       } );
     }
 };
 
@@ -414,45 +392,47 @@ DECLARE_CPPNODE( collect )
 
     INIT_CPPNODE( collect )
     {
-        //we cant process 'T' of type typed list ( it [int] ) because the input type would be ARRAY:INT64
-        //but the output type would become ARRAY:DIALECT_GENERIC, which we cant create.  just fallback to python
+        // we cant process 'T' of type typed list ( it [int] ) because the input type would be ARRAY:INT64
+        // but the output type would become ARRAY:DIALECT_GENERIC, which we cant create.  just fallback to python
         auto & x_def = tsinputDef( "x" );
-        if( x_def.type -> type() == CspType::Type::ARRAY )
+        if( x_def.type->type() == CspType::Type::ARRAY )
             CSP_THROW( NotImplemented, "cppimpl of collect cannot handle typed lists inputs" );
 
         auto & out_def = tsoutputDef( "" );
-        if( out_def.type -> type() != CspType::Type::ARRAY )
-            CSP_THROW( TypeError, "cppimpl for collect expected output type to be list, got " << out_def.type -> type() );
+        if( out_def.type->type() != CspType::Type::ARRAY )
+            CSP_THROW( TypeError, "cppimpl for collect expected output type to be list, got " << out_def.type->type() );
 
         auto * aType = static_cast<const CspArrayType *>( out_def.type.get() );
-        elemType = aType -> elemType();
+        elemType     = aType->elemType();
 
-        if( elemType -> type() != x_def.type -> type() )
-            CSP_THROW( TypeError, "cppimpl for collect has unexpected type mistmatch, input type is " << x_def.type -> type () <<
-                       " but output array type is " << elemType -> type() );
+        if( elemType->type() != x_def.type->type() )
+            CSP_THROW( TypeError,
+                       "cppimpl for collect has unexpected type mistmatch, input type is "
+                           << x_def.type->type() << " but output array type is " << elemType->type() );
     }
 
     START()
     {
-        //to avoid the need to check in every invoke
+        // to avoid the need to check in every invoke
         if( x.size() == 0 )
             csp.make_passive( x );
     }
 
     INVOKE()
     {
-        //single switch up front, no need to do it multiple times
-        //we expect all elements to be of the same type
-        switchCspType( elemType, [this]( auto tag )
+        // single switch up front, no need to do it multiple times
+        // we expect all elements to be of the same type
+        switchCspType( elemType,
+                       [this]( auto tag )
                        {
-                            using TagType = decltype( tag );
-                            using ElemT  = typename TagType::type;
-                            using ArrayT = typename CspType::Type::toCArrayType<ElemT>::type;
+                           using TagType = decltype( tag );
+                           using ElemT   = typename TagType::type;
+                           using ArrayT  = typename CspType::Type::toCArrayType<ElemT>::type;
 
-                            ArrayT & out = unnamed_output().reserveSpace<ArrayT>();
-                            out.clear();
-                            for( auto it = x.tickedinputs(); it; ++it )
-                                out.emplace_back( it -> lastValueTyped<ElemT>() );
+                           ArrayT & out = unnamed_output().reserveSpace<ArrayT>();
+                           out.clear();
+                           for( auto it = x.tickedinputs(); it; ++it )
+                               out.emplace_back( it->lastValueTyped<ElemT>() );
                        } );
     }
 };
@@ -475,21 +455,18 @@ DECLARE_CPPNODE( demultiplex )
     INIT_CPPNODE( demultiplex )
     {
         auto & key_def = tsinputDef( "key" );
-        if( key_def.type -> type() != CspType::Type::STRING )
+        if( key_def.type->type() != CspType::Type::STRING )
             CSP_THROW( NotImplemented, "cppimpl for demultiplex not supported on non-string key types" );
     }
 
-    START()
-    {
-        csp.make_passive( key );
-    }
+    START() { csp.make_passive( key ); }
 
     INVOKE()
     {
         if( csp.valid( key ) )
         {
-            auto &key_str = key.lastValue<std::string>();
-            auto elemId = unnamed_output().elemId( key_str );
+            auto & key_str = key.lastValue<std::string>();
+            auto elemId    = unnamed_output().elemId( key_str );
             if( elemId != InputId::ELEM_ID_NONE )
             {
                 unnamed_output()[elemId].output( x );
@@ -517,12 +494,12 @@ DECLARE_CPPNODE( multiplex )
 
     TS_OUTPUT( Generic );
 
-    STATE_VAR( bool, s_key_valid{false} );
+    STATE_VAR( bool, s_key_valid{ false } );
 
     INIT_CPPNODE( multiplex )
     {
         auto & key_def = tsinputDef( "key" );
-        if( key_def.type -> type() != CspType::Type::STRING )
+        if( key_def.type->type() != CspType::Type::STRING )
             CSP_THROW( NotImplemented, "cppimpl for multiplex not supported on non-string key types" );
     }
 
@@ -530,7 +507,7 @@ DECLARE_CPPNODE( multiplex )
     {
         if( csp.ticked( key ) )
         {
-            auto &key_str = key.lastValue<std::string>();
+            auto & key_str = key.lastValue<std::string>();
 
             csp.make_passive( x );
             int64_t elemId = x.elemId( key_str );
@@ -549,10 +526,9 @@ DECLARE_CPPNODE( multiplex )
 
         if( s_key_valid )
         {
-            auto &key_str = key.lastValue<std::string>();
+            auto & key_str = key.lastValue<std::string>();
             int64_t elemId = x.elemId( key_str );
-            if( csp.ticked( x[elemId] ) ||
-                ( tick_on_index && csp.ticked(key) && csp.valid(x[elemId]) ) )
+            if( csp.ticked( x[elemId] ) || ( tick_on_index && csp.ticked( key ) && csp.valid( x[elemId] ) ) )
             {
                 CSP_OUTPUT( x[elemId] );
             }
@@ -576,12 +552,9 @@ DECLARE_CPPNODE( times )
     TS_INPUT( Generic, x );
     TS_OUTPUT( DateTime );
 
-    INIT_CPPNODE( times ) { }
+    INIT_CPPNODE( times ) {}
 
-    INVOKE()
-    {
-        RETURN( now() );
-    }
+    INVOKE() { RETURN( now() ); }
 };
 
 EXPORT_CPPNODE( times );
@@ -600,12 +573,9 @@ DECLARE_CPPNODE( times_ns )
     TS_INPUT( Generic, x );
     TS_OUTPUT( int64_t );
 
-    INIT_CPPNODE( times_ns ) { }
+    INIT_CPPNODE( times_ns ) {}
 
-    INVOKE()
-    {
-        RETURN( now().asNanoseconds() );
-    }
+    INVOKE() { RETURN( now().asNanoseconds() ); }
 };
 
 EXPORT_CPPNODE( times_ns );
@@ -617,10 +587,9 @@ def struct_field(x: ts['T'], field: str, fieldType: 'Y'):
 */
 DECLARE_CPPNODE( struct_field )
 {
-    INIT_CPPNODE( struct_field )
-    {}
+    INIT_CPPNODE( struct_field ) {}
 
-    TS_INPUT(     StructPtr, x );
+    TS_INPUT( StructPtr, x );
     SCALAR_INPUT( std::string, field );
 
     TS_OUTPUT( Generic );
@@ -628,19 +597,20 @@ DECLARE_CPPNODE( struct_field )
     START()
     {
         auto * structType = static_cast<const CspStructType *>( x.type() );
-        m_fieldAccess = structType -> meta() -> field( field );
+        m_fieldAccess     = structType->meta()->field( field );
         if( !m_fieldAccess )
-            CSP_THROW( TypeError, "Struct " << structType -> meta() -> name() << " has no field named " << field.value() );
+            CSP_THROW( TypeError, "Struct " << structType->meta()->name() << " has no field named " << field.value() );
     }
 
     INVOKE()
     {
-        if( m_fieldAccess -> isSet( x.lastValue().get() ) )
+        if( m_fieldAccess->isSet( x.lastValue().get() ) )
         {
-            switchCspType( m_fieldAccess -> type(), [this]( auto tag )
+            switchCspType( m_fieldAccess->type(),
+                           [this]( auto tag )
                            {
-                               using T = typename decltype(tag)::type;
-                               RETURN( m_fieldAccess -> value<T>( x.lastValue().get() ) );
+                               using T = typename decltype( tag )::type;
+                               RETURN( m_fieldAccess->value<T>( x.lastValue().get() ) );
                            } );
         }
     }
@@ -651,8 +621,8 @@ private:
 
 EXPORT_CPPNODE( struct_field );
 
-//fromts and collectts are unfortunately identical except for tickeditems() vs validitems()
-//but i dont think its enough to warrant any refactoring at the moment
+// fromts and collectts are unfortunately identical except for tickeditems() vs validitems()
+// but i dont think its enough to warrant any refactoring at the moment
 /*
 @csp.node
 def struct_fromts(cls: 'T', inputs: {str: ts[object]}):
@@ -661,28 +631,29 @@ def struct_fromts(cls: 'T', inputs: {str: ts[object]}):
 DECLARE_CPPNODE( struct_fromts )
 {
     TS_DICTBASKET_INPUT( Generic, inputs );
-    TS_INPUT( Generic,            trigger );
-    SCALAR_INPUT( StructMetaPtr,  cls );
-    SCALAR_INPUT( bool,           use_trigger );
+    TS_INPUT( Generic, trigger );
+    SCALAR_INPUT( StructMetaPtr, cls );
+    SCALAR_INPUT( bool, use_trigger );
 
     TS_OUTPUT( StructPtr );
 
-    INIT_CPPNODE( struct_fromts )
-    {
-    }
+    INIT_CPPNODE( struct_fromts ) {}
 
     START()
     {
         for( size_t elemId = 0; elemId < inputs.shape().size(); ++elemId )
         {
-            auto & key = inputs.shape()[ elemId ];
-            auto & structField = cls.value() -> field( key );
+            auto & key         = inputs.shape()[elemId];
+            auto & structField = cls.value()->field( key );
             if( !structField )
-                CSP_THROW( ValueError, cls.value() -> name() << ".fromts() received unknown struct field \"" << key << "\"" );
+                CSP_THROW( ValueError,
+                           cls.value()->name() << ".fromts() received unknown struct field \"" << key << "\"" );
 
-            if( structField -> type() -> type() != inputs[ elemId ].type() -> type() )
-                CSP_THROW( TypeError, cls.value()  -> name() << ".fromts() field \"" << key << "\" expected ts type "
-                           << structField -> type() -> type() << " but got " << inputs[ elemId ].type() -> type() );
+            if( structField->type()->type() != inputs[elemId].type()->type() )
+                CSP_THROW( TypeError,
+                           cls.value()->name()
+                               << ".fromts() field \"" << key << "\" expected ts type " << structField->type()->type()
+                               << " but got " << inputs[elemId].type()->type() );
 
             m_structFields.push_back( structField.get() );
         }
@@ -693,16 +664,16 @@ DECLARE_CPPNODE( struct_fromts )
 
     INVOKE()
     {
-        auto out = cls.value()  -> create();
+        auto out = cls.value()->create();
         for( auto it = inputs.validinputs(); it; ++it )
         {
             auto * fieldAccess = m_structFields[it.elemId()];
-            switchCspType( it -> type(), [&it,&out,fieldAccess]( auto tag )
+            switchCspType( it->type(),
+                           [&it, &out, fieldAccess]( auto tag )
                            {
-                               using ElemT  = typename decltype(tag)::type;
-                               fieldAccess -> setValue( out.get(), it -> lastValueTyped<ElemT>() );
-                           }
-                );
+                               using ElemT = typename decltype( tag )::type;
+                               fieldAccess->setValue( out.get(), it->lastValueTyped<ElemT>() );
+                           } );
         }
 
         CSP_OUTPUT( std::move( out ) );
@@ -724,22 +695,23 @@ DECLARE_CPPNODE( struct_collectts )
     SCALAR_INPUT( StructMetaPtr, cls );
     TS_OUTPUT( StructPtr );
 
-    INIT_CPPNODE( struct_collectts )
-    {
-    }
+    INIT_CPPNODE( struct_collectts ) {}
 
     START()
     {
         for( size_t elemId = 0; elemId < inputs.shape().size(); ++elemId )
         {
-            auto & key = inputs.shape()[ elemId ];
-            auto & structField = cls.value() -> field( key );
+            auto & key         = inputs.shape()[elemId];
+            auto & structField = cls.value()->field( key );
             if( !structField )
-                CSP_THROW( ValueError, cls.value() -> name() << ".collectts() received unknown struct field \"" << key << "\"" );
+                CSP_THROW( ValueError,
+                           cls.value()->name() << ".collectts() received unknown struct field \"" << key << "\"" );
 
-            if( structField -> type() -> type() != inputs[ elemId ].type() -> type() )
-                CSP_THROW( TypeError, cls.value()  -> name() << ".collectts() field \"" << key << "\" expected ts type "
-                           << structField -> type() -> type() << " but got " << inputs[ elemId ].type() -> type() );
+            if( structField->type()->type() != inputs[elemId].type()->type() )
+                CSP_THROW( TypeError,
+                           cls.value()->name()
+                               << ".collectts() field \"" << key << "\" expected ts type "
+                               << structField->type()->type() << " but got " << inputs[elemId].type()->type() );
 
             m_structFields.push_back( structField.get() );
         }
@@ -747,16 +719,16 @@ DECLARE_CPPNODE( struct_collectts )
 
     INVOKE()
     {
-        auto out = cls.value()  -> create();
+        auto out = cls.value()->create();
         for( auto it = inputs.tickedinputs(); it; ++it )
         {
             auto * fieldAccess = m_structFields[it.elemId()];
-            switchCspType( it -> type(), [&it,&out,fieldAccess]( auto tag )
+            switchCspType( it->type(),
+                           [&it, &out, fieldAccess]( auto tag )
                            {
-                               using ElemT  = typename decltype(tag)::type;
-                               fieldAccess -> setValue( out.get(), it -> lastValueTyped<ElemT>() );
-                           }
-                );
+                               using ElemT = typename decltype( tag )::type;
+                               fieldAccess->setValue( out.get(), it->lastValueTyped<ElemT>() );
+                           } );
         }
 
         CSP_OUTPUT( std::move( out ) );
@@ -767,4 +739,4 @@ DECLARE_CPPNODE( struct_collectts )
 
 EXPORT_CPPNODE( struct_collectts );
 
-}
+} // namespace csp::cppnodes

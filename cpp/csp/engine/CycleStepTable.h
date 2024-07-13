@@ -10,7 +10,7 @@ namespace csp
 
 class Consumer;
 class Profiler;
-    
+
 class CycleStepTable
 {
 public:
@@ -18,13 +18,12 @@ public:
     ~CycleStepTable();
 
     void resize( int32_t maxRank );
-    
-    void schedule( Consumer *consumer );
-    //execute a single engine cycle
-    void executeCycle( csp::Profiler * profiler, bool isDynamic = false );
-    
-private:
 
+    void schedule( Consumer * consumer );
+    // execute a single engine cycle
+    void executeCycle( csp::Profiler * profiler, bool isDynamic = false );
+
+private:
     struct TableEntry
     {
         Consumer * head;
@@ -33,10 +32,10 @@ private:
 
     using Table = std::vector<TableEntry>;
 
-    int32_t         m_maxRank;
-    Table           m_table;
+    int32_t m_maxRank;
+    Table m_table;
     DynamicBitSet<> m_rankBitset;
 };
 
-};
+}; // namespace csp
 #endif

@@ -10,7 +10,6 @@ namespace csp::adapters::utils
 class RawBytesMessageStructConverter : public MessageStructConverter
 {
 public:
-
     RawBytesMessageStructConverter( const CspTypePtr & type, const Dictionary & properties );
 
     csp::StructPtr asStruct( void * bytes, size_t size ) override;
@@ -26,6 +25,6 @@ private:
     const StringStructField * m_targetField;
 };
 
-}
+} // namespace csp::adapters::utils
 
 #endif

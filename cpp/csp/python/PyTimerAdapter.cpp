@@ -7,11 +7,12 @@
 namespace csp::python
 {
 
-static InputAdapter * timer_creator( csp::AdapterManager * manager, PyEngine * pyengine, PyObject * pyType, PushMode pushMode, PyObject * args )
+static InputAdapter * timer_creator( csp::AdapterManager * manager, PyEngine * pyengine, PyObject * pyType,
+                                     PushMode pushMode, PyObject * args )
 {
     PyObject * pyInterval = nullptr;
     PyObject * pyValue    = nullptr;
-    int        allowDeviation;
+    int allowDeviation;
 
     if( !PyArg_ParseTuple( args, "OOp", &pyInterval, &pyValue, &allowDeviation ) )
         CSP_THROW( PythonPassthrough, "" );
@@ -20,16 +21,16 @@ static InputAdapter * timer_creator( csp::AdapterManager * manager, PyEngine * p
 
     auto cspType = pyTypeAsCspType( pyType );
 
-    return switchCspType( cspType,
-                          [ engine = pyengine -> engine(), &cspType, interval, pyValue, allowDeviation ](
-                                  auto tag ) -> InputAdapter *
-                          {
-                              using T = typename decltype(tag)::type;
-                              return engine -> createOwnedObject<TimerInputAdapter<T>>(
-                                      cspType, interval, fromPython<T>( pyValue, *cspType ), bool( allowDeviation ) );
-                          } );
+    return switchCspType(
+        cspType,
+        [engine = pyengine->engine(), &cspType, interval, pyValue, allowDeviation]( auto tag ) -> InputAdapter *
+        {
+            using T = typename decltype( tag )::type;
+            return engine->createOwnedObject<TimerInputAdapter<T>>(
+                cspType, interval, fromPython<T>( pyValue, *cspType ), bool( allowDeviation ) );
+        } );
 }
 
 REGISTER_INPUT_ADAPTER( _timer, timer_creator );
 
-}
+} // namespace csp::python

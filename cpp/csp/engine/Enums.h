@@ -25,6 +25,6 @@ protected:
 
 using PushMode = Enum<PushModeTraits>;
 
-}
+} // namespace csp
 
 #endif

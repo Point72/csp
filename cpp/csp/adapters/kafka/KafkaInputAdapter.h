@@ -9,14 +9,13 @@
 namespace csp::adapters::kafka
 {
 
-class KafkaInputAdapter final: public PushPullInputAdapter
+class KafkaInputAdapter final : public PushPullInputAdapter
 {
 public:
-    KafkaInputAdapter( Engine * engine, CspTypePtr & type,
-                       PushMode pushMode, PushGroup * group,
+    KafkaInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode, PushGroup * group,
                        const Dictionary & properties );
 
-    void processMessage( RdKafka::Message* message, bool live, csp::PushBatch* batch );
+    void processMessage( RdKafka::Message * message, bool live, csp::PushBatch * batch );
 
 private:
     utils::MessageStructConverterPtr m_converter;
@@ -27,6 +26,6 @@ private:
     StructFieldPtr m_keyField;
 };
 
-}
+} // namespace csp::adapters::kafka
 
 #endif

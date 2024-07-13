@@ -3,8 +3,8 @@
 
 #include <csp/core/Platform.h>
 #include <csp/engine/CspType.h>
-#include <unordered_map>
 #include <Python.h>
+#include <unordered_map>
 
 namespace csp::python
 {
@@ -22,6 +22,6 @@ private:
     Cache m_cache;
 };
 
-}
+} // namespace csp::python
 
 #endif

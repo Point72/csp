@@ -1,9 +1,9 @@
 #ifndef _IN_CSP_ADAPTERS_UTILS_PROTOBUFMESSAGESTRUCTCONVERTER_H
 #define _IN_CSP_ADAPTERS_UTILS_PROTOBUFMESSAGESTRUCTCONVERTER_H
 
-#include <csp/engine/Struct.h>
 #include <csp/adapters/utils/MessageStructConverter.h>
 #include <csp/adapters/utils/ProtobufHelper.h>
+#include <csp/engine/Struct.h>
 #include <memory>
 #include <vector>
 
@@ -12,15 +12,21 @@ namespace google::protobuf
 class Descriptor;
 class FieldDescriptor;
 class Message;
-};
+}; // namespace google::protobuf
 
-namespace cms { class Message; };
-namespace csp { class Dictionary; }
+namespace cms
+{
+class Message;
+};
+namespace csp
+{
+class Dictionary;
+}
 
 namespace csp::adapters::utils
 {
 
-//Use for processing protobuf bytes as the payload
+// Use for processing protobuf bytes as the payload
 class ProtobufMessageStructConverter final : public MessageStructConverter
 {
 public:
@@ -36,11 +42,10 @@ public:
     }
 
 private:
-
     const google::protobuf::Descriptor * m_protoDesc;
     utils::ProtobufStructMapper m_protoMapper;
 };
 
-}
+} // namespace csp::adapters::utils
 
 #endif

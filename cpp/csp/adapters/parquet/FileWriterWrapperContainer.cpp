@@ -1,20 +1,21 @@
-#include <csp/adapters/parquet/FileWriterWrapperContainer.h>
-#include <csp/adapters/parquet/ParquetWriter.h>
-#include <csp/adapters/parquet/ArrowIPCFileWriterWrapper.h>
-#include <csp/adapters/parquet/ParquetFileWriterWrapper.h>
-#include <csp/adapters/parquet/ParquetOutputAdapter.h>
-#include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <arrow/array.h>
 #include <arrow/builder.h>
 #include <arrow/io/file.h>
-#include <parquet/arrow/writer.h>
+#include <csp/adapters/parquet/ArrowIPCFileWriterWrapper.h>
+#include <csp/adapters/parquet/FileWriterWrapperContainer.h>
+#include <csp/adapters/parquet/ParquetFileWriterWrapper.h>
+#include <csp/adapters/parquet/ParquetOutputAdapter.h>
+#include <csp/adapters/parquet/ParquetStatusUtils.h>
+#include <csp/adapters/parquet/ParquetWriter.h>
 #include <csp/core/Exception.h>
+#include <parquet/arrow/writer.h>
 
 namespace csp::adapters::parquet
 {
 
-FileWriterWrapperContainer::WriterPtr FileWriterWrapperContainer::createSingleFileWrapper( const std::shared_ptr<arrow::Schema> &schema,
-                                                                                           bool isWriteArrowBinary )
+FileWriterWrapperContainer::WriterPtr
+FileWriterWrapperContainer::createSingleFileWrapper( const std::shared_ptr<arrow::Schema> & schema,
+                                                     bool isWriteArrowBinary )
 {
     if( isWriteArrowBinary )
     {
@@ -26,76 +27,78 @@ FileWriterWrapperContainer::WriterPtr FileWriterWrapperContainer::createSingleFi
     }
 }
 
-SingleFileWriterWrapperContainer::SingleFileWriterWrapperContainer( std::shared_ptr<arrow::Schema> schema, bool isWriteArrowBinary )
-        : m_fileWriterWrapper( createSingleFileWrapper( schema, isWriteArrowBinary ) )
+SingleFileWriterWrapperContainer::SingleFileWriterWrapperContainer( std::shared_ptr<arrow::Schema> schema,
+                                                                    bool isWriteArrowBinary )
+    : m_fileWriterWrapper( createSingleFileWrapper( schema, isWriteArrowBinary ) )
 {
 }
 
-void SingleFileWriterWrapperContainer::SingleFileWriterWrapperContainer::open( const std::string &fileName, const std::string &compression,
+void SingleFileWriterWrapperContainer::SingleFileWriterWrapperContainer::open( const std::string & fileName,
+                                                                               const std::string & compression,
                                                                                bool allowOverwrite )
 {
-    m_fileWriterWrapper -> open( fileName, compression, allowOverwrite );
-    setOpen(true);
+    m_fileWriterWrapper->open( fileName, compression, allowOverwrite );
+    setOpen( true );
 }
 
 void SingleFileWriterWrapperContainer::close()
 {
-    m_fileWriterWrapper -> close();
-    setOpen(false);
+    m_fileWriterWrapper->close();
+    setOpen( false );
 }
 
-void SingleFileWriterWrapperContainer::writeData( const std::vector<std::shared_ptr<ArrowSingleColumnArrayBuilder>> &columnBuilders )
+void SingleFileWriterWrapperContainer::writeData(
+    const std::vector<std::shared_ptr<ArrowSingleColumnArrayBuilder>> & columnBuilders )
 {
     std::vector<std::shared_ptr<arrow::Array>> columns;
     columns.reserve( columnBuilders.size() );
-    for( auto &&columnBuilder:columnBuilders )
+    for( auto && columnBuilder : columnBuilders )
     {
-        columns.push_back( columnBuilder -> buildArray() );
+        columns.push_back( columnBuilder->buildArray() );
     }
 
-    auto table = arrow::Table::Make( m_fileWriterWrapper -> getSchema(), columns );
+    auto table = arrow::Table::Make( m_fileWriterWrapper->getSchema(), columns );
 
-    m_fileWriterWrapper -> writeTable( table );
+    m_fileWriterWrapper->writeTable( table );
 }
 
-
-MultipleFileWriterWrapperContainer::MultipleFileWriterWrapperContainer( std::shared_ptr<arrow::Schema> schema, bool isWriteArrowBinary )
+MultipleFileWriterWrapperContainer::MultipleFileWriterWrapperContainer( std::shared_ptr<arrow::Schema> schema,
+                                                                        bool isWriteArrowBinary )
 {
-    auto &fields = schema -> fields();
+    auto & fields = schema->fields();
     m_fileWriterWrappers.reserve( fields.size() );
-    for( auto &&field:fields )
+    for( auto && field : fields )
     {
         std::vector<std::shared_ptr<arrow::Field>> curFields;
-        std::string                                fileExtension = isWriteArrowBinary ? ".arrow" : ".parquet";
-        std::string                                fileName      = field -> name() + fileExtension;
+        std::string fileExtension = isWriteArrowBinary ? ".arrow" : ".parquet";
+        std::string fileName      = field->name() + fileExtension;
 
-        m_fileWriterWrappers.push_back( { fileName,
-                                          createSingleFileWrapper( arrow::schema( { field } ), isWriteArrowBinary ) } );
+        m_fileWriterWrappers.push_back(
+            { fileName, createSingleFileWrapper( arrow::schema( { field } ), isWriteArrowBinary ) } );
     }
 }
 
-void MultipleFileWriterWrapperContainer::open( const std::string &fileName, const std::string &compression, bool allowOverwrite )
+void MultipleFileWriterWrapperContainer::open( const std::string & fileName, const std::string & compression,
+                                               bool allowOverwrite )
 {
-    for( auto &&record : m_fileWriterWrappers )
+    for( auto && record : m_fileWriterWrappers )
     {
-        record.m_fileWriterWrapper -> open( fileName + '/' + record.m_fileName,
-                                              compression,
-                                              allowOverwrite );
-
+        record.m_fileWriterWrapper->open( fileName + '/' + record.m_fileName, compression, allowOverwrite );
     }
-    setOpen(true);
+    setOpen( true );
 }
 
 void MultipleFileWriterWrapperContainer::close()
 {
-    for( auto &&record : m_fileWriterWrappers )
+    for( auto && record : m_fileWriterWrappers )
     {
-        record.m_fileWriterWrapper -> close();
+        record.m_fileWriterWrapper->close();
     }
-    setOpen(false);
+    setOpen( false );
 }
 
-void MultipleFileWriterWrapperContainer::writeData( const std::vector<std::shared_ptr<ArrowSingleColumnArrayBuilder>> &columnBuilders )
+void MultipleFileWriterWrapperContainer::writeData(
+    const std::vector<std::shared_ptr<ArrowSingleColumnArrayBuilder>> & columnBuilders )
 {
     std::vector<std::shared_ptr<arrow::Array>> columns;
     columns.reserve( 1 );
@@ -105,11 +108,11 @@ void MultipleFileWriterWrapperContainer::writeData( const std::vector<std::share
     for( unsigned i = 0; i < columnBuilders.size(); ++i )
     {
         columns.clear();
-        columns.push_back( columnBuilders[ i ] -> buildArray() );
-        auto &fileWriterWrapper = m_fileWriterWrappers[ i ].m_fileWriterWrapper;
-        auto table              = arrow::Table::Make( fileWriterWrapper -> getSchema(), columns );
-        fileWriterWrapper -> writeTable( table );
+        columns.push_back( columnBuilders[i]->buildArray() );
+        auto & fileWriterWrapper = m_fileWriterWrappers[i].m_fileWriterWrapper;
+        auto table               = arrow::Table::Make( fileWriterWrapper->getSchema(), columns );
+        fileWriterWrapper->writeTable( table );
     }
 }
 
-}
+} // namespace csp::adapters::parquet

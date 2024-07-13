@@ -4,9 +4,9 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
-#include <unordered_map>
 
 namespace csp
 {
@@ -16,27 +16,26 @@ class PushBatch;
 namespace csp::adapters::utils
 {
 
-using Symbol=std::variant<std::string,int64_t>;
+using Symbol = std::variant<std::string, int64_t>;
 
-template< typename V, typename ...SubscriberArgs >
+template<typename V, typename... SubscriberArgs>
 class ValueDispatcher final
 {
 public:
-    using ValueType = std::remove_reference_t<V>;
-    using SubscriberType = std::function<void( ValueType *, SubscriberArgs... )>;
+    using ValueType           = std::remove_reference_t<V>;
+    using SubscriberType      = std::function<void( ValueType *, SubscriberArgs... )>;
     using SubscriberContainer = std::vector<SubscriberType>;
 
     void addSubscriber( SubscriberType subscriber, std::optional<Symbol> symbol = {} )
     {
-        if( symbol.has_value())
+        if( symbol.has_value() )
         {
-            auto it = m_subscriberBySymbol.find( symbol.value());
-            if( it == m_subscriberBySymbol.end())
+            auto it = m_subscriberBySymbol.find( symbol.value() );
+            if( it == m_subscriberBySymbol.end() )
             {
-                it = m_subscriberBySymbol.emplace( symbol.value(), std::vector<SubscriberType>()).first;
+                it = m_subscriberBySymbol.emplace( symbol.value(), std::vector<SubscriberType>() ).first;
             }
             it->second.push_back( subscriber );
-
         }
         else
         {
@@ -44,9 +43,9 @@ public:
         }
     }
 
-    SubscriberContainer *getSubscribers()
+    SubscriberContainer * getSubscribers()
     {
-        if( m_subscribers.empty())
+        if( m_subscribers.empty() )
         {
             return nullptr;
         }
@@ -56,10 +55,10 @@ public:
         }
     }
 
-    SubscriberContainer *getSubscribersForSymbol( const Symbol &symbol )
+    SubscriberContainer * getSubscribersForSymbol( const Symbol & symbol )
     {
         auto it = m_subscriberBySymbol.find( symbol );
-        if( it != m_subscriberBySymbol.end())
+        if( it != m_subscriberBySymbol.end() )
         {
             return &it->second;
         }
@@ -69,21 +68,17 @@ public:
         }
     }
 
-    void dispatch( ValueType *v, SubscriberContainer &subscriberContainer, SubscriberArgs... extraArgs )
+    void dispatch( ValueType * v, SubscriberContainer & subscriberContainer, SubscriberArgs... extraArgs )
     {
-        for( auto &subscriber: subscriberContainer )
+        for( auto & subscriber : subscriberContainer )
         {
             subscriber( v, extraArgs... );
         }
     }
 
+    void dispatch( ValueType * v, SubscriberArgs... extraArgs ) { dispatch( v, m_subscribers, extraArgs... ); }
 
-    void dispatch( ValueType *v, SubscriberArgs... extraArgs )
-    {
-        dispatch( v, m_subscribers, extraArgs... );
-    }
-
-    void dispatch( ValueType *v, const Symbol *symbol, SubscriberArgs... extraArgs )
+    void dispatch( ValueType * v, const Symbol * symbol, SubscriberArgs... extraArgs )
     {
         dispatch( v, m_subscribers, extraArgs... );
         if( symbol )
@@ -97,12 +92,12 @@ public:
     }
 
 private:
-    SubscriberContainer                             m_subscribers;
+    SubscriberContainer m_subscribers;
     std::unordered_map<Symbol, SubscriberContainer> m_subscriberBySymbol;
 };
 
-template< typename V >
+template<typename V>
 using PushBatchValueDispatcher = ValueDispatcher<V, csp::PushBatch *>;
 
-}
+} // namespace csp::adapters::utils
 #endif

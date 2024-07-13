@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include <csp/engine/Dictionary.h>
+#include <gtest/gtest.h>
 
 using namespace csp;
 
@@ -7,13 +7,13 @@ namespace csp
 {
 DialectGenericType::DialectGenericType() {}
 DialectGenericType::~DialectGenericType() {}
-DialectGenericType::DialectGenericType( const DialectGenericType &rhs ) {}
-DialectGenericType::DialectGenericType( DialectGenericType &&rhs ) {}
-DialectGenericType &DialectGenericType::operator=( const DialectGenericType &rhs ) { return *this; }
-DialectGenericType &DialectGenericType::operator=( DialectGenericType &&rhs ) { return *this; }
-bool DialectGenericType::operator==( const DialectGenericType &rhs ) const { return true; }
+DialectGenericType::DialectGenericType( const DialectGenericType & rhs ) {}
+DialectGenericType::DialectGenericType( DialectGenericType && rhs ) {}
+DialectGenericType & DialectGenericType::operator=( const DialectGenericType & rhs ) { return *this; }
+DialectGenericType & DialectGenericType::operator=( DialectGenericType && rhs ) { return *this; }
+bool DialectGenericType::operator==( const DialectGenericType & rhs ) const { return true; }
 size_t DialectGenericType::hash() const { return 0; }
-}
+} // namespace csp
 
 TEST( Dictionary, test_basic_functionality )
 {
@@ -21,10 +21,10 @@ TEST( Dictionary, test_basic_functionality )
     ASSERT_TRUE( d1.insert( "123", 123 ) );
     ASSERT_FALSE( d1.insert( "123", 456 ) );
     ASSERT_TRUE( d1.insert( "bool", true ) );
-    ASSERT_TRUE( d1.insert( "int32", (int32_t ) 456 ) );
-    ASSERT_TRUE( d1.insert( "uint32", (uint32_t ) 789 ) );
-    ASSERT_TRUE( d1.insert( "int64", int64_t(1) << 45 ) );
-    ASSERT_TRUE( d1.insert( "uint64", ( uint64_t(1) << 63 ) + 1  ) );
+    ASSERT_TRUE( d1.insert( "int32", (int32_t)456 ) );
+    ASSERT_TRUE( d1.insert( "uint32", (uint32_t)789 ) );
+    ASSERT_TRUE( d1.insert( "int64", int64_t( 1 ) << 45 ) );
+    ASSERT_TRUE( d1.insert( "uint64", ( uint64_t( 1 ) << 63 ) + 1 ) );
     ASSERT_TRUE( d1.insert( "double", 123.456 ) );
     ASSERT_TRUE( d1.insert( "string", std::string( "HOWDY!" ) ) );
     ASSERT_TRUE( d1.insert( "string2", "HOWDY2!" ) );
@@ -35,14 +35,14 @@ TEST( Dictionary, test_basic_functionality )
     ASSERT_FALSE( d1.exists( "1234" ) );
 
     ASSERT_EQ( d1.get<int32_t>( "123" ), 123 );
-    ASSERT_EQ( d1.get<bool>(    "bool" ), true );
+    ASSERT_EQ( d1.get<bool>( "bool" ), true );
     ASSERT_EQ( d1.get<int32_t>( "int32" ), 456 );
-    ASSERT_EQ( d1.get<int64_t>( "int64" ), int64_t(1) << 45 );
+    ASSERT_EQ( d1.get<int64_t>( "int64" ), int64_t( 1 ) << 45 );
     ASSERT_EQ( d1.get<uint32_t>( "uint32" ), 789 );
-    ASSERT_EQ( d1.get<uint64_t>( "uint64" ), ( uint64_t(1) << 63 ) + 1 );
-    ASSERT_EQ( d1.get<double>(  "double" ), 123.456 );
-    ASSERT_EQ( d1.get<DateTime>(  "time" ), DateTime( 2020, 4, 22, 10, 26 ) );
-    ASSERT_EQ( d1.get<TimeDelta>(  "timedelta" ), TimeDelta::fromMilliseconds( 123 ) );
+    ASSERT_EQ( d1.get<uint64_t>( "uint64" ), ( uint64_t( 1 ) << 63 ) + 1 );
+    ASSERT_EQ( d1.get<double>( "double" ), 123.456 );
+    ASSERT_EQ( d1.get<DateTime>( "time" ), DateTime( 2020, 4, 22, 10, 26 ) );
+    ASSERT_EQ( d1.get<TimeDelta>( "timedelta" ), TimeDelta::fromMilliseconds( 123 ) );
     ASSERT_EQ( d1.get<std::string>( "string" ), "HOWDY!" );
     ASSERT_EQ( d1.get<std::string>( "string2" ), "HOWDY2!" );
 
@@ -59,11 +59,11 @@ TEST( Dictionary, test_comp_hash )
     vec.emplace_back( "a" );
     vec.emplace_back( "b" );
     vec.emplace_back( "c" );
-    
+
     d1.insert( "123", 0 );
     d1.insert( "bool", true );
-    d1.insert( "int32", (int32_t ) 456 );
-    d1.insert( "int64", int64_t(1) << 45 );
+    d1.insert( "int32", (int32_t)456 );
+    d1.insert( "int64", int64_t( 1 ) << 45 );
     d1.insert( "double", 123.456 );
     d1.insert( "string", std::string( "HOWDY!" ) );
     d1.insert( "string2", "HOWDY2!" );
@@ -72,18 +72,17 @@ TEST( Dictionary, test_comp_hash )
     d1.insert( "vector<string>", vec );
     // When we update should be the same as if inserted at first as 123
     d1.update( "123", 123 );
-    ASSERT_EQ(d1.begin().key(), "123");
+    ASSERT_EQ( d1.begin().key(), "123" );
 
-
-    //do d2 backwards to ensure ordering in comp / hash is good
+    // do d2 backwards to ensure ordering in comp / hash is good
     d2.insert( "vector<string>", vec );
     d2.insert( "timedelta", TimeDelta::fromMilliseconds( 123 ) );
     d2.insert( "time", DateTime( 2020, 4, 22, 10, 26 ) );
     d2.insert( "string2", "HOWDY2!" );
     d2.insert( "string", std::string( "HOWDY!" ) );
     d2.insert( "double", 123.456 );
-    d2.insert( "int64", int64_t(1) << 45 );
-    d2.insert( "int32", (int32_t ) 456 );
+    d2.insert( "int64", int64_t( 1 ) << 45 );
+    d2.insert( "int32", (int32_t)456 );
     d2.insert( "bool", true );
     d2.insert( "123", 123 );
 
@@ -112,11 +111,11 @@ TEST( Dictionary, test_type_coercion )
     vec.emplace_back( "b" );
     vec.emplace_back( "c" );
 
-    d1.insert( "d",   123.456 );
-    d1.insert( "i64", (int64_t) 123 );
-    d1.insert( "i32", (int32_t) 456 );
-    d1.insert( "u32", (uint32_t) 789 );
-    d1.insert( "u64", (uint64_t) 111 );
+    d1.insert( "d", 123.456 );
+    d1.insert( "i64", (int64_t)123 );
+    d1.insert( "i32", (int32_t)456 );
+    d1.insert( "u32", (uint32_t)789 );
+    d1.insert( "u64", (uint64_t)111 );
     d1.insert( "vec", vec );
 
     ASSERT_EQ( d1.get<double>( "d" ), 123.456 );
@@ -125,7 +124,7 @@ TEST( Dictionary, test_type_coercion )
     ASSERT_EQ( d1.get<double>( "u64" ), 111.0 );
     ASSERT_EQ( d1.get<double>( "u32" ), 789.0 );
 
-    ASSERT_EQ( d1.get<int32_t>(  "u32" ), 789 );
+    ASSERT_EQ( d1.get<int32_t>( "u32" ), 789 );
     ASSERT_EQ( d1.get<uint32_t>( "i32" ), 456 );
 
     ASSERT_EQ( d1.get<int64_t>( "i32" ), 456 );
@@ -142,9 +141,9 @@ TEST( Dictionary, test_type_coercion )
 TEST( Dictionary, test_iteration )
 {
     Dictionary d1;
-    d1.insert( "d",   123.456 );
-    d1.insert( "i64", (int64_t) 123 );
-    d1.insert( "i32", (int32_t) 456 );
+    d1.insert( "d", 123.456 );
+    d1.insert( "i64", (int64_t)123 );
+    d1.insert( "i32", (int32_t)456 );
     d1.insert( "string", std::string( "HOWDY!" ) );
 
     for( auto it = d1.begin(); it != d1.end(); ++it )
@@ -165,14 +164,14 @@ TEST( Dictionary, test_iteration )
 TEST( Dictionary, test_composition )
 {
     DictionaryPtr subdict = std::make_shared<Dictionary>();
-    subdict -> insert( "sub1", 123.456 );
-    subdict -> insert( "sub2", "sub2" );
+    subdict->insert( "sub1", 123.456 );
+    subdict->insert( "sub2", "sub2" );
 
     Dictionary d1;
     d1.insert( "i", 123 );
     d1.insert( "sub", subdict );
 
     ASSERT_EQ( d1.get<int32_t>( "i" ), 123 );
-    ASSERT_EQ( d1.get<DictionaryPtr>( "sub" ) -> get<double>( "sub1" ), 123.456 );
-    ASSERT_EQ( d1.get<DictionaryPtr>( "sub" ) -> get<std::string>( "sub2" ), "sub2" );
+    ASSERT_EQ( d1.get<DictionaryPtr>( "sub" )->get<double>( "sub1" ), 123.456 );
+    ASSERT_EQ( d1.get<DictionaryPtr>( "sub" )->get<std::string>( "sub2" ), "sub2" );
 }

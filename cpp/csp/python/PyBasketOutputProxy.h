@@ -18,25 +18,25 @@ public:
     PyBaseBasketOutputProxy( Node * node, INOUT_ID_TYPE id );
 
 protected:
-    Node *                        m_node;
-    INOUT_ID_TYPE                 m_id;
+    Node * m_node;
+    INOUT_ID_TYPE m_id;
 };
 
 class PyListBasketOutputProxy final : public PyBaseBasketOutputProxy
 {
 public:
-    PyListBasketOutputProxy( PyObject *pyType, Node * node, INOUT_ID_TYPE id, size_t shape );
+    PyListBasketOutputProxy( PyObject * pyType, Node * node, INOUT_ID_TYPE id, size_t shape );
 
-    static PyListBasketOutputProxy * create( PyObject *pyType, Node * node, INOUT_ID_TYPE id, size_t shape );
+    static PyListBasketOutputProxy * create( PyObject * pyType, Node * node, INOUT_ID_TYPE id, size_t shape );
 
     static PyTypeObject PyType;
 
     PyOutputProxy * proxy( int64_t elemId )
     {
-        if( elemId < 0 || size_t(elemId) >= m_proxies.size() )
+        if( elemId < 0 || size_t( elemId ) >= m_proxies.size() )
             CSP_THROW( RangeError, "basket index out of range" );
 
-        return m_proxies[ elemId ].ptr();
+        return m_proxies[elemId].ptr();
     }
 
 private:
@@ -46,9 +46,9 @@ private:
 class PyDictBasketOutputProxy : public PyBaseBasketOutputProxy
 {
 public:
-    PyDictBasketOutputProxy( PyObject *pyType, Node * node, INOUT_ID_TYPE id, PyObject * shape );
+    PyDictBasketOutputProxy( PyObject * pyType, Node * node, INOUT_ID_TYPE id, PyObject * shape );
 
-    static PyDictBasketOutputProxy * create( PyObject *pyType, Node * node, INOUT_ID_TYPE id, PyObject * shape );
+    static PyDictBasketOutputProxy * create( PyObject * pyType, Node * node, INOUT_ID_TYPE id, PyObject * shape );
 
     PyOutputProxy * proxyByKey( PyObject * key );
 
@@ -61,9 +61,9 @@ protected:
 class PyDynamicBasketOutputProxy final : public PyDictBasketOutputProxy
 {
 public:
-    PyDynamicBasketOutputProxy( PyObject *pyType, Node * node, INOUT_ID_TYPE id, PyObject * shape );
+    PyDynamicBasketOutputProxy( PyObject * pyType, Node * node, INOUT_ID_TYPE id, PyObject * shape );
 
-    static PyDynamicBasketOutputProxy * create( PyObject *pyType, Node * node, INOUT_ID_TYPE id );
+    static PyDynamicBasketOutputProxy * create( PyObject * pyType, Node * node, INOUT_ID_TYPE id );
 
     static PyTypeObject PyType;
 
@@ -75,6 +75,6 @@ private:
     std::vector<PyObjectPtr> m_keyMapping;
 };
 
-}
+} // namespace csp::python
 
 #endif

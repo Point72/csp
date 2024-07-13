@@ -1,24 +1,21 @@
+#include <arrow/io/file.h>
 #include <csp/adapters/parquet/ParquetFileReaderWrapper.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <parquet/arrow/reader.h>
-#include <arrow/io/file.h>
 
 namespace csp::adapters::parquet
 {
-ParquetFileReaderWrapper::~ParquetFileReaderWrapper()
-{
-    close();
-}
+ParquetFileReaderWrapper::~ParquetFileReaderWrapper() { close(); }
 
-void ParquetFileReaderWrapper::open( const std::string &fileName )
+void ParquetFileReaderWrapper::open( const std::string & fileName )
 {
     FileReaderWrapper::open( fileName );
 
     try
     {
         STATUS_OK_OR_THROW_RUNTIME(
-                ::parquet::arrow::OpenFile( m_inputFile, arrow::default_memory_pool(), &m_fileReader ),
-                "Failed to open parquet file " << fileName );
+            ::parquet::arrow::OpenFile( m_inputFile, arrow::default_memory_pool(), &m_fileReader ),
+            "Failed to open parquet file " << fileName );
     }
     catch( ... )
     {
@@ -34,11 +31,12 @@ void ParquetFileReaderWrapper::close()
     FileReaderWrapper::close();
 }
 
-bool ParquetFileReaderWrapper::readNextRowGroup( const std::vector<int> neededColumns, std::shared_ptr<::arrow::Table> &dst )
+bool ParquetFileReaderWrapper::readNextRowGroup( const std::vector<int> neededColumns,
+                                                 std::shared_ptr<::arrow::Table> & dst )
 {
-    if( m_fileReader -> num_row_groups() > m_nextRowGroup )
+    if( m_fileReader->num_row_groups() > m_nextRowGroup )
     {
-        STATUS_OK_OR_THROW_RUNTIME( m_fileReader -> ReadRowGroup( m_nextRowGroup, neededColumns, &dst ),
+        STATUS_OK_OR_THROW_RUNTIME( m_fileReader->ReadRowGroup( m_nextRowGroup, neededColumns, &dst ),
                                     "Failed to read row group " << m_nextRowGroup << " from file " << m_fileName );
         ++m_nextRowGroup;
         return true;
@@ -47,14 +45,12 @@ bool ParquetFileReaderWrapper::readNextRowGroup( const std::vector<int> neededCo
     {
         dst = nullptr;
         return false;
-
     }
 }
 
-void ParquetFileReaderWrapper::getSchema( std::shared_ptr<::arrow::Schema> &dst )
+void ParquetFileReaderWrapper::getSchema( std::shared_ptr<::arrow::Schema> & dst )
 {
-    STATUS_OK_OR_THROW_RUNTIME( m_fileReader -> GetSchema( &dst ),
-                                "Failed to get schema from file " << m_fileName );
+    STATUS_OK_OR_THROW_RUNTIME( m_fileReader->GetSchema( &dst ), "Failed to get schema from file " << m_fileName );
 }
 
-}
+} // namespace csp::adapters::parquet

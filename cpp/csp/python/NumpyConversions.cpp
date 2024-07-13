@@ -1,33 +1,33 @@
+// clang-format off
 //this is included first so that we do include without NO_IMPORT_ARRAY defined, which is done in NumpyConversions.h
 #include <numpy/ndarrayobject.h>
-
+// clang-format on
 
 #include <csp/core/Time.h>
 #include <csp/python/NumpyConversions.h>
 
-#include <locale>
 #include <codecvt>
+#include <locale>
 
 namespace csp::python
 {
 
 static bool numpy_initialized = false;
 
-PyObject * valuesAtIndexToNumpy( ValueType valueType, const csp::TimeSeriesProvider * ts, int32_t startIndex, int32_t endIndex,
-                                 autogen::TimeIndexPolicy startPolicy, autogen::TimeIndexPolicy endPolicy,
-                                 DateTime startDt, DateTime endDt )
+PyObject * valuesAtIndexToNumpy( ValueType valueType, const csp::TimeSeriesProvider * ts, int32_t startIndex,
+                                 int32_t endIndex, autogen::TimeIndexPolicy startPolicy,
+                                 autogen::TimeIndexPolicy endPolicy, DateTime startDt, DateTime endDt )
 {
     if( !numpy_initialized )
     {
-        import_array()
-        numpy_initialized = true;
+        import_array() numpy_initialized = true;
     }
 
-    return switchCspType( ts -> type(),
-                          [ valueType, ts, startIndex, endIndex, startPolicy, endPolicy, startDt, endDt ]( auto tag )
+    return switchCspType( ts->type(),
+                          [valueType, ts, startIndex, endIndex, startPolicy, endPolicy, startDt, endDt]( auto tag )
                           {
-                              return createNumpyArray<typename decltype(tag)::type>( valueType, ts, startIndex, endIndex, startPolicy,
-                                                                                     endPolicy, startDt, endDt );
+                              return createNumpyArray<typename decltype( tag )::type>(
+                                  valueType, ts, startIndex, endIndex, startPolicy, endPolicy, startDt, endDt );
                           } );
 }
 
@@ -38,43 +38,44 @@ int64_t scalingFromNumpyDtUnit( NPY_DATETIMEUNIT base )
         case NPY_FR_ns:
             return 1;
         case NPY_FR_us:
-            return csp::TimeDelta::fromMicroseconds(1).asNanoseconds();
+            return csp::TimeDelta::fromMicroseconds( 1 ).asNanoseconds();
         case NPY_FR_ms:
-            return csp::TimeDelta::fromMilliseconds(1).asNanoseconds();
+            return csp::TimeDelta::fromMilliseconds( 1 ).asNanoseconds();
         case NPY_FR_s:
-            return csp::TimeDelta::fromSeconds(1).asNanoseconds();
+            return csp::TimeDelta::fromSeconds( 1 ).asNanoseconds();
         case NPY_FR_m:
-            return csp::TimeDelta::fromMinutes(1).asNanoseconds();
+            return csp::TimeDelta::fromMinutes( 1 ).asNanoseconds();
         case NPY_FR_h:
-            return csp::TimeDelta::fromHours(1).asNanoseconds();
+            return csp::TimeDelta::fromHours( 1 ).asNanoseconds();
         case NPY_FR_D:
-            return csp::TimeDelta::fromDays(1).asNanoseconds();
+            return csp::TimeDelta::fromDays( 1 ).asNanoseconds();
         case NPY_FR_W:
-            return csp::TimeDelta::fromDays(7).asNanoseconds();
+            return csp::TimeDelta::fromDays( 7 ).asNanoseconds();
         default:
-            CSP_THROW(csp::NotImplemented, "datetime resolution not supported or invalid - saw NPY_DATETIMEUNIT value " << base );
-            return 0;  // never reached, but keeps compiler happy
+            CSP_THROW( csp::NotImplemented,
+                       "datetime resolution not supported or invalid - saw NPY_DATETIMEUNIT value " << base );
+            return 0; // never reached, but keeps compiler happy
     }
 }
 
-NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr )
+NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr * descr )
 {
-    PyArray_DatetimeDTypeMetaData* dtypeMeta = (PyArray_DatetimeDTypeMetaData*)(descr -> c_metadata);
-    PyArray_DatetimeMetaData* dtMeta = &(dtypeMeta -> meta);
-    return dtMeta -> base;
+    PyArray_DatetimeDTypeMetaData * dtypeMeta = (PyArray_DatetimeDTypeMetaData *)( descr->c_metadata );
+    PyArray_DatetimeMetaData * dtMeta         = &( dtypeMeta->meta );
+    return dtMeta->base;
 }
 
 static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> wstr_converter;
 
-void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem_size_bytes )
+void stringFromNumpyStr( void * data, std::string & out, char numpy_type, int elem_size_bytes )
 {
-    // strings from numpy arrays are fixed width and zero filled.  
+    // strings from numpy arrays are fixed width and zero filled.
     // if the last char is 0, can treat as null terminated, else use full width
 
-    if( numpy_type == NPY_UNICODELTR)
+    if( numpy_type == NPY_UNICODELTR )
     {
-        const char32_t* const raw_value = (const char32_t *) data;
-        const int field_size = elem_size_bytes / sizeof( char32_t );
+        const char32_t * const raw_value = (const char32_t *)data;
+        const int field_size             = elem_size_bytes / sizeof( char32_t );
 
         if( raw_value[field_size - 1] == 0 )
         {
@@ -89,7 +90,7 @@ void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem
     }
     else if( numpy_type == NPY_STRINGLTR || numpy_type == NPY_STRINGLTR2 )
     {
-        const char * const raw_value = (const char *) data;
+        const char * const raw_value = (const char *)data;
 
         if( raw_value[elem_size_bytes - 1] == 0 )
             out = std::string( raw_value );
@@ -98,14 +99,14 @@ void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem
     }
     else if( numpy_type == NPY_CHARLTR )
     {
-        const char * const raw_value = (const char *) data;
-        out = std::string( raw_value, 1 );
+        const char * const raw_value = (const char *)data;
+        out                          = std::string( raw_value, 1 );
     }
 }
 
 void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char )
 {
-    csp::CspType::Type cspType = type -> type();
+    csp::CspType::Type cspType = type->type();
 
     switch( numpy_type_char )
     {
@@ -126,7 +127,9 @@ void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char )
         case NPY_ULONGLTR:
         case NPY_LONGLONGLTR:
         case NPY_ULONGLONGLTR:
-            CSP_THROW( ValueError, "numpy type " << numpy_type_char << " (int type that can't cleanly convert to long) not supported" );
+            CSP_THROW( ValueError,
+                       "numpy type " << numpy_type_char
+                                     << " (int type that can't cleanly convert to long) not supported" );
         case NPY_HALFLTR:
             CSP_THROW( ValueError, "numpy type " << numpy_type_char << " (numpy half float) not supported" );
         case NPY_FLOATLTR:
@@ -165,5 +168,4 @@ void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char )
     }
 }
 
-
-}
+} // namespace csp::python

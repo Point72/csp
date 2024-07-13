@@ -8,7 +8,8 @@
 namespace csp
 {
 
-// Note that this is intentionally exported with CSPTYPESIMPL_EXPORT because the actual impl is compiled into the dialect specific impl library
+// Note that this is intentionally exported with CSPTYPESIMPL_EXPORT because the actual impl is compiled into the
+// dialect specific impl library
 struct CSPTYPESIMPL_EXPORT DialectGenericType
 {
 public:
@@ -23,17 +24,17 @@ public:
     DialectGenericType deepcopy() const;
 
     bool operator==( const DialectGenericType & rhs ) const;
-    bool operator!=( const DialectGenericType & rhs ) const { return !( (*this)==rhs); }
+    bool operator!=( const DialectGenericType & rhs ) const { return !( ( *this ) == rhs ); }
 
     size_t hash() const;
 
 private:
-    [[maybe_unused]] void* m_data;
+    [[maybe_unused]] void * m_data;
 };
 
 CSPTYPESIMPL_EXPORT std::ostream & operator<<( std::ostream & o, const DialectGenericType & obj );
 
-}
+} // namespace csp
 
 namespace std
 {
@@ -41,12 +42,9 @@ namespace std
 template<>
 struct hash<csp::DialectGenericType>
 {
-    size_t operator()( const csp::DialectGenericType & obj ) const
-    {
-        return obj.hash();
-    }
+    size_t operator()( const csp::DialectGenericType & obj ) const { return obj.hash(); }
 };
 
-}
+} // namespace std
 
 #endif

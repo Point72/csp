@@ -6,23 +6,23 @@ namespace csp::python
 {
 
 // Helper function to convert csp Structs into json objects recursively
-rapidjson::Value toJsonRecursive( const StructPtr& self, rapidjson::Document& doc, PyObject * callable );
+rapidjson::Value toJsonRecursive( const StructPtr & self, rapidjson::Document & doc, PyObject * callable );
 
 // Helper function to parse some python objects in cpp, this should not be used extensively.
 // instead add support for those python types to csp so that they can be handled more generically
 // and in a language agnostic way
-rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyObject * callable, bool is_recursing );
+rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document & doc, PyObject * callable, bool is_recursing );
 
 // Helper fallback function to convert any type into json format recursively
 template<typename T>
-inline rapidjson::Value toJson( const T& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const T & val, const CspType & typ, rapidjson::Document & doc, PyObject * callable )
 {
     // Default handler for any unknown T
     return rapidjson::Value( val );
 }
 
 // Helper function for parsing doubles
-inline rapidjson::Value doubleToJson( const double& val, rapidjson::Document& doc )
+inline rapidjson::Value doubleToJson( const double & val, rapidjson::Document & doc )
 {
     // NOTE: Rapidjson adds support for this in a future release. Remove this when we upgrade rapidjson to a version
     // after 07/16/2023 and use kWriteNanAndInfNullFlag in the writer.
@@ -30,7 +30,7 @@ inline rapidjson::Value doubleToJson( const double& val, rapidjson::Document& do
     // To be compatible with other JSON libraries, we cannot use the default approach that rapidjson has to
     // serializing NaN, and (+/-)Infs. We need to manually convert them to NULLs. Rapidjson adds support for this
     // in a future release.
-    if ( std::isnan( val ) || std::isinf( val ) )
+    if( std::isnan( val ) || std::isinf( val ) )
     {
         return rapidjson::Value();
     }
@@ -42,14 +42,16 @@ inline rapidjson::Value doubleToJson( const double& val, rapidjson::Document& do
 
 // Helper function to convert doubles into json format recursively, by properly handlings NaNs, and Infs
 template<>
-inline rapidjson::Value toJson( const double& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const double & val, const CspType & typ, rapidjson::Document & doc,
+                                PyObject * callable )
 {
     return doubleToJson( val, doc );
 }
 
 // Helper function to convert Enums into json format recursively
 template<>
-inline rapidjson::Value toJson( const CspEnum& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const CspEnum & val, const CspType & typ, rapidjson::Document & doc,
+                                PyObject * callable )
 {
     // NOTE: Assume that passed enum has greater lifetime than the json object
     return rapidjson::Value( rapidjson::StringRef( val.name() ) );
@@ -57,7 +59,8 @@ inline rapidjson::Value toJson( const CspEnum& val, const CspType& typ, rapidjso
 
 // Helper function to convert strings into json format recursively
 template<>
-inline rapidjson::Value toJson( const std::string& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const std::string & val, const CspType & typ, rapidjson::Document & doc,
+                                PyObject * callable )
 {
     // NOTE: Assume that passed string has greater lifetime than the json object
     return rapidjson::Value( rapidjson::StringRef( val ) );
@@ -65,16 +68,18 @@ inline rapidjson::Value toJson( const std::string& val, const CspType& typ, rapi
 
 // Helper function to convert TimeDelta into json format recursively
 template<>
-inline rapidjson::Value toJson( const TimeDelta& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const TimeDelta & val, const CspType & typ, rapidjson::Document & doc,
+                                PyObject * callable )
 {
-    if( val.isNone() ) return rapidjson::Value();
+    if( val.isNone() )
+        return rapidjson::Value();
 
     // Convert TimeDelta to <sign><seconds>.<microseconds>
     // sign( 1 ) + seconds ( 18 ) + '.'( 1 ) + microseconds( 9 ) + '\0'( 1 )
-    char buf[32] = {};
-    long seconds = val.abs().asSeconds();
+    char buf[32]      = {};
+    long seconds      = val.abs().asSeconds();
     auto microseconds = static_cast<unsigned>( val.abs().nanoseconds() / NANOS_PER_MICROSECOND );
-    auto len = sprintf( buf, "%c%ld.%06u", ( val.sign() >= 0 ) ? '+' : '-', seconds, microseconds );
+    auto len          = sprintf( buf, "%c%ld.%06u", ( val.sign() >= 0 ) ? '+' : '-', seconds, microseconds );
     rapidjson::Value res;
     res.SetString( buf, len, doc.GetAllocator() );
     return res;
@@ -82,14 +87,15 @@ inline rapidjson::Value toJson( const TimeDelta& val, const CspType& typ, rapidj
 
 // Helper function to convert Date into json format recursively
 template<>
-inline rapidjson::Value toJson( const Date& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const Date & val, const CspType & typ, rapidjson::Document & doc, PyObject * callable )
 {
-    if( val.isNone() ) return rapidjson::Value();
+    if( val.isNone() )
+        return rapidjson::Value();
 
     // Convert Date to <year>-<month>-<day>
     // year( 4 ) + '-'( 1 ) + month( 2 ) + '-'( 1 ) + day( 2 ) + '\0'( 1 )
     char buf[32] = {};
-    auto len = sprintf( buf, "%04u-%02u-%02u", val.year(), val.month(), val.day() );
+    auto len     = sprintf( buf, "%04u-%02u-%02u", val.year(), val.month(), val.day() );
     rapidjson::Value res;
     res.SetString( buf, len, doc.GetAllocator() );
     return res;
@@ -97,15 +103,16 @@ inline rapidjson::Value toJson( const Date& val, const CspType& typ, rapidjson::
 
 // Helper function to convert Time into json format recursively
 template<>
-inline rapidjson::Value toJson( const Time& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const Time & val, const CspType & typ, rapidjson::Document & doc, PyObject * callable )
 {
-    if( val.isNone() ) return rapidjson::Value();
+    if( val.isNone() )
+        return rapidjson::Value();
 
     // Convert the Time to <hours>:<minutes>:<seconds>.<microseconds>
     // hours( 2 ) + ':'( 1 ) + minutes( 2 ) + ':'( 1 ) + seconds( 2 ) + '.'( 1 ) + micros( 6 ) + '\0'( 1 )
     char buf[48] = {};
-    auto micros = static_cast<unsigned>( val.nanosecond() / NANOS_PER_MICROSECOND );
-    auto len = sprintf( buf, "%02u:%02u:%02u.%06u", val.hour(), val.minute(), val.second(), micros );
+    auto micros  = static_cast<unsigned>( val.nanosecond() / NANOS_PER_MICROSECOND );
+    auto len     = sprintf( buf, "%02u:%02u:%02u.%06u", val.hour(), val.minute(), val.second(), micros );
     rapidjson::Value res;
     res.SetString( buf, len, doc.GetAllocator() );
     return res;
@@ -113,22 +120,23 @@ inline rapidjson::Value toJson( const Time& val, const CspType& typ, rapidjson::
 
 // Helper function to convert DateTime into json format recursively
 template<>
-inline rapidjson::Value toJson( const DateTime& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const DateTime & val, const CspType & typ, rapidjson::Document & doc,
+                                PyObject * callable )
 {
-    if( val.isNone() ) return rapidjson::Value();
+    if( val.isNone() )
+        return rapidjson::Value();
 
     // Convert the datetime value into an ISO 8601 formatted string
     DateTimeEx dtx( val );
 
-    char iso_str[80] = {};
+    char iso_str[80]                    = {};
     static const std::string utc_offset = "+00:00";
-    auto micros = static_cast<unsigned>( dtx.nanoseconds() / NANOS_PER_MICROSECOND );
+    auto micros                         = static_cast<unsigned>( dtx.nanoseconds() / NANOS_PER_MICROSECOND );
     // Hardcode UTC since all times in csp are UTC
     // NOTE: Python's datetime.fromisoformat() API does not support nanoseconds in the string
     // Hence we truncate from nanos to micros to allow easy conversion to python datetime objects
-    auto len = sprintf( iso_str, "%04u-%02u-%02uT%02u:%02u:%02u.%06u%s",
-            dtx.year(), dtx.month(), dtx.day(),
-            dtx.hour(), dtx.minute(), dtx.second(), micros, utc_offset.c_str() );
+    auto len = sprintf( iso_str, "%04u-%02u-%02uT%02u:%02u:%02u.%06u%s", dtx.year(), dtx.month(), dtx.day(), dtx.hour(),
+                        dtx.minute(), dtx.second(), micros, utc_offset.c_str() );
     rapidjson::Value res;
     res.SetString( iso_str, len, doc.GetAllocator() );
     return res;
@@ -136,14 +144,16 @@ inline rapidjson::Value toJson( const DateTime& val, const CspType& typ, rapidjs
 
 // Helper function to convert csp Structs into json format recursively
 template<>
-inline rapidjson::Value toJson( const StructPtr& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const StructPtr & val, const CspType & typ, rapidjson::Document & doc,
+                                PyObject * callable )
 {
     return toJsonRecursive( val, doc, callable );
 }
 
 // Helper function to convert python objects in csp Structs into json format recursively
 template<>
-inline rapidjson::Value toJson( const DialectGenericType& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const DialectGenericType & val, const CspType & typ, rapidjson::Document & doc,
+                                PyObject * callable )
 {
     auto py_obj = PyObjectPtr::own( toPython<DialectGenericType>( val ) );
     return pyObjectToJson( py_obj.get(), doc, callable, false );
@@ -151,12 +161,13 @@ inline rapidjson::Value toJson( const DialectGenericType& val, const CspType& ty
 
 // Helper function to convert arrays in csp Structs into json lists recursively
 template<typename StorageT>
-inline rapidjson::Value toJson( const std::vector<StorageT>& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
+inline rapidjson::Value toJson( const std::vector<StorageT> & val, const CspType & typ, rapidjson::Document & doc,
+                                PyObject * callable )
 {
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
 
-    auto const * arrayType = static_cast<const CspArrayType*>( &typ );
-    const CspType * elemType = arrayType -> elemType().get();
+    auto const * arrayType   = static_cast<const CspArrayType *>( &typ );
+    const CspType * elemType = arrayType->elemType().get();
     rapidjson::Value new_list;
     new_list.SetArray();
 
@@ -168,37 +179,40 @@ inline rapidjson::Value toJson( const std::vector<StorageT>& val, const CspType&
     return new_list;
 }
 
-rapidjson::Value toJsonRecursive( const StructPtr& self, rapidjson::Document& doc, PyObject * callable )
+rapidjson::Value toJsonRecursive( const StructPtr & self, rapidjson::Document & doc, PyObject * callable )
 {
     auto * struct_ptr = self.get();
     if( struct_ptr == nullptr )
     {
         CSP_THROW( ValueError, "Cannot call to_json on NULL struct object" );
     }
-    auto * meta = static_cast<const DialectStructMeta *>( self -> meta() );
+    auto * meta = static_cast<const DialectStructMeta *>( self->meta() );
     rapidjson::Value new_dict;
     new_dict.SetObject();
 
-    auto& fields = meta -> fields();
-    for( const auto& field: fields )
+    auto & fields = meta->fields();
+    for( const auto & field : fields )
     {
-        if( !field -> isSet( struct_ptr ) )
+        if( !field->isSet( struct_ptr ) )
         {
             continue;
         }
-        auto& key = field -> fieldname();
-        auto sub_json = switchCspType( field -> type(), [field, struct_ptr, callable, &doc]( auto tag )
-            {
-            using CType = typename decltype( tag )::type;
-            auto *typedField = static_cast<const typename StructField::upcast<CType>::type *>( field.get() );
-            return toJson( typedField -> value( struct_ptr ), *field -> type(), doc, callable );
-            } );
+        auto & key = field->fieldname();
+        auto sub_json
+            = switchCspType( field->type(),
+                             [field, struct_ptr, callable, &doc]( auto tag )
+                             {
+                                 using CType = typename decltype( tag )::type;
+                                 auto * typedField
+                                     = static_cast<const typename StructField::upcast<CType>::type *>( field.get() );
+                                 return toJson( typedField->value( struct_ptr ), *field->type(), doc, callable );
+                             } );
         new_dict.AddMember( rapidjson::StringRef( key ), sub_json, doc.GetAllocator() );
     }
     return new_dict;
 }
 
-rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc )
+rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document & doc )
 {
     // Only support strings, ints, and floats as keys
     // JSON encoding requires all names to be strings so convert them to strings
@@ -216,12 +230,12 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc )
     }
     else if( PyFloat_Check( py_key ) )
     {
-        auto key = PyFloat_AsDouble( py_key );
+        auto key      = PyFloat_AsDouble( py_key );
         auto json_obj = doubleToJson( key, doc );
-        if ( json_obj.IsNull() )
+        if( json_obj.IsNull() )
         {
-            auto * str_obj = PyObject_Str( py_key );
-            Py_ssize_t len = 0;
+            auto * str_obj   = PyObject_Str( py_key );
+            Py_ssize_t len   = 0;
             const char * str = PyUnicode_AsUTF8AndSize( str_obj, &len );
             CSP_THROW( ValueError, "Cannot serialize " + std::string( str ) + " to key in JSON" );
         }
@@ -235,14 +249,14 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc )
     }
     else
     {
-        CSP_THROW( ValueError, "Cannot serialize key of type: " + std::string( Py_TYPE( py_key ) -> tp_name ) );
+        CSP_THROW( ValueError, "Cannot serialize key of type: " + std::string( Py_TYPE( py_key )->tp_name ) );
         // Never reaches here
     }
     return val;
 }
 
 // Helper function to parse python lists into json arrays recursively
-rapidjson::Value pyListToJson( PyObject * py_list, rapidjson::Document& doc, PyObject * callable )
+rapidjson::Value pyListToJson( PyObject * py_list, rapidjson::Document & doc, PyObject * callable )
 {
     size_t size = PyList_GET_SIZE( py_list );
     rapidjson::Value new_list;
@@ -251,14 +265,14 @@ rapidjson::Value pyListToJson( PyObject * py_list, rapidjson::Document& doc, PyO
     for( size_t idx = 0; idx < size; ++idx )
     {
         auto * item = PyList_GET_ITEM( py_list, idx );
-        auto res = pyObjectToJson( item, doc, callable, false );
+        auto res    = pyObjectToJson( item, doc, callable, false );
         new_list.PushBack( res, doc.GetAllocator() );
     }
     return new_list;
 }
 
 // Helper function to parse python tuples into json arrays recursively
-rapidjson::Value pyTupleToJson( PyObject * py_tuple, rapidjson::Document& doc, PyObject * callable )
+rapidjson::Value pyTupleToJson( PyObject * py_tuple, rapidjson::Document & doc, PyObject * callable )
 {
     size_t size = PyTuple_GET_SIZE( py_tuple );
     rapidjson::Value new_list;
@@ -267,18 +281,18 @@ rapidjson::Value pyTupleToJson( PyObject * py_tuple, rapidjson::Document& doc, P
     for( size_t idx = 0; idx < size; ++idx )
     {
         auto * item = PyTuple_GetItem( py_tuple, idx );
-        auto res = pyObjectToJson( item, doc, callable, false );
+        auto res    = pyObjectToJson( item, doc, callable, false );
         new_list.PushBack( res, doc.GetAllocator() );
     }
     return new_list;
 }
 
 // Helper function to parse python dicts into json objects recursively
-rapidjson::Value pyDictToJson( PyObject * py_dict, rapidjson::Document& doc, PyObject * callable )
+rapidjson::Value pyDictToJson( PyObject * py_dict, rapidjson::Document & doc, PyObject * callable )
 {
-    PyObject * py_key = NULL;
+    PyObject * py_key   = NULL;
     PyObject * py_value = NULL;
-    Py_ssize_t pos = 0;
+    Py_ssize_t pos      = 0;
     rapidjson::Value new_dict;
     new_dict.SetObject();
 
@@ -291,7 +305,7 @@ rapidjson::Value pyDictToJson( PyObject * py_dict, rapidjson::Document& doc, PyO
     return new_dict;
 }
 
-rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyObject * callable, bool is_recursing )
+rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document & doc, PyObject * callable, bool is_recursing )
 {
     INIT_PYDATETIME;
     if( value == Py_None )
@@ -321,7 +335,7 @@ rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyO
     else if( PyBytes_Check( value ) )
     {
         Py_ssize_t len = PyBytes_Size( value );
-        auto str = PyBytes_AsString( value );
+        auto str       = PyBytes_AsString( value );
         rapidjson::Value str_val;
         str_val.SetString( str, len, doc.GetAllocator() );
         return str_val;
@@ -363,12 +377,12 @@ rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyO
     }
     else if( PyType_IsSubtype( Py_TYPE( value ), &PyStruct::PyType ) )
     {
-        auto struct_ptr = static_cast<PyStruct *>( value ) -> struct_;
+        auto struct_ptr = static_cast<PyStruct *>( value )->struct_;
         return toJsonRecursive( struct_ptr, doc, callable );
     }
     else if( PyType_IsSubtype( Py_TYPE( value ), &PyCspEnum::PyType ) )
     {
-        auto enum_ptr = static_cast<PyCspEnum *>( value ) -> enum_;
+        auto enum_ptr = static_cast<PyCspEnum *>( value )->enum_;
         return toJson( enum_ptr, CspType( CspType::Type::ENUM ), doc, callable );
     }
     else
@@ -377,7 +391,7 @@ rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyO
         {
             // Looks like we are recursively calling pyObjectToJson for a generic unsupported type
             // just return the object since we don't know how to jsonify it
-            CSP_THROW( ValueError, "Cannot serialize value of type: " + std::string( Py_TYPE( value ) -> tp_name ) );
+            CSP_THROW( ValueError, "Cannot serialize value of type: " + std::string( Py_TYPE( value )->tp_name ) );
             // Never reaches here
         }
         else
@@ -407,32 +421,22 @@ class StringHolder
 {
 public:
     typedef char Ch;
-    StringHolder( std::string& s ) : s_( s )
+    StringHolder( std::string & s )
+        : s_( s )
     {
         s_.reserve( DEFAULT_BUFFER_SIZE );
     }
-    void Put( char c )
-    {
-        s_.push_back( c );
-    }
-    void Clear()
-    {
-        s_.clear();
-    }
-    void Flush()
-    {
-        return;
-    }
-    size_t Size() const
-    {
-        return s_.length();
-    }
+    void Put( char c ) { s_.push_back( c ); }
+    void Clear() { s_.clear(); }
+    void Flush() { return; }
+    size_t Size() const { return s_.length(); }
     const size_t DEFAULT_BUFFER_SIZE = 4096;
+
 private:
-    std::string& s_;
+    std::string & s_;
 };
 
-std::string structToJson( const StructPtr& struct_ptr, PyObject * callable )
+std::string structToJson( const StructPtr & struct_ptr, PyObject * callable )
 {
     // Need this just for the Allocator
     rapidjson::Document placeholder_doc;
@@ -445,4 +449,4 @@ std::string structToJson( const StructPtr& struct_ptr, PyObject * callable )
     return output;
 }
 
-}
+} // namespace csp::python

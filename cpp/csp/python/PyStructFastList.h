@@ -17,15 +17,19 @@ struct PyStructFastList : public PyObject
 {
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
 
-    PyStructFastList( PyStruct * p, std::vector<StorageT> & v, const CspType & type ) : pystruct( p ), vector( VectorWrapper<StorageT>( v ) ), arrayType( type )
+    PyStructFastList( PyStruct * p, std::vector<StorageT> & v, const CspType & type )
+        : pystruct( p )
+        , vector( VectorWrapper<StorageT>( v ) )
+        , arrayType( type )
     {
         Py_INCREF( pystruct );
     }
 
-    PyStruct * pystruct;              // Pointer to PyStruct for proper reference counting
-    VectorWrapper<StorageT> vector;   // Field value for modifying
+    PyStruct * pystruct;            // Pointer to PyStruct for proper reference counting
+    VectorWrapper<StorageT> vector; // Field value for modifying
 
-    const CspType & arrayType;        // We require the type information of any non-primitive type, i.e. Struct or Enum, since they contain a meta
+    const CspType & arrayType; // We require the type information of any non-primitive type, i.e. Struct or Enum, since
+                               // they contain a meta
     static PyTypeObject PyType;
     static bool s_typeRegister;
 
@@ -35,9 +39,10 @@ struct PyStructFastList : public PyObject
     inline StorageT fromPythonValue( PyObject * value ) const;
 };
 
-template<typename StorageT> bool PyStructFastList<StorageT>::s_typeRegister = InitHelper::instance().registerCallback( 
+template<typename StorageT>
+bool PyStructFastList<StorageT>::s_typeRegister = InitHelper::instance().registerCallback(
     InitHelper::typeInitCallback( &PyStructFastList<StorageT>::PyType, "" ) );
 
-}
+} // namespace csp::python
 
 #endif

@@ -18,21 +18,18 @@ public:
 
     PushInputAdapter * getInputAdapter( CspTypePtr & type, PushMode pushMode, const Dictionary & properties );
 
-    void onMessage( RdKafka::Message* message, bool live );
+    void onMessage( RdKafka::Message * message, bool live );
     void flagReplayComplete();
 
 private:
     using Adapters = std::vector<KafkaInputAdapter *>;
-    Adapters              m_adapters;
+    Adapters m_adapters;
 
     KafkaAdapterManager & m_adapterMgr;
-    Engine *              m_engine;
-    PushGroup             m_pushGroup;
+    Engine * m_engine;
+    PushGroup m_pushGroup;
 };
 
-
-
-
-}
+} // namespace csp::adapters::kafka
 
 #endif

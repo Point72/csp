@@ -6,7 +6,7 @@ if(CSP_BUILD_KAFKA_ADAPTER)
 endif()
 
 if(CSP_BUILD_PARQUET_ADAPTER)
-    set(VENDORED_PYARROW_ROOT "${CMAKE_SOURCE_DIR}/cpp/csp/python/adapters/vendored/pyarrow-16.0.0/")
+    set(VENDORED_PYARROW_ROOT "${CMAKE_SOURCE_DIR}/cpp/vendored/pyarrow-16.0.0/")
     set(ARROW_PYTHON_SRCS
         ${VENDORED_PYARROW_ROOT}/arrow/python/arrow_to_pandas.cc
         ${VENDORED_PYARROW_ROOT}/arrow/python/benchmark.cc

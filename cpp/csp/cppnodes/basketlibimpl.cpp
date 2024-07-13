@@ -12,18 +12,15 @@ DECLARE_CPPNODE( _sync_list )
 
     ALARM( bool, a_end );
 
-    STATE_VAR( size_t, s_count{0} );
+    STATE_VAR( size_t, s_count{ 0 } );
     STATE_VAR( Scheduler::Handle, s_alarm_handle );
     STATE_VAR( std::vector<bool>, s_current_ticked{} );
 
     TS_LISTBASKET_OUTPUT( Generic );
 
-    INIT_CPPNODE( _sync_list ) { }
+    INIT_CPPNODE( _sync_list ) {}
 
-    START()
-    {
-        s_current_ticked.resize( x.size(), false );
-    }
+    START() { s_current_ticked.resize( x.size(), false ); }
 
     INVOKE()
     {
@@ -36,11 +33,11 @@ DECLARE_CPPNODE( _sync_list )
 
             for( auto it = x.tickedinputs(); it; ++it )
             {
-                if( s_current_ticked[ it.elemId() ] == false )
+                if( s_current_ticked[it.elemId()] == false )
                 {
                     s_count++;
                 }
-                s_current_ticked[ it.elemId() ] = true;
+                s_current_ticked[it.elemId()] = true;
             }
         }
 
@@ -52,9 +49,9 @@ DECLARE_CPPNODE( _sync_list )
             {
                 for( size_t elemId = 0; elemId < x.size(); elemId++ )
                 {
-                    if( s_current_ticked[ elemId ] )
+                    if( s_current_ticked[elemId] )
                     {
-                        unnamed_output()[ elemId ].output( x[ elemId ] );
+                        unnamed_output()[elemId].output( x[elemId] );
                     }
                 }
             }
@@ -85,21 +82,18 @@ DECLARE_CPPNODE( _sample_list )
 
     TS_LISTBASKET_OUTPUT( Generic );
 
-    INIT_CPPNODE( _sample_list ) { }
+    INIT_CPPNODE( _sample_list ) {}
 
-    START()
-    {
-        x.makePassive();
-    }
+    START() { x.makePassive(); }
 
     INVOKE()
     {
-        if( csp.ticked(trigger) )
+        if( csp.ticked( trigger ) )
         {
-            for( auto it = x.validinputs(); it; ++it)
+            for( auto it = x.validinputs(); it; ++it )
             {
                 auto idx = it.elemId();
-                unnamed_output()[ idx ].output( x[idx] );
+                unnamed_output()[idx].output( x[idx] );
             }
         }
     }
@@ -107,4 +101,4 @@ DECLARE_CPPNODE( _sample_list )
 
 EXPORT_CPPNODE( _sample_list );
 
-}
+} // namespace csp::cppnodes

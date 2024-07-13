@@ -34,12 +34,12 @@ public:
     void shutdown();
 
 private:
-    //these are outputs returned from the sub-graph, as opposed to csp.add_graph_output calls
-    using GraphOutputs = std::unordered_map<std::string,GraphOutput *>;
+    // these are outputs returned from the sub-graph, as opposed to csp.add_graph_output calls
+    using GraphOutputs = std::unordered_map<std::string, GraphOutput *>;
     GraphOutputs m_graphOutputs;
-    ShutdownFn   m_shutdownFn;
+    ShutdownFn m_shutdownFn;
 };
 
-}
+} // namespace csp
 
 #endif

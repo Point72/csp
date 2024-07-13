@@ -20,24 +20,23 @@ class ParquetFileWriterWrapper : public FileWriterWrapper
 {
 public:
     ParquetFileWriterWrapper( std::shared_ptr<::arrow::Schema> schema )
-            : FileWriterWrapper( schema )
+        : FileWriterWrapper( schema )
     {
     }
 
     ~ParquetFileWriterWrapper() { close(); }
 
     void close() override;
-    void writeTable( const std::shared_ptr<::arrow::Table> &table ) override;
+    void writeTable( const std::shared_ptr<::arrow::Table> & table ) override;
 
 protected:
-    void openImpl( const std::string &fileName, const std::string &compression ) override;
+    void openImpl( const std::string & fileName, const std::string & compression ) override;
 
 private:
     std::shared_ptr<::arrow::io::FileOutputStream> m_outputStream;
-    std::unique_ptr<::parquet::arrow::FileWriter>  m_fileWriter;
+    std::unique_ptr<::parquet::arrow::FileWriter> m_fileWriter;
 };
 
-}
-
+} // namespace csp::adapters::parquet
 
 #endif

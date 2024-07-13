@@ -10,7 +10,7 @@ struct DateTimeWireTypeTraits
 {
     enum _enum : unsigned char
     {
-        UNKNOWN = 0,
+        UNKNOWN        = 0,
         UINT64_NANOS   = 1,
         UINT64_MICROS  = 2,
         UINT64_MILLIS  = 3,
@@ -25,14 +25,14 @@ protected:
 
 using DateTimeWireType = csp::Enum<DateTimeWireTypeTraits>;
 
-//Note this should match enum defined in python
+// Note this should match enum defined in python
 struct MsgProtocolTraits
 {
     enum _enum : unsigned char
     {
-        UNKNOWN = 0,
-        JSON = 1,
-        PROTOBUF = 2,
+        UNKNOWN   = 0,
+        JSON      = 1,
+        PROTOBUF  = 2,
         RAW_BYTES = 3,
         NUM_TYPES
     };
@@ -43,6 +43,6 @@ protected:
 
 using MsgProtocol = csp::Enum<MsgProtocolTraits>;
 
-};
+}; // namespace csp::adapters::utils
 
 #endif

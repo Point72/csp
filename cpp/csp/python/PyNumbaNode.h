@@ -10,16 +10,15 @@ namespace csp::python
 {
 class PyEngine;
 
-typedef void (*CallbackType)(void *node, void *state);
+typedef void ( *CallbackType )( void * node, void * state );
 
 class PyNumbaNode final : public csp::Node
 {
 public:
     // TODO: Add suppot for initialization callback as well
-    PyNumbaNode(csp::Engine *engine,
-                void *stateObject, CallbackType numbaInitCallback, CallbackType numbaImplCallback, PyObjectPtr inputs,
-                PyObjectPtr outputs,
-                NodeDef def, PyObject *dataReference);
+    PyNumbaNode( csp::Engine * engine, void * stateObject, CallbackType numbaInitCallback,
+                 CallbackType numbaImplCallback, PyObjectPtr inputs, PyObjectPtr outputs, NodeDef def,
+                 PyObject * dataReference );
 
     ~PyNumbaNode();
 
@@ -29,22 +28,21 @@ public:
 
     void stop() override;
 
-    const char *name() const override;
+    const char * name() const override;
 
-    static PyNumbaNode *create(PyEngine *engine, PyObject *inputs, PyObject *outputs,
-                               PyObject *stateObject, PyObject *numbaInitCallback, PyObject *numbaImplCallback,
-                               PyObject *dataReference);
+    static PyNumbaNode * create( PyEngine * engine, PyObject * inputs, PyObject * outputs, PyObject * stateObject,
+                                 PyObject * numbaInitCallback, PyObject * numbaImplCallback, PyObject * dataReference );
 
 private:
-    void init(PyObjectPtr inputs, PyObjectPtr outputs);
+    void init( PyObjectPtr inputs, PyObjectPtr outputs );
 
     void call_callback();
 
-    void *m_stateObject;
+    void * m_stateObject;
     CallbackType m_numbaInitCallback;
     CallbackType m_numbaImplCallback;
     PyObjectPtr m_dataReference;
 };
-};
+}; // namespace csp::python
 
 #endif

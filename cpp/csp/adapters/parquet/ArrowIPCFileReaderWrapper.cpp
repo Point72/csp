@@ -1,26 +1,22 @@
-#include <csp/adapters/parquet/ArrowIPCFileReaderWrapper.h>
-#include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <arrow/io/file.h>
 #include <arrow/table.h>
+#include <csp/adapters/parquet/ArrowIPCFileReaderWrapper.h>
+#include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <parquet/exception.h>
 
 namespace csp::adapters::parquet
 {
-ArrowIPCFileReaderWrapper::~ArrowIPCFileReaderWrapper()
-{
-    close();
-}
+ArrowIPCFileReaderWrapper::~ArrowIPCFileReaderWrapper() { close(); }
 
-void ArrowIPCFileReaderWrapper::open( const std::string &fileName )
+void ArrowIPCFileReaderWrapper::open( const std::string & fileName )
 {
     FileReaderWrapper::open( fileName );
 
     try
     {
-        PARQUET_ASSIGN_OR_THROW( m_fileReader,
-                                 ::arrow::ipc::RecordBatchStreamReader::Open( m_inputFile ) );
+        PARQUET_ASSIGN_OR_THROW( m_fileReader, ::arrow::ipc::RecordBatchStreamReader::Open( m_inputFile ) );
     }
-    catch( std::exception &e )
+    catch( std::exception & e )
     {
         FileReaderWrapper::close();
         CSP_THROW( RuntimeException, "Failed to open " << fileName << ":" << e.what() );
@@ -33,10 +29,11 @@ void ArrowIPCFileReaderWrapper::close()
     FileReaderWrapper::close();
 }
 
-bool ArrowIPCFileReaderWrapper::readNextRowGroup( const std::vector<int> neededColumns, std::shared_ptr<::arrow::Table> &dst )
+bool ArrowIPCFileReaderWrapper::readNextRowGroup( const std::vector<int> neededColumns,
+                                                  std::shared_ptr<::arrow::Table> & dst )
 {
     std::shared_ptr<arrow::RecordBatch> recordBatch;
-    STATUS_OK_OR_THROW_RUNTIME( m_fileReader -> ReadNext( &recordBatch ), "Failed to read next record batch" );
+    STATUS_OK_OR_THROW_RUNTIME( m_fileReader->ReadNext( &recordBatch ), "Failed to read next record batch" );
     if( recordBatch == nullptr )
     {
         dst = nullptr;
@@ -44,22 +41,18 @@ bool ArrowIPCFileReaderWrapper::readNextRowGroup( const std::vector<int> neededC
     }
     std::vector<std::shared_ptr<arrow::Array>> tableColumns;
     std::vector<std::shared_ptr<arrow::Field>> tableColumnSpecs;
-    tableColumns.reserve(neededColumns.size());
-    tableColumnSpecs.reserve(neededColumns.size());
+    tableColumns.reserve( neededColumns.size() );
+    tableColumnSpecs.reserve( neededColumns.size() );
 
-    for( auto &&columnIndex : neededColumns )
+    for( auto && columnIndex : neededColumns )
     {
-        tableColumns.push_back(recordBatch->column(columnIndex));
-        tableColumnSpecs.push_back(recordBatch->schema()->field(columnIndex));
+        tableColumns.push_back( recordBatch->column( columnIndex ) );
+        tableColumnSpecs.push_back( recordBatch->schema()->field( columnIndex ) );
     }
     dst = arrow::Table::Make( ::arrow::schema( tableColumnSpecs ), tableColumns );
     return true;
 }
 
+void ArrowIPCFileReaderWrapper::getSchema( std::shared_ptr<::arrow::Schema> & dst ) { dst = m_fileReader->schema(); }
 
-void ArrowIPCFileReaderWrapper::getSchema( std::shared_ptr<::arrow::Schema> &dst )
-{
-    dst = m_fileReader -> schema();
-}
-
-}
+} // namespace csp::adapters::parquet

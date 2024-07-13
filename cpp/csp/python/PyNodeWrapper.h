@@ -4,7 +4,7 @@
 namespace csp::python
 {
 
-//simple wrapper for python level access when wiring
+// simple wrapper for python level access when wiring
 class PyNodeWrapper : public PyObject
 {
 public:
@@ -14,9 +14,11 @@ public:
     static PyTypeObject PyType;
 
 private:
-
-    PyNodeWrapper( csp::Node * node ) : m_node( node ) {}
+    PyNodeWrapper( csp::Node * node )
+        : m_node( node )
+    {
+    }
     csp::Node * m_node;
 };
 
-}
+} // namespace csp::python

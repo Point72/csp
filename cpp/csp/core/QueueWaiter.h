@@ -1,10 +1,10 @@
 #ifndef _IN_CSP_CORE_QUEUEBLOCKINGWAIT_H
 #define _IN_CSP_CORE_QUEUEBLOCKINGWAIT_H
 
-#include <mutex>
 #include <condition_variable>
-#include <csp/core/Time.h>
 #include <csp/core/System.h>
+#include <csp/core/Time.h>
+#include <mutex>
 
 namespace csp
 {
@@ -14,8 +14,10 @@ class TimeDelta;
 class QueueWaiter
 {
 public:
-    QueueWaiter() : m_eventsPending( false )
-    {}
+    QueueWaiter()
+        : m_eventsPending( false )
+    {
+    }
 
     void notify()
     {
@@ -23,7 +25,6 @@ public:
         if( !m_eventsPending )
             m_condition.notify_one();
         m_eventsPending = true;
-
     }
 
     bool wait( TimeDelta maxWaitTime )
@@ -31,7 +32,8 @@ public:
         std::unique_lock<std::mutex> lock( m_lock );
         bool rv = false;
         if( !m_eventsPending && maxWaitTime.asNanoseconds() > 0 )
-            rv = m_condition.wait_for( lock, std::chrono::nanoseconds( maxWaitTime.asNanoseconds() ), [this]() { return m_eventsPending; } );
+            rv = m_condition.wait_for( lock, std::chrono::nanoseconds( maxWaitTime.asNanoseconds() ),
+                                       [this]() { return m_eventsPending; } );
 
         if( rv )
             m_eventsPending = false;
@@ -39,11 +41,11 @@ public:
     }
 
 private:
-    std::mutex              m_lock;
+    std::mutex m_lock;
     std::condition_variable m_condition;
-    bool                    m_eventsPending;
+    bool m_eventsPending;
 };
 
-}
+} // namespace csp
 
 #endif

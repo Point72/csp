@@ -11,11 +11,10 @@ namespace csp::python
 
 class PyEngine;
 
-class PyNode final: public csp::Node
+class PyNode final : public csp::Node
 {
 public:
-    PyNode( csp::Engine * engine, PyObjectPtr gen, PyObjectPtr inputs, PyObjectPtr outputs,
-            NodeDef def );
+    PyNode( csp::Engine * engine, PyObjectPtr gen, PyObjectPtr inputs, PyObjectPtr outputs, NodeDef def );
     ~PyNode();
 
     void executeImpl() override;
@@ -24,7 +23,7 @@ public:
     bool makeActive( InputId id ) override;
     bool makePassive( InputId id ) override;
 
-    //see .cpp for reason why this is overloaded
+    // see .cpp for reason why this is overloaded
     void createAlarm( CspTypePtr & type, size_t id ) override;
 
     const char * name() const override;
@@ -35,14 +34,14 @@ private:
     void init( PyObjectPtr inputs, PyObjectPtr outputs );
     void call_gen();
 
-    PyObjectPtr  m_gen;
-    PyObject *** m_localVars; //array of PyObject ** objects
+    PyObjectPtr m_gen;
+    PyObject *** m_localVars; // array of PyObject ** objects
 
-    //array that contains the count of each passive input when we last converted it to Python
-    //the indexing corresponds to the input index as seen by the node
-    uint32_t *   m_passiveCounts; 
+    // array that contains the count of each passive input when we last converted it to Python
+    // the indexing corresponds to the input index as seen by the node
+    uint32_t * m_passiveCounts;
 };
 
-};
+}; // namespace csp::python
 
 #endif

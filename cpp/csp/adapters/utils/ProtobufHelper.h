@@ -16,39 +16,38 @@ class ProtoImporterAux;
 class ProtobufHelper
 {
 public:
-
     static ProtobufHelper & instance();
 
-    //dynamic schema/proto file import help
-    const google::protobuf::Message * getMessage( const google::protobuf::Descriptor* type );
+    // dynamic schema/proto file import help
+    const google::protobuf::Message * getMessage( const google::protobuf::Descriptor * type );
     const google::protobuf::FileDescriptor * import( const std::string & schemaDir, const std::string & filename );
 
-    //type conversions
+    // type conversions
     static google::protobuf::FieldDescriptor::CppType cspToProtoCppType( const CspType & type );
     static bool isCoercible( google::protobuf::FieldDescriptor::CppType src, CspType::Type dest );
 
     template<typename T>
-    static T coercedValue( const google::protobuf::Reflection * access, const google::protobuf::Message & message, const google::protobuf::FieldDescriptor * descr, int index = -1 );
+    static T coercedValue( const google::protobuf::Reflection * access, const google::protobuf::Message & message,
+                           const google::protobuf::FieldDescriptor * descr, int index = -1 );
 
 private:
     ProtobufHelper();
 
     google::protobuf::compiler::DiskSourceTree m_protoSourceTree;
-    std::shared_ptr<ProtoImporterAux>          m_protoImporter;
-    google::protobuf::DynamicMessageFactory    m_protoMsgFactory;
-    std::set<std::string>                      m_schemaDirs;
-    std::mutex                                 m_schemaDirLock;
+    std::shared_ptr<ProtoImporterAux> m_protoImporter;
+    google::protobuf::DynamicMessageFactory m_protoMsgFactory;
+    std::set<std::string> m_schemaDirs;
+    std::mutex m_schemaDirLock;
 };
 
-//Struct mapping.  Currently this is one way, proto -> struct
-//havent decided if same mapper will be used for struct -> proto ( output adapter )
+// Struct mapping.  Currently this is one way, proto -> struct
+// havent decided if same mapper will be used for struct -> proto ( output adapter )
 class ProtobufStructMapper
 {
 public:
     ProtobufStructMapper() {}
 
-    void init( const CspTypePtr & type, const Dictionary & fieldMap,
-               const google::protobuf::Descriptor * protoDesc );
+    void init( const CspTypePtr & type, const Dictionary & fieldMap, const google::protobuf::Descriptor * protoDesc );
 
     void mapProtoToStruct( StructPtr & struct_, const google::protobuf::Message & protoMsg )
     {
@@ -60,39 +59,38 @@ private:
 
     struct FieldEntry
     {
-        const google::protobuf::FieldDescriptor* pField;
+        const google::protobuf::FieldDescriptor * pField;
         StructField * sField;
-        std::shared_ptr<std::vector<FieldEntry>> subFields; //for nested structs
+        std::shared_ptr<std::vector<FieldEntry>> subFields; // for nested structs
     };
 
     using Fields = std::vector<FieldEntry>;
 
-    static Fields buildFields( const CspTypePtr & type, const Dictionary & fieldMap, const google::protobuf::Descriptor * protoDesc );
-    static void mapProtoToStruct( StructPtr & struct_, const google::protobuf::Message & protoMsg, const Fields & fields );
+    static Fields buildFields( const CspTypePtr & type, const Dictionary & fieldMap,
+                               const google::protobuf::Descriptor * protoDesc );
+    static void mapProtoToStruct( StructPtr & struct_, const google::protobuf::Message & protoMsg,
+                                  const Fields & fields );
 
     Fields m_fields;
 };
 
-//to avoid alloc/dealloc on every callback of bytes msg
+// to avoid alloc/dealloc on every callback of bytes msg
 struct ReusableBuffer
 {
-    ~ReusableBuffer()
-    {
-        delete [] buf;
-    }
+    ~ReusableBuffer() { delete[] buf; }
 
     unsigned char * buf;
-    size_t          len;
+    size_t len;
 
     void grow( size_t newlen )
     {
         if( unlikely( newlen > len ) )
         {
-            delete [] buf;
-            buf = new unsigned char[ newlen ];
+            delete[] buf;
+            buf = new unsigned char[newlen];
             len = newlen;
         }
     }
 };
 
-}
+} // namespace csp::adapters::utils

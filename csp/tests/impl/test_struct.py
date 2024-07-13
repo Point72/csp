@@ -856,16 +856,16 @@ class TestCspStruct(unittest.TestCase):
                 i: 2
                 f: 2.5
                 b: false
-        ls: 
-            - 1 
-            - 2 
+        ls:
+            - 1
+            - 2
             - 3
         lc:
             -
                 value: [1,2,3]
                 set_value: ["x","y","z"]
             -
-                value: 
+                value:
                     - 4
         """
 
@@ -2478,7 +2478,7 @@ class TestCspStruct(unittest.TestCase):
         for ann_typ in struct_list_annotation_types:
             for typ, v in struct_list_test_values.items():
                 # Excluding str due to own repr implementation
-                if typ != str:
+                if typ is not str:
 
                     class A(csp.Struct):
                         a: ann_typ[typ]
@@ -2500,7 +2500,7 @@ class TestCspStruct(unittest.TestCase):
         for ann_typ in struct_list_annotation_types:
             for typ, v in struct_list_test_values.items():
                 # Excluding str due to own repr implementation
-                if typ != str:
+                if typ is not str:
 
                     class A(csp.Struct):
                         a: ann_typ[typ]

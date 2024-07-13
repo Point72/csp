@@ -66,7 +66,7 @@ develop = [
     "codespell>=2.2.6,<2.3",
     "isort>=5,<6",
     "mdformat>=0.7.17,<0.8",
-    "ruff>=0.3,<0.4",
+    "ruff>=0.5,<0.6",
     # test
     "pytest",
     "pytest-asyncio",

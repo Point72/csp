@@ -396,7 +396,7 @@ def cast_int_to_float(x: ts[int]) -> ts[float]:
 
 
 @node()
-def apply(x: ts["T"], f: Callable[List["T"], "U"], result_type: "U") -> ts["U"]:
+def apply(x: ts["T"], f: Callable[["T"], "U"], result_type: "U") -> ts["U"]:
     """
     :param x: The time series on which the function should be applied
     :param f: A scalar function that will be applied on each value of x

@@ -26,7 +26,7 @@ dependencies:
  - mdformat>=0.7.19,<0.8
  - mdformat-tables>=1,<1.1
  - ninja
- - numpy<2
+ - numpy
  - pandas
  - pillow
  - polars

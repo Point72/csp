@@ -26,8 +26,6 @@ template<> struct NPY_TYPE<double>   { static const int value = NPY_DOUBLE; };
 
 using namespace csp::cppnodes;
 
-// NumPy specific statistic functions
-
 static void * init_nparray()
 {
     csp::python::AcquireGIL gil;

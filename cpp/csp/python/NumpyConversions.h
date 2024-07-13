@@ -204,7 +204,7 @@ inline PyObject * createNumpyArray( ValueType valueType, const csp::TimeSeriesPr
     T lastValue;
     if( ts -> valid() )
         lastValue = ts -> lastValueTyped<T>();
-    
+
     DateTime lastTime = ( ts -> valid() ? ts -> lastTime() : DateTime() );
     switch( valueType )
     {
@@ -219,7 +219,7 @@ inline PyObject * createNumpyArray( ValueType valueType, const csp::TimeSeriesPr
         case ValueType::TIMESTAMP_VALUE_TUPLE:
         {
             PyObject * tuple = PyTuple_New( 2 );
-            PyTuple_SET_ITEM( tuple, 0, adjustStartAndEndTime( as_nparray( ts, ts -> timeline(), lastTime, startIndex, 
+            PyTuple_SET_ITEM( tuple, 0, adjustStartAndEndTime( as_nparray( ts, ts -> timeline(), lastTime, startIndex,
                                         endIndex, extrapolateEnd ), startPolicy, endPolicy, startDt, endDt ) );
             PyTuple_SET_ITEM( tuple, 1, as_nparray( ts, ts -> dataline<T>(), lastValue, startIndex, endIndex, extrapolateEnd ) );
             return tuple;

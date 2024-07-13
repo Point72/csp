@@ -44,23 +44,25 @@ jobs:
         - name: Checkout
           uses: actions/checkout@v5
 
-        - uses: mamba-org/setup-micromamba@v1
+        - uses: mamba-org/setup-micromamba@v2
           with:
-            micromamba-version: '1.5.7-0'
+            micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-unix.yml
             init-shell: >-
               bash
             cache-environment: true
+            cache-downloads: true
             post-cleanup: 'all'
           if: ${{ runner.os != 'Windows' }}
 
-        - uses: mamba-org/setup-micromamba@v1
+        - uses: mamba-org/setup-micromamba@v2
           with:
-            micromamba-version: '1.5.7-0'
+            micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-win.yml
             init-shell: >-
               cmd.exe
             cache-environment: true
+            cache-downloads: true
             post-cleanup: 'all'
           if: ${{ runner.os == 'Windows' }}
 

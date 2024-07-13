@@ -52,7 +52,7 @@ The various historical access methods take the same arguments and return the val
     The default policy is to return the LAST_VALUE that exists at the given time.
   - **`default`**: value to be returned if the requested time is out of the history bounds (if default is not provided and a request is out of bounds an exception will be raised).
 
-The following demonstrate a possible way to compute a rolling sum for the past N ticks.  Please note that this is for demonstration purposes only and is not efficient.  A more efficient
+The following demonstrate a possible way to compute a rolling sum for the past N ticks. Please note that this is for demonstration purposes only and is not efficient. A more efficient
 vectorized version can be seen below, though even that would not be recommended for a rolling sum since csp.stats.sum would be even more efficient with its C++ impl in-line calculation
 
 ```python
@@ -93,7 +93,7 @@ The various historical access methods take the same arguments and return the val
   - **`start_index_or_time`**:
     - If providing an **index**, this represents how many ticks back to retrieve **and should be \<= 0**.
       0 indicates the current value, -1 is the previous value, etc.
-    - If providing  **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
+    - If providing **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
       **NOTE that timedelta must be negative** to represent time in the past..
     - If **None** is provided, the range will begin "from the beginning" - i.e., the oldest tick in the buffer.
   - **`end_index_or_time`**: same as start_index_or_time

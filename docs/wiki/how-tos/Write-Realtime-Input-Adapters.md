@@ -201,7 +201,7 @@ These adapters will then get passed the adapter manager *--impl--* as an argumen
 The `AdapterManager` also needs to define a **\_create** method.
 The **\_create** is the bridge between the *--graph--* time `AdapterManager` representation and the runtime *--impl--* object.
 **\_create** will be called on the *--graph--* time `AdapterManager` which will in turn create the *--impl--* instance.
-\_create will get two arguments, engine (this represents the runtime engine object that will run the graph) and  memo dict which can optionally be used for any memoization that on might want.
+\_create will get two arguments, engine (this represents the runtime engine object that will run the graph) and memo dict which can optionally be used for any memoization that on might want.
 
 Lets take a look at the example found in [e5_adaptermanager_pushinput.py](https://github.com/Point72/csp/blob/main/examples/04_writing_adapters/e5_adaptermanager_pushinput.py):
 

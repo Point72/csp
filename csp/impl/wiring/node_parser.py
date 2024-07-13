@@ -38,9 +38,9 @@ class _SingleProxyFuncArgResolver(object):
             if arg.arg is None:
                 raise CspParseError(f"Passing arguments with ** is unsupported for {self._func_ast.name}", node.lineno)
 
-        assert (
-            len(node.args) <= len(self._arg_name_to_index) + 1
-        ), f"Invalid number of arguments provided for {self._func_ast.name}"
+        assert len(node.args) <= len(self._arg_name_to_index) + 1, (
+            f"Invalid number of arguments provided for {self._func_ast.name}"
+        )
 
         resolved_args = [self.INVALID_VALUE] * len(self._all_defaults)
         resolved_args[: len(node.args) - 1] = node.args[1:]
@@ -517,7 +517,7 @@ class NodeParser(BaseParser):
         expected_args = 2 if is_named_outputs else 1
         if len(node.args) != expected_args:
             raise CspParseError(
-                f'csp.remove_dynamic_key expects {expected_args} arguments for {"" if is_named_outputs else "un"}named outputs, got {len(node.args)}'
+                f"csp.remove_dynamic_key expects {expected_args} arguments for {'' if is_named_outputs else 'un'}named outputs, got {len(node.args)}"
             )
 
         if len(node.args) == 2:
@@ -610,7 +610,7 @@ class NodeParser(BaseParser):
             raise CspParseError(f"unrecognized alarm '{name}'", node.lineno)
 
         if input_def.kind != ArgKind.ALARM:
-            raise CspParseError(f'cannot {funcname.replace( "_", " " )} on non-alarm input \'{name}\'', node.lineno)
+            raise CspParseError(f"cannot {funcname.replace('_', ' ')} on non-alarm input '{name}'", node.lineno)
 
         proxy = self._ts_inproxy_expr(node.args[0])
         return ast.Call(

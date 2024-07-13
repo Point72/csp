@@ -2,10 +2,11 @@
 This example illustrates how csp edges can be used inside a pandas data frame via the pandas extension type mechanism.
 """
 
-import numpy as np
-import pandas as pd
 import random
 from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
 
 import csp
 import csp.impl.pandas_accessor  # This registers the "csp" accessors on pd.Series and pd.DataFrame

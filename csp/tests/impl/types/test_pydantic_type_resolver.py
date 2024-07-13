@@ -1,7 +1,8 @@
-import numpy as np
-from pydantic import BaseModel, TypeAdapter, ValidationInfo, field_validator, model_validator
 from typing import Dict, Generic, List, Set, TypeVar, get_args, get_origin
 from unittest import TestCase
+
+import numpy as np
+from pydantic import BaseModel, TypeAdapter, ValidationInfo, field_validator, model_validator
 
 import csp
 import csp.typing

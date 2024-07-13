@@ -1,7 +1,8 @@
 import threading
 from datetime import timedelta
-from perspective import Table as Table_, View as View_
 from typing import Dict, Optional, Union
+
+from perspective import Table as Table_, View as View_
 
 import csp
 from csp import ts

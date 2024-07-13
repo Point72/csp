@@ -1,10 +1,11 @@
 import math
-import numpy as np
-import numpy.testing
-import pandas as pd
 import sys
 import unittest
 from datetime import datetime, timedelta
+
+import numpy as np
+import numpy.testing
+import pandas as pd
 
 import csp
 from csp.stats import _window_updates

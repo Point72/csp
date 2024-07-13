@@ -62,7 +62,7 @@ Check out the [examples directory](https://github.com/Point72/csp/tree/main/exam
 - [Contribute](Contribute) to CSP and help improve the project
 - Read about future plans in the [project roadmap](Roadmap)
 
-> \[!TIP\]
+> [!TIP]
 > Find relevant docs with GitHub’s search function, use `repo:Point72/csp type:wiki <search terms>` to search the documentation Wiki Pages.
 
 ## License

@@ -1,14 +1,15 @@
 import enum
 import json
-import numpy as np
 import pickle
-import pytz
 import typing
 import unittest
 from datetime import date, datetime, time, timedelta
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
+
+import numpy as np
+import pytz
 from pydantic import TypeAdapter, ValidationError
 from pydantic_core import PydanticSerializationError
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
 from typing_extensions import Annotated
 
 import csp
@@ -862,16 +863,16 @@ class TestCspStruct(unittest.TestCase):
                 i: 2
                 f: 2.5
                 b: false
-        ls: 
-            - 1 
-            - 2 
+        ls:
+            - 1
+            - 2
             - 3
         lc:
             -
                 value: [1,2,3]
                 set_value: ["x","y","z"]
             -
-                value: 
+                value:
                     - 4
         """
 
@@ -1232,7 +1233,7 @@ class TestCspStruct(unittest.TestCase):
         s2 = StructB(
             a=timedelta(1), b=datetime(2020, 1, 1), c=False, d=f1, e=ClassA(), f=s1, g=EnumA.RED, h=f2, i=f3, j=f4, k=f5
         )
-        exp_repr_s2 = f"StructB( a={repr(timedelta(1))}, b={repr(datetime(2020,1,1))}, c=False, d={repr(f1)}, e=ClassA(a=1), f=StructA( a=1, b=b, c=[1, 2] ), g=<EnumA.RED: 1>, h={repr(f2)}, i={repr(f3)}, j={repr(f4)}, k={repr(f5)} )"
+        exp_repr_s2 = f"StructB( a={repr(timedelta(1))}, b={repr(datetime(2020, 1, 1))}, c=False, d={repr(f1)}, e=ClassA(a=1), f=StructA( a=1, b=b, c=[1, 2] ), g=<EnumA.RED: 1>, h={repr(f2)}, i={repr(f3)}, j={repr(f4)}, k={repr(f5)} )"
         # repr and str are the same for floats
         self.assertEqual(repr(s2), exp_repr_s2)
 
@@ -2544,7 +2545,7 @@ class TestCspStruct(unittest.TestCase):
         for ann_typ in struct_list_annotation_types:
             for typ, v in struct_list_test_values.items():
                 # Excluding str due to own repr implementation
-                if typ != str:
+                if typ is not str:
 
                     class A(csp.Struct):
                         a: ann_typ[typ]
@@ -2566,7 +2567,7 @@ class TestCspStruct(unittest.TestCase):
         for ann_typ in struct_list_annotation_types:
             for typ, v in struct_list_test_values.items():
                 # Excluding str due to own repr implementation
-                if typ != str:
+                if typ is not str:
 
                     class A(csp.Struct):
                         a: ann_typ[typ]

@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
-from packaging import version
 from typing import Dict, Optional
+
+from packaging import version
 
 import csp.baselib
 from csp.impl.wiring.edge import Edge

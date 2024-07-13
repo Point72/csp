@@ -5,6 +5,7 @@ import platform
 import subprocess
 import sys
 from shutil import which
+
 from skbuild import setup
 
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
@@ -112,7 +113,7 @@ if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
 
 if platform.system() == "Darwin":
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = os.environ.get("OSX_DEPLOYMENT_TARGET", "10.15")
-    cmake_args.append(f'-DCMAKE_OSX_DEPLOYMENT_TARGET={os.environ.get("OSX_DEPLOYMENT_TARGET", "10.15")}')
+    cmake_args.append(f"-DCMAKE_OSX_DEPLOYMENT_TARGET={os.environ.get('OSX_DEPLOYMENT_TARGET', '10.15')}")
 
 if which("ccache") and os.environ.get("CSP_USE_CCACHE", "") != "0":
     cmake_args.append("-DCSP_USE_CCACHE=On")

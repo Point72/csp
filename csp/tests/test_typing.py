@@ -1,6 +1,7 @@
+from unittest import TestCase
+
 import numpy as np
 from pydantic import TypeAdapter
-from unittest import TestCase
 
 from csp.typing import Numpy1DArray, NumpyNDArray
 

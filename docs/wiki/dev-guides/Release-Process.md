@@ -75,7 +75,7 @@ Follow these steps when it's time to tag a new release. Before doing
 this, you will need to ensure `bump-my-version` is installed into your
 development environment.
 
-> \[!NOTE\]
+> [!NOTE]
 > If you are working on the main `Point72/csp` repository, set the
 > remote as `origin` in all git commands. If you are working off a personal fork,
 > use the corresponding remote of the main repository (e.g. `upstream`).

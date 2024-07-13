@@ -1,9 +1,10 @@
+from datetime import datetime, timedelta
+from typing import Dict, List, TypeVar, Union
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
 from pandas.api.extensions import register_dataframe_accessor, register_series_accessor
 from pandas.core.arrays import ExtensionArray
-from typing import Dict, List, TypeVar, Union
 
 import csp
 from csp import ts
@@ -166,7 +167,7 @@ class CspSeriesAccessor(object):
     @staticmethod
     def _validate(obj):
         if not is_csp_type(obj):
-            raise AttributeError("Cannot use 'csp' accessor on objects of " "dtype '{}'.".format(obj.dtype))
+            raise AttributeError("Cannot use 'csp' accessor on objects of dtype '{}'.".format(obj.dtype))
 
     def _infer_dtype(self, data):
         try:

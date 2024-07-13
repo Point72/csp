@@ -262,7 +262,7 @@ With proper barrier synchronizations the engine cycles would look like this unde
 Note how the last ask tick of 100.00 got held up to a separate cycle (ET+2) so that trade could tick with the correct view of bid/ask at the time of the second trade (ET+1)
 
 As another example, lets say the engine got delayed briefly at wire time T, so it was able to process T+1 data.
-Similarly it got briefly delayed at time T+4 until after T+6.  The engine would be able to process all data at time T+1, T+2, T+3 and T+6, leading to this sequence of engine cycles.
+Similarly it got briefly delayed at time T+4 until after T+6. The engine would be able to process all data at time T+1, T+2, T+3 and T+6, leading to this sequence of engine cycles.
 The equivalent "wire time" is denoted in parenthesis
 
 <table>

@@ -121,6 +121,28 @@ dockerps:  ## spin up docker compose services for adapter testing
 dockerdown:  ## spin up docker compose services for adapter testing
 	$(DOCKER) compose -f ci/$(ADAPTER)/docker-compose.yml down
 
+##############
+# BENCHMARKS #
+##############
+.PHONY: benchmark benchmarks benchmark-regen benchmark-view benchmarks-regen benchmarks-view
+benchmark:  ## run benchmarks
+	python -m asv run --config csp/benchmarks/asv.conf.jsonc --verbose `git rev-parse --abbrev-ref HEAD`^!
+
+# https://github.com/airspeed-velocity/asv/issues/1027
+# https://github.com/airspeed-velocity/asv/issues/488
+benchmark-regen:
+	python -m asv run --config csp/benchmarks/asv.conf.jsonc --verbose v0.0.4^!
+	python -m asv run --config csp/benchmarks/asv.conf.jsonc --verbose v0.0.5^!
+
+benchmark-view:  ## generate viewable website of benchmark results
+	python -m asv publish --config csp/benchmarks/asv.conf.jsonc
+	python -m asv preview --config csp/benchmarks/asv.conf.jsonc
+
+# Alias
+benchmarks: benchmark
+benchmarks-regen: benchmark-regen
+benchmarks-view: benchmark-view
+
 ###########
 # VERSION #
 ###########

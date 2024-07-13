@@ -1,0 +1,25 @@
+{
+    "stats.basic.StatsBenchmarkSuite.time_stats": {
+        "code": "class StatsBenchmarkSuite:\n    def time_stats(self, function):\n        def g():\n            data = csp.curve(typ=np.ndarray, data=self.data)\n            value = getattr(csp.stats, function)(data, interval=self.interval, **self.function_args.get(function, {}))\n            csp.add_graph_output(\"final_value\", value, tick_count=1)\n    \n        timer = Timer(\n            lambda: csp.run(g, realtime=False, starttime=self.start_date, endtime=timedelta(seconds=self.num_rows))\n        )\n        elapsed = timer.timeit(1)\n        return elapsed\n\n    def setup(self, _):\n        self.start_date = datetime(2020, 1, 1)\n        self.num_rows = 1_000\n        self.array_size = 100\n        self.test_times = [self.start_date + timedelta(seconds=i) for i in range(self.num_rows)]\n        self.random_values = [\n            np.random.normal(size=(self.array_size,)) for i in range(self.num_rows)\n        ]  # 100 element np array\n        self.data = list(zip(self.test_times, self.random_values))\n        self.interval = 500",
+        "min_run_count": 2,
+        "name": "stats.basic.StatsBenchmarkSuite.time_stats",
+        "number": 0,
+        "param_names": [
+            "function"
+        ],
+        "params": [
+            [
+                "'median'",
+                "'quantile'",
+                "'rank'"
+            ]
+        ],
+        "rounds": 2,
+        "sample_time": 0.01,
+        "type": "time",
+        "unit": "seconds",
+        "version": "f57f3ee288b0805597f9edee91b4d1dddf41046d34fbd46cfbd7135f459e62e3",
+        "warmup_time": -1
+    },
+    "version": 2
+}

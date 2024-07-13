@@ -1,6 +1,7 @@
 [build-system]
 requires = [
     "cmake",
+    "deprecated",  # Because used in csp.impl.struct, which is used in autogen
     "oldest-supported-numpy",
     "pyarrow>=7.0.0",
     "ruamel.yaml",
@@ -19,6 +20,7 @@ requires-python = ">=3.8"
 
 dependencies = [
     "backports.zoneinfo; python_version<'3.9'",
+    "deprecated",
     "numpy<2",
     "packaging",
     "pandas",

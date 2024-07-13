@@ -1,6 +1,7 @@
+from typing import Any, Dict, List, Set, Tuple, Type, Union, get_args
+
 import numpy
 from pydantic import TypeAdapter, ValidationError
-from typing import Any, Dict, List, Set, Tuple, Type, Union, get_args
 
 import csp.typing
 from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer

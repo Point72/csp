@@ -1,10 +1,11 @@
-import numpy
 import random
 import time
 import unittest
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, List
+
+import numpy
 
 import csp
 import csp.impl

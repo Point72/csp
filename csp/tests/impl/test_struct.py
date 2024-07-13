@@ -1,12 +1,13 @@
 import enum
 import json
-import numpy as np
 import pickle
-import pytz
 import typing
 import unittest
 from datetime import date, datetime, time, timedelta
 from typing import Dict, List, Set, Tuple
+
+import numpy as np
+import pytz
 from typing_extensions import Annotated
 
 import csp
@@ -859,16 +860,16 @@ class TestCspStruct(unittest.TestCase):
                 i: 2
                 f: 2.5
                 b: false
-        ls: 
-            - 1 
-            - 2 
+        ls:
+            - 1
+            - 2
             - 3
         lc:
             -
                 value: [1,2,3]
                 set_value: ["x","y","z"]
             -
-                value: 
+                value:
                     - 4
         """
 
@@ -2541,7 +2542,7 @@ class TestCspStruct(unittest.TestCase):
         for ann_typ in struct_list_annotation_types:
             for typ, v in struct_list_test_values.items():
                 # Excluding str due to own repr implementation
-                if typ != str:
+                if typ is not str:
 
                     class A(csp.Struct):
                         a: ann_typ[typ]
@@ -2563,7 +2564,7 @@ class TestCspStruct(unittest.TestCase):
         for ann_typ in struct_list_annotation_types:
             for typ, v in struct_list_test_values.items():
                 # Excluding str due to own repr implementation
-                if typ != str:
+                if typ is not str:
 
                     class A(csp.Struct):
                         a: ann_typ[typ]

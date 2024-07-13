@@ -1,5 +1,6 @@
-import numpy
 from typing import Generic, TypeVar, get_args
+
+import numpy
 
 T = TypeVar("T")
 

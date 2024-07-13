@@ -1,7 +1,7 @@
 import argparse
 import importlib
-import importlib.util
 import importlib.machinery
+import importlib.util
 import os.path
 import sys
 import types
@@ -14,8 +14,8 @@ spec = importlib.util.spec_from_loader("csp", loader)
 csp_mod = importlib.util.module_from_spec(spec)
 sys.modules["csp"] = csp_mod
 
-from csp.impl.struct import Struct  # noqa: E402
 from csp.impl.enum import Enum  # noqa: E402
+from csp.impl.struct import Struct  # noqa: E402
 
 
 def struct_type(type_info):

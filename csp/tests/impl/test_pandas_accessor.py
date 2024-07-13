@@ -1,8 +1,9 @@
+import unittest
+from datetime import date, datetime, timedelta
+
 import numpy as np
 import pandas as pd
 import pytest
-import unittest
-from datetime import date, datetime, timedelta
 
 import csp
 import csp.impl.pandas_accessor

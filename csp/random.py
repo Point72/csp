@@ -1,6 +1,7 @@
-import numpy as np
 from datetime import timedelta
 from typing import TypeVar
+
+import numpy as np
 
 import csp
 from csp import ts

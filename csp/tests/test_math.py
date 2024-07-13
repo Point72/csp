@@ -1,8 +1,9 @@
 import math
-import numpy as np
 import sys
 import unittest
 from datetime import datetime, timedelta
+
+import numpy as np
 
 import csp
 

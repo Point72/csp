@@ -1,7 +1,8 @@
 import importlib
 import os.path
-import pytest
 import sys
+
+import pytest
 
 EXAMPLES_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "examples"))
 

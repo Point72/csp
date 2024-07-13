@@ -147,23 +147,23 @@ before-build = "make requirements"
 archs = "AMD64"
 skip = "*win32 *arm_64"
 
-[tool.isort]
-combine_as_imports = true
-include_trailing_comma = true
-line_length = 120
-profile = "black"
-
-default_section = "THIRDPARTY"
-sections = "FUTURE,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
-
-known_first_party = "csp"
-
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 testpaths = "csp/tests"
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+default-section = "third-party"
+known-first-party = ["csp"]
+section-order = [
+    "future",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]

@@ -8,15 +8,9 @@
 #include <numeric>
 #include <set>
 #include <type_traits>
-
-#ifdef __linux__
-#include <ext/pb_ds/assoc_container.hpp>
-#include <ext/pb_ds/tree_policy.hpp>
-#else
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/ranked_index.hpp>
-#endif
 
 namespace csp::cppnodes
 {
@@ -1091,22 +1085,8 @@ class WeightedKurtosis
         bool m_excess;
 };
 
-#ifdef __linux__
-template<typename Comparator>
-using ost = __gnu_pbds::tree<double, __gnu_pbds::null_type, Comparator, __gnu_pbds::rb_tree_tag,
-    __gnu_pbds::tree_order_statistics_node_update>;
-
-template<typename Comparator>
-void ost_erase( ost<Comparator> &t, double & v )
-{
-    int rank = t.order_of_key( v );
-    auto it = t.find_by_order( rank );
-    t.erase( it );
-}
-#else
 template <typename Comparator>
 using ost = boost::multi_index::multi_index_container<double, boost::multi_index::indexed_by<boost::multi_index::ranked_non_unique<boost::multi_index::identity<double>, Comparator>>>;
-#endif
 
 class Quantile
 {
@@ -1149,11 +1129,7 @@ class Quantile
 
         void remove( double x )
         {
-        #ifdef __linux__
-            ost_erase( m_tree, x );
-        #else
             m_tree.erase( m_tree.find( x ) );
-        #endif
         }
 
         void reset()
@@ -1172,111 +1148,60 @@ class Quantile
             double target = std::get<double>( m_quants[index]._data ) * ( m_tree.size() - 1 );
             int ft = floor( target );
             int ct = ceil( target );
+            auto fIt = m_tree.get<0>().nth( ft );
+            auto cIt = ( ft == ct ) ? fIt : std::next( fIt );
 
             double qtl = 0.0;
-        #ifdef __linux__
             switch ( m_interpolation )
             {
-                case LINEAR:
-                    if( ft == target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        double lower = *m_tree.find_by_order( ft );
-                        double higher = *m_tree.find_by_order( ct );
-                        qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
-                    }
-                    break;
-                case LOWER:
-                    qtl = *m_tree.find_by_order( ft );
-                    break;
-                case HIGHER:
-                    qtl = *m_tree.find_by_order( ct );
-                    break;
-                case MIDPOINT:
-                    if( ft == target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        double lower = *m_tree.find_by_order( ft );
-                        double higher = *m_tree.find_by_order( ct );
-                        qtl = ( higher+lower ) / 2;
-                    }
-                    break;
-                case NEAREST:
-                    if( target - ft < ct - target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        qtl = *m_tree.find_by_order( ct );
-                    }
-                    break;
-                default:
-                    break;
-            }
-        #else
-            switch (m_interpolation)
-            {
             case LINEAR:
-                if (ft == target)
+                if ( ft == target )
                 {
-                    qtl = *m_tree.get<0>().nth(ft);
+                    qtl = *fIt;
                 }
                 else
                 {
-                    double lower = *m_tree.get<0>().nth(ft);
-                    double higher = *m_tree.get<0>().nth(ct);
-                    qtl = (1 - target + ft) * lower + (1 - ct + target) * higher;
+                    double lower = *fIt;
+                    double higher = *cIt;
+                    qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
                 }
                 break;
             case LOWER:
-                qtl = *m_tree.get<0>().nth(ft);
+                qtl = *fIt;
                 break;
             case HIGHER:
-                qtl = *m_tree.get<0>().nth(ct);
+                qtl = *cIt;
                 break;
             case MIDPOINT:
-                if (ft == target)
+                if ( ft == target )
                 {
-                    qtl = *m_tree.get<0>().nth(ft);
+                    qtl = *fIt;
                 }
                 else
                 {
-                    double lower = *m_tree.get<0>().nth(ft);
-                    double higher = *m_tree.get<0>().nth(ct);
-                    qtl = (higher + lower) / 2;
+                    double lower = *fIt;
+                    double higher = *cIt;
+                    qtl = ( higher + lower ) / 2;
                 }
                 break;
             case NEAREST:
-                if (target - ft < ct - target)
+                if ( target - ft < ct - target )
                 {
-                    qtl = *m_tree.get<0>().nth(ft);
+                    qtl = *fIt;
                 }
                 else
                 {
-                    qtl = *m_tree.get<0>().nth(ct);
+                    qtl = *cIt;
                 }
                 break;
             default:
                 break;
             }
-        #endif
             return qtl;
         }
 
     private:
-    
-    #ifdef __linux__
-        ost<std::less_equal<double>> m_tree;
-    #else
         ost<std::less<double>> m_tree;
-    #endif
         std::vector<Dictionary::Data> m_quants;
         int64_t m_interpolation;
 };
@@ -1364,17 +1289,10 @@ class Rank
             else
             {
                 m_lastval = x;
-            #ifdef __linux__
                 if( m_method == MAX )
                     m_maxtree.insert( x );
                 else
                     m_mintree.insert( x );
-            #else
-                if( m_method == MAX )
-                    m_maxtree.insert( x );
-                else
-                    m_mintree.insert( x );
-            #endif
             }
         }
 
@@ -1382,17 +1300,10 @@ class Rank
         {
             if( likely( !isnan( x ) ) )
             {
-            #ifdef __linux__
-                if( m_method == MAX )
-                    ost_erase( m_maxtree, x );
-                else
-                    ost_erase( m_mintree, x );
-            #else
                 if ( m_method == MAX )
                     m_maxtree.erase ( m_maxtree.find( x ) );
                 else
                     m_mintree.erase ( m_mintree.find( x ) );
-            #endif
             }
         }
 
@@ -1408,42 +1319,6 @@ class Rank
         {
             // Verify tree is not empty and lastValue is valid
             // Last value can only ever be NaN if the "keep" nan option is used
-        #ifdef __linux__
-            if( likely( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) )
-            {
-                switch( m_method )
-                {
-                    case MIN:
-                    {
-                        if( m_mintree.size() == 1 )
-                            return 0;
-                        return m_mintree.order_of_key( m_lastval );
-                    }
-                    case MAX:
-                    {
-                        if( m_maxtree.size() == 1 )
-                            return 0;
-                        return m_maxtree.size() - 1 - m_maxtree.order_of_key( m_lastval );
-                    }
-                    case AVG:
-                    {
-                        // Need to iterate to find average rank
-                        if( m_mintree.size() == 1 )
-                            return 0;
-
-                        int min_rank = m_mintree.order_of_key( m_lastval );
-                        int max_rank = min_rank;
-                        auto it = m_mintree.find_by_order( min_rank );
-                        it++;
-                        for( ; it != m_mintree.end() && *it == m_lastval ; it++ ) max_rank++;
-                        return ( double )( min_rank + max_rank ) / 2;
-                    }
-
-                    default:
-                        break;
-                }
-            }
-        #else
             if( likely( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) )
             {
                 switch( m_method )
@@ -1469,26 +1344,19 @@ class Rank
                         int max_rank = min_rank;
                         auto it = m_mintree.get<0>().nth( min_rank );
                         it++;
-                        for( ; it != m_mintree.end() && *it == m_lastval ; it++ ) max_rank++;
+                        for( ; it != m_mintree.end() && *it == m_lastval ; it++ ) max_rank++; // While this is in theory O(n), in reality this loop is only interated once, since there are likely no duplicate values or very few.
                         return ( double )( min_rank + max_rank ) / 2;
                     }
                     default:
                         break;
                 }
             }
-        #endif
             return std::numeric_limits<double>::quiet_NaN();
         }
 
     private:
-
-    #ifdef __linux__
-        ost<std::less_equal<double>> m_mintree;
-        ost<std::greater_equal<double>> m_maxtree;
-    #else
         ost<std::less<double>> m_mintree;
         ost<std::greater<double>> m_maxtree;
-    #endif
         double m_lastval;
 
         int64_t m_method;

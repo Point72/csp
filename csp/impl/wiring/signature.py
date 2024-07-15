@@ -273,3 +273,7 @@ class Signature:
     @property
     def scalars(self):
         return self._scalars
+
+    @property
+    def defaults(self):
+        return self._defaults

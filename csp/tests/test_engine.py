@@ -846,7 +846,7 @@ class TestEngine(unittest.TestCase):
         except IndexError:
             tb = traceback.format_exc()
 
-        self.assertTrue("[].pop()" in tb)
+        self.assertTrue("[].pop()" in tb and "process_next_sim_timeslice" in tb)
 
     def test_feedback(self):
         # Dummy example

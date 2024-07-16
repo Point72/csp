@@ -79,7 +79,6 @@ develop = [
     "httpx>=0.20,<1",  # kafka
     "polars",  # parquet
     "psutil",  # test_engine/test_history
-    "slack-sdk>=3",  # slack
     "sqlalchemy",  # db
     "threadpoolctl",  # test_random
     "tornado",  # profiler, perspective, websocket
@@ -108,7 +107,7 @@ symphony = [
     "csp-adapter-symphony",
 ]
 slack = [
-    "slack-sdk>=3",
+    "csp-adapter-slack",
 ]
 
 [tool.check-manifest]

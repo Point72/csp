@@ -15,7 +15,6 @@
     - [Publishing](#publishing)
 - [DBReader](#dbreader)
   - [TimeAccessor](#timeaccessor)
-- [Slack](#slack)
 
 ## Kafka
 
@@ -349,7 +348,3 @@ Both of these calls expect `typ` to be a `csp.Struct` type.
 `subscribe` is used to subscribe to a stream for the given symbol (symbol_column is required when creating DBReader)
 
 `subscribe_all` is used to retrieve all the data resulting from the request as a single timeseries.
-
-## Slack
-
-The Slack adapter allows for reading and writing of messages from the [Slack](https://slack.com) message platform using the [Slack Python SDK](https://slack.dev/python-slack-sdk/).

@@ -11,6 +11,7 @@ dependencies:
  - codespell>=2.2.6,<2.3
  - compilers
  - cyrus-sasl
+ - deprecated
  - exprtk
  - flex
  - graphviz

@@ -194,6 +194,7 @@ else()
         -O3 \
         -g0 \
         -Wall \
+        -Werror \
         -Wno-deprecated-declarations \
         -Wno-deprecated \
         ")

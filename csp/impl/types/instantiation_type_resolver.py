@@ -557,10 +557,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
             else:
                 return False
         if len(arg) == 0:
-            if raise_on_error:
-                raise ContainerTypeVarResolutionError(self._function_name, tvar, arg)
-            else:
-                return None
+            return container_typ
         res = None
         if isinstance(arg, set):
             first_val = arg.__iter__().__next__()

@@ -22,12 +22,12 @@ Notes for editors:
 - [Historical Buffers](Historical-Buffers)
 - [Execution Modes](Execution-Modes)
 - [Adapters](Adapters)
+- [Feedback and Delayed Edge](Feedback-and-Delayed-Edge)
 
 **How-to guides**
 
 - [Use Statistical Nodes](Use-Statistical-Nodes)
 - Use Adapters (coming soon)
-- [Add Cycles in Graphs](Add-Cycles-in-Graphs)
 - [Create Dynamic Baskets](Create-Dynamic-Baskets)
 - Write Adapters:
   - [Write Historical Input Adapters](Write-Historical-Input-Adapters)

@@ -1755,7 +1755,7 @@ class TestCspStruct(unittest.TestCase):
         d_none = {
             None: 2,
         }
-        d_none_res = {str(k): v for k, v in d_none.items()}
+        d_none_res = {"null": 2}
         test_struct = MyStruct(i=456, d_any=d_none)
         result_dict = {"i": 456, "d_any": d_none_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)

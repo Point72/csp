@@ -198,14 +198,6 @@ rapidjson::Value toJsonRecursive( const StructPtr& self, rapidjson::Document& do
     return new_dict;
 }
 
-std::pair<const char *, Py_ssize_t> pyObjectToString( PyObject * py_obj )
-{
-    auto * str_obj = PyObject_Str( py_obj );
-    Py_ssize_t len = 0;
-    const char * str = PyUnicode_AsUTF8AndSize( str_obj, &len );
-    return std::make_pair( str, len );
-}
-
 rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, PyObject * callable )
 {
     // NOTE: Only support None, bool, strings, ints, and floats, date, time, datetime, enums, csp.Enums as keys
@@ -213,7 +205,7 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, P
 
     static thread_local PyTypeObjectPtr s_tl_enum_type;
     // Get the enum type on the first call and save it for future use
-    if( s_tl_enum_type.get() == nullptr )
+    if( s_tl_enum_type.get() == nullptr ) [[unlikely]]
     {
         // Import enum module to extract the Enum type
         auto py_enum_module = PyObjectPtr::own( PyImport_ImportModule( "enum" ) );
@@ -221,12 +213,22 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, P
         {
             s_tl_enum_type = PyTypeObjectPtr::own( reinterpret_cast<PyTypeObject*>( PyObject_GetAttrString( py_enum_module.get(), "Enum" ) ) );
         }
+        else
+        {
+            CSP_THROW( RuntimeException, "Unable to import enum module from the python standard library" );
+        }
     }
 
     rapidjson::Value val;
-    if( ( py_key == Py_None ) || ( PyBool_Check( py_key ) ) )
+    if( py_key == Py_None )
     {
-        auto[str, len] = pyObjectToString( py_key );
+        val.SetString( "null" );
+    }
+    else if( PyBool_Check( py_key ) )
+    {
+        auto str_obj = PyObjectPtr::own( PyObject_Str( py_key ) );
+        Py_ssize_t len = 0;
+        const char * str = PyUnicode_AsUTF8AndSize( str_obj.get(), &len );
         val.SetString( str, len, doc.GetAllocator() );
     }
     else if( PyUnicode_Check( py_key ) )
@@ -246,7 +248,8 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, P
         auto json_obj = doubleToJson( key, doc );
         if ( json_obj.IsNull() )
         {
-            auto[str, len] = pyObjectToString( py_key );
+            auto str_obj = PyObjectPtr::own( PyObject_Str( py_key ) );
+            const char * str = PyUnicode_AsUTF8( str_obj.get() );
             CSP_THROW( ValueError, "Cannot serialize " + std::string( str ) + " to key in JSON" );
         }
         else
@@ -279,8 +282,11 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, P
     }
     else if( PyType_IsSubtype( Py_TYPE( py_key ), s_tl_enum_type.get() ) )
     {
-        auto enum_name = PyObjectPtr::own( PyObject_GetAttrString( py_key, "name" ) );
-        auto[str, len] = pyObjectToString( enum_name.get() );
+        // Use the `name` attribute of the enum for the string representation
+        auto py_enum_name = PyObjectPtr::own( PyObject_GetAttrString( py_key, "name" ) );
+        auto str_obj = PyObjectPtr::own( PyObject_Str( py_enum_name.get() ) );
+        Py_ssize_t len = 0;
+        const char * str = PyUnicode_AsUTF8AndSize( str_obj.get(), &len );
         val.SetString( str, len, doc.GetAllocator() );
     }
     else

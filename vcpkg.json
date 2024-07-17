@@ -5,6 +5,7 @@
     "abseil",
     "arrow",
     "boost-beast",
+    "boost-multi-index",
     "brotli",
     "exprtk",
     "gtest",

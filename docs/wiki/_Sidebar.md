@@ -41,6 +41,7 @@ Notes for editors:
 - API Reference
   - [Base Nodes API](Base-Nodes-API)
   - [Base Adapters API](Base-Adapters-API)
+  - [Graph Utilities API](Graph-Utilities-API)
   - [Math and Logic Nodes API](Math-and-Logic-Nodes-API)
   - [Statistical Nodes API](Statistical-Nodes-API)
   - [Functional Methods API](Functional-Methods-API)

@@ -1,55 +1,119 @@
-csp offers several built-in generic, mathematical, and statistical nodes that are often required in streaming workflows. This allows you to write applications quickly, and update and expand them as required by including new nodes.
+CSP offers several built-in generic, mathematical, and statistical nodes that are often required in streaming workflows. This allows you to write applications quickly, and update and expand them as required by including new nodes.
 
-In this tutorial, you will calculate the [volume weighted average price (VWAP)](https://www.investopedia.com/terms/v/vwap.asp) and the profit and loss (PnL) of the trade, on a stream of trades. Check out the complete example: [trade profit-and-loss example](examples/01_basics/e4_trade_pnl.py)
+In this tutorial, you build a CSP program to track a sample shopping cart and purchases, where a 10% discount if the purchase is made within 1 minute. You will learn to create and use composite data types, and add more functionality to nodes.
+
+Check out the complete example: [Retail cart example](examples/01_basics/e5_retail_cart.py).
 
 ## Compound inputs with `csp.Struct`
 
-A Trade consists of multiple parts: price of a share, quantity of shares, and indication of a buying or a selling transaction.
+A Cart consists of multiple parts: product name, quantity, indication if the product was added or removed from the cart, and if a purchase was made.
 
-`struct` is a useful data type for this type of information. In csp, you can use [`csp.Struct`](csp.Struct-API), a higher-level data type that can be defined with type-annotated values.
+A `struct` (in the C programming language) is a useful data type for this type of information. In CSP, you can use [`csp.Struct`](csp.Struct-API), a higher-level data type that can be defined with type-annotated values.
 
 ```python
-class Trade(csp.Struct):
-    price: float
+class Cart(csp.Struct):
+    product: str
     qty: int
-    buy: bool
+    add: bool
+    purchase: bool
 ```
 
 ## Build computing nodes
 
-To calculate volume-weighted averages, you need the cumulative sum of previous trade prices and quantities. Hence, your csp node needs to store stateful information. You can use \[`csp.state`\] to declare stateful variables that bound to the node.
+### Track cart updates
 
-A csp node can return multiple named outputs, denoted as `csp.Outputs` type, created using the `csp.output` function. The individual return values can be accessed with dot notation.
+To track the total cart items and price, you need stateful variables that can be updated each time the cart is modified.
+You can use `csp.state` to declare stateful variables that are bound to a node.
+
+> \[!TIP\]
+> By convention, state variables are prefixed with `s_`.
+
+A CSP node can also return multiple named outputs, denoted as `csp.Outputs` type, created using the `csp.output` function. The individual return values can then be accessed with dot notation.
 
 ```python
 @csp.node
-def vwap(trade: ts[Trade]) -> csp.Outputs(vwap=ts[float], qty=ts[int]):
+def update_cart(event: ts[Cart], discount: ts[float]) -> csp.Outputs(total = ts[float], items = ts[int]):
+    """
+    Track of the cart total and number of items.
+    """
     with csp.state():
-        s_cum_notional = 0.0
-        s_cum_qty = 0
+        s_cart_total = 0.0
+        s_cart_items = 0
 
-    if csp.ticked(trade):
-        s_cum_notional += trade.price * trade.qty
-        s_cum_qty += trade.qty
+    if csp.ticked(event):
+        if event.add:
+            s_cart_total += PRODUCTS[event.product] * event.qty
+            s_cart_items += event.qty
+        else:
+            s_cart_total -= PRODUCTS[event.product] * event.qty
+            s_cart_items += event.qty
 
-        csp.output(vwap=s_cum_notional / s_cum_qty, qty=s_cum_qty)
+    final_total = s_cart_total * discount
+
+    if event.purchase:
+        s_cart_total = 0.0
+        s_cart_items = 0
+
+    csp.output(total=final_total, items=s_cart_items)
 ```
 
+### Track discount applied
+
+To apply a discount if the purchase is made in under a minute, you need to keep track of time from the first update to the cart.
+
+You can do this with an alarm in CSP. An alarm is a new Time Series input bound to a node that ticks at scheduled intervals. It can be created using `csp.alarm()` within an `csp.alarms()` context.
+
 ```python
 @csp.node
-def calc_pnl(vwap_trade: ts[Trade], mark_price: ts[float]) -> ts[float]:
-    if csp.ticked(vwap_trade, mark_price) and csp.valid(vwap_trade, mark_price):
-        if vwap_trade.buy:
-            pnl = (mark_price - vwap_trade.price) * vwap_trade.qty
-        else:
-            pnl = (vwap_trade.price - mark_price) * vwap_trade.qty
+def track_discount(event: ts[Cart]) -> ts[float]:
+    """
+    Track the discount based on the time of the purchase.
+    If the purchase is made within 1 minute, a 10% discount is applied.
+    """
+    with csp.alarms():
+        alarm = csp.alarm(bool)
 
-        return pnl
+    with csp.state():
+        s_discount = 0.9  # 10% discount
+
+    with csp.start():
+        csp.schedule_alarm(alarm, timedelta(seconds=60), True)
+
+    if csp.ticked(alarm):
+        s_discount = 1.0  # No discount
+
+    if csp.ticked(event):
+        return s_discount
+```
+
+### Track purchases
+
+You can use stateful variables again to keep track of purchases.
+
+> \[!NOTE\]
+> While this information can also be tracked in `update_cart`, we create this independent node for
+> composability and to introduce the concept of splitting the event stream in the following section.
+
+```python
+@csp.node
+def track_purchases(purchase_event: ts[Cart], cart_total: ts[float]) -> csp.Outputs(sale = ts[float], qty = ts[int]):
+    """
+    Track the total sales and number of purchases.
+    """
+    with csp.state():
+        s_purchases = 0
+        s_total_sales = 0.0
+
+    if csp.ticked(purchase_event):
+        s_purchases += 1
+        s_total_sales += cart_total
+
+    return csp.output(sale=s_total_sales, qty=s_purchases)
 ```
 
 ## Create workflow graph
 
-To create example `ask`, `bid`, and `trades` values, you can use [`csp.curve`](Base-Adapters-API#cspcurve).
+To create example cart updates, you can use [`csp.curve`](Base-Adapters-API#cspcurve).
 This commonly-used type in csp converts a list of (non-CSP) data into a ticking, csp-friendly inputs.
 
 ```python
@@ -57,85 +121,56 @@ This commonly-used type in csp converts a list of (non-CSP) data into a ticking,
 def my_graph():
     st = datetime(2020, 1, 1)
 
-    # Dummy bid/ask trade inputs
-    bid = csp.curve(
-        float,
-        [(st + timedelta(seconds=0.5), 99.0), (st + timedelta(seconds=1.5), 99.1), (st + timedelta(seconds=5), 99.2)],
-    )
-
-    ask = csp.curve(
-        float,
+    # Example cart updates
+    events = csp.curve(
+        Cart,
         [
-            (st + timedelta(seconds=0.6), 99.1),
-            (st + timedelta(seconds=1.3), 99.2),
-            (st + timedelta(seconds=4.2), 99.25),
+            (st + timedelta(seconds=15), Cart(product="X", qty=1, add=True, purchase=False)),
+            (st + timedelta(seconds=30), Cart(product="Y", qty=2, add=True, purchase=False)),
+            (st + timedelta(seconds=40), Cart(product="Y", qty=1, add=False, purchase=True)),
+            (st + timedelta(seconds=55), Cart(product="X", qty=1, add=True, purchase=False)),
+            (st + timedelta(seconds=90), Cart(product="X", qty=1, add=True, purchase=True)),
         ],
     )
 
-    trades = csp.curve(
-        Trade,
-        [
-            (st + timedelta(seconds=1), Trade(price=100.0, qty=50, buy=True)),
-            (st + timedelta(seconds=2), Trade(price=101.5, qty=500, buy=False)),
-            (st + timedelta(seconds=3), Trade(price=100.50, qty=100, buy=True)),
-            (st + timedelta(seconds=4), Trade(price=101.2, qty=500, buy=False)),
-            (st + timedelta(seconds=5), Trade(price=101.3, qty=500, buy=False)),
-            (st + timedelta(seconds=6), Trade(price=101.4, qty=500, buy=True)),
-        ],
-    )
+    csp.print("Events", events)
+
+    discount = track_discount(events)
+    current_cart = update_cart(events, discount)
 ```
 
-The next step is to separate the buying and selling transactions that are captured in `Trade.buy` and calculate the VWAP. You can use the [csp.split](Base-Nodes-API#cspsplit) function for this. It splits input based on a boolean flag.
+To track total purchases, you only need the events where `purchase=True`.
+You can use the [`csp.split`](https://github.com/Point72/csp/wiki/Base-Nodes-API#cspsplit) function for this. It splits the input based on a boolean flag.
+
+```python
+split_purchases = csp.split(events.purchase, events)
+purchases = track_purchases(split_purchases.true, current_cart.total)
+```
 
 > \[!TIP\]
 > To perform the opposite operation of a split you can use [csp.merge](Base-Nodes-API#cspmerge).
 
-```python
-buysell = csp.split(trades.buy, trades)
-buy_trades = buysell.true
-sell_trades = buysell.false
-
-buy_vwap = vwap(buy_trades)
-sell_vwap = vwap(sell_trades)
-```
-
-Finally, you need to calculate the profit-and-loss using the VWAPs of trades. You can create new "Trade" `Struct`s with  using [`fromts`](csp.Struct-API#available-methods) and perform the computation:
+Finally print all the values.
 
 ```python
-buy_vwap = Trade.fromts(price=buy_vwap.vwap, qty=buy_vwap.qty, buy=buy_trades.buy)
-sell_vwap = Trade.fromts(price=sell_vwap.vwap, qty=sell_vwap.qty, buy=sell_trades.buy)
-
-mid = (bid + ask) / 2
-buy_pnl = calc_pnl(buy_vwap, mid)
-sell_pnl = calc_pnl(sell_vwap, mid)
-
-pnl = buy_pnl + sell_pnl
-
- csp.print("buys", buy_trades)
-csp.print("sells", sell_trades)
-csp.print("buy_vwap", buy_vwap)
-csp.print("sell_vwap", sell_vwap)
-
-csp.print("mid", mid)
-csp.print("buy_pnl", buy_pnl)
-csp.print("sell_pnl", sell_pnl)
-csp.print("pnl", pnl)
+csp.print("Cart items", current_cart.items)
+csp.print("Cart total", current_cart.total)
+csp.print("Discount", discount)
+csp.print("Total sales", purchases.sale)
+csp.print("Purchases", purchases.qty)
 ```
 
-Execute the program and generate an image of the graph with:
+## Execute the graph
+
+Execute the program and generate an image of the graph with `csp.run` and `csp.show_graph` respectively:
 
 ```python
 def main():
     start = datetime(2020, 1, 1)
-    csp.run(my_graph, starttime=start, endtime=timedelta(seconds=20))
+    csp.run(my_graph, starttime=start)
     csp.show_graph(my_graph, graph_filename="tmp.png")
-
-if __name__ == "__main__":
-    main()
 ```
 
-As expected, the graph for this workflow show the split of buy & sell Trades, calculation of VWAP for each followed by using the VWAP-Stucts in profit-and-loss calculations:
+As expected, the graph for the workflow shows the three computing nodes as well the split on purchases.
 
-![Output of show_graph](images/pnl-graph.png)
-
-Check out the [trade profit-and-loss example](https://github.com/Point72/csp/blob/main/examples/01_basics/e4_trade_pnl.py) to learn more.
+![Output of show_graph](images/retail-graph.png)

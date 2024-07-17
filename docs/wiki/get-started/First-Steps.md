@@ -1,5 +1,5 @@
-csp is a graph-based stream processing library, where you create directed graphs for real-time event streaming workflows.
-In this introductory tutorial, you will write a csp program to calculate the Bid-Ask Spread for specified `bid` and `ask` values.
+CSP is a graph-based stream processing library, where you create directed graphs for real-time event streaming workflows.
+In this introductory tutorial, you will write a CSP program to calculate the Bid-Ask Spread for specified `bid` and `ask` values.
 
 > \[!TIP\]
 > The bid–ask spread is the difference between the prices quoted for an immediate sale (ask) and an immediate purchase (bid) for stocks, futures contracts, options, or currency pairs in some auction scenario.
@@ -7,9 +7,9 @@ In this introductory tutorial, you will write a csp program to calculate the Bid
 
 ## Introduction to real-time event stream processing
 
-Real-time data is continuously collected or updated data like IT log monitorings or weather recordings. Stream processing is a the practice of working with or analyzing this data in real time. Streaming applications are driven by updates or changes to the input values. In csp, you refer to the input changes as "tick"s, and write the analysis workflow as a directed graph.
+Real-time data is continuously collected or updated data like IT log monitorings or weather recordings. Stream processing is a the practice of working with or analyzing this data in real time. Streaming applications are driven by updates or changes to the input values. In CSP, you refer to the input changes as "tick"s, and write the analysis workflow as a directed graph.
 
-csp programs are written in a functional-style, and consist of:
+CSP programs are written in a functional-style, and consist of:
 
 - runtime components in the form of `csp.node` methods, and
 - graph-building components in the form of `csp.graph` components.
@@ -23,11 +23,11 @@ import csp
 from csp import ts
 ```
 
-Data streams are often expressed as Time Series, and csp defines a high-level `ts` type that denotes a Time Series input. Most csp computation nodes require Time Series inputs.
+Data streams are often expressed as Time Series, and CSP defines a high-level `ts` type that denotes a Time Series input. Most CSP computation nodes require Time Series inputs.
 
 ## Create a `csp.node` to calculate spread
 
-`csp.node`s are the computational building-blocks of a csp program. You can use the `@csp.node` decorator to create a node that calculates the bid-ask spread.
+`csp.node`s are the computational building-blocks of a CSP program. You can use the `@csp.node` decorator to create a node that calculates the bid-ask spread.
 
 ```python
 @csp.node
@@ -39,14 +39,14 @@ def spread(bid: ts[float], ask: ts[float]) -> ts[float]:
 The `bid` and `ask` values are expected to be Time Series values.
 
 > \[!IMPORTANT\]
-> csp nodes are strictly typed, and the type is enforced by the C++ engine.
+> CSP nodes are strictly typed, and the type is enforced by the C++ engine.
 
 This node needs to be executed each time the `ask` and `bid` values change, so we use the following built-in nodes:
 
 - `csp.valid` - To ensure the values have ticked at least once, where a "tick" refers to any change in the input
 - `csp.ticked(bid, ask)` - to check if ask OR bid have ticked since we last checked
 
-csp have several helpful nodes for common computations. Check out the API Reference documentation pages to learn more.
+CSP has several helpful nodes for common computations. Check out the API Reference documentation pages to learn more.
 
 ## Create the graph
 
@@ -71,8 +71,6 @@ def my_graph():
 `csp.graph` components are only executed once, during application startup to construct the graph. Once the graph is constructed, `csp.graph` code is no longer needed.
 
 During runtime, only the inputs, `csp.node`s, and outputs will be active as data flows through the graph. The graph run is driven by input **ticks**.
-
-[csp.const](Base-Adapters-API#cspconst)
 
 > \[!TIP\]
 > You can also create csp-friendly constant time series values with [csp.const](Base-Adapters-API#cspconst).

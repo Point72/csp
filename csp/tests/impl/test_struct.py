@@ -1,3 +1,4 @@
+import enum
 import json
 import numpy as np
 import pickle
@@ -1742,6 +1743,7 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "d_any": d_any_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
+        # Special floats not supported as keys
         d_f = {float("nan"): 2, 2.3: 4, 3.4: 6, 4.5: 7}
         d_f_res = {str(k): v for k, v in d_f.items()}
         test_struct = MyStruct(i=456, d_any=d_f)
@@ -1759,6 +1761,65 @@ class TestCspStruct(unittest.TestCase):
         test_struct = MyStruct(i=456, d_any=d_f)
         with self.assertRaises(ValueError):
             test_struct.to_json()
+
+        # None as key
+        d_none = {
+            None: 2,
+        }
+        d_none_res = {"null": 2}
+        test_struct = MyStruct(i=456, d_any=d_none)
+        result_dict = {"i": 456, "d_any": d_none_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        # Bool as key
+        d_bool = {True: 2, False: "abc"}
+        d_bool_res = {str(k): v for k, v in d_bool.items()}
+        test_struct = MyStruct(i=456, d_any=d_bool)
+        result_dict = {"i": 456, "d_any": d_bool_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        # Datetime as key
+        dt = datetime.now(tz=pytz.utc)
+        d_datetime = {dt: "datetime"}
+        test_struct = MyStruct(i=456, d_any=d_datetime)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({datetime.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
+
+        dt = datetime.now(tz=pytz.utc)
+        d_datetime = {dt.date(): "date"}
+        test_struct = MyStruct(i=456, d_any=d_datetime)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({date.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
+
+        dt = datetime.now(tz=pytz.utc)
+        d_datetime = {dt.time(): "time"}
+        test_struct = MyStruct(i=456, d_any=d_datetime)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({time.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
+
+        # csp.Enum as key
+        class MyCspEnum(csp.Enum):
+            KEY1 = csp.Enum.auto()
+            KEY2 = csp.Enum.auto()
+            KEY3 = csp.Enum.auto()
+
+        d_csp_enum = {MyCspEnum.KEY1: "key1", MyCspEnum.KEY2: "key2", MyCspEnum.KEY3: "key3"}
+        d_csp_enum_res = {k.name: v for k, v in d_csp_enum.items()}
+        test_struct = MyStruct(i=456, d_any=d_csp_enum)
+        result_dict = {"i": 456, "d_any": d_csp_enum_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        # enum as key
+        class MyPyEnum(enum.Enum):
+            KEY1 = enum.auto()
+            KEY2 = enum.auto()
+            KEY3 = enum.auto()
+
+        d_py_enum = {MyPyEnum.KEY1: "key1", MyPyEnum.KEY2: "key2", MyPyEnum.KEY3: "key3"}
+        d_py_enum_res = {k.name: v for k, v in d_csp_enum.items()}
+        test_struct = MyStruct(i=456, d_any=d_py_enum)
+        result_dict = {"i": 456, "d_any": d_py_enum_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
     def test_to_json_struct(self):
         class MySubSubStruct(csp.Struct):

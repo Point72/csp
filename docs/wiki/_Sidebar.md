@@ -22,6 +22,7 @@ Notes for editors:
 - [Historical Buffers](Historical-Buffers)
 - [Execution Modes](Execution-Modes)
 - [Adapters](Adapters)
+- [Common Mistakes](Common-Mistakes)
 
 **How-to guides**
 

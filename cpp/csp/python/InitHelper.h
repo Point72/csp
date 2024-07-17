@@ -111,4 +111,19 @@ inline bool InitHelper::execute( PyObject * module )
 }
 
 }
+
+#if PY_VERSION_HEX < 0x03090000
+//PyMODINIT_FUNC in Python <3.9 doesn't export the function/make visible
+//this is required since we build with hidden visibility by default
+//https://github.com/scipy/scipy/issues/15996
+//https://github.com/mesonbuild/meson/pull/10369
+#if defined(__cplusplus)
+#define CSP_PyMODINIT_FUNC extern "C" DLL_PUBLIC PyObject*
+#else
+#define CSP_PyMODINIT_FUNC DLL_PUBLIC PyObject*
+#endif
+#else
+#define CSP_PyMODINIT_FUNC PyMODINIT_FUNC
+#endif
+
 #endif

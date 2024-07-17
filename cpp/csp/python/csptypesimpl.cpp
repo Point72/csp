@@ -13,7 +13,7 @@ static PyModuleDef _csptypesimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__csptypesimpl(void)
+CSP_PyMODINIT_FUNC PyInit__csptypesimpl(void)
 {
     PyObject* m;
 

@@ -682,7 +682,7 @@ static PyModuleDef _parquetadapterimpl_module = {
         NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__parquetadapterimpl( void )
+CSP_PyMODINIT_FUNC PyInit__parquetadapterimpl( void )
 {
     PyObject *m;
 

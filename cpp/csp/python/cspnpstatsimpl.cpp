@@ -60,7 +60,7 @@ static PyModuleDef _cspnpstatsimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__cspnpstatsimpl(void)
+CSP_PyMODINIT_FUNC PyInit__cspnpstatsimpl(void)
 {
     PyObject* m;
 

@@ -49,8 +49,8 @@ Notes for editors:
   - [`csp.Struct` API](csp.Struct-API)
   - [`csp.dynamic` API](csp.dynamic-API)
   - [`csp.profiler` API](csp.profiler-API)
-- [Examples](Examples)
 - [Glossary of Terms](Glossary)
+- [Examples](https://github.com/Point72/csp/tree/main/examples)
 
 **Developer Guide**
 

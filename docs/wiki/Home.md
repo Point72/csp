@@ -26,16 +26,12 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
 
 <table>
   <tr>
-    <td>Seismic waveform data processing</td>
-    <td>NYC real-time transportation analysis</td>
-    <td>Wikimedia page edits monitoring</td>
+    <td>Real-time public transportation</td>
+    <td>Tracking Wikipedia page edits</td>
+    <td>Processing seismic waveforms</td>
+    <td>Visualizing global earthquakes</td>
   </tr>
   <tr>
-    <td>
-      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/seismic_waveform.ipynb">
-        <img src="images/seismic-waveform-example.png" width="300px">
-      </a>
-    </td>
     <td>
       <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/mta.ipynb">
         <img src="images/mta-example.png" width="300px">
@@ -46,10 +42,20 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
         <img src="images/wikimedia-example.png" width="300px">
       </a>
     </td>
+    <td>
+      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/seismic_waveform.ipynb">
+        <img src="images/seismic-waveform-example.png" width="300px">
+      </a>
+    </td>
+    <td>
+      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/earthquake.ipynb">
+        <img src="images/earthquake-example.png" width="300px">
+      </a>
+    </td>
   </tr>
 </table>
 
-Check out the [examples directory](https://github.com/Point72/csp/tree/main/examples) for more CSP features and use cases.
+Check out the [examples directory](https://github.com/Point72/csp/tree/main/examples) for a comprehensive collection of CSP applications.
 
 ## Community
 

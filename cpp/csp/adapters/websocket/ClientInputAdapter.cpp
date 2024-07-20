@@ -28,11 +28,11 @@ ClientInputAdapter::ClientInputAdapter(
 void ClientInputAdapter::processMessage( void* c, size_t t, PushBatch* batch ) 
 {
 
-    if( type() -> type() == CspType::Type::STRUCT )
+    if( dataType() -> type() == CspType::Type::STRUCT )
     {
         auto tick = m_converter -> asStruct( c, t );
         pushTick( std::move(tick), batch );
-    } else if ( type() -> type() == CspType::Type::STRING )
+    } else if ( dataType() -> type() == CspType::Type::STRING )
     {
         pushTick( std::string((char const*)c, t), batch );
     }

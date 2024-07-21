@@ -2933,6 +2933,15 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(b, s.a)
         self.assertEqual(type(b), list)
 
+    def test_dir(self):
+        s = SimpleStruct(a=0)
+        dir_output = dir(s)
+        self.assertIn("a", dir_output)
+        self.assertIn("to_dict", dir_output)
+        self.assertIn("update", dir_output)
+        self.assertIn("__metadata__", dir_output)
+        self.assertEqual(dir_output, sorted(dir_output))
+
 
 if __name__ == "__main__":
     unittest.main()

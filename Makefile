@@ -35,7 +35,6 @@ install:  ## install library
 .PHONY: lint-py lint-cpp lint lints fix-py fix-cpp fix format check checks
 
 lint-py:
-	python -m isort --check csp/ examples/ setup.py
 	python -m ruff check csp/ examples/ setup.py
 	python -m ruff format --check csp/ examples/ setup.py
 
@@ -54,7 +53,7 @@ lint: lint-py lint-docs ## run lints
 lints: lint
 
 fix-py:
-	python -m isort csp/ examples/ setup.py
+	python -m ruff check --fix csp/ examples/ setup.py
 	python -m ruff format csp/ examples/ setup.py
 
 fix-cpp:

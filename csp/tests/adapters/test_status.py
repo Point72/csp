@@ -1,6 +1,7 @@
 import os
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 import csp
 from csp import ts

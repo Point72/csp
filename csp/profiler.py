@@ -1,6 +1,5 @@
 import base64
 import gc
-import numpy as np
 import pickle
 import sys
 import threading
@@ -10,6 +9,8 @@ from concurrent.futures import Future
 from datetime import datetime
 from functools import reduce
 from io import BytesIO
+
+import numpy as np
 
 import csp
 from csp.impl.genericpushadapter import GenericPushAdapter

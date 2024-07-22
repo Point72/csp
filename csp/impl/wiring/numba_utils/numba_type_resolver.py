@@ -1,6 +1,7 @@
 import datetime
-import numba
 import typing
+
+import numba
 
 from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring.numba_utils import datetime_extension

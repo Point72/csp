@@ -1,9 +1,10 @@
-import numpy as np
 import os
-import psutil
 import typing
 import unittest
 from datetime import datetime, timedelta
+
+import numpy as np
+import psutil
 
 import csp
 from csp import ts

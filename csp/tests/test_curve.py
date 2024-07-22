@@ -1,6 +1,7 @@
-import numpy
 import unittest
 from datetime import datetime, timedelta
+
+import numpy
 
 import csp
 

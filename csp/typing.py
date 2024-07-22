@@ -1,6 +1,7 @@
-import numpy
 import sys
 from typing import TypeVar
+
+import numpy
 
 T = TypeVar("T")
 

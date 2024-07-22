@@ -1,7 +1,4 @@
-import numpy as np
 import os
-import pandas as pd
-import pytz
 import string
 import sys
 import tempfile
@@ -9,6 +6,10 @@ import time as Time
 import unittest
 from datetime import date, datetime, time, timedelta
 from functools import reduce
+
+import numpy as np
+import pandas as pd
+import pytz
 
 import csp
 import csp.stats as stats

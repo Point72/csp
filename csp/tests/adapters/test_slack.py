@@ -1,7 +1,8 @@
-import pytest
 from datetime import timedelta
 from ssl import create_default_context
 from unittest.mock import MagicMock, call, patch
+
+import pytest
 
 import csp
 from csp import ts

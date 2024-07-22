@@ -174,6 +174,7 @@ csp.unroll(x: ts[['T']]) → ts['T']
 Given a timeseries of a *list* of values, unroll will "unroll" the values in the list into a timeseries of the elements.
 `unroll` will ensure to preserve the order across all list ticks.
 Ticks will be unrolled in subsequent engine cycles.
+For a detailed explanation of this behavior, see the documentation on [duplicate timestamps](Execution-Modes#handling-duplicate-timestamps).
 
 ## `csp.collect`
 

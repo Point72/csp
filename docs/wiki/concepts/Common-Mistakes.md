@@ -74,7 +74,7 @@ from typing import List
 def next_movie_showing(show_times: ts[List[datetime]]) -> ts[datetime]:
     next_showing = None
     for time in show_times:
-        if time >= csp.now(): # list may include some shows today that have already past, so let's filter those out
+        if time >= datetime.now(): # list may include some shows today that have already past, so let's filter those out
             if next_showing is None or time < next_showing:
                 next_showing = time
 

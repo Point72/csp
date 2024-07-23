@@ -417,6 +417,6 @@ def _run(self):
    while self._running:
         try:
             requests.get(endpoint) # API call over a network, may fail
-        catch Exception as exc:
+        except Exception as exc:
             self.shutdown_engine(exc)
 ```

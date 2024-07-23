@@ -76,13 +76,7 @@ static PyObject * PyAdapterManager_PyObject_shutdown_engine( PyAdapterManager_Py
     if( !PyArg_ParseTuple( args, "O", &pyException ) )
         return NULL;
     
-    if( !PyExceptionInstance_Check( pyException ) )
-    {
-        std::string desc = "Expected Exception object as argument for shutdown_engine: got " + std::string( Py_TYPE( pyException ) -> tp_name );
-        self -> manager -> rootEngine() -> shutdown( std::make_exception_ptr( csp::Exception( "TypeError", desc ) ) );
-    }
-    else
-        self -> manager -> rootEngine() -> shutdown( std::make_exception_ptr( PythonPassthrough( pyException ) ) );
+    self -> manager -> rootEngine() -> shutdown( PyEngine_shutdownMakeException( pyException ) );
 
     CSP_RETURN_NONE;
 }

@@ -55,6 +55,20 @@ private:
     Engine    * m_engine;
 };
 
+inline std::exception_ptr PyEngine_shutdownMakeException( PyObject * pyException )
+{
+    if( !PyExceptionInstance_Check( pyException ) )
+    {
+        PyObject* pyExceptionStr = PyObject_Str( pyException );
+        std::string pyExceptionString = PyUnicode_AsUTF8( pyExceptionStr );
+        std::string desc = "Expected Exception object as argument for shutdown_engine: got " + pyExceptionString + "of type " + Py_TYPE( pyException ) -> tp_name;
+        Py_DECREF(pyExceptionStr);
+        return std::make_exception_ptr( csp::Exception( "TypeError", desc ) );
+    }
+    else
+        return std::make_exception_ptr( PythonPassthrough( pyException ) );
+}
+
 // Generic engine shutdown function for push-type adapters
 template<typename T>
 PyObject * PyEngine_shutdown( T * self, PyObject * args, PyObject * kwargs )
@@ -65,13 +79,7 @@ PyObject * PyEngine_shutdown( T * self, PyObject * args, PyObject * kwargs )
     if( !PyArg_ParseTuple( args, "O", &pyException ) )
         return NULL;
 
-    if( !PyExceptionInstance_Check( pyException ) )
-    {
-        std::string desc = "Expected Exception object as argument for shutdown_engine: got " + std::string( Py_TYPE( pyException ) -> tp_name );
-        self -> adapter -> rootEngine() -> shutdown( std::make_exception_ptr( csp::Exception( "TypeError", desc ) ) );
-    }
-    else
-        self -> adapter -> rootEngine() -> shutdown( std::make_exception_ptr( PythonPassthrough( pyException ) ) );
+    self -> adapter -> rootEngine() -> shutdown( PyEngine_shutdownMakeException( pyException ) );
 
     CSP_RETURN_NONE;
 }

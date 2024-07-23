@@ -28,7 +28,7 @@ private:
 };
 
 template<typename T>
-class FeedbackInputAdapter final : public InputAdapter
+class DLL_PUBLIC FeedbackInputAdapter final : public InputAdapter
 {
 public:
     using InputAdapter::InputAdapter;

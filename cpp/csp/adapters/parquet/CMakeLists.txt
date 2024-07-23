@@ -73,6 +73,7 @@ else()
   endif()
 endif()
 
+target_compile_options(csp_parquet_adapter PRIVATE "-fvisibility=default")
 target_link_libraries(csp_parquet_adapter PRIVATE csp_adapter_utils thrift::thrift lz4::lz4 utf8proc::utf8proc ${BROTLI_STATIC_LIB} ${ARROW_PACKAGES_TO_LINK})
 
 install(TARGETS csp_parquet_adapter

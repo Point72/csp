@@ -55,14 +55,15 @@ private:
     Engine    * m_engine;
 };
 
-inline std::exception_ptr PyEngine_shutdownMakeException( PyObject * pyException )
+inline std::exception_ptr PyEngine_shutdown_make_exception( PyObject * pyException )
 {
     if( !PyExceptionInstance_Check( pyException ) )
     {
-        PyObject* pyExceptionStr = PyObject_Str( pyException );
-        std::string pyExceptionString = PyUnicode_AsUTF8( pyExceptionStr );
-        std::string desc = "Expected Exception object as argument for shutdown_engine: got " + pyExceptionString + "of type " + Py_TYPE( pyException ) -> tp_name;
-        Py_DECREF(pyExceptionStr);
+        PyObjectPtr pyExceptionStr = PyObjectPtr::own( PyObject_Str( pyException ) );
+        if( !pyExceptionStr.ptr() )
+            CSP_THROW( PythonPassthrough, "" );
+        std::string pyExceptionString = PyUnicode_AsUTF8( pyExceptionStr.ptr() );
+        std::string desc = "Expected Exception object as argument for shutdown_engine: got " + pyExceptionString + " of type " + Py_TYPE( pyException ) -> tp_name;
         return std::make_exception_ptr( csp::Exception( "TypeError", desc ) );
     }
     else
@@ -79,7 +80,7 @@ PyObject * PyEngine_shutdown( T * self, PyObject * args, PyObject * kwargs )
     if( !PyArg_ParseTuple( args, "O", &pyException ) )
         return NULL;
 
-    self -> adapter -> rootEngine() -> shutdown( PyEngine_shutdownMakeException( pyException ) );
+    self -> adapter -> rootEngine() -> shutdown( PyEngine_shutdown_make_exception( pyException ) );
 
     CSP_RETURN_NONE;
 }

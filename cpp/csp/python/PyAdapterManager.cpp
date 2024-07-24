@@ -76,7 +76,7 @@ static PyObject * PyAdapterManager_PyObject_shutdown_engine( PyAdapterManager_Py
     if( !PyArg_ParseTuple( args, "O", &pyException ) )
         return NULL;
     
-    self -> manager -> rootEngine() -> shutdown( PyEngine_shutdownMakeException( pyException ) );
+    self -> manager -> rootEngine() -> shutdown( PyEngine_shutdown_make_exception( pyException ) );
 
     CSP_RETURN_NONE;
 }

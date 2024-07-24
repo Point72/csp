@@ -224,7 +224,7 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         return self.deepcopy()
 
     def __dir__(self):
-        return self.__full_metadata_typed__.keys()
+        return sorted(super().__dir__() + list(self.__full_metadata_typed__.keys()))
 
 
 def define_struct(name, metadata: dict, defaults: dict = {}, base=Struct):

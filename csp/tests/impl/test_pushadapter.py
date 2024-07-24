@@ -1,3 +1,4 @@
+import inspect
 import threading
 import time
 import unittest
@@ -284,6 +285,15 @@ class TestPushAdapter(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "Dummy exception message"):
             csp.run(graph, starttime=datetime.utcnow(), realtime=True)
         self.assertEqual(status["count"], 1)
+
+    def test_help(self):
+        # for `help` to work on adapters, signature must be defined
+        sig = inspect.signature(test_adapter)
+        self.assertEqual(sig.parameters["typ"].annotation, "T")
+        self.assertEqual(sig.parameters["interval"].annotation, int)
+        self.assertEqual(sig.parameters["ticks_per_interval"].annotation, int)
+        self.assertEqual(sig.parameters["push_mode"].annotation, PushMode)
+        self.assertEqual(sig.parameters["push_group"].annotation, object)
 
 
 if __name__ == "__main__":

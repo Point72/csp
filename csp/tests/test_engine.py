@@ -1428,7 +1428,7 @@ class TestEngine(unittest.TestCase):
         @csp.node
         def basket_wrapper(l: [csp.ts[float]], d: {str: csp.ts[float]}) -> csp.Outputs(
             l=csp.OutputBasket(List[csp.ts[float]], shape_of="l"),
-            d=csp.OutputBasket(typing.Dict[str, csp.ts[float]], shape_of="d"),
+            d=csp.OutputBasket(Dict[str, csp.ts[float]], shape_of="d"),
         ):
             if csp.ticked(l):
                 ticked_value_types = set(map(type, l.tickedvalues()))
@@ -1689,7 +1689,7 @@ class TestEngine(unittest.TestCase):
 
     def test_unnamed_basket_return(self):
         @csp.node
-        def n(x: {str: csp.ts["T"]}) -> csp.OutputBasket(typing.Dict[str, csp.ts["T"]], shape_of="x"):
+        def n(x: {str: csp.ts["T"]}) -> csp.OutputBasket(Dict[str, csp.ts["T"]], shape_of="x"):
             if csp.ticked(x):
                 return csp.output({k: v for k, v in x.tickeditems()})
 
@@ -1819,12 +1819,12 @@ class TestEngine(unittest.TestCase):
         @csp.graph
         def aux(x: [ts[float]], y: {str: ts[float]}) -> csp.Outputs(
             o1=csp.OutputBasket(List[ts[float]], shape_of="x"),
-            o2=csp.OutputBasket(typing.Dict[str, ts[float]], shape_of="y"),
+            o2=csp.OutputBasket(Dict[str, ts[float]], shape_of="y"),
         ):
             return csp.output(o1=x, o2=y)
 
         @csp.graph
-        def g() -> csp.Outputs(o1=csp.OutputBasket(List[ts[float]]), o2=csp.OutputBasket(typing.Dict[str, ts[float]])):
+        def g() -> csp.Outputs(o1=csp.OutputBasket(List[ts[float]]), o2=csp.OutputBasket(Dict[str, ts[float]])):
             res = aux([csp.const(1.0), csp.const(2.0)], {"3": csp.const(3.0), "4": csp.const(4.0)})
             return csp.output(o1=res.o1, o2=res.o2)
 

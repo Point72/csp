@@ -1,11 +1,10 @@
 import logging
 import math
 import threading
-import typing
 import urllib
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional, TypeVar, Union
 
 import csp
 from csp import ts
@@ -31,7 +30,7 @@ _ = (
     RawBytesMessageMapper,
     RawTextMessageMapper,
 )
-T = typing.TypeVar("T")
+T = TypeVar("T")
 
 
 try:
@@ -331,7 +330,7 @@ class TableAdapter:
     def publish(
         self,
         value: ts[object],
-        field_map: typing.Union[typing.Dict[str, str], str, None] = None,
+        field_map: Union[Dict[str, str], str, None] = None,
     ):
         """
         :param value - timeseries to publish onto this table
@@ -345,7 +344,7 @@ class TableAdapter:
                 raise TypeError("Expected type str for field_map on single column publish, got %s" % type(field_map))
             self._publish_field(value, field_map)
 
-    def _publish_struct(self, value: ts[csp.Struct], field_map: typing.Optional[typing.Dict[str, str]]):
+    def _publish_struct(self, value: ts[csp.Struct], field_map: Optional[Dict[str, str]]):
         field_map = field_map or {k: k for k in value.tstype.typ.metadata()}
         for k, v in field_map.items():
             self._publish_field(getattr(value, k), v)
@@ -427,7 +426,7 @@ class WebsocketAdapterManager:
         self,
         ts_type: type,
         msg_mapper: MsgMapper,
-        field_map: typing.Union[dict, str] = None,
+        field_map: Union[dict, str] = None,
         meta_field_map: dict = None,
         push_mode: csp.PushMode = csp.PushMode.NON_COLLAPSING,
     ):

@@ -1,7 +1,6 @@
 import numpy as np
-import typing
 from datetime import datetime, timedelta
-from typing import List, TypeVar, Union
+from typing import Any, List, Optional, TypeVar, Union
 
 import csp
 from csp import ts
@@ -94,8 +93,8 @@ def _np_time_window_updates(
 
 @csp.graph
 def _window_updates(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int],
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int],
     trigger: ts[object],
     sampler: ts[object],
     reset: ts[object],
@@ -140,7 +139,7 @@ def _min_hit_by_tick(x: ts["T"], min_window: int, trigger: ts[object]) -> ts[boo
 
 
 @csp.graph
-def _min_hit(x: ts["T"], min_window: typing.Union[timedelta, int], trigger: ts[object]) -> ts[bool]:
+def _min_hit(x: ts["T"], min_window: Union[timedelta, int], trigger: ts[object]) -> ts[bool]:
     if isinstance(min_window, int):
         return _min_hit_by_tick(x, min_window, trigger)
     return csp.const(True, delay=min_window)
@@ -164,8 +163,8 @@ def _sync_nan_np(x: ts[np.ndarray], y: ts[np.ndarray]) -> csp.Outputs(x_sync=ts[
 
 
 @csp.graph
-def _sync_nan(x: ts[typing.Union[float, np.ndarray]], y: ts[typing.Union[float, np.ndarray]]) -> csp.Outputs(
-    x_sync=ts[typing.Union[float, np.ndarray]], y_sync=ts[typing.Union[float, np.ndarray]]
+def _sync_nan(x: ts[Union[float, np.ndarray]], y: ts[Union[float, np.ndarray]]) -> csp.Outputs(
+    x_sync=ts[Union[float, np.ndarray]], y_sync=ts[Union[float, np.ndarray]]
 ):
     return _sync_nan_f(x, y) if x.tstype.typ is float else _sync_nan_np(x, y)
 
@@ -193,7 +192,7 @@ def _np_exp(x: ts[np.ndarray]) -> ts[np.ndarray]:
 
 
 @csp.node(cppimpl=_cspnpstatsimpl._list_to_np)
-def list_to_numpy(x: [ts[float]], fillna: bool = False) -> ts[csp.typing.Numpy1DArray[float]]:
+def list_to_numpy(x: [ts[float]], fillna: bool = False) -> ts[Numpy1DArray[float]]:
     """
     x: listbasket of floats
     fillna: if True, unticked values will hold their previous value in the array.
@@ -1037,7 +1036,7 @@ def _np_prod(
 def _quantile(
     additions: ts[List[float]],
     removals: ts[List[float]],
-    quants: typing.List[float],
+    quants: List[float],
     nq: int,
     interpolation_type: int,
     trigger: ts[object],
@@ -1053,7 +1052,7 @@ def _quantile(
 def _np_quantile(
     additions: ts[List[np.ndarray]],
     removals: ts[List[np.ndarray]],
-    quants: typing.List[float],
+    quants: List[float],
     nq: int,
     interpolation_type: int,
     trigger: ts[object],
@@ -1295,9 +1294,9 @@ def _np_ema_debias_alpha(
 
 @csp.graph
 def _ema_debias(
-    x: ts[typing.Union[float, np.ndarray]],
-    additions: ts[typing.Union[typing.List[float], typing.List[np.ndarray]]],
-    removals: ts[typing.Union[typing.List[float], typing.List[np.ndarray]]],
+    x: ts[Union[float, np.ndarray]],
+    additions: ts[Union[List[float], List[np.ndarray]]],
+    removals: ts[Union[List[float], List[np.ndarray]]],
     alpha: float,
     ignore_na: bool,
     adjust: bool,
@@ -1307,7 +1306,7 @@ def _ema_debias(
     sampler: ts[object],
     reset: ts[object],
     min_data_points: int,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     if alpha:
         if not horizon:
             horizon = 0
@@ -1364,7 +1363,7 @@ Execution functions for code modularity
 
 
 @csp.graph
-def _execute_stats(edge: typing.Any = None, min_hit: ts[bool] = None) -> ts[typing.Union[float, datetime, np.ndarray]]:
+def _execute_stats(edge: Any = None, min_hit: ts[bool] = None) -> ts[Union[float, datetime, np.ndarray]]:
     # only filter on min_hit if we need to
     if min_hit is not None:
         edge = csp.filter(min_hit, edge)
@@ -1373,9 +1372,9 @@ def _execute_stats(edge: typing.Any = None, min_hit: ts[bool] = None) -> ts[typi
 
 @csp.graph
 def _arg_minmax(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     return_most_recent: bool = True,
     ignore_na: bool = True,
     trigger: ts[object] = None,
@@ -1383,7 +1382,7 @@ def _arg_minmax(
     reset: ts[object] = None,
     min_data_points: int = 0,
     max: bool = True,
-) -> ts[typing.Union[datetime, np.ndarray]]:
+) -> ts[Union[datetime, np.ndarray]]:
     series, interval, min_window, trigger, min_hit, updates, sampler, reset, _, _, _ = _setup(
         x, interval, min_window, trigger, sampler, reset
     )
@@ -1408,15 +1407,15 @@ Basic Statistics API
 
 @csp.graph
 def count(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the count of (non-nan) ticks in the window, either including/ignoring nan values.
@@ -1451,15 +1450,15 @@ def count(
 
 @csp.graph
 def unique(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
     precision: int = 10,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the number of unique non-nan values in the current window.
@@ -1493,15 +1492,15 @@ def unique(
 
 @csp.graph
 def first(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
     ignore_na: bool = True,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the first non-nan value currently within the window.
@@ -1534,15 +1533,15 @@ def first(
 
 @csp.graph
 def last(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the last value currently within the window.
@@ -1576,18 +1575,18 @@ def last(
 
 @csp.graph
 def sum(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     precise: bool = False,
     ignore_na: bool = True,
     trigger: ts[object] = None,
-    weights: ts[typing.Union[float, np.ndarray]] = None,
+    weights: ts[Union[float, np.ndarray]] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the sum of values over a given window.
@@ -1633,17 +1632,17 @@ def sum(
 
 @csp.graph
 def mean(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
-    weights: ts[typing.Union[float, np.ndarray]] = None,
+    weights: ts[Union[float, np.ndarray]] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the mean over a rolling window.
@@ -1705,16 +1704,16 @@ def mean(
 
 @csp.graph
 def prod(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the product over a rolling window.
@@ -1747,10 +1746,10 @@ def prod(
 
 # Not a graph since it has two different return types: list-basket and time-series
 def quantile(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    quant: typing.Union[float, typing.List[float]] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    quant: Union[float, List[float]] = None,
+    min_window: Union[timedelta, int] = None,
     interpolate: str = "linear",
     ignore_na: bool = True,
     trigger: ts[object] = None,
@@ -1853,10 +1852,10 @@ def quantile(
 
 
 def min_max(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
     max: bool = True,
-    min_window: typing.Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
@@ -1877,15 +1876,15 @@ def min_max(
 
 @csp.graph
 def max(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the maximum value within a given window.
@@ -1908,15 +1907,15 @@ def max(
 
 @csp.graph
 def min(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the minimum value within a given window.
@@ -1939,9 +1938,9 @@ def min(
 
 @csp.graph
 def rank(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     method: str = "min",
     ignore_na: bool = True,
     trigger: ts[object] = None,
@@ -1949,7 +1948,7 @@ def rank(
     reset: ts[object] = None,
     min_data_points: int = 0,
     na_option: str = "keep",
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the rank (0-indexed) of the last tick in relation to all other values in the interval.
@@ -2000,16 +1999,16 @@ def rank(
 
 @csp.graph
 def argmax(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     return_most_recent: bool = True,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[datetime, np.ndarray]]:
+) -> ts[Union[datetime, np.ndarray]]:
     """
 
     Returns the datetime at which the maximum value in the interval ticked.
@@ -2033,16 +2032,16 @@ def argmax(
 
 @csp.graph
 def argmin(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     return_most_recent: bool = True,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[datetime, np.ndarray]]:
+) -> ts[Union[datetime, np.ndarray]]:
     """
 
     Returns the datetime at which the minimum value in the interval ticked.
@@ -2066,15 +2065,15 @@ def argmin(
 
 @csp.graph
 def gmean(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the geometric mean of a strictly positive time series over a rolling window.
@@ -2122,15 +2121,15 @@ def gmean(
 
 @csp.graph
 def median(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the median value in the given window.
@@ -2169,19 +2168,19 @@ Moment-Based Statistics
 
 @csp.graph
 def cov(
-    x: ts[typing.Union[float, np.ndarray]],
-    y: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    y: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ddof: int = 1,
     ignore_na: bool = True,
     trigger: ts[object] = None,
-    weights: ts[typing.Union[float, np.ndarray]] = None,
+    weights: ts[Union[float, np.ndarray]] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the covariance between two in-sequence time-series within the given window. If the time-series are of type np.ndarray, the covariance is calculated elementwise.
@@ -2284,8 +2283,8 @@ def cov(
 @csp.graph
 def cov_matrix(
     x: ts[np.ndarray],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ddof: int = 1,
     ignore_na: bool = True,
     trigger: ts[object] = None,
@@ -2342,18 +2341,18 @@ def cov_matrix(
 
 @csp.graph
 def var(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ddof: int = 1,
     ignore_na: bool = True,
     trigger: ts[object] = None,
-    weights: ts[typing.Union[float, np.ndarray]] = None,
+    weights: ts[Union[float, np.ndarray]] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the variance within the given window.
@@ -2419,18 +2418,18 @@ def var(
 
 @csp.graph
 def stddev(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ddof: int = 1,
     ignore_na: bool = True,
     trigger: ts[object] = None,
-    weights: ts[typing.Union[float, np.ndarray]] = None,
+    weights: ts[Union[float, np.ndarray]] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the standard deviation within the given window.
@@ -2456,18 +2455,18 @@ def stddev(
 
 @csp.graph
 def sem(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ddof: int = 1,
     ignore_na: bool = True,
     trigger: ts[object] = None,
-    weights: ts[typing.Union[float, np.ndarray]] = None,
+    weights: ts[Union[float, np.ndarray]] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the standard error of the mean within the given window.
@@ -2532,18 +2531,18 @@ def sem(
 
 @csp.graph
 def corr(
-    x: ts[typing.Union[float, np.ndarray]],
-    y: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    y: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
-    weights: ts[typing.Union[float, np.ndarray]] = None,
+    weights: ts[Union[float, np.ndarray]] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the correlation between x and y within the given window. If the time-series are of type np.ndarray, the correlation is calculated elementwise.
@@ -2640,8 +2639,8 @@ def corr(
 @csp.graph
 def corr_matrix(
     x: ts[np.ndarray],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     trigger: ts[object] = None,
     weights: ts[float] = None,
@@ -2693,18 +2692,18 @@ def corr_matrix(
 
 @csp.graph
 def skew(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     bias: bool = False,
     trigger: ts[object] = None,
-    weights: ts[typing.Union[float, np.ndarray]] = None,
+    weights: ts[Union[float, np.ndarray]] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the skew within the given window.
@@ -2769,19 +2768,19 @@ def skew(
 
 @csp.graph
 def kurt(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[timedelta, int] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[timedelta, int] = None,
     ignore_na: bool = True,
     excess: bool = True,
     bias: bool = False,
     trigger: ts[object] = None,
-    weights: ts[typing.Union[float, np.ndarray]] = None,
+    weights: ts[Union[float, np.ndarray]] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the kurtosis within the given window.
@@ -2855,11 +2854,11 @@ EMA Statistics
 
 @csp.graph
 def ema(
-    x: ts[typing.Union[float, np.ndarray]],
+    x: ts[Union[float, np.ndarray]],
     min_periods: int = 1,
-    alpha: typing.Optional[float] = None,
-    span: typing.Optional[float] = None,
-    com: typing.Optional[float] = None,
+    alpha: Optional[float] = None,
+    span: Optional[float] = None,
+    com: Optional[float] = None,
     halflife: timedelta = None,
     adjust: bool = True,
     horizon: int = None,
@@ -2869,7 +2868,7 @@ def ema(
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the exponential moving avergae of a time series.
@@ -2949,12 +2948,12 @@ def ema(
 
 @csp.graph
 def ema_cov(
-    x: ts[typing.Union[float, np.ndarray]],
-    y: ts[typing.Union[float, np.ndarray]],
+    x: ts[Union[float, np.ndarray]],
+    y: ts[Union[float, np.ndarray]],
     min_periods: int = 1,
-    alpha: typing.Optional[float] = None,
-    span: typing.Optional[float] = None,
-    com: typing.Optional[float] = None,
+    alpha: Optional[float] = None,
+    span: Optional[float] = None,
+    com: Optional[float] = None,
     halflife: timedelta = None,
     adjust: bool = True,
     horizon: int = None,
@@ -2965,7 +2964,7 @@ def ema_cov(
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the exponential moving covariance between two time series.
@@ -3065,11 +3064,11 @@ def ema_cov(
 
 @csp.graph
 def ema_var(
-    x: ts[typing.Union[float, np.ndarray]],
+    x: ts[Union[float, np.ndarray]],
     min_periods: int = 1,
-    alpha: typing.Optional[float] = None,
-    span: typing.Optional[float] = None,
-    com: typing.Optional[float] = None,
+    alpha: Optional[float] = None,
+    span: Optional[float] = None,
+    com: Optional[float] = None,
     halflife: timedelta = None,
     adjust: bool = True,
     horizon: int = None,
@@ -3080,7 +3079,7 @@ def ema_var(
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the exponential moving variance of a time series.
@@ -3158,11 +3157,11 @@ def ema_var(
 
 @csp.graph
 def ema_std(
-    x: ts[typing.Union[float, np.ndarray]],
+    x: ts[Union[float, np.ndarray]],
     min_periods: int = 1,
-    alpha: typing.Optional[float] = None,
-    span: typing.Optional[float] = None,
-    com: typing.Optional[float] = None,
+    alpha: Optional[float] = None,
+    span: Optional[float] = None,
+    com: Optional[float] = None,
     halflife: timedelta = None,
     adjust: bool = True,
     horizon: int = None,
@@ -3173,7 +3172,7 @@ def ema_std(
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the exponential moving standard deviation of a time series.
@@ -3203,14 +3202,14 @@ def ema_std(
 
 @csp.graph
 def cross_sectional(
-    x: ts[typing.Union[float, np.ndarray]],
-    interval: typing.Union[timedelta, int] = None,
-    min_window: typing.Union[int, timedelta] = None,
+    x: ts[Union[float, np.ndarray]],
+    interval: Union[timedelta, int] = None,
+    min_window: Union[int, timedelta] = None,
     as_numpy: bool = False,
     trigger: ts[object] = None,
     sampler: ts[object] = None,
     reset: ts[object] = None,
-) -> ts[typing.Union[np.ndarray, typing.List[float], typing.List[np.ndarray]]]:
+) -> ts[Union[np.ndarray, List[float], List[np.ndarray]]]:
     """
 
     Returns all data present in the current window so that users can apply their own cross-sectional calculations.

@@ -4,12 +4,12 @@ import numpy as np
 import pickle
 import sys
 import threading
-import typing
 from collections import defaultdict
 from concurrent.futures import Future
 from datetime import datetime
 from functools import reduce
 from io import BytesIO
+from typing import Dict, List
 
 import csp
 from csp.impl.genericpushadapter import GenericPushAdapter
@@ -207,7 +207,7 @@ class ProfilerInfo(Struct):
     graph_info: GraphInfo
     build_time: float  # seconds
 
-    def from_engine(self, p: typing.Dict):
+    def from_engine(self, p: Dict):
         """
         Convert from dictionary to class repr.
         """
@@ -343,7 +343,7 @@ class ProfilerInfo(Struct):
         obj_by_size = sorted(obj_info.items(), key=lambda x: x[1][1], reverse=True)
         return total_size, obj_by_size[:max_size]
 
-    def _memory_data_as_df(self, obj_by_size: typing.List):
+    def _memory_data_as_df(self, obj_by_size: List):
         import pandas as pd
 
         names, data = zip(*obj_by_size)

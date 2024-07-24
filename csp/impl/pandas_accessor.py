@@ -8,7 +8,7 @@ from typing import Dict, List, TypeVar, Union
 import csp
 from csp import ts
 from csp.impl.pandas_ext_type import TsDtype, is_csp_type
-from csp.impl.struct import defineNestedStruct
+from csp.impl.struct import define_nested_struct
 from csp.impl.wiring.edge import Edge
 
 T = TypeVar("T")
@@ -615,7 +615,7 @@ class CspDataFrameAccessor(object):
             datatree[parts[-1]] = self._obj[col]
 
         if not struct_type:
-            struct_type = defineNestedStruct("_C", metadata, defaults)
+            struct_type = define_nested_struct("_C", metadata, defaults)
 
         if not data:
             return csp.null_ts(struct_type)

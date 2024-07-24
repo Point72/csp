@@ -498,7 +498,7 @@ class Derived(Test):
     flt: float
 
 
-# Test2 = csp.impl.struct.defineStruct( 'Test2', { 'A' + str(i) : bool for i in range(25 )})
+# Test2 = csp.impl.struct.define_struct( 'Test2', { 'A' + str(i) : bool for i in range(25 )})
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -1,3 +1,4 @@
+import enum
 import json
 import numpy as np
 import pickle
@@ -8,7 +9,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Dict, List, Set, Tuple
 
 import csp
-from csp.impl.struct import defineStruct
+from csp.impl.struct import define_nested_struct, define_struct, defineNestedStruct, defineStruct
 from csp.impl.types.typing_utils import FastList
 
 
@@ -762,9 +763,7 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(dest, DerivedPartialNative(l=[2, 3, 4], f=3.14, b=False, i=5, s="bar"))
 
     def test_multibyte_mask(self):
-        from csp.impl.struct import defineStruct
-
-        BigStruct = defineStruct("BigStruct", {k: float for k in "abcdefghijklmnopqrdtuvwxyz"})
+        BigStruct = define_struct("BigStruct", {k: float for k in "abcdefghijklmnopqrdtuvwxyz"})
 
         s = BigStruct()
         for key in BigStruct.metadata().keys():
@@ -1063,9 +1062,18 @@ class TestCspStruct(unittest.TestCase):
             for _ in range(100):
                 csp.run(graph2, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1000))
 
-    def test_defineNestedStruct(self):
-        from csp.impl.struct import defineNestedStruct
+    def test_deprecated_defineStruct(self):
+        metadata = {
+            "a": float,
+            "b": int,
+        }
+        defaults = {"a": 0.0, "b": 1}
+        TestStruct = define_struct("TestStruct", metadata, defaults)
+        TestStruct2 = defineStruct("TestStruct", metadata, defaults)
+        self.assertEqual(TestStruct.metadata(), TestStruct2.metadata())
+        self.assertEqual(TestStruct.__defaults__, TestStruct2.__defaults__)
 
+    def test_define_nested_struct(self):
         metadata = {
             "a": float,
             "b": int,
@@ -1085,7 +1093,7 @@ class TestCspStruct(unittest.TestCase):
             },
             "d": {"s": object, "t": [object, True]},
         }
-        TestStruct = defineNestedStruct("TestStruct", metadata)
+        TestStruct = define_nested_struct("TestStruct", metadata)
         self.assertEqual(TestStruct.__name__, "TestStruct")
         self.assertEqual(list(TestStruct.metadata().keys()), list(normalized_metadata.keys()))
         self.assertEqual(TestStruct.metadata()["a"], normalized_metadata["a"])
@@ -1100,20 +1108,26 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(d.metadata(), normalized_metadata["d"])
 
         defaults = {"a": 0.0, "c": {"y": []}, "d": {}}
-        TestStruct2 = defineNestedStruct("TestStruct2", metadata, defaults)
+        TestStruct2 = define_nested_struct("TestStruct2", metadata, defaults)
         s = TestStruct2()
         self.assertEqual(s.a, 0.0)
         self.assertEqual(s.c, s.metadata()["c"]())
         self.assertEqual(s.c.y, [])
         self.assertEqual(s.d, s.metadata()["d"]())
 
-    def test_all_fields_set(self):
-        from csp.impl.struct import defineStruct
+        # Make sure deprecated function still works without raising
+        TestStruct3 = defineNestedStruct("TestStruct3", metadata, defaults)
+        s = TestStruct3()
+        self.assertEqual(s.a, 0.0)
+        self.assertEqual(s.c, s.metadata()["c"]())
+        self.assertEqual(s.c.y, [])
+        self.assertEqual(s.d, s.metadata()["d"]())
 
+    def test_all_fields_set(self):
         types = [int, bool, list, str]
         for num_fields in range(1, 25):
             meta = {chr(ord("a") + x): types[x % len(types)] for x in range(num_fields)}
-            stype = defineStruct("foo", meta)
+            stype = define_struct("foo", meta)
             s = stype()
             self.assertFalse(s.all_fields_set())
             keys = list(meta.keys())
@@ -1126,7 +1140,7 @@ class TestCspStruct(unittest.TestCase):
 
             # Test derived structs
             meta2 = {k + "2": t for k, t in meta.items()}
-            stype2 = defineStruct("foo", meta2, base=stype)
+            stype2 = define_struct("foo", meta2, base=stype)
             s2 = stype2()
             self.assertFalse(s2.all_fields_set())
             keys = list(stype2.metadata().keys())
@@ -1161,12 +1175,10 @@ class TestCspStruct(unittest.TestCase):
         self.assertNotEqual(id(foo), id(foo_unpickled))
 
     def test_struct_type_alloc(self):
-        from csp.impl.struct import defineStruct
-
         for i in range(1000):
             name = f"struct_{i}"
             fieldname = f"field{i}"
-            S = defineStruct(name, {fieldname: int})
+            S = define_struct(name, {fieldname: int})
             s = S()
             setattr(s, fieldname, i)
             ts = getattr(csp.const(s), fieldname)
@@ -1353,7 +1365,7 @@ class TestCspStruct(unittest.TestCase):
 
         all = []
         for i in range(10000):
-            sType = defineStruct("foo", {"a": dict})
+            sType = define_struct("foo", {"a": dict})
             all.append(Outer(s=sType(a={"foo": "bar"})))
             repr(all)
             all = all[:100]
@@ -1732,6 +1744,7 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "d_any": d_any_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
+        # Special floats not supported as keys
         d_f = {float("nan"): 2, 2.3: 4, 3.4: 6, 4.5: 7}
         d_f_res = {str(k): v for k, v in d_f.items()}
         test_struct = MyStruct(i=456, d_any=d_f)
@@ -1749,6 +1762,65 @@ class TestCspStruct(unittest.TestCase):
         test_struct = MyStruct(i=456, d_any=d_f)
         with self.assertRaises(ValueError):
             test_struct.to_json()
+
+        # None as key
+        d_none = {
+            None: 2,
+        }
+        d_none_res = {"null": 2}
+        test_struct = MyStruct(i=456, d_any=d_none)
+        result_dict = {"i": 456, "d_any": d_none_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        # Bool as key
+        d_bool = {True: 2, False: "abc"}
+        d_bool_res = {str(k): v for k, v in d_bool.items()}
+        test_struct = MyStruct(i=456, d_any=d_bool)
+        result_dict = {"i": 456, "d_any": d_bool_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        # Datetime as key
+        dt = datetime.now(tz=pytz.utc)
+        d_datetime = {dt: "datetime"}
+        test_struct = MyStruct(i=456, d_any=d_datetime)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({datetime.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
+
+        dt = datetime.now(tz=pytz.utc)
+        d_datetime = {dt.date(): "date"}
+        test_struct = MyStruct(i=456, d_any=d_datetime)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({date.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
+
+        dt = datetime.now(tz=pytz.utc)
+        d_datetime = {dt.time(): "time"}
+        test_struct = MyStruct(i=456, d_any=d_datetime)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({time.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
+
+        # csp.Enum as key
+        class MyCspEnum(csp.Enum):
+            KEY1 = csp.Enum.auto()
+            KEY2 = csp.Enum.auto()
+            KEY3 = csp.Enum.auto()
+
+        d_csp_enum = {MyCspEnum.KEY1: "key1", MyCspEnum.KEY2: "key2", MyCspEnum.KEY3: "key3"}
+        d_csp_enum_res = {k.name: v for k, v in d_csp_enum.items()}
+        test_struct = MyStruct(i=456, d_any=d_csp_enum)
+        result_dict = {"i": 456, "d_any": d_csp_enum_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        # enum as key
+        class MyPyEnum(enum.Enum):
+            KEY1 = enum.auto()
+            KEY2 = enum.auto()
+            KEY3 = enum.auto()
+
+        d_py_enum = {MyPyEnum.KEY1: "key1", MyPyEnum.KEY2: "key2", MyPyEnum.KEY3: "key3"}
+        d_py_enum_res = {k.name: v for k, v in d_csp_enum.items()}
+        test_struct = MyStruct(i=456, d_any=d_py_enum)
+        result_dict = {"i": 456, "d_any": d_py_enum_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
     def test_to_json_struct(self):
         class MySubSubStruct(csp.Struct):
@@ -2861,6 +2933,15 @@ class TestCspStruct(unittest.TestCase):
 
         self.assertEqual(b, s.a)
         self.assertEqual(type(b), list)
+
+    def test_dir(self):
+        s = SimpleStruct(a=0)
+        dir_output = dir(s)
+        self.assertIn("a", dir_output)
+        self.assertIn("to_dict", dir_output)
+        self.assertIn("update", dir_output)
+        self.assertIn("__metadata__", dir_output)
+        self.assertEqual(dir_output, sorted(dir_output))
 
 
 if __name__ == "__main__":

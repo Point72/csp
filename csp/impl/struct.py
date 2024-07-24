@@ -2,6 +2,7 @@ import io
 import ruamel.yaml
 import typing
 from copy import deepcopy
+from deprecated import deprecated
 
 import csp
 from csp.impl.__csptypesimpl import _csptypesimpl
@@ -223,10 +224,10 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         return self.deepcopy()
 
     def __dir__(self):
-        return self.__full_metadata_typed__.keys()
+        return sorted(super().__dir__() + list(self.__full_metadata_typed__.keys()))
 
 
-def defineStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
+def define_struct(name, metadata: dict, defaults: dict = {}, base=Struct):
     """Helper method to dynamically create struct types"""
 
     dct = deepcopy(defaults)
@@ -235,13 +236,13 @@ def defineStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
     return clazz
 
 
-def defineNestedStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
+def define_nested_struct(name, metadata: dict, defaults: dict = {}, base=Struct):
     """Helper method to dynamically create nested struct types.
     metadata and defaults can be a nested dictionaries"""
     metadata = deepcopy(metadata)
     defaults = deepcopy(defaults)
     child_structs = {
-        field: defineNestedStruct(f"{name}_{field}", submeta, defaults.get(field, {}))
+        field: define_nested_struct(f"{name}_{field}", submeta, defaults.get(field, {}))
         for field, submeta in metadata.items()
         if isinstance(submeta, dict)
     }
@@ -249,4 +250,14 @@ def defineNestedStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
         if fld in defaults:
             defaults[fld] = struct()
     metadata.update(child_structs)
-    return defineStruct(name, metadata, defaults, base)
+    return define_struct(name, metadata, defaults, base)
+
+
+@deprecated(version="0.0.6", reason="Replaced by define_struct")
+def defineStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
+    return define_struct(name, metadata, defaults, base)
+
+
+@deprecated(version="0.0.6", reason="Replaced by define_nested_struct")
+def defineNestedStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
+    return define_nested_struct(name, metadata, defaults, base)

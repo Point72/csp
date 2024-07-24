@@ -11,7 +11,7 @@ from typing import List
 import csp
 from csp import ts
 from csp.baselib import _convert_ts_object_for_print
-from csp.impl.struct import defineStruct
+from csp.impl.struct import define_struct
 
 
 class TestBaselib(unittest.TestCase):
@@ -1075,7 +1075,7 @@ class TestBaselib(unittest.TestCase):
 
         # test log dominated graph (proper thread waiting/joining)
         fields = 1000
-        LargeStruct = defineStruct("LargeStruct", {f"{i}": int for i in range(fields)})  # struct with 1000 int fields
+        LargeStruct = define_struct("LargeStruct", {f"{i}": int for i in range(fields)})  # struct with 1000 int fields
         structs = []
         for i in range(60):
             struct = LargeStruct()

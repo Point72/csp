@@ -1,6 +1,5 @@
 import numpy
 import typing
-from warnings import warn
 
 import csp.typing
 from csp.impl.types.typing_utils import CspTypingUtils, FastList
@@ -28,11 +27,11 @@ class ContainerTypeNormalizer:
             return typ
             # cls._deep_convert_generic_meta_to_typing_generic_meta(typ, is_within_container)
         elif isinstance(typ, dict):
-            warn(
-                "Using {K: V} syntax for type declaration is deprecated. Use Dict[K, V] instead.",
-                DeprecationWarning,
-                stacklevel=4,
-            )
+            # warn(
+            #     "Using {K: V} syntax for type declaration is deprecated. Use Dict[K, V] instead.",
+            #     DeprecationWarning,
+            #     stacklevel=4,
+            # )
             if type(typ) is not dict or len(typ) != 1:  # noqa: E721
                 raise TypeError(f"Invalid type decorator: '{typ}'")
             t1, t2 = typ.items().__iter__().__next__()
@@ -41,21 +40,21 @@ class ContainerTypeNormalizer:
                 cls._convert_containers_to_typing_generic_meta(t2, True),
             ]
         elif isinstance(typ, set):
-            warn(
-                "Using {T} syntax for type declaration is deprecated. Use Set[T] instead.",
-                DeprecationWarning,
-                stacklevel=4,
-            )
+            # warn(
+            #     "Using {T} syntax for type declaration is deprecated. Use Set[T] instead.",
+            #     DeprecationWarning,
+            #     stacklevel=4,
+            # )
             if type(typ) is not set or len(typ) != 1:  # noqa: E721
                 raise TypeError(f"Invalid type decorator: '{typ}'")
             t = typ.__iter__().__next__()
             return typing.Set[cls._convert_containers_to_typing_generic_meta(t, True)]
         elif isinstance(typ, list):
-            warn(
-                "Using [T] syntax for type declaration is deprecated. Use List[T] instead.",
-                DeprecationWarning,
-                stacklevel=4,
-            )
+            # warn(
+            #     "Using [T] syntax for type declaration is deprecated. Use List[T] instead.",
+            #     DeprecationWarning,
+            #     stacklevel=4,
+            # )
             if type(typ) is not list or len(typ) != 1:  # noqa: E721
                 raise TypeError(f"Invalid type decorator: '{typ}'")
             t = typ.__iter__().__next__()

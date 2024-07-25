@@ -70,21 +70,6 @@ inline std::exception_ptr PyEngine_shutdown_make_exception( PyObject * pyExcepti
         return std::make_exception_ptr( PythonPassthrough( pyException ) );
 }
 
-// Generic engine shutdown function for push-type adapters
-template<typename T>
-PyObject * PyEngine_shutdown( T * self, PyObject * args, PyObject * kwargs )
-{
-    CSP_BEGIN_METHOD;
-
-    PyObject * pyException;
-    if( !PyArg_ParseTuple( args, "O", &pyException ) )
-        return NULL;
-
-    self -> adapter -> rootEngine() -> shutdown( PyEngine_shutdown_make_exception( pyException ) );
-
-    CSP_RETURN_NONE;
-}
-
 };
 
 #endif

@@ -3,6 +3,7 @@ import threading
 import time
 import unittest
 from datetime import datetime, timedelta
+from typing import List
 
 import csp
 from csp import PushMode, ts
@@ -112,7 +113,7 @@ curve_push_adapter = py_push_adapter_def("test", CurvePushAdapter, ts["T"], Curv
 class TestPushAdapter(unittest.TestCase):
     def test_basic(self):
         @csp.node
-        def check(burst: ts[["T"]], lv: [ts["T"]], nc: ts["T"]):
+        def check(burst: ts[List["T"]], lv: List[ts["T"]], nc: ts["T"]):
             # Assert all last values have the same value since theyre injected in the same batch
             if csp.ticked(lv) and csp.valid(lv):
                 self.assertTrue(all(v == lv[0] for v in lv.validvalues()))

@@ -6,8 +6,8 @@ import numpy as np
 import pytz
 import queue
 import threading
-import typing
 from datetime import datetime, timedelta
+from typing import Callable, Dict, List, Optional, TypeVar, Union
 
 import csp
 from csp.impl.__cspimpl import _cspimpl
@@ -63,11 +63,11 @@ __all__ = [
     "wrap_feedback",
 ]
 
-T = typing.TypeVar("T")
-K = typing.TypeVar("K")
-V = typing.TypeVar("V")
-Y = typing.TypeVar("Y")
-U = typing.TypeVar("U")
+T = TypeVar("T")
+K = TypeVar("K")
+V = TypeVar("V")
+Y = TypeVar("Y")
+U = TypeVar("U")
 
 const = input_adapter_def("csp.const", _cspimpl._const, ts["T"], value="~T", delay=(timedelta, timedelta()))
 _timer = input_adapter_def(
@@ -156,13 +156,13 @@ class LogSettings:
 
 
 @node
-def _list_basket_to_string_ts(x: [ts["T"]]) -> ts[str]:
+def _list_basket_to_string_ts(x: List[ts["T"]]) -> ts[str]:
     value = ",".join([str(x[i]) if csp.ticked(x[i]) else "" for i in range(len(x))])
     return f"[{value}]"
 
 
 @node
-def _dict_basket_to_string_ts(x: {"K": ts[object]}) -> ts[str]:
+def _dict_basket_to_string_ts(x: Dict["K", ts[object]]) -> ts[str]:
     return str({k: x[k] for k in x.tickedkeys()})
 
 
@@ -204,7 +204,7 @@ def log(
     level: int,
     tag: str,
     x,
-    logger: typing.Optional[logging.Logger] = None,
+    logger: Optional[logging.Logger] = None,
     logger_tz: object = None,
     use_thread: bool = False,
 ):
@@ -243,7 +243,7 @@ def _log_ts(
     level: int,
     tag: str,
     x: ts["T"],
-    logger: typing.Optional[logging.Logger] = None,
+    logger: Optional[logging.Logger] = None,
     logger_tz: object = None,
     use_thread: bool = False,
 ):
@@ -274,8 +274,8 @@ def _log_ts(
 
 
 @graph
-def get_basket_field(dict_basket: {"K": ts["V"]}, field_name: str) -> OutputBasket(
-    {"K": ts[object]}, shape_of="dict_basket"
+def get_basket_field(dict_basket: Dict["K", ts["V"]], field_name: str) -> OutputBasket(
+    Dict["K", ts[object]], shape_of="dict_basket"
 ):
     """Given a dict basket of Struct objects, get a dict basket of the given field of struct for the matching key
 
@@ -343,7 +343,7 @@ def _delay_by_ticks(x: ts["T"], delay: int) -> ts["T"]:
 
 
 @graph
-def delay(x: ts["T"], delay: typing.Union[timedelta, int]) -> ts["T"]:
+def delay(x: ts["T"], delay: Union[timedelta, int]) -> ts["T"]:
     """delay input ticks by given delay"""
     if isinstance(delay, int):
         return _delay_by_ticks(x, delay)
@@ -352,7 +352,7 @@ def delay(x: ts["T"], delay: typing.Union[timedelta, int]) -> ts["T"]:
 
 
 @graph
-def _lag(x: ts["T"], lag: typing.Union[timedelta, int]) -> ts["T"]:
+def _lag(x: ts["T"], lag: Union[timedelta, int]) -> ts["T"]:
     """ticks when input ticks, but with lagged value of input"""
     if isinstance(lag, int):
         return _delay_by_ticks(x, lag)
@@ -361,7 +361,7 @@ def _lag(x: ts["T"], lag: typing.Union[timedelta, int]) -> ts["T"]:
 
 
 @graph
-def diff(x: ts["T"], lag: typing.Union[timedelta, int]) -> ts["T"]:
+def diff(x: ts["T"], lag: Union[timedelta, int]) -> ts["T"]:
     """diff x against itself lag time/ticks ago"""
     return x - _lag(x, lag)
 
@@ -396,7 +396,7 @@ def cast_int_to_float(x: ts[int]) -> ts[float]:
 
 
 @node()
-def apply(x: ts["T"], f: typing.Callable[["T"], "U"], result_type: "U") -> ts["U"]:
+def apply(x: ts["T"], f: Callable[["T"], "U"], result_type: "U") -> ts["U"]:
     """
     :param x: The time series on which the function should be applied
     :param f: A scalar function that will be applied on each value of x
@@ -461,7 +461,7 @@ def drop_nans(x: ts[float]) -> ts[float]:
 
 
 @node(cppimpl=_cspbaselibimpl.unroll)
-def unroll(x: ts[["T"]]) -> ts["T"]:
+def unroll(x: ts[List["T"]]) -> ts["T"]:
     """ "unrolls" timeseries of lists of type 'T' into individual ticks of type 'T'"""
     with csp.alarms():
         alarm = csp.alarm("T")
@@ -484,14 +484,14 @@ def unroll(x: ts[["T"]]) -> ts["T"]:
 
 
 @node(cppimpl=_cspbaselibimpl.collect)
-def collect(x: [ts["T"]]) -> ts[["T"]]:
+def collect(x: List[ts["T"]]) -> ts[List["T"]]:
     """convert basket of timeseries into timeseries of list of ticked values"""
     if csp.ticked(x):
         return list(x.tickedvalues())
 
 
 @graph
-def flatten(x: [ts["T"]]) -> ts["T"]:
+def flatten(x: List[ts["T"]]) -> ts["T"]:
     """flatten a basket of inputs into ts[ 'T' ]"""
     # Minor optimization, if we have a list with just
     # a single ts, then just emit it as-is. Otherwise,
@@ -504,7 +504,7 @@ def flatten(x: [ts["T"]]) -> ts["T"]:
 
 # TODO cppimpl
 @node
-def gate(x: ts["T"], release: ts[bool], release_on_tick: bool = False) -> ts[["T"]]:
+def gate(x: ts["T"], release: ts[bool], release_on_tick: bool = False) -> ts[List["T"]]:
     """ "gate" the input.
     if release is false, input will be held until release is true.
     when release ticks true, all gated inputs will tick in one shot
@@ -551,7 +551,9 @@ def null_ts(typ: "T") -> ts["T"]:
 
 
 @node(cppimpl=_cspbaselibimpl.multiplex)
-def multiplex(x: {"K": ts["T"]}, key: ts["K"], tick_on_index: bool = False, raise_on_bad_key: bool = False) -> ts["T"]:
+def multiplex(
+    x: Dict["K", ts["T"]], key: ts["K"], tick_on_index: bool = False, raise_on_bad_key: bool = False
+) -> ts["T"]:
     """
     :param x: The basket of time series to multiplex
     :param key: A
@@ -578,8 +580,8 @@ def multiplex(x: {"K": ts["T"]}, key: ts["K"], tick_on_index: bool = False, rais
 
 
 @node(cppimpl=_cspbaselibimpl.demultiplex)
-def demultiplex(x: ts["T"], key: ts["K"], keys: ["K"], raise_on_bad_key: bool = False) -> OutputBasket(
-    {"K": ts["T"]}, shape="keys"
+def demultiplex(x: ts["T"], key: ts["K"], keys: List["K"], raise_on_bad_key: bool = False) -> OutputBasket(
+    Dict["K", ts["T"]], shape="keys"
 ):
     """whenever the timeseries input ticks, output a tick on the appropriate basket output"""
     with csp.state():
@@ -595,7 +597,7 @@ def demultiplex(x: ts["T"], key: ts["K"], keys: ["K"], raise_on_bad_key: bool = 
 # TODO - looks like output annotations arent working for dynamic baskets, needs to be fixed
 # @node(cppimpl=_cspbaselibimpl.dynamic_demultiplex)
 @node
-def dynamic_demultiplex(x: ts["T"], key: ts["K"]) -> {ts["K"]: ts["T"]}:
+def dynamic_demultiplex(x: ts["T"], key: ts["K"]) -> Dict[ts["K"], ts["T"]]:
     """whenever the timeseries input ticks, output a tick on the appropriate dynamic basket output"""
     if csp.ticked(x) and csp.valid(key):
         csp.output({key: x})
@@ -603,7 +605,7 @@ def dynamic_demultiplex(x: ts["T"], key: ts["K"]) -> {ts["K"]: ts["T"]}:
 
 # @node(cppimpl=_cspbaselibimpl.dynamic_collect)
 @node
-def dynamic_collect(data: {ts["K"]: ts["V"]}) -> ts[{"K": "V"}]:
+def dynamic_collect(data: Dict[ts["K"], ts["V"]]) -> ts[Dict["K", "V"]]:
     """whenever any input of the dynamic basket ticks, output the key-value pairs in a dictionary"""
     if csp.ticked(data):
         return dict(data.tickeditems())
@@ -622,7 +624,7 @@ def accum(x: ts["T"], start: "~T" = 0) -> ts["T"]:
 @node(cppimpl=_cspbaselibimpl.exprtk_impl)
 def _csp_exprtk_impl(
     expression_str: str,
-    inputs: {str: ts[object]},
+    inputs: Dict[str, ts[object]],
     state_vars: dict,
     constants: dict,
     functions: dict,
@@ -637,13 +639,13 @@ def _csp_exprtk_impl(
 @graph
 def exprtk(
     expression_str: str,
-    inputs: {str: ts[object]},
+    inputs: Dict[str, ts[object]],
     state_vars: dict = {},
     trigger: ts[object] = None,
     functions: dict = {},
     constants: dict = {},
     output_ndarray: bool = False,
-) -> ts[typing.Union[float, np.ndarray]]:
+) -> ts[Union[float, np.ndarray]]:
     """given a mathematical expression,
         and a set of timeseries corresponding to variables in that expression, tick out the result (a float) of that expression,
         either every time an input ticks, or on the trigger if provided.
@@ -679,7 +681,7 @@ def struct_field(x: ts["T"], field: str, fieldType: "Y") -> ts["Y"]:
 
 
 @node(cppimpl=_cspbaselibimpl.struct_fromts)
-def _struct_fromts(cls: "T", inputs: {str: ts[object]}, trigger: ts[object], use_trigger: bool) -> ts["T"]:
+def _struct_fromts(cls: "T", inputs: Dict[str, ts[object]], trigger: ts[object], use_trigger: bool) -> ts["T"]:
     """construct a ticking Struct from the given timeseries.
     Note structs will be created from all valid items"""
     with csp.start():
@@ -690,7 +692,7 @@ def _struct_fromts(cls: "T", inputs: {str: ts[object]}, trigger: ts[object], use
 
 
 @graph
-def struct_fromts(cls: "T", inputs: {str: ts[object]}, trigger: ts[object] = None) -> ts["T"]:
+def struct_fromts(cls: "T", inputs: Dict[str, ts[object]], trigger: ts[object] = None) -> ts["T"]:
     """construct a ticking Struct from the given timeseries basket.
     Note structs will be created from all valid items.
      trigger - Optional timeseries to control when struct gets created ( defaults to any time a basket input ticks )"""
@@ -699,7 +701,7 @@ def struct_fromts(cls: "T", inputs: {str: ts[object]}, trigger: ts[object] = Non
 
 
 @node(cppimpl=_cspbaselibimpl.struct_collectts)
-def struct_collectts(cls: "T", inputs: {str: ts[object]}) -> ts["T"]:
+def struct_collectts(cls: "T", inputs: Dict[str, ts[object]]) -> ts["T"]:
     """construct a ticking Struct from the given timeseries.
     Note structs will be created from all ticked items"""
     if csp.ticked(inputs):
@@ -820,7 +822,7 @@ class DelayedCollect(DelayedNodeWrapperDef):
         """
         super().__init__()
         self._inputs = []
-        self._output = DelayedEdge(ts[[ts_type]], default_to_null)
+        self._output = DelayedEdge(ts[List[ts_type]], default_to_null)
 
     def copy(self):
         res = DelayedCollect()
@@ -838,7 +840,7 @@ class DelayedCollect(DelayedNodeWrapperDef):
         self._inputs.append(x)
 
     def output(self):
-        """returns collected inputs as ts[ typing.List[ input_ts_type] ]"""
+        """returns collected inputs as ts[ List[ input_ts_type] ]"""
         return self._output
 
     def _instantiate(self):

@@ -1,6 +1,7 @@
 import numpy as np
 import unittest
 from datetime import datetime, timedelta
+from typing import List
 
 import csp
 
@@ -239,13 +240,13 @@ class TestNumpyAdapter(unittest.TestCase):
     def test_array(self):
         raw_vals = [[1, 2], [3], [4, 5, 6]]
         res = csp.run(
-            g, typ=[int], values=np.array(raw_vals, dtype="object"), dts=test_dts_ndarray, starttime=test_starttime
+            g, typ=List[int], values=np.array(raw_vals, dtype="object"), dts=test_dts_ndarray, starttime=test_starttime
         )
         self.assertEqual(res["out"], list(zip(test_dts, raw_vals)))
 
         raw_vals = [["hello", "world"], ["hows"], ["it", "going"]]
         res = csp.run(
-            g, typ=[str], values=np.array(raw_vals, dtype="object"), dts=test_dts_ndarray, starttime=test_starttime
+            g, typ=List[str], values=np.array(raw_vals, dtype="object"), dts=test_dts_ndarray, starttime=test_starttime
         )
         self.assertEqual(res["out"], list(zip(test_dts, raw_vals)))
 

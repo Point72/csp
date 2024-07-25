@@ -1,6 +1,6 @@
-import typing
 from datetime import datetime, timedelta
 from enum import IntEnum
+from typing import TypeVar, Union
 from uuid import uuid4
 
 import csp
@@ -18,7 +18,7 @@ from csp.impl.wiring import input_adapter_def, output_adapter_def, status_adapte
 from csp.lib import _kafkaadapterimpl
 
 _ = BytesMessageProtoMapper, DateTimeType, JSONTextMessageMapper, RawBytesMessageMapper, RawTextMessageMapper
-T = typing.TypeVar("T")
+T = TypeVar("T")
 
 
 class KafkaStatusMessageType(IntEnum):
@@ -39,7 +39,7 @@ class KafkaAdapterManager:
     def __init__(
         self,
         broker,
-        start_offset: typing.Union[KafkaStartOffset, timedelta, datetime] = None,
+        start_offset: Union[KafkaStartOffset, timedelta, datetime] = None,
         group_id: str = None,
         group_id_prefix: str = "",
         max_threads=4,
@@ -132,7 +132,7 @@ class KafkaAdapterManager:
         # Leave key None to subscribe to all messages on the topic
         # Note that if you subscribe to all messages, they are always flagged as "live" and cant be replayed in engine time
         key=None,
-        field_map: typing.Union[dict, str] = None,
+        field_map: Union[dict, str] = None,
         meta_field_map: dict = None,
         push_mode: csp.PushMode = csp.PushMode.LAST_VALUE,
         adjust_out_of_order_time: bool = False,
@@ -154,9 +154,7 @@ class KafkaAdapterManager:
 
         return _kafka_input_adapter_def(self, ts_type, properties, push_mode)
 
-    def publish(
-        self, msg_mapper: MsgMapper, topic: str, key: str, x: ts["T"], field_map: typing.Union[dict, str] = None
-    ):
+    def publish(self, msg_mapper: MsgMapper, topic: str, key: str, x: ts["T"], field_map: Union[dict, str] = None):
         if isinstance(field_map, str):
             field_map = {"": field_map}
 

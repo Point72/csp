@@ -6,6 +6,7 @@ import pytz
 import typing
 import unittest
 from datetime import date, datetime, time, timedelta
+from typing import Dict, List, Set, Tuple
 
 import csp
 from csp.impl.struct import define_nested_struct, define_struct, defineNestedStruct, defineStruct
@@ -25,9 +26,9 @@ class StructNoDefaults(csp.Struct):
     bt: bytes
     o: object
     a1: FastList[int]
-    a2: [str]
+    a2: List[str]
     a3: FastList[object]
-    a4: [bytes]
+    a4: List[bytes]
 
 
 class StructWithDefaults(csp.Struct):
@@ -38,8 +39,8 @@ class StructWithDefaults(csp.Struct):
     e: MyEnum = MyEnum.FOO
     o: object
     a1: FastList[int] = [1, 2, 3]
-    a2: [str] = ["1", "2", "3"]
-    a3: [object] = ["hey", 123, (1, 2, 3)]
+    a2: List[str] = ["1", "2", "3"]
+    a3: List[object] = ["hey", 123, (1, 2, 3)]
     np_arr: np.ndarray = np.array([1, 9])
 
 
@@ -74,9 +75,9 @@ class BaseMixed(csp.Struct):
     s: str
     l: list
     o: object
-    a1: [int]
+    a1: List[int]
     a2: FastList[str]
-    a3: [object]
+    a3: List[object]
 
 
 class DerivedFullyNative(BaseNative):
@@ -124,10 +125,10 @@ class StructWithMutableStruct(csp.Struct):
 
 
 class StructWithLists(csp.Struct):
-    # native_list: [int]
-    struct_list: [BaseNative]
+    # native_list: List[int]
+    struct_list: List[BaseNative]
     fast_list: FastList[BaseNative]
-    dialect_generic_list: [list]
+    dialect_generic_list: List[list]
 
 
 class AllTypes(csp.Struct):
@@ -141,7 +142,7 @@ class AllTypes(csp.Struct):
     s: str = "hello hello"
     e: MyEnum = MyEnum.FOO
     struct: BaseNative = BaseNative(i=123, b=True, f=456.789)
-    arr: [int] = [1, 2, 3]
+    arr: List[int] = [1, 2, 3]
     fl: FastList[int] = [1, 2, 3, 4]
     o: object = {"k": "v"}
 
@@ -172,7 +173,7 @@ class SimpleClass:
 
 
 class SimpleStructForPickleList(csp.Struct):
-    a: typing.List[int]
+    a: List[int]
 
 
 class SimpleStructForPickleFastList(csp.Struct):
@@ -271,7 +272,7 @@ struct_list_test_values = {
         None,
     ],  # generic type user-defined
 }
-struct_list_annotation_types = (typing.List, FastList)
+struct_list_annotation_types = (List, FastList)
 
 
 class TestCspStruct(unittest.TestCase):
@@ -385,7 +386,7 @@ class TestCspStruct(unittest.TestCase):
         # Was a bug with typed list of struct comparisons
         class BAR(csp.Struct):
             a: int
-            b: [FOO]
+            b: List[FOO]
 
         a = BAR(a=123, b=[FOO(a=1, b="2", c=[1, 2, 3])])
         b = BAR(a=123, b=[FOO(a=1, b="2", c=[1, 2, 3])])
@@ -519,7 +520,7 @@ class TestCspStruct(unittest.TestCase):
             v: int
 
         class Outer(csp.Struct):
-            a3: [object]
+            a3: List[object]
 
         i = Inner(v=5)
         s = Outer(a3=[i, i, i])
@@ -820,8 +821,8 @@ class TestCspStruct(unittest.TestCase):
 
     def test_from_dict_loop_with_generic_typing(self):
         class MyStruct(csp.Struct):
-            foo: typing.Set[int]
-            bar: typing.Tuple[str]
+            foo: Set[int]
+            bar: Tuple[str]
             np_arr: csp.typing.NumpyNDArray[float]
 
         looped = MyStruct.from_dict(MyStruct(foo=set((9, 10)), bar=("a", "b"), np_arr=np.array([1, 3])).to_dict())
@@ -838,13 +839,13 @@ class TestCspStruct(unittest.TestCase):
             default_i: int = 42
 
         class S2(csp.Struct):
-            value: typing.Tuple[int]
-            set_value: typing.Set[str]
+            value: Tuple[int]
+            set_value: Set[str]
 
         class S(csp.Struct):
-            d: typing.Dict[str, S1]
-            ls: typing.List[int]
-            lc: typing.List[S2]
+            d: Dict[str, S1]
+            ls: List[int]
+            lc: List[S2]
 
         input = """
         d:
@@ -932,7 +933,7 @@ class TestCspStruct(unittest.TestCase):
 
     def test_list_field_set_iterator(self):
         class S(csp.Struct):
-            l: [object]
+            l: List[object]
 
         s = S()
         expected = list(range(100))
@@ -1078,7 +1079,7 @@ class TestCspStruct(unittest.TestCase):
             "b": int,
             "c": {
                 "x": MyEnum,
-                "y": [int],
+                "y": List[int],
             },
             "d": {"s": object, "t": FastList[object]},
         }
@@ -1188,7 +1189,7 @@ class TestCspStruct(unittest.TestCase):
         class StructA(csp.Struct):
             a: int
             b: str
-            c: typing.List[int]
+            c: List[int]
 
         s1 = StructA(a=1, b="b", c=[1, 2])
         exp_repr_s1 = "StructA( a=1, b=b, c=[1, 2] )"
@@ -1250,7 +1251,7 @@ class TestCspStruct(unittest.TestCase):
         # test structs with struct, struct array fields
         class StructE(csp.Struct):
             a: StructA
-            b: typing.List[StructC]
+            b: List[StructC]
 
         s5 = StructE(
             a=StructA(a=1, b="b", c=[1, 2]),
@@ -1262,12 +1263,12 @@ class TestCspStruct(unittest.TestCase):
 
         # test array fields
         class StructF(csp.Struct):
-            a: typing.List[int]
-            b: typing.List[bool]
-            c: typing.List[typing.List[float]]
-            d: typing.List[ClassA]
-            e: typing.List[EnumA]
-            f: typing.List[StructC]  # leave unset for test
+            a: List[int]
+            b: List[bool]
+            c: List[List[float]]
+            d: List[ClassA]
+            e: List[EnumA]
+            f: List[StructC]  # leave unset for test
 
         # str (called by print) will show unset fields, repr (called in logging) will not
         s6 = StructF(a=[1], b=[True], c=[[1.0]], d=[ClassA()], e=[EnumA.RED, EnumA.BLUE])
@@ -1281,7 +1282,7 @@ class TestCspStruct(unittest.TestCase):
         # test unset in arrays/nested structs
         class StructG(csp.Struct):
             a: StructA
-            b: typing.List[StructA]
+            b: List[StructA]
             c: ClassA
 
         s7 = StructG(a=StructA(), b=[StructA(), StructA()])
@@ -1388,7 +1389,7 @@ class TestCspStruct(unittest.TestCase):
         """Test [bool] specific functionality since its special cased as vector<uint8> in C++"""
 
         class A(csp.Struct):
-            l: [bool]
+            l: List[bool]
 
         raw = [True, False, True]
         a = A(l=raw)
@@ -1606,11 +1607,11 @@ class TestCspStruct(unittest.TestCase):
     def test_to_json_list(self):
         class MyStruct(csp.Struct):
             i: int = 123
-            l_i: typing.List[int]
-            l_b: typing.List[bool]
-            l_dt: typing.List[datetime]
-            l_l_i: typing.List[typing.List[int]]
-            l_tuple: typing.Tuple[int, float, str]
+            l_i: List[int]
+            l_b: List[bool]
+            l_dt: List[datetime]
+            l_l_i: List[List[int]]
+            l_tuple: Tuple[int, float, str]
             l_any: list
 
         test_struct = MyStruct()
@@ -1678,10 +1679,10 @@ class TestCspStruct(unittest.TestCase):
     def test_to_json_dict(self):
         class MyStruct(csp.Struct):
             i: int = 123
-            d_i: typing.Dict[int, int]
-            d_f: typing.Dict[float, int]
-            d_dt: typing.Dict[str, datetime]
-            d_d_s: typing.Dict[str, typing.Dict[str, str]]
+            d_i: Dict[int, int]
+            d_f: Dict[float, int]
+            d_dt: Dict[str, datetime]
+            d_d_s: Dict[str, Dict[str, str]]
             d_any: dict
 
         test_struct = MyStruct()
@@ -1916,14 +1917,14 @@ class TestCspStruct(unittest.TestCase):
 
         class MySubStruct(csp.Struct):
             d_s_msss: dict
-            l_ncsp: typing.List[NonCspStruct]
+            l_ncsp: List[NonCspStruct]
             py_l_ncsp: list
 
         class MyStruct(csp.Struct):
             i: int = 789
             s: str = "MyStruct"
             ts: datetime
-            l_mss: typing.List[MySubStruct]
+            l_mss: List[MySubStruct]
             l_msss: list
             d_i_ncsp: dict
 
@@ -2325,7 +2326,7 @@ class TestCspStruct(unittest.TestCase):
                     self.assertEqual(s.a, [v[0], v[4], v[2], v[3], v[1], v[5]])
 
             class B(csp.Struct):
-                a: [MyEnum]
+                a: List[MyEnum]
 
             s = B(a=[MyEnum.A, MyEnum.FOO])
 
@@ -2765,7 +2766,7 @@ class TestCspStruct(unittest.TestCase):
                 self.assertEqual(s4.a == s3.a, True)
 
             class B(csp.Struct):
-                a: [MyEnum]
+                a: List[MyEnum]
 
             s = B(a=[MyEnum.A, MyEnum.FOO])
             t = B(a=[MyEnum.FOO, MyEnum.FOO])
@@ -2866,15 +2867,15 @@ class TestCspStruct(unittest.TestCase):
         """Check that FastList and PyStructList types are used correctly"""
 
         class A(csp.Struct):
-            a: [int]
+            a: List[int]
 
         with self.assertRaises(TypeError):
 
             class B(csp.Struct):
-                a: [int, False]
+                a: List[int, False]
 
         class C(csp.Struct):
-            a: typing.List[int]
+            a: List[int]
 
         class D(csp.Struct):
             a: FastList[int]
@@ -2882,7 +2883,7 @@ class TestCspStruct(unittest.TestCase):
         with self.assertRaises(TypeError):
 
             class E(csp.Struct):
-                a: [int, True]
+                a: List[int, True]
 
         p = A(a=[1, 2])
         r = C(a=[1, 2])
@@ -2896,7 +2897,7 @@ class TestCspStruct(unittest.TestCase):
         """Check that FastList can be passed to where Python list is expected"""
 
         class A(csp.Struct):
-            a: [int]
+            a: List[int]
 
         class B(csp.Struct):
             a: FastList[int]

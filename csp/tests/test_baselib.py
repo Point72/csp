@@ -6,6 +6,7 @@ import numpy as np
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum, auto
+from typing import List
 
 import csp
 from csp import ts
@@ -210,7 +211,7 @@ class TestBaselib(unittest.TestCase):
         st = datetime(2020, 1, 1)
         td = timedelta(seconds=1)
         x = csp.curve(
-            [int],
+            List[int],
             [
                 (st, [1]),
                 (st + td * 1, [2, 3, 4]),
@@ -220,7 +221,7 @@ class TestBaselib(unittest.TestCase):
             ],
         )
         x2 = csp.curve(
-            [[int]],
+            List[List[int]],
             [
                 (st, [[1]]),
                 (st + td * 1, [[2, 3, 4]]),
@@ -662,7 +663,7 @@ class TestBaselib(unittest.TestCase):
         @csp.graph
         def my_graph():
             ticks = [MyStruct(key=chr(ord("A") + i % 5), value=i) for i in range(1000)]
-            ticks = csp.unroll(csp.const.using(T=[MyStruct])(ticks))
+            ticks = csp.unroll(csp.const.using(T=List[MyStruct])(ticks))
             demux = csp.DelayedDemultiplex(ticks, ticks.key, raise_on_bad_key=False)
 
             csp.add_graph_output("A", demux.demultiplex("A"))
@@ -785,11 +786,11 @@ class TestBaselib(unittest.TestCase):
     def test_drop_dups(self):
         @csp.graph
         def g(d1: list, d2: list, d3: list, d4: list, d5: list):
-            d1 = csp.unroll(csp.const.using(T=[int])(d1))
-            d2 = csp.unroll(csp.const.using(T=[tuple])(d2))
-            d3 = csp.unroll(csp.const.using(T=[float])(d3))
-            d4 = csp.unroll(csp.const.using(T=[float])(d4))
-            d5 = csp.unroll(csp.const.using(T=[float])(d5))
+            d1 = csp.unroll(csp.const.using(T=List[int])(d1))
+            d2 = csp.unroll(csp.const.using(T=List[tuple])(d2))
+            d3 = csp.unroll(csp.const.using(T=List[float])(d3))
+            d4 = csp.unroll(csp.const.using(T=List[float])(d4))
+            d5 = csp.unroll(csp.const.using(T=List[float])(d5))
 
             csp.add_graph_output("d1", csp.drop_dups(d1))
             csp.add_graph_output("d2", csp.drop_dups(d2))
@@ -899,8 +900,8 @@ class TestBaselib(unittest.TestCase):
             e: MyEnum
             st: MyStruct
             o: MyObject
-            l: [int]
-            lb: [bool]
+            l: List[int]
+            lb: List[bool]
 
         @csp.node
         def random_gen(trigger: ts[object], typ: "T") -> ts["T"]:
@@ -947,7 +948,7 @@ class TestBaselib(unittest.TestCase):
                 return tick
 
         @csp.node
-        def accum_list(x: ts["T"]) -> ts[["T"]]:
+        def accum_list(x: ts["T"]) -> ts[List["T"]]:
             with csp.state():
                 s_nextcount = 1
                 s_accum = []

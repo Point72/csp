@@ -1,10 +1,10 @@
 import numpy
 import random
 import time
-import typing
 import unittest
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Dict, List
 
 import csp
 import csp.impl
@@ -14,15 +14,15 @@ from csp import ts
 class TestBaskets(unittest.TestCase):
     def test_functionality(self):
         @csp.node
-        def list_basket(x: [ts[int]]) -> csp.Outputs(
-            tickedvalues=ts[[int]],
-            tickeditems=ts[[object]],
-            tickedkeys=ts[[int]],
-            validvalues=ts[[int]],
-            validitems=ts[[object]],
-            validkeys=ts[[int]],
+        def list_basket(x: List[ts[int]]) -> csp.Outputs(
+            tickedvalues=ts[List[int]],
+            tickeditems=ts[List[object]],
+            tickedkeys=ts[List[int]],
+            validvalues=ts[List[int]],
+            validitems=ts[List[object]],
+            validkeys=ts[List[int]],
             valid=ts[bool],
-            iter=ts[[int]],
+            iter=ts[List[int]],
             elem_access=ts[int],
         ):
             if csp.ticked(x):
@@ -41,13 +41,13 @@ class TestBaskets(unittest.TestCase):
                     csp.output(elem_access=x[1])
 
         @csp.node
-        def dict_basket(x: {str: ts[int]}) -> csp.Outputs(
-            tickedvalues=ts[[int]],
-            tickeditems=ts[[object]],
-            tickedkeys=ts[[str]],
-            validvalues=ts[[int]],
-            validitems=ts[[object]],
-            validkeys=ts[[str]],
+        def dict_basket(x: Dict[str, ts[int]]) -> csp.Outputs(
+            tickedvalues=ts[List[int]],
+            tickeditems=ts[List[object]],
+            tickedkeys=ts[List[str]],
+            validvalues=ts[List[int]],
+            validitems=ts[List[object]],
+            validkeys=ts[List[str]],
             valid=ts[bool],
             elem_access=ts[int],
         ):
@@ -207,7 +207,7 @@ class TestBaskets(unittest.TestCase):
                 csp.output(changes=changes, ticks=ticks)
 
         @csp.node
-        def consume(x: {ts[str]: ts[float]}, changes: ts[list], ticks: ts[list]):
+        def consume(x: Dict[ts[str], ts[float]], changes: ts[list], ticks: ts[list]):
             with csp.state():
                 s_valid = {}
 
@@ -256,10 +256,10 @@ class TestBaskets(unittest.TestCase):
         random.seed(seed)
         csp.run(g, starttime=datetime(2021, 5, 25), endtime=timedelta(hours=4))
 
-    def test_dynamic_basket_tick_remove_exception(self) -> csp.OutputBasket({ts[str]: ts[int]}):
+    def test_dynamic_basket_tick_remove_exception(self) -> csp.OutputBasket(Dict[ts[str], ts[int]]):
         # tick/remove exception check
         @csp.node
-        def gen() -> csp.OutputBasket({ts[str]: ts[int]}):
+        def gen() -> csp.OutputBasket(Dict[ts[str], ts[int]]):
             with csp.alarms():
                 a_same_cycle_check = csp.alarm(bool)
 
@@ -271,7 +271,7 @@ class TestBaskets(unittest.TestCase):
                 csp.remove_dynamic_key("FOOBAR")
 
         @csp.node
-        def consume(x: {ts[str]: ts[float]}):
+        def consume(x: Dict[ts[str], ts[float]]):
             pass
 
         with self.assertRaisesRegex(
@@ -281,7 +281,7 @@ class TestBaskets(unittest.TestCase):
 
     def test_dynamic_basket_buffering_policy(self):
         @csp.node
-        def gen(x: ts[object]) -> csp.OutputBasket({ts[str]: ts[int]}):
+        def gen(x: ts[object]) -> csp.OutputBasket(Dict[ts[str], ts[int]]):
             with csp.state():
                 s_last = defaultdict(lambda: 1)
 
@@ -292,7 +292,7 @@ class TestBaskets(unittest.TestCase):
                 csp.output({key: v})
 
         @csp.node
-        def consume(x: {ts[str]: ts[int]}):
+        def consume(x: Dict[ts[str], ts[int]]):
             with csp.start():
                 csp.set_buffering_policy(x, tick_count=10, tick_history=timedelta(seconds=30))
 
@@ -311,7 +311,7 @@ class TestBaskets(unittest.TestCase):
     def test_basket_valid(self):
         # a basket input that is passive from the start should still register as valid once all its ts have ticked
         @csp.node
-        def triggered(x: {str: ts[float]}, y: ts[bool]) -> ts[float]:
+        def triggered(x: Dict[str, ts[float]], y: ts[bool]) -> ts[float]:
             with csp.start():
                 csp.make_passive(x)
 
@@ -333,13 +333,13 @@ class TestBaskets(unittest.TestCase):
 
     def test_list_basket_np_index(self):
         @csp.node
-        def echo_np(x: [ts[float]], num_keys: int) -> csp.OutputBasket(typing.List[ts[float]], shape="num_keys"):
+        def echo_np(x: List[ts[float]], num_keys: int) -> csp.OutputBasket(List[ts[float]], shape="num_keys"):
             if csp.ticked(x):
                 all_idx = numpy.arange(num_keys)
                 return dict(zip(all_idx, x))
 
         @csp.node
-        def echo_int(x: [ts[float]], num_keys: int) -> csp.OutputBasket(typing.List[ts[float]], shape="num_keys"):
+        def echo_int(x: List[ts[float]], num_keys: int) -> csp.OutputBasket(List[ts[float]], shape="num_keys"):
             if csp.ticked(x):
                 all_idx = numpy.arange(num_keys)
                 return dict(zip(all_idx.tolist(), x))  # Converts idx from np.int64 -> int

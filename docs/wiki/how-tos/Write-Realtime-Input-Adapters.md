@@ -405,3 +405,18 @@ csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), re
 ```
 
 Do note that realtime adapters will only run in realtime engines (note the `realtime=True` argument to `csp.run`).
+
+## Engine shutdown
+
+In case a pushing thread hits a terminal error, an exception can be passed to the main engine thread to shut down gracefully through a `shutdown_engine(exc: Exception)` method exposed by `PushInputAdapter`, `PushPullInputAdapter` and `AdapterManagerImpl`.
+
+For example:
+
+```python
+def _run(self):
+   while self._running:
+        try:
+            requests.get(endpoint) # API call over a network, may fail
+        except Exception as exc:
+            self.shutdown_engine(exc)
+```

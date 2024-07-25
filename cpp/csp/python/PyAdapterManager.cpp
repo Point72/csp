@@ -68,6 +68,15 @@ private:
 static PyObject * PyAdapterManager_PyObject_starttime( PyAdapterManager_PyObject * self ) { return toPython( self -> manager -> starttime() ); }
 static PyObject * PyAdapterManager_PyObject_endtime( PyAdapterManager_PyObject * self )   { return toPython( self -> manager -> endtime() ); }
 
+static PyObject * PyAdapterManager_PyObject_shutdown_engine( PyAdapterManager_PyObject * self, PyObject * pyException )
+{
+    CSP_BEGIN_METHOD;
+    
+    self -> manager -> rootEngine() -> shutdown( PyEngine_shutdown_make_exception( pyException ) );
+
+    CSP_RETURN_NONE;
+}
+
 static int PyAdapterManager_init( PyAdapterManager_PyObject *self, PyObject *args, PyObject *kwds )
 {
     CSP_BEGIN_METHOD;
@@ -83,8 +92,9 @@ static int PyAdapterManager_init( PyAdapterManager_PyObject *self, PyObject *arg
 }
 
 static PyMethodDef PyAdapterManager_methods[] = {
-    { "starttime", (PyCFunction) PyAdapterManager_PyObject_starttime, METH_NOARGS, "starttime" },
-    { "endtime",   (PyCFunction) PyAdapterManager_PyObject_endtime,   METH_NOARGS, "endtime" },
+    { "starttime",          (PyCFunction) PyAdapterManager_PyObject_starttime, METH_NOARGS, "starttime" },
+    { "endtime",            (PyCFunction) PyAdapterManager_PyObject_endtime,    METH_NOARGS, "endtime" },
+    { "shutdown_engine",    (PyCFunction) PyAdapterManager_PyObject_shutdown_engine,  METH_O, "shutdown_engine" },
     {NULL}
 };
 

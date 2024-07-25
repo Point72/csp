@@ -241,6 +241,51 @@ class TestPushAdapter(unittest.TestCase):
         result = list(x[1] for x in result)
         self.assertEqual(result, expected)
 
+    def test_adapter_engine_shutdown(self):
+        class MyPushAdapterImpl(PushInputAdapter):
+            def __init__(self):
+                self._thread = None
+                self._running = False
+
+            def start(self, starttime, endtime):
+                self._running = True
+                self._thread = threading.Thread(target=self._run)
+                self._thread.start()
+
+            def stop(self):
+                if self._running:
+                    self._running = False
+                    self._thread.join()
+
+            def _run(self):
+                pushed = False
+                while self._running:
+                    if pushed:
+                        time.sleep(0.1)
+                        self.shutdown_engine(TypeError("Dummy exception message"))
+                    else:
+                        self.push_tick(0)
+                        pushed = True
+
+        MyPushAdapter = py_push_adapter_def("MyPushAdapter", MyPushAdapterImpl, ts[int])
+
+        status = {"count": 0}
+
+        @csp.node
+        def node(x: ts[object]):
+            if csp.ticked(x):
+                status["count"] += 1
+
+        @csp.graph
+        def graph():
+            adapter = MyPushAdapter()
+            node(adapter)
+            csp.print("adapter", adapter)
+
+        with self.assertRaisesRegex(TypeError, "Dummy exception message"):
+            csp.run(graph, starttime=datetime.utcnow(), realtime=True)
+        self.assertEqual(status["count"], 1)
+
     def test_help(self):
         # for `help` to work on adapters, signature must be defined
         sig = inspect.signature(test_adapter)

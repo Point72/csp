@@ -799,6 +799,55 @@ class TestEngine(unittest.TestCase):
                 b[t].append(v)
         self.assertEqual(results["b"], list(b.items()))
 
+    def test_adapter_manager_engine_shutdown(self):
+        from csp.impl.adaptermanager import AdapterManagerImpl, ManagedSimInputAdapter
+        from csp.impl.wiring import py_managed_adapter_def
+
+        class TestAdapterManager:
+            def __init__(self):
+                self._impl = None
+
+            def subscribe(self):
+                return TestAdapter(self)
+
+            def _create(self, engine, memo):
+                self._impl = TestAdapterManagerImpl(engine)
+                return self._impl
+
+        class TestAdapterManagerImpl(AdapterManagerImpl):
+            def __init__(self, engine):
+                super().__init__(engine)
+
+            def start(self, starttime, endtime):
+                pass
+
+            def stop(self):
+                pass
+
+            def process_next_sim_timeslice(self, now):
+                try:
+                    [].pop()
+                except IndexError as e:
+                    self.shutdown_engine(e)
+
+        class TestAdapterImpl(ManagedSimInputAdapter):
+            def __init__(self, manager_impl):
+                pass
+
+        TestAdapter = py_managed_adapter_def("TestAdapter", TestAdapterImpl, ts[int], TestAdapterManager)
+
+        def graph():
+            adapter = TestAdapterManager()
+            nc = adapter.subscribe()
+            csp.add_graph_output("nc", nc)
+
+        try:
+            csp.run(graph, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+        except IndexError:
+            tb = traceback.format_exc()
+
+        self.assertTrue("[].pop()" in tb and "process_next_sim_timeslice" in tb)
+
     def test_feedback(self):
         # Dummy example
         class Request(csp.Struct):

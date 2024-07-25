@@ -2,6 +2,7 @@
 #define _IN_CSP_PYTHON_PYENGINE_H
 
 #include <csp/core/Time.h>
+#include <csp/python/Exception.h>
 #include <csp/engine/RootEngine.h>
 #include <csp/python/PyObjectPtr.h>
 #include <Python.h>
@@ -53,6 +54,21 @@ private:
     bool        m_ownEngine;
     Engine    * m_engine;
 };
+
+inline std::exception_ptr PyEngine_shutdown_make_exception( PyObject * pyException )
+{
+    if( !PyExceptionInstance_Check( pyException ) )
+    {
+        PyObjectPtr pyExceptionStr = PyObjectPtr::own( PyObject_Str( pyException ) );
+        if( !pyExceptionStr.ptr() )
+            CSP_THROW( PythonPassthrough, "" );
+        std::string pyExceptionString = PyUnicode_AsUTF8( pyExceptionStr.ptr() );
+        std::string desc = "Expected Exception object as argument for shutdown_engine: got " + pyExceptionString + " of type " + Py_TYPE( pyException ) -> tp_name;
+        return std::make_exception_ptr( csp::Exception( "TypeError", desc ) );
+    }
+    else
+        return std::make_exception_ptr( PythonPassthrough( pyException ) );
+}
 
 };
 

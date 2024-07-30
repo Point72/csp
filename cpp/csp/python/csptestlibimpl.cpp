@@ -114,7 +114,7 @@ static PyModuleDef _csptestlibimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-CSP_PyMODINIT_FUNC PyInit__csptestlibimpl(void)
+PyMODINIT_FUNC PyInit__csptestlibimpl(void)
 {
     PyObject* m;
 

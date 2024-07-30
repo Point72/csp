@@ -27,7 +27,7 @@ struct CSPTYPESIMPL_EXPORT PyCspEnumMeta : public PyHeapTypeObject
     static PyTypeObject PyType;
 };
 
-//TODO Windows - need to figure out why adding DLL_PUBLIC to this class leads to weird compilation errors on CspEnumMeta's unordered_map...
+//TODO Windows - need to figure out why adding CSP_PUBLIC to this class leads to weird compilation errors on CspEnumMeta's unordered_map...
 
 //This is an extension of csp::CspEnumMeta for python dialect, we need it in order to 
 //keep a reference to the python enum type from conversion to/from csp::CspEnumMeta <-> PyObject properly

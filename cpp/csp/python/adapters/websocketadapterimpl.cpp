@@ -69,7 +69,7 @@ static PyModuleDef _websocketadapterimpl_module = {
         NULL, NULL, NULL, NULL, NULL
 };
 
-CSP_PyMODINIT_FUNC PyInit__websocketadapterimpl(void)
+PyMODINIT_FUNC PyInit__websocketadapterimpl(void)
 {
     PyObject* m;
 

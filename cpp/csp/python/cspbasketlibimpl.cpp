@@ -12,7 +12,7 @@ static PyModuleDef _cspbasketlibimpl_module = {
         NULL, NULL, NULL, NULL, NULL
 };
 
-CSP_PyMODINIT_FUNC PyInit__cspbasketlibimpl(void)
+PyMODINIT_FUNC PyInit__cspbasketlibimpl(void)
 {
     PyObject* m;
 

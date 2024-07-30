@@ -359,7 +359,7 @@ static PyModuleDef _cspbaselibimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-CSP_PyMODINIT_FUNC PyInit__cspbaselibimpl(void)
+PyMODINIT_FUNC PyInit__cspbaselibimpl(void)
 {
     PyObject* m;
 

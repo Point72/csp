@@ -83,7 +83,7 @@ static PyModuleDef _cspmathimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-CSP_PyMODINIT_FUNC PyInit__cspmathimpl(void)
+PyMODINIT_FUNC PyInit__cspmathimpl(void)
 {
     PyObject* m;
 

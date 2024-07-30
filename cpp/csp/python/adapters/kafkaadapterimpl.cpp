@@ -69,7 +69,7 @@ static PyModuleDef _kafkaadapterimpl_module = {
         NULL, NULL, NULL, NULL, NULL
 };
 
-CSP_PyMODINIT_FUNC PyInit__kafkaadapterimpl(void)
+PyMODINIT_FUNC PyInit__kafkaadapterimpl(void)
 {
     PyObject* m;
 

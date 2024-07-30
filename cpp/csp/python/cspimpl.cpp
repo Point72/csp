@@ -135,7 +135,7 @@ static PyModuleDef _cspimpl_module = {
     _cspimpl_methods, NULL, NULL, NULL, NULL
 };
 
-CSP_PyMODINIT_FUNC PyInit__cspimpl(void)
+PyMODINIT_FUNC PyInit__cspimpl(void)
 {
     PyObject* m;
 

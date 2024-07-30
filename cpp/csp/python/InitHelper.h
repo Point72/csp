@@ -120,10 +120,12 @@ inline bool InitHelper::execute( PyObject * module )
 //https://github.com/scipy/scipy/issues/15996
 //https://github.com/mesonbuild/meson/pull/10369
 
+#if PY_VERSION_HEX < 0x03090000
 #ifdef PyMODINIT_FUNC
 #undef PyMODINIT_FUNC
 #endif
 
 #define PyMODINIT_FUNC extern "C" CSP_PUBLIC PyObject*
+#endif
 
 #endif

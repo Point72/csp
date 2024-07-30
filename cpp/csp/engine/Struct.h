@@ -756,13 +756,13 @@ private:
     void decref()
     {
 //Work around GCC12 bug mis-identifying this code as use-after-free
-#ifdef __linux__
+#if defined(__linux__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wuse-after-free"
 #endif
         if( --hidden() -> refcount == 0 )
             delete this;
-#ifdef __linux__
+#if defined(__linux__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
     }

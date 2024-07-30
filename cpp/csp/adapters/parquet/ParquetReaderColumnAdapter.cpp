@@ -734,7 +734,7 @@ void ListColumnAdapter<ValueArrayType, ValueType>::readCurValue()
     if( this -> m_curChunkArray -> IsValid( curRow ) )
     {
         auto values      = this -> m_curChunkArray -> value_slice( curRow );
-        auto typedValues = std::dynamic_pointer_cast<ValueArrayType>( values );
+        auto typedValues = std::static_pointer_cast<ValueArrayType>( values );
 
         auto arrayValue     = m_listReader -> create( typedValues -> length() );
         auto* internalBuffer = m_listReader -> getRawDataBuffer( arrayValue );

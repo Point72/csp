@@ -35,7 +35,7 @@ if(CSP_BUILD_PARQUET_ADAPTER)
     endif()
     target_link_libraries(parquetadapterimpl csp_core csp_engine cspimpl csp_parquet_adapter)
     target_include_directories(parquetadapterimpl PUBLIC ${ARROW_INCLUDE_DIR} ${PARQUET_INCLUDE_DIR} "${VENDORED_PYARROW_ROOT}")
-    target_compile_definitions(parquetadapterimpl PUBLIC ARROW_PYTHON_STATIC)
+    target_compile_definitions(parquetadapterimpl PUBLIC ARROW_PYTHON_STATIC -DARROW_PYTHON_EXPORT=)
     install(TARGETS parquetadapterimpl RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR} )
 endif()
 

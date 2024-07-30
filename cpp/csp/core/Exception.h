@@ -10,7 +10,7 @@
 namespace csp
 {
 
-class Exception : public std::exception
+class CSP_PUBLIC Exception : public std::exception
 {
 public:
     Exception( const char * exType, const std::string & description, const char * file, const char * func, int line ) :
@@ -59,7 +59,7 @@ private:
 };
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define CSP_DECLARE_EXCEPTION( DerivedException, BaseException ) class DerivedException : public BaseException { public: DerivedException( const char * exType, const std::string &r, const char * file, const char * func, int line ) : BaseException( exType, r, file, func, line ) {} };
+#define CSP_DECLARE_EXCEPTION( DerivedException, BaseException ) class CSP_PUBLIC DerivedException : public BaseException { public: DerivedException( const char * exType, const std::string &r, const char * file, const char * func, int line ) : BaseException( exType, r, file, func, line ) {} };
 
 CSP_DECLARE_EXCEPTION( AssertionError,     Exception )
 CSP_DECLARE_EXCEPTION( RuntimeException,   Exception )

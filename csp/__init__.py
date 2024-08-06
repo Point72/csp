@@ -27,7 +27,7 @@ from csp.impl.wiring import (
 )
 from csp.impl.wiring.context import clear_global_context, new_global_context
 from csp.math import *
-from csp.showgraph import show_graph
+from csp.showgraph import *
 
 from . import stats
 

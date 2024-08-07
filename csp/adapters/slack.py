@@ -20,10 +20,8 @@ try:
     from slack_sdk.socket_mode.request import SocketModeRequest
     from slack_sdk.socket_mode.response import SocketModeResponse
     from slack_sdk.web import WebClient
-
-    _HAVE_SLACK_SDK = True
 except ImportError:
-    _HAVE_SLACK_SDK = False
+    raise ModuleNotFoundError("csp's slack adapter requires `slack-sdk`")
 
 T = TypeVar("T")
 log = getLogger(__file__)
@@ -55,8 +53,6 @@ def mention_user(userid: str) -> str:
 
 class SlackAdapterManager(AdapterManagerImpl):
     def __init__(self, app_token: str, bot_token: str, ssl: Optional[SSLContext] = None):
-        if not _HAVE_SLACK_SDK:
-            raise RuntimeError("Could not find slack-sdk installation")
         if not app_token.startswith("xapp-") or not bot_token.startswith("xoxb-"):
             raise RuntimeError("Slack app token or bot token looks malformed")
 

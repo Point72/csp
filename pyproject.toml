@@ -23,12 +23,10 @@ dependencies = [
     "deprecated",
     "numpy<2",
     "packaging",
-    "pandas",
     "psutil",
     "pyarrow>=7.0.0",
     "pytz",
     "ruamel.yaml",
-    "sqlalchemy",
 ]
 
 classifiers = [
@@ -77,6 +75,7 @@ develop = [
     "pillow",
     # adapters
     "httpx>=0.20,<1",  # kafka
+    "pandas",  # pandas extension
     "polars",  # parquet
     "psutil",  # test_engine/test_history
     "slack-sdk>=3",  # slack

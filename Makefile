@@ -146,7 +146,7 @@ major:
 dist-py: dist-py-sdist  # Build python dist
 dist-py-sdist:
 	rm -rf csp/lib/*
-	python -m build --sdist -n
+	python -m build --sdist
 
 dist-py-wheel:
 	python setup.py bdist_wheel $(EXTRA_ARGS)

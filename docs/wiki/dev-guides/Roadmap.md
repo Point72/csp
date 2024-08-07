@@ -2,7 +2,6 @@ We do not have a formal roadmap, but we're happy to discuss features, improvemen
 
 Here are some high level items we hope to accomplish in the next few months:
 
-- Support `msvc` compiler and full Windows support ([#109](https://github.com/Point72/csp/issues/109))
 - Establish a better pattern for adapters ([#165](https://github.com/Point72/csp/discussions/165))
 - Parallelization to improve runtime, for historical/offline distributions
 - Support for cross-process communication in realtime distributions
@@ -10,6 +9,7 @@ Here are some high level items we hope to accomplish in the next few months:
 ## Adapters and Extensions
 
 - C++-based HTTP/SSE adapter
+- C++-based Redis adapter
 - Add support for other graph viewers, including interactive / standalone / Jupyter
 
 ## Other Open Source Projects

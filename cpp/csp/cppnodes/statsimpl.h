@@ -1,3 +1,6 @@
+#ifndef _IN_CSP_CPPNODES_STATSIMPL_H
+#define _IN_CSP_CPPNODES_STATSIMPL_H
+
 #include <csp/engine/CppNode.h>
 #include <csp/engine/WindowBuffer.h>
 
@@ -5,11 +8,9 @@
 #include <numeric>
 #include <set>
 #include <type_traits>
-
-#ifndef __clang__
-#include <ext/pb_ds/assoc_container.hpp>
-#include <ext/pb_ds/tree_policy.hpp>
-#endif
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/ranked_index.hpp>
 
 namespace csp::cppnodes
 {
@@ -825,11 +826,11 @@ double kurtCompute( double count, double mx, double mx2, double mx3, double mx4,
 
     double kfactor = ( count + 1 ) * ( count - 1 ) / ( ( count - 2 ) * ( count - 3 ) );
     double ub_kurt = kfactor * bias_kurt;
-    if( excess )
-    {
-        double gfactor = ( count - 1 ) / ( count + 1 ) * kfactor;
-        ub_kurt -= 3 * gfactor;
-    }
+    double gfactor = ( count - 1 ) / ( count + 1 ) * kfactor;
+    ub_kurt -= 3 * gfactor;
+    if( !excess )
+        ub_kurt += 3;
+        
     return ub_kurt;
 }
 
@@ -1084,19 +1085,8 @@ class WeightedKurtosis
         bool m_excess;
 };
 
-#ifndef __clang__
-template<typename Comparator>
-using ost = __gnu_pbds::tree<double, __gnu_pbds::null_type, Comparator, __gnu_pbds::rb_tree_tag,
-    __gnu_pbds::tree_order_statistics_node_update>;
-
-template<typename Comparator>
-void ost_erase( ost<Comparator> &t, double & v )
-{
-    int rank = t.order_of_key( v );
-    auto it = t.find_by_order( rank );
-    t.erase( it );
-}
-#endif
+template <typename Comparator>
+using ost = boost::multi_index::multi_index_container<double, boost::multi_index::indexed_by<boost::multi_index::ranked_non_unique<boost::multi_index::identity<double>, Comparator>>>;
 
 class Quantile
 {
@@ -1139,11 +1129,7 @@ class Quantile
 
         void remove( double x )
         {
-        #ifndef __clang__
-            ost_erase( m_tree, x );
-        #else
             m_tree.erase( m_tree.find( x ) );
-        #endif
         }
 
         void reset()
@@ -1162,113 +1148,60 @@ class Quantile
             double target = std::get<double>( m_quants[index]._data ) * ( m_tree.size() - 1 );
             int ft = floor( target );
             int ct = ceil( target );
+            auto fIt = m_tree.get<0>().nth( ft );
+            auto cIt = ( ft == ct ) ? fIt : std::next( fIt );
 
             double qtl = 0.0;
-        #ifndef __clang__
             switch ( m_interpolation )
             {
-                case LINEAR:
-                    if( ft == target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        double lower = *m_tree.find_by_order( ft );
-                        double higher = *m_tree.find_by_order( ct );
-                        qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
-                    }
-                    break;
-                case LOWER:
-                    qtl = *m_tree.find_by_order( ft );
-                    break;
-                case HIGHER:
-                    qtl = *m_tree.find_by_order( ct );
-                    break;
-                case MIDPOINT:
-                    if( ft == target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        double lower = *m_tree.find_by_order( ft );
-                        double higher = *m_tree.find_by_order( ct );
-                        qtl = ( higher+lower ) / 2;
-                    }
-                    break;
-                case NEAREST:
-                    if( target - ft < ct - target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        qtl = *m_tree.find_by_order( ct );
-                    }
-                    break;
-                default:
-                    break;
+            case LINEAR:
+                if ( ft == target )
+                {
+                    qtl = *fIt;
+                }
+                else
+                {
+                    double lower = *fIt;
+                    double higher = *cIt;
+                    qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
+                }
+                break;
+            case LOWER:
+                qtl = *fIt;
+                break;
+            case HIGHER:
+                qtl = *cIt;
+                break;
+            case MIDPOINT:
+                if ( ft == target )
+                {
+                    qtl = *fIt;
+                }
+                else
+                {
+                    double lower = *fIt;
+                    double higher = *cIt;
+                    qtl = ( higher + lower ) / 2;
+                }
+                break;
+            case NEAREST:
+                if ( target - ft < ct - target )
+                {
+                    qtl = *fIt;
+                }
+                else
+                {
+                    qtl = *cIt;
+                }
+                break;
+            default:
+                break;
             }
-        #else
-            auto it = m_tree.begin();
-            std::advance( it, ft );
-            switch ( m_interpolation )
-            {
-                case LINEAR:
-                    if( ft == target )
-                    {
-                        qtl = *it;
-                    }
-                    else
-                    {
-                        double lower = *it;
-                        double higher = *++it;
-                        qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
-                    }
-                    break;
-                case LOWER:
-                    qtl = *it;
-                    break;
-                case HIGHER:
-                    qtl = ( ft == ct ? *it : *++it );
-                    break;
-                case MIDPOINT:
-                    if( ft == target )
-                    {
-                        qtl = *it;
-                    }
-                    else
-                    {
-                        double lower = *it;
-                        double higher = *++it;
-                        qtl = ( higher+lower ) / 2;
-                    }
-                    break;
-                case NEAREST:
-                    if( target - ft <= ct - target )
-                    {
-                        qtl = *it;
-                    }
-                    else
-                    {
-                        qtl = *++it;
-                    }
-                    break;
-                default:
-                    break;
-            }
-        #endif
             return qtl;
         }
 
     private:
-    
-    #ifndef __clang__
-        ost<std::less_equal<double>> m_tree;
-    #else
-        std::multiset<double> m_tree;
-    #endif
+        ost<std::less<double>> m_tree;
         std::vector<Dictionary::Data> m_quants;
         int64_t m_interpolation;
 };
@@ -1356,14 +1289,10 @@ class Rank
             else
             {
                 m_lastval = x;
-            #ifndef __clang__
                 if( m_method == MAX )
                     m_maxtree.insert( x );
                 else
                     m_mintree.insert( x );
-            #else
-                m_tree.insert( x );
-            #endif
             }
         }
 
@@ -1371,104 +1300,63 @@ class Rank
         {
             if( likely( !isnan( x ) ) )
             {
-            #ifndef __clang__
-                if( m_method == MAX )
-                    ost_erase( m_maxtree, x );
+                if ( m_method == MAX )
+                    m_maxtree.erase ( m_maxtree.find( x ) );
                 else
-                    ost_erase( m_mintree, x );
-            #else
-                m_tree.erase( m_tree.find( x ) );
-            #endif
+                    m_mintree.erase ( m_mintree.find( x ) );
             }
         }
 
         void reset()
         {
-        #ifndef __clang__
             if( m_method == MAX )
                 m_maxtree.clear();
             else
                 m_mintree.clear();
-        #else
-            m_tree.clear();
-        #endif
         }
 
         double compute() const
         {
             // Verify tree is not empty and lastValue is valid
             // Last value can only ever be NaN if the "keep" nan option is used
-        #ifndef __clang__
             if( likely( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) )
             {
                 switch( m_method )
                 {
                     case MIN:
                     {
-                        if( m_mintree.size() == 1 )
+                        if ( m_mintree.size() == 1 )
                             return 0;
-                        return m_mintree.order_of_key( m_lastval );
+                        return m_mintree.get<0>().find_rank( m_lastval );
                     }
                     case MAX:
                     {
-                        if( m_maxtree.size() == 1 )
+                        if ( m_maxtree.size() == 1 )
                             return 0;
-                        return m_maxtree.size() - 1 - m_maxtree.order_of_key( m_lastval );
+                        return m_maxtree.size() - 1 - m_maxtree.get<0>().find_rank( m_lastval );
                     }
                     case AVG:
                     {
-                        // Need to iterate to find average rank
-                        if( m_mintree.size() == 1 )
+                        if ( m_mintree.size() == 1 )
                             return 0;
-
-                        int min_rank = m_mintree.order_of_key( m_lastval );
+                        
+                        int min_rank = m_mintree.get<0>().find_rank( m_lastval );
                         int max_rank = min_rank;
-                        auto it = m_mintree.find_by_order( min_rank );
+                        auto it = m_mintree.get<0>().nth( min_rank );
                         it++;
-                        for( ; it != m_mintree.end() && *it == m_lastval ; it++ ) max_rank++;
+                        for( ; it != m_mintree.end() && *it == m_lastval ; it++ ) max_rank++; // While this is in theory O(n), in reality this loop is only interated once, since there are likely no duplicate values or very few.
                         return ( double )( min_rank + max_rank ) / 2;
                     }
-
                     default:
                         break;
                 }
             }
-        #else
-            if( likely( !isnan( m_lastval ) && m_tree.size() > 0 ) )
-            {
-                switch( m_method )
-                {
-                    case MIN:
-                    {
-                        return std::distance( m_tree.begin(), m_tree.find( m_lastval ) );
-                    }
-                    case MAX:
-                    {
-                        auto end_range = m_tree.equal_range( m_lastval ).second;
-                        return std::distance( m_tree.begin(), std::prev( end_range ) );
-                    }
-                    case AVG:
-                    {
-                        auto range = m_tree.equal_range( m_lastval );
-                        return std::distance( m_tree.begin(), range.first ) + ( double )std::distance( range.first, std::prev( range.second ) ) / 2;
-                    }
-                    default:
-                        break;
-                }
-            }
-        #endif
-
             return std::numeric_limits<double>::quiet_NaN();
         }
 
     private:
-
-    #ifndef __clang__
-        ost<std::less_equal<double>> m_mintree;
-        ost<std::greater_equal<double>> m_maxtree;
-    #else
-        std::multiset<double> m_tree;
-    #endif
+        ost<std::less<double>> m_mintree;
+        ost<std::greater<double>> m_maxtree;
         double m_lastval;
 
         int64_t m_method;
@@ -1569,7 +1457,7 @@ class EMA
                 m_ema = x;
                 m_first = false;
             }
-            else if( unlikely( isnan( x ) ) && !m_ignore_na )
+            else if( unlikely( isnan( x ) ) && !m_ignore_na && likely( !m_first ) )
             {
                 m_offset++;
             }
@@ -1582,8 +1470,9 @@ class EMA
                 }
                 else
                 {
-                    m_ema = ( pow( m_ema * ( 1 - m_alpha ), m_offset ) + m_alpha * x ) /
+                    m_ema = ( m_ema * pow( ( 1 - m_alpha ), m_offset ) + m_alpha * x ) / 
                         ( pow( 1 - m_alpha, m_offset ) + m_alpha );
+                    m_offset = 1;
                 }
             }
         }
@@ -1599,7 +1488,7 @@ class EMA
 
         double compute() const
         {
-            return m_ema;
+            return unlikely( m_first ) ? std::numeric_limits<double>::quiet_NaN() : m_ema;
         }
 
     private:
@@ -1710,7 +1599,7 @@ class AlphaDebiasEMA
 
         void add( double x )
         {
-            if( m_first )
+            if( m_first && likely( !isnan( x ) ) )
             {
                 m_wsum = 1;
                 m_sqsum = 1;
@@ -1728,10 +1617,16 @@ class AlphaDebiasEMA
                     w0 = 1.0;
                 else
                     w0 = 1 - m_decay;
-                m_sqsum += pow( w0, 2 );
+                m_sqsum += w0 * w0;
                 m_wsum += w0;
+                if( !m_adjust )
+                {
+                    double correction = decay_factor + w0;
+                    m_wsum /= correction;
+                    m_sqsum /= ( correction * correction );
+                }
             }
-            else
+            else if ( likely( !m_first ) )
             {
                 m_offset++;
                 m_nan_count++;
@@ -1746,7 +1641,7 @@ class AlphaDebiasEMA
                 double wh = pow( m_decay, lookback );
                 if( !m_adjust )
                     wh *= ( 1- m_decay );
-                m_sqsum -= pow( wh, 2 );
+                m_sqsum -= wh * wh;
                 m_wsum -= wh;
                 if( m_wsum < EPSILON || m_sqsum < EPSILON )
                 {
@@ -1767,7 +1662,7 @@ class AlphaDebiasEMA
 
         double compute() const
         {
-            double wsum_sq = pow( m_wsum, 2 );
+            double wsum_sq = m_wsum * m_wsum;
             if( abs( wsum_sq - m_sqsum ) > EPSILON )
                 return wsum_sq / ( wsum_sq - m_sqsum );
             else
@@ -1794,7 +1689,7 @@ class HalflifeEMA
 
         HalflifeEMA( TimeDelta halflife, DateTime start )
         {
-            m_halflife = halflife;
+            m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
             m_last_tick = start;
             reset();
         }
@@ -1808,12 +1703,9 @@ class HalflifeEMA
             if( likely( !isnan( x ) ) )
             {
                 TimeDelta delta_t = now - m_last_tick;
-                double decay_duration = ( double )( delta_t.asNanoseconds() ) / ( m_halflife.asNanoseconds() );
-                double decay = exp( -( decay_duration ) * log( 2 ) );
-                m_ema *= decay;
-                m_norm *= decay;
-                m_ema += x;
-                m_norm++;
+                double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
+                m_ema = decay * m_ema + x;
+                m_norm = decay * m_norm + 1.0;
                 m_last_tick = now;
             }
         }
@@ -1832,7 +1724,7 @@ class HalflifeEMA
 
         double m_ema;
         double m_norm;
-        TimeDelta m_halflife;
+        double m_decay_factor;
         DateTime m_last_tick;
 
 };
@@ -1844,7 +1736,7 @@ class HalflifeDebiasEMA
 
         HalflifeDebiasEMA( TimeDelta halflife, DateTime start )
         {
-            m_halflife = halflife;
+            m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
             m_last_tick = start;
             reset();
         }
@@ -1858,11 +1750,9 @@ class HalflifeDebiasEMA
             if( likely( !isnan( x ) ) )
             {
                 TimeDelta delta_t = now - m_last_tick;
-                double decay = exp( -( delta_t/m_halflife ) * log( 2 ) );
-                m_sqsum *= pow( decay, 2 );
-                m_wsum *= decay;
-                m_sqsum++;
-                m_wsum++;
+                double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
+                m_sqsum = decay * decay * m_sqsum + 1.0;
+                m_wsum = decay * m_wsum + 1.0;
                 m_last_tick = now;
             }
         }
@@ -1874,7 +1764,7 @@ class HalflifeDebiasEMA
 
         double compute() const
         {
-            double wsum_sq = pow( m_wsum, 2 );
+            double wsum_sq = m_wsum * m_wsum;
             if( wsum_sq != m_sqsum )
                 return wsum_sq / ( wsum_sq - m_sqsum );
             else
@@ -1885,7 +1775,7 @@ class HalflifeDebiasEMA
 
         double m_wsum;
         double m_sqsum;
-        TimeDelta m_halflife;
+        double m_decay_factor;
         DateTime m_last_tick;
 };
 
@@ -2061,11 +1951,6 @@ public:
             s_pending_recalc = true;
         }
 
-        if( csp.ticked( recalc ) )
-        {
-            s_pending_recalc = true;
-        }
-
         if( csp.ticked( sampler ) )
         {
             // Handle removals if needed
@@ -2096,8 +1981,10 @@ public:
 
             // Handle removals
             if( !s_removals.empty() && !s_pending_recalc )
+            {
                 std::swap( removals_.reserveSpace(), s_removals );
-            s_removals.clear();
+                s_removals.clear();
+            }
 
             if( s_pending_recalc && !s_value_buffer.empty() )
             {
@@ -2186,8 +2073,11 @@ protected:
 
     STATE_VAR( bool, s_first{true} );
     STATE_VAR( bool, s_expanding{false} );
+
     STATE_VAR( VariableSizeWindowBuffer<T>, s_value_buffer{} );
     STATE_VAR( VariableSizeWindowBuffer<DateTime>, s_time_buffer{} );
+
+    STATE_VAR( std::vector<T>, s_additions{} ); // only used for expanding window optimization
 
     TS_NAMED_OUTPUT_RENAMED( std::vector<T>, additions, additions_ );
     TS_NAMED_OUTPUT_RENAMED( std::vector<T>, removals, removals_ );
@@ -2213,9 +2103,14 @@ public:
     {
         if( csp.ticked( reset ) )
         {
-            s_value_buffer.clear();
-            s_time_buffer.clear();
-            s_pending_removals = 0;
+            if( s_expanding )
+                s_additions.clear();
+            else
+            {
+                s_value_buffer.clear();
+                s_time_buffer.clear();
+                s_pending_removals = 0;
+            }
         }
 
         if( csp.ticked( recalc ) )
@@ -2229,21 +2124,40 @@ public:
             if( csp.ticked( x ) )
             {
                 node -> validateShape();
-                s_value_buffer.push( x );
+                if( s_expanding )
+                    s_additions.push_back( x );
+                else
+                    s_value_buffer.push( x );
             }
             else
             {
                 node -> checkValid();
-                s_value_buffer.push( node -> createNan() );
+                if( s_expanding )
+                    s_additions.push_back( node -> createNan() );
+                else
+                    s_value_buffer.push( node -> createNan() );
             }
-            s_time_buffer.push( now() );
+            if( !s_expanding )
+                s_time_buffer.push( now() );
         }
 
         if( csp.ticked( trigger ) || ( s_first && csp.ticked( x ) && csp.ticked( sampler ) ) )
         {
             s_first = false;
 
-            DateTime threshold = ( s_expanding ? DateTime::MIN_VALUE() : now() - interval );
+            if( s_expanding )
+            {
+                // fast track expanding window calculations
+                // we just need to swap in all additions with no checks 
+                if( !s_additions.empty() )
+                {
+                    std::swap( additions_.reserveSpace(), s_additions );
+                    s_additions.clear(); // keep allocated memory
+                }
+                return;
+            }
+            
+            DateTime threshold = now() - interval;
             // Handle removals
             int64_t count = csp.count( sampler );
             std::vector<T>* removals = nullptr;
@@ -2334,3 +2248,5 @@ public:
 };
 
 }
+
+#endif // _IN_CSP_CPPNODES_STATSIMPL_H

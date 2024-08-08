@@ -24,6 +24,10 @@ def g(uri: str):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: e1_websocket_client <uri>")
+        sys.exit(1)
+
     csp.run(
         g,
         starttime=datetime.utcnow(),

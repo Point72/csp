@@ -1,5 +1,5 @@
-import typing
 from datetime import datetime, timedelta
+from typing import Dict, Optional
 
 import csp.baselib
 from csp.impl.wiring.edge import Edge
@@ -9,7 +9,7 @@ RealtimePerspectiveWidget = None
 
 
 class DataFrame:
-    def __init__(self, data: typing.Optional[typing.Dict] = None):
+    def __init__(self, data: Optional[Dict] = None):
         self._data = data or {}
         self._columns = list(self._data.keys())
 

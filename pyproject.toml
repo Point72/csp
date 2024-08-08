@@ -1,6 +1,7 @@
 [build-system]
 requires = [
     "cmake",
+    "deprecated",  # Because used in csp.impl.struct, which is used in autogen
     "oldest-supported-numpy",
     "pyarrow>=7.0.0",
     "ruamel.yaml",
@@ -14,12 +15,13 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.0.3"
+version = "0.0.5"
 requires-python = ">=3.8"
 
 dependencies = [
     "backports.zoneinfo; python_version<'3.9'",
-    "numpy",
+    "deprecated",
+    "numpy<2",
     "packaging",
     "pandas",
     "psutil",
@@ -77,9 +79,7 @@ develop = [
     "httpx>=0.20,<1",  # kafka
     "polars",  # parquet
     "psutil",  # test_engine/test_history
-    "slack-sdk>=3",  # slack
     "sqlalchemy",  # db
-    "requests",  # symphony
     "threadpoolctl",  # test_random
     "tornado",  # profiler, perspective, websocket
     # type checking
@@ -107,10 +107,10 @@ test = [
     "tornado",
 ]
 symphony = [
-    "requests",
+    "csp-adapter-symphony",
 ]
 slack = [
-    "slack-sdk>=3",
+    "csp-adapter-slack",
 ]
 
 [tool.check-manifest]
@@ -141,9 +141,11 @@ manylinux-x86_64-image = "manylinux_2_28"
 [tool.cibuildwheel.macos]
 before-all ="make dependencies-mac"
 archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
-environment = {}
 
 [tool.cibuildwheel.windows]
+before-all = "make dependencies-win"
+before-build = "make requirements"
+
 archs = "AMD64"
 skip = "*win32 *arm_64"
 

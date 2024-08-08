@@ -313,7 +313,6 @@ class ArrayStructField : public NonNativeStructField
 {
     using ElemT = typename CType::value_type;
 
-    //template<typename T, std::enable_if_t<CspType::isNative(CspType::fromCType<T>::type), bool> = true>
     template<typename T>
     static std::enable_if_t<CspType::isNative(CspType::Type::fromCType<T>::type), void> deepcopy( const std::vector<T> & src, std::vector<T> & dest )
     {
@@ -333,6 +332,14 @@ class ArrayStructField : public NonNativeStructField
         dest.resize( src.size() );
         for( size_t i = 0; i < src.size(); ++i )
             dest[i] = src[i].deepcopy();
+    }
+
+    template<typename StorageT>
+    static void deepcopy( const std::vector<std::vector<StorageT>> & src, std::vector<std::vector<StorageT>> & dest )
+    {
+        dest.resize( src.size() );
+        for( size_t i = 0; i < src.size(); ++i )
+            deepcopy( src[i], dest[i] );
     }
 
 public:
@@ -735,7 +742,8 @@ public:
 
 private:
     static void * operator new( std::size_t count, const std::shared_ptr<const StructMeta> & meta );
-    static void   operator delete( void * ptr );
+    static void operator delete( void * ptr, const std::shared_ptr<const StructMeta> & meta ) { delete( ( Struct * ) ptr ); }
+    static void operator delete( void * ptr );
 
     Struct( const std::shared_ptr<const StructMeta> & meta );
     ~Struct()
@@ -748,11 +756,15 @@ private:
     void decref()
     {
 //Work around GCC12 bug mis-identifying this code as use-after-free
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wuse-after-free"
+#if defined(__linux__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuse-after-free"
+#endif
         if( --hidden() -> refcount == 0 )
             delete this;
-//#pragma GCC diagnostic pop
+#if defined(__linux__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
     }
 
 

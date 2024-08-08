@@ -1,11 +1,13 @@
 import io
 import ruamel.yaml
 import typing
+from copy import deepcopy
+from deprecated import deprecated
 
 import csp
 from csp.impl.__csptypesimpl import _csptypesimpl
 from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
-from csp.impl.types.typing_utils import CspTypingUtils
+from csp.impl.types.typing_utils import CspTypingUtils, FastList
 
 # Avoid recreating this object every call its expensive!
 g_YAML = ruamel.yaml.YAML()
@@ -29,6 +31,9 @@ class StructMeta(_csptypesimpl.PyStructMeta):
         if annotations:
             for k, v in annotations.items():
                 actual_type = v
+                # Lists need to be normalized too as potentially we need to add a boolean flag to use FastList
+                if v == FastList:
+                    raise TypeError(f"{v} annotation is not supported without args")
                 if CspTypingUtils.is_generic_container(v):
                     actual_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(v)
                     if CspTypingUtils.is_generic_container(actual_type):
@@ -39,10 +44,15 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                         "struct field '%s' expected field annotation as a type got '%s'" % (k, type(v).__name__)
                     )
 
-                if isinstance(actual_type, list) and (len(actual_type) != 1 or not isinstance(actual_type[0], type)):
+                if isinstance(actual_type, list) and (
+                    len(actual_type) not in (1, 2)
+                    or not isinstance(actual_type[0], type)
+                    or (len(actual_type) == 2 and (not isinstance(actual_type[1], bool) or not actual_type[1]))
+                    or (isinstance(v, list) and len(actual_type) != 1)
+                ):
                     raise TypeError(
-                        "struct field '%s' expected list field annotation to be single element list of type got '%s'"
-                        % (k, type(v).__name__)
+                        "struct field '%s' expected list field annotation to be a single-element list of type got '%s'"
+                        % (k, (actual_type))
                     )
 
                 metadata_typed[k] = v
@@ -97,18 +107,14 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         return csp.struct_collectts(cls, kwargs)
 
     @classmethod
-    def _postprocess_dict_to_python(cls, d):
-        return d
-
-    @classmethod
     def _obj_to_python(cls, obj):
         if isinstance(obj, Struct):
-            return obj._postprocess_dict_to_python(
-                {k: cls._obj_to_python(getattr(obj, k)) for k in obj.__full_metadata_typed__ if hasattr(obj, k)}
-            )
+            return {k: cls._obj_to_python(getattr(obj, k)) for k in obj.__full_metadata_typed__ if hasattr(obj, k)}
         elif isinstance(obj, dict):
-            return {k: cls._obj_to_python(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple, set)):
+            return type(obj)({k: cls._obj_to_python(v) for k, v in obj.items()})  # type() for derived dict types
+        elif (
+            isinstance(obj, (list, tuple, set)) or type(obj).__name__ == "FastList"
+        ):  # hack for FastList that is not a list
             return type(obj)(cls._obj_to_python(v) for v in obj)
         elif isinstance(obj, csp.Enum):
             return obj.name  # handled in _obj_from_python
@@ -116,14 +122,10 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
             return obj
 
     @classmethod
-    def _preprocess_dict_from_python(cls, d):
-        return d
-
-    @classmethod
     def _obj_from_python(cls, json, obj_type):
         obj_type = ContainerTypeNormalizer.normalize_type(obj_type)
         if CspTypingUtils.is_generic_container(obj_type):
-            if CspTypingUtils.get_origin(obj_type) in (typing.List, typing.Set, typing.Tuple):
+            if CspTypingUtils.get_origin(obj_type) in (typing.List, typing.Set, typing.Tuple, FastList):
                 return_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(obj_type)
                 (expected_item_type,) = obj_type.__args__
                 return_type = list if isinstance(return_type, list) else return_type
@@ -143,7 +145,6 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         elif issubclass(obj_type, Struct):
             if not isinstance(json, dict):
                 raise TypeError("Representation of struct as json is expected to be of dict type")
-            json = obj_type._preprocess_dict_from_python(json)
             res = obj_type()
             for k, v in json.items():
                 expected_type = obj_type.__full_metadata_typed__.get(k, None)
@@ -161,8 +162,29 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
     def from_dict(cls, json: dict):
         return cls._obj_from_python(json, cls)
 
-    def to_dict(self):
-        return self._obj_to_python(self)
+    def to_dict_depr(self):
+        res = self._obj_to_python(self)
+        return res
+
+    @classmethod
+    def postprocess_to_dict(self, obj):
+        """Postprocess hook for to_dict method
+
+        This method is invoked by to_dict after converting a struct to a dict
+        as an additional hook for users to modify the dict before it is returned
+        by the to_dict method
+        """
+        return obj
+
+    def to_dict(self, callback=None):
+        """Create a dictionary representation of the struct
+
+        Args:
+            callback: Optional function to parse types that are not supported by default in csp and convert them to
+                      dicts csp by default can parse Structs, lists, sets, tuples, dicts, datetimes, and primitive types
+        """
+        res = super().to_dict(callback)
+        return res
 
     def to_json(self, callback=lambda x: x):
         return super().to_json(callback)
@@ -202,25 +224,25 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         return self.deepcopy()
 
     def __dir__(self):
-        return self.__full_metadata_typed__.keys()
+        return sorted(super().__dir__() + list(self.__full_metadata_typed__.keys()))
 
 
-def defineStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
+def define_struct(name, metadata: dict, defaults: dict = {}, base=Struct):
     """Helper method to dynamically create struct types"""
 
-    dct = defaults.copy()
+    dct = deepcopy(defaults)
     dct["__annotations__"] = metadata
     clazz = StructMeta(name, (base,), dct)
     return clazz
 
 
-def defineNestedStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
+def define_nested_struct(name, metadata: dict, defaults: dict = {}, base=Struct):
     """Helper method to dynamically create nested struct types.
     metadata and defaults can be a nested dictionaries"""
-    metadata = metadata.copy()
-    defaults = defaults.copy()
+    metadata = deepcopy(metadata)
+    defaults = deepcopy(defaults)
     child_structs = {
-        field: defineNestedStruct(f"{name}_{field}", submeta, defaults.get(field, {}))
+        field: define_nested_struct(f"{name}_{field}", submeta, defaults.get(field, {}))
         for field, submeta in metadata.items()
         if isinstance(submeta, dict)
     }
@@ -228,4 +250,14 @@ def defineNestedStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
         if fld in defaults:
             defaults[fld] = struct()
     metadata.update(child_structs)
-    return defineStruct(name, metadata, defaults, base)
+    return define_struct(name, metadata, defaults, base)
+
+
+@deprecated(version="0.0.6", reason="Replaced by define_struct")
+def defineStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
+    return define_struct(name, metadata, defaults, base)
+
+
+@deprecated(version="0.0.6", reason="Replaced by define_nested_struct")
+def defineNestedStruct(name, metadata: dict, defaults: dict = {}, base=Struct):
+    return define_nested_struct(name, metadata, defaults, base)

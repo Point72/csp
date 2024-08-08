@@ -12,8 +12,8 @@ Notes for editors:
 
 - [Installation](Installation)
 - [First steps](First-Steps)
-
-<!-- Add more pages when ready -->
+- [More with CSP](More-with-CSP)
+- [IO with Adapters](IO-with-Adapters)
 
 **Concepts**
 
@@ -22,12 +22,13 @@ Notes for editors:
 - [Historical Buffers](Historical-Buffers)
 - [Execution Modes](Execution-Modes)
 - [Adapters](Adapters)
+- [Feedback and Delayed Edge](Feedback-and-Delayed-Edge)
+- [Common Mistakes](Common-Mistakes)
 
 **How-to guides**
 
 - [Use Statistical Nodes](Use-Statistical-Nodes)
 - Use Adapters (coming soon)
-- [Add Cycles in Graphs](Add-Cycles-in-Graphs)
 - [Create Dynamic Baskets](Create-Dynamic-Baskets)
 - Write Adapters:
   - [Write Historical Input Adapters](Write-Historical-Input-Adapters)
@@ -40,6 +41,7 @@ Notes for editors:
 - API Reference
   - [Base Nodes API](Base-Nodes-API)
   - [Base Adapters API](Base-Adapters-API)
+  - [Graph Utilities API](Graph-Utilities-API)
   - [Math and Logic Nodes API](Math-and-Logic-Nodes-API)
   - [Statistical Nodes API](Statistical-Nodes-API)
   - [Functional Methods API](Functional-Methods-API)
@@ -48,8 +50,8 @@ Notes for editors:
   - [`csp.Struct` API](csp.Struct-API)
   - [`csp.dynamic` API](csp.dynamic-API)
   - [`csp.profiler` API](csp.profiler-API)
-- [Examples](Examples)
 - [Glossary of Terms](Glossary)
+- [Examples](https://github.com/Point72/csp/tree/main/examples)
 
 **Developer Guide**
 

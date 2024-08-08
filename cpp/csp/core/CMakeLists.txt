@@ -30,7 +30,7 @@ set_target_properties(csp_core PROPERTIES PUBLIC_HEADER "${CORE_PUBLIC_HEADERS}"
 
 install(TARGETS csp_core
         PUBLIC_HEADER DESTINATION include/csp/core
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cpp/csp/core/Config.h DESTINATION include/csp/core)

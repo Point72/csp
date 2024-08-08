@@ -12,7 +12,7 @@ namespace csp::python
 
 class PyEngine;
 
-class PyAdapterManagerWrapper
+class CSPIMPL_EXPORT PyAdapterManagerWrapper
 {
 public:
     using Creator = std::function<csp::AdapterManager *( PyEngine * pyengine, const Dictionary & properties )>;

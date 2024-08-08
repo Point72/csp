@@ -29,6 +29,6 @@ target_link_libraries(csp_adapter_utils PRIVATE protobuf::libprotoc protobuf::li
 
 install(TARGETS csp_adapter_utils
         PUBLIC_HEADER DESTINATION include/csp/adapters/utils
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )

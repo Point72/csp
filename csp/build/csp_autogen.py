@@ -152,7 +152,7 @@ namespace {self._namespace}
         cspenum_decls = "\n".join(f"    static {enum_name} {x.name};" for x in enum_type)
 
         out = f"""
-class {enum_name} : public csp::CspEnum
+class CSP_PUBLIC {enum_name} : public csp::CspEnum
 {{
 public:
     // Raw value quick access
@@ -315,7 +315,7 @@ private:
             )
 
         out = f"""
-class {struct_name} : public {base_class}
+class CSP_PUBLIC {struct_name} : public {base_class}
 {{
 public:
 
@@ -387,6 +387,9 @@ bool {struct_name}::static_init()
 {assertions}
     if( Py_IsInitialized() )
     {{
+        //Note that windows requires we grab the GIL since the windows DLL loading code releases GIL
+        csp::python::AcquireGIL gil;
+
         // initialize StructMeta from python type if we're in python
         PyObject * pymodule = PyImport_ImportModule( "{self._module_name}" );
         assert_or_die( pymodule != nullptr, "failed to import struct module {self._module_name}" );
@@ -423,6 +426,8 @@ bool {enum_name}::static_init()
 {{
     if( Py_IsInitialized() )
     {{
+        csp::python::AcquireGIL gil;
+
         // initialize EnumMeta from python type if we're in python
         PyObject * pymodule = PyImport_ImportModule( "{self._module_name}" );
         assert_or_die( pymodule != nullptr, "failed to import struct module {self._module_name}" );
@@ -449,6 +454,7 @@ std::shared_ptr<csp::CspEnumMeta> {enum_name}::s_meta;
 
         out = f"""
 #include "{self._header_filename}"
+#include <csp/python/Common.h>
 #include <csp/python/PyStruct.h>
 #include <csp/python/PyCspEnum.h>
 #include <iostream>
@@ -492,7 +498,7 @@ class Derived(Test):
     flt: float
 
 
-# Test2 = csp.impl.struct.defineStruct( 'Test2', { 'A' + str(i) : bool for i in range(25 )})
+# Test2 = csp.impl.struct.define_struct( 'Test2', { 'A' + str(i) : bool for i in range(25 )})
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

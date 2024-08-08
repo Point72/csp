@@ -36,7 +36,7 @@ and adjustments required for the hidden fields
 StructMeta::StructMeta( const std::string & name, const Fields & fields,
                         std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields( fields ),
                                                              m_size( 0 ), m_partialSize( 0 ), m_partialStart( 0 ), m_nativeStart( 0 ), m_basePadding( 0 ),
-                                                             m_maskLoc( 0 ), m_maskSize( 0 ), m_firstPartialField( 0 ),
+                                                             m_maskLoc( 0 ), m_maskSize( 0 ), m_firstPartialField( 0 ), m_firstNativePartialField( 0 ),
                                                              m_isPartialNative( true ), m_isFullyNative( true )
 {
     if( m_fields.empty() && !m_base)

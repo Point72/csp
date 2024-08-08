@@ -199,8 +199,9 @@ def run(
             mem_cache.clear(clear_user_objects=False)
 
             # Ensure we dont start running realtime engines before starttime if its in the future
-            if starttime > datetime.now(pytz.UTC).replace(tzinfo=None) and realtime:
-                time.sleep((starttime - datetime.now(pytz.UTC)).total_seconds())
+            now = datetime.now(pytz.UTC).replace(tzinfo=None)
+            if starttime > now and realtime:
+                time.sleep((starttime - now).total_seconds())
 
             with mem_cache:
                 return engine.run(starttime, endtime)

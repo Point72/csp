@@ -11,11 +11,10 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
 - **Powerful C++ Engine:** Execute the graph using CSP's C++ Graph Processing Engine
 - **Simulation (i.e., offline) mode:** Test workflows on historical data and quickly move to real-time data in deployment
 - **Infrastructure-agnostic:** Connect to any data format or storage database, using built-in (Parquet, Kafka, etc.) or custom adapters
+- **Library of built-in operations:** Write workflows quickly using CSP's built-in set of general, statistical, mathematical "nodes" that define common runtime computations
 - **Highly-customizable:** Write your own input and output adapters for any data/storage formats, and real-time adapters for specific workflows
 - **PyData interoperability:** Use your favorite libraries from the Scientific Python Ecosystem for numerical and statistical computations
 - **Functional/declarative style:** Write concise and composable code for stream processing by building graphs in Python
-
-<!-- ## Applications -->
 
 ## Get Started
 
@@ -23,15 +22,48 @@ CSP (Composable Stream Processing) is a library for high-performance real-time e
 - Learn more about [nodes](CSP-Node), [graphs](CSP-Graph), and [execution modes](Execution-Modes)
 - Learn to extend CSP with [adapters](Adapters)
 
-<!-- - Check out the [examples](Examples) for various CSP features and use cases -->
+## Applications
 
-> \[!TIP\]
-> Find relevant docs with GitHub’s search function, use `repo:Point72/csp type:wiki <search terms>` to search the documentation Wiki Pages.
+<table>
+  <tr>
+    <td>Real-time public transportation</td>
+    <td>Tracking Wikipedia page edits</td>
+    <td>Processing seismic waveforms</td>
+    <td>Visualizing global earthquakes</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/mta.ipynb">
+        <img src="images/mta-example.png" width="300px">
+      </a>
+    </td>
+    <td>
+      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/wikimedia.ipynb">
+        <img src="images/wikimedia-example.png" width="300px">
+      </a>
+    </td>
+    <td>
+      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/seismic_waveform.ipynb">
+        <img src="images/seismic-waveform-example.png" width="300px">
+      </a>
+    </td>
+    <td>
+      <a href="https://github.com/Point72/csp/blob/main/examples/07_end_to_end/earthquake.ipynb">
+        <img src="images/earthquake-example.png" width="300px">
+      </a>
+    </td>
+  </tr>
+</table>
+
+Check out the [examples directory](https://github.com/Point72/csp/tree/main/examples) for a comprehensive collection of CSP applications.
 
 ## Community
 
 - [Contribute](Contribute) to CSP and help improve the project
 - Read about future plans in the [project roadmap](Roadmap)
+
+> \[!TIP\]
+> Find relevant docs with GitHub’s search function, use `repo:Point72/csp type:wiki <search terms>` to search the documentation Wiki Pages.
 
 ## License
 

@@ -1,4 +1,4 @@
-name: csp-dev
+name: csp
 channels:
   - conda-forge
   - nodefaults
@@ -11,6 +11,7 @@ dependencies:
  - codespell>=2.2.6,<2.3
  - compilers
  - cyrus-sasl
+ - deprecated
  - exprtk
  - flex
  - graphviz
@@ -19,21 +20,20 @@ dependencies:
  - httpx>=0.20,<1
  - isort>=5,<6
  - libarrow=16
+ - libboost>=1.80.0
+ - libboost-headers>=1.80.0
  - librdkafka
- - libboost-headers
  - lz4-c
  - mamba
  - mdformat>=0.7.17,<0.8
  - ninja
- - numpy
- - pillow
- - psutil
- - pyarrow=16
+ - numpy<2
  - pandas
  - pillow
  - polars
  - psutil
  - pydantic>2
+ - pyarrow=16
  - pytz
  - pytest
  - pytest-asyncio
@@ -46,7 +46,6 @@ dependencies:
  - ruamel.yaml
  - ruff>=0.3,<0.4
  - scikit-build
- - slack-sdk
  - sqlalchemy
  - tar
  - threadpoolctl
@@ -54,5 +53,4 @@ dependencies:
  - twine
  - unzip
  - wheel
- - websocketpp
  - zip

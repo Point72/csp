@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_INITHELPER_H
 #define _IN_CSP_PYTHON_INITHELPER_H
 
+#include <csp/core/Platform.h>
 #include <Python.h>
 #include <functional>
 #include <string>
@@ -9,7 +10,7 @@
 namespace csp::python
 {
 
-class __attribute__ ((visibility ("hidden"))) InitHelper
+class CSP_LOCAL InitHelper
 {
 public:
     ~InitHelper() {}
@@ -110,4 +111,21 @@ inline bool InitHelper::execute( PyObject * module )
 }
 
 }
+
+//PyMODINIT_FUNC in Python <3.9 doesn't export the function/make visible
+//this is required since we build with hidden visibility by default
+//the below macro code can be removed once 3.8 support is dropped
+//
+//see similar issues:
+//https://github.com/scipy/scipy/issues/15996
+//https://github.com/mesonbuild/meson/pull/10369
+
+#if PY_VERSION_HEX < 0x03090000
+#ifdef PyMODINIT_FUNC
+#undef PyMODINIT_FUNC
+#endif
+
+#define PyMODINIT_FUNC extern "C" CSP_PUBLIC PyObject*
+#endif
+
 #endif

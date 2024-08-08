@@ -8,9 +8,7 @@ namespace csp::utils
 
 inline std::string dirname( const std::string & path )
 {
-    if( path.length() >= 2 )
-        return path.substr( 0, path.rfind( "/", path.length() - 2 ) );
-    return "";
+    return std::filesystem::path(path).parent_path().string();
 }
 
 //files and directories are treated equally
@@ -19,16 +17,16 @@ inline bool fileExists( const std::string & fileOrDir )
     return std::filesystem::exists(fileOrDir);
 }
 
-inline void mkdir( const std::string & path,  mode_t mode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH )
+inline void mkdir( const std::string & path, 
+                   std::filesystem::perms perms = std::filesystem::perms::owner_all | std::filesystem::perms::group_all | std::filesystem::perms::others_read | std::filesystem::perms::others_exec  )
 {
-    size_t pos = 0;
-    do
+    if (!fileExists(path))
     {
-        pos = path.find( '/', pos + 1 );
-        std::string subpath = path.substr( 0, pos );
-        if( !fileExists( subpath) && ( ::mkdir( subpath.c_str(), mode ) == -1 && errno != EEXIST ) )
-            CSP_THROW( IOError, "Failed to create path " << subpath << ": " << strerror( errno ) );
-    } while( pos != std::string::npos );
+        std::error_code err;
+        if (!std::filesystem::create_directories(path, err))
+            CSP_THROW(IOError, "Failed to create path " << path << ": " << err.message());
+        std::filesystem::permissions(path, perms);
+    }
 }
 
 }

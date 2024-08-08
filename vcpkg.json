@@ -4,6 +4,8 @@
   "dependencies": [
     "abseil",
     "arrow",
+    "boost-beast",
+    "boost-multi-index",
     "brotli",
     "exprtk",
     "gtest",
@@ -19,8 +21,7 @@
     "protobuf",
     "rapidjson",
     "thrift",
-    "utf8proc",
-    "websocketpp"
+    "utf8proc"
   ],
   "overrides": [
     {
@@ -29,5 +30,5 @@
       "port-version" : 1
     }
   ],
-  "builtin-baseline": "04b0cf2b3fd1752d3c3db969cbc10ba0a4613cee"
+  "builtin-baseline": "1b5f7346612cd63910567df714d867f5b3fa8e3b"
 }

@@ -197,7 +197,14 @@ inline PyObject * createNumpyArray( ValueType valueType, const csp::TimeSeriesPr
                           endIndex < ts -> numTicks() &&
                           ts -> timeAtIndex( endIndex ) < endDt;
 
-    T lastValue = ( ts -> valid() ? ts -> lastValueTyped<T>() : T() );
+    //MSVC bug!! They dont eval ternary operators correctly and this code actually evaluates both sides
+    //which leads to a crash since lastValueTyped should not be called at all if ts is not valid...
+    //T lastValue = ( ts -> valid() ? ts -> lastValueTyped<T>() : T() );
+
+    T lastValue;
+    if( ts -> valid() )
+        lastValue = ts -> lastValueTyped<T>();
+    
     DateTime lastTime = ( ts -> valid() ? ts -> lastTime() : DateTime() );
     switch( valueType )
     {
@@ -232,7 +239,6 @@ NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr );
 void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem_size_bytes );
 
 void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char );
-
 
 }
 

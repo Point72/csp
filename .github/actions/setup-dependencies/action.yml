@@ -22,7 +22,6 @@ runs:
     - name: Install python dependencies
       shell: bash
       run: make requirements
-      if: ${{ runner.os == 'Linux' }}
 
     ################
     # Linux # NOTE: skip for manylinux image
@@ -54,6 +53,6 @@ runs:
       shell: bash
       run: make dependencies-win
       env:
-        VCPKG_DEFAULT_TRIPLET: x64-windows
+        VCPKG_DEFAULT_TRIPLET: x64-windows-static-md
         VCPKG_PLATFORM_TOOLSET: v143
       if: ${{ runner.os == 'Windows' }}

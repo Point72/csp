@@ -67,10 +67,12 @@ inline rapidjson::Value toJson( const std::string& val, const CspType& typ, rapi
 template<>
 inline rapidjson::Value toJson( const TimeDelta& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
+    if( val.isNone() ) return rapidjson::Value();
+
     // Convert TimeDelta to <sign><seconds>.<microseconds>
     // sign( 1 ) + seconds ( 18 ) + '.'( 1 ) + microseconds( 9 ) + '\0'( 1 )
     char buf[32] = {};
-    auto seconds = val.abs().asSeconds();
+    long seconds = val.abs().asSeconds();
     auto microseconds = static_cast<unsigned>( val.abs().nanoseconds() / NANOS_PER_MICROSECOND );
     auto len = sprintf( buf, "%c%ld.%06u", ( val.sign() >= 0 ) ? '+' : '-', seconds, microseconds );
     rapidjson::Value res;
@@ -82,6 +84,8 @@ inline rapidjson::Value toJson( const TimeDelta& val, const CspType& typ, rapidj
 template<>
 inline rapidjson::Value toJson( const Date& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
+    if( val.isNone() ) return rapidjson::Value();
+
     // Convert Date to <year>-<month>-<day>
     // year( 4 ) + '-'( 1 ) + month( 2 ) + '-'( 1 ) + day( 2 ) + '\0'( 1 )
     char buf[32] = {};
@@ -95,6 +99,8 @@ inline rapidjson::Value toJson( const Date& val, const CspType& typ, rapidjson::
 template<>
 inline rapidjson::Value toJson( const Time& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
+    if( val.isNone() ) return rapidjson::Value();
+
     // Convert the Time to <hours>:<minutes>:<seconds>.<microseconds>
     // hours( 2 ) + ':'( 1 ) + minutes( 2 ) + ':'( 1 ) + seconds( 2 ) + '.'( 1 ) + micros( 6 ) + '\0'( 1 )
     char buf[48] = {};
@@ -109,6 +115,8 @@ inline rapidjson::Value toJson( const Time& val, const CspType& typ, rapidjson::
 template<>
 inline rapidjson::Value toJson( const DateTime& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
+    if( val.isNone() ) return rapidjson::Value();
+
     // Convert the datetime value into an ISO 8601 formatted string
     DateTimeEx dtx( val );
 
@@ -137,8 +145,8 @@ inline rapidjson::Value toJson( const StructPtr& val, const CspType& typ, rapidj
 template<>
 inline rapidjson::Value toJson( const DialectGenericType& val, const CspType& typ, rapidjson::Document& doc, PyObject * callable )
 {
-    auto py_obj = toPython<DialectGenericType>( val );
-    return pyObjectToJson( py_obj, doc, callable, false );
+    auto py_obj = PyObjectPtr::own( toPython<DialectGenericType>( val ) );
+    return pyObjectToJson( py_obj.get(), doc, callable, false );
 }
 
 // Helper function to convert arrays in csp Structs into json lists recursively
@@ -190,12 +198,40 @@ rapidjson::Value toJsonRecursive( const StructPtr& self, rapidjson::Document& do
     return new_dict;
 }
 
-rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc )
+rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, PyObject * callable )
 {
-    // Only support strings, ints, and floats as keys
+    // NOTE: Only support None, bool, strings, ints, and floats, date, time, datetime, enums, csp.Enums as keys
     // JSON encoding requires all names to be strings so convert them to strings
+
+    static thread_local PyTypeObjectPtr s_tl_enum_type;
+    // Get the enum type on the first call and save it for future use
+    if( s_tl_enum_type.get() == nullptr ) [[unlikely]]
+    {
+        // Import enum module to extract the Enum type
+        auto py_enum_module = PyObjectPtr::own( PyImport_ImportModule( "enum" ) );
+        if( py_enum_module.get() )
+        {
+            s_tl_enum_type = PyTypeObjectPtr::own( reinterpret_cast<PyTypeObject*>( PyObject_GetAttrString( py_enum_module.get(), "Enum" ) ) );
+        }
+        else
+        {
+            CSP_THROW( RuntimeException, "Unable to import enum module from the python standard library" );
+        }
+    }
+
     rapidjson::Value val;
-    if( PyUnicode_Check( py_key ) )
+    if( py_key == Py_None )
+    {
+        val.SetString( "null" );
+    }
+    else if( PyBool_Check( py_key ) )
+    {
+        auto str_obj = PyObjectPtr::own( PyObject_Str( py_key ) );
+        Py_ssize_t len = 0;
+        const char * str = PyUnicode_AsUTF8AndSize( str_obj.get(), &len );
+        val.SetString( str, len, doc.GetAllocator() );
+    }
+    else if( PyUnicode_Check( py_key ) )
     {
         Py_ssize_t len;
         auto str = PyUnicode_AsUTF8AndSize( py_key, &len );
@@ -212,9 +248,8 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc )
         auto json_obj = doubleToJson( key, doc );
         if ( json_obj.IsNull() )
         {
-            auto * str_obj = PyObject_Str( py_key );
-            Py_ssize_t len = 0;
-            const char * str = PyUnicode_AsUTF8AndSize( str_obj, &len );
+            auto str_obj = PyObjectPtr::own( PyObject_Str( py_key ) );
+            const char * str = PyUnicode_AsUTF8( str_obj.get() );
             CSP_THROW( ValueError, "Cannot serialize " + std::string( str ) + " to key in JSON" );
         }
         else
@@ -224,6 +259,35 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc )
             s << key;
             val.SetString( s.str(), doc.GetAllocator() );
         }
+    }
+    else if( PyTime_CheckExact( py_key ) )
+    {
+        auto v = fromPython<Time>( py_key );
+        val = toJson( v, CspType( CspType::Type::TIME ), doc, callable );
+    }
+    else if( PyDate_CheckExact( py_key ) )
+    {
+        auto v = fromPython<Date>( py_key );
+        val = toJson( v, CspType( CspType::Type::DATE ), doc, callable );
+    }
+    else if( PyDateTime_CheckExact( py_key ) )
+    {
+        auto v = fromPython<DateTime>( py_key );
+        val = toJson( v, CspType( CspType::Type::DATETIME ), doc, callable );
+    }
+    else if( PyType_IsSubtype( Py_TYPE( py_key ), &PyCspEnum::PyType ) )
+    {
+        auto enum_ptr = static_cast<PyCspEnum *>( py_key ) -> enum_;
+        val = toJson( enum_ptr, CspType( CspType::Type::ENUM ), doc, callable );
+    }
+    else if( PyType_IsSubtype( Py_TYPE( py_key ), s_tl_enum_type.get() ) )
+    {
+        // Use the `name` attribute of the enum for the string representation
+        auto py_enum_name = PyObjectPtr::own( PyObject_GetAttrString( py_key, "name" ) );
+        auto str_obj = PyObjectPtr::own( PyObject_Str( py_enum_name.get() ) );
+        Py_ssize_t len = 0;
+        const char * str = PyUnicode_AsUTF8AndSize( str_obj.get(), &len );
+        val.SetString( str, len, doc.GetAllocator() );
     }
     else
     {
@@ -276,7 +340,7 @@ rapidjson::Value pyDictToJson( PyObject * py_dict, rapidjson::Document& doc, PyO
 
     while( PyDict_Next( py_dict, &pos, &py_key, &py_value ) )
     {
-        auto key = pyDictKeyToName( py_key, doc );
+        auto key = pyDictKeyToName( py_key, doc, callable );
         auto res = pyObjectToJson( py_value, doc, callable, false );
         new_dict.AddMember( key, res, doc.GetAllocator() );
     }
@@ -285,6 +349,7 @@ rapidjson::Value pyDictToJson( PyObject * py_dict, rapidjson::Document& doc, PyO
 
 rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyObject * callable, bool is_recursing )
 {
+    INIT_PYDATETIME;
     if( value == Py_None )
     {
         return rapidjson::Value();
@@ -374,14 +439,13 @@ rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyO
         else
         {
             // Not a known type
-            auto arglist = Py_BuildValue( "(O)", value );
             // We expect callback to return a py object consisting of either csp types or dicts and lists
-            PyObject * res_py_obj = PyObject_CallObject( callable, arglist );
+            auto res_py_obj = PyObjectPtr::own( PyObject_CallFunction( callable, "(O)", value ) );
             if( res_py_obj )
             {
                 // NOTE: We could add checks to verify the returned py object is jsonified,
                 // but that would have performance implications
-                return pyObjectToJson( res_py_obj, doc, callable, true );
+                return pyObjectToJson( res_py_obj.get(), doc, callable, true );
             }
             else
             {

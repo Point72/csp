@@ -1,20 +1,23 @@
 #ifndef _IN_CSP_PYTHON_CONVERSIONS_H
 #define _IN_CSP_PYTHON_CONVERSIONS_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/PartialSwitchCspType.h>
 #include <csp/engine/Struct.h>
 #include <csp/engine/TimeSeriesProvider.h>
+#include <csp/python/Common.h>
 #include <csp/python/CspTypeFactory.h>
 #include <csp/python/Exception.h>
 #include <csp/python/PyCspEnum.h>
 #include <csp/python/PyCspType.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
+#include <csp/python/PyStructFastList.h>
 #include <csp/python/PyStructList.h>
-#include <datetime.h>
 #include <Python.h>
+#include <datetime.h>
 #include <string>
 #include <variant>
 
@@ -80,7 +83,7 @@ inline T fromPython( PyObject * o )
     return T{};
 }
 
-//work around for inabilty to partially spcialize fromPython on vector<T>
+//work around for inabilty to partially specialize fromPython on vector<T>
 template<typename T>
 struct FromPython
 {
@@ -187,7 +190,7 @@ inline double fromPython( PyObject * o )
         //allow ints as floats
         if( PyLong_Check( o ) )
         {
-            int64_t rv = PyLong_AsLong( o );
+            int64_t rv = PyLong_AsLongLong( o );
             if( rv == -1 && PyErr_Occurred() )
                 CSP_THROW( PythonPassthrough, "" );
             return rv;
@@ -209,7 +212,7 @@ inline PyObject * toPython( const double & value )
 template<>
 inline PyObject * toPython( const int64_t & value )
 {
-    return toPythonCheck( PyLong_FromLong( value ) );
+    return toPythonCheck( PyLong_FromLongLong( value ) );
 }
 
 template<>
@@ -218,7 +221,7 @@ inline int64_t fromPython( PyObject * o )
     if( !PyLong_Check( o ) )
         CSP_THROW( TypeError, "Invalid int type, expected long (int) got " << Py_TYPE( o ) -> tp_name );
 
-    int64_t rv = PyLong_AsLong( o );
+    int64_t rv = PyLong_AsLongLong( o );
     if( rv == -1 && PyErr_Occurred() )
         CSP_THROW( PythonPassthrough, "" );
     return rv;
@@ -229,7 +232,7 @@ inline int64_t fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const uint64_t & value )
 {
-    return toPythonCheck( PyLong_FromUnsignedLong( value ) );
+    return toPythonCheck( PyLong_FromUnsignedLongLong( value ) );
 }
 
 template<>
@@ -238,7 +241,7 @@ inline uint64_t fromPython( PyObject * o )
     if( !PyLong_Check( o ) )
         CSP_THROW( TypeError, "Invalid int type, expected long (int) got " << Py_TYPE( o ) -> tp_name );
 
-    uint64_t rv = PyLong_AsUnsignedLong( o );
+    uint64_t rv = PyLong_AsUnsignedLongLong( o );
     if( rv == ( uint64_t ) -1 && PyErr_Occurred() )
         CSP_THROW( PythonPassthrough, "" );
     return rv;
@@ -465,6 +468,8 @@ inline CspEnum fromPython( PyObject * o, const CspType & type )
 template<>
 inline PyObject * toPython( const TimeDelta & td )
 {
+    INIT_PYDATETIME;
+
     if( td == TimeDelta::NONE() )
         Py_RETURN_NONE;
 
@@ -474,6 +479,8 @@ inline PyObject * toPython( const TimeDelta & td )
 template<>
 inline TimeDelta fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( o == Py_None )
         return TimeDelta::NONE();
 
@@ -499,6 +506,8 @@ inline TimeDelta fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const Date & d )
 {
+    INIT_PYDATETIME;
+
     if ( d == Date::NONE())
         Py_RETURN_NONE;
 
@@ -508,6 +517,8 @@ inline PyObject * toPython( const Date & d )
 template<>
 inline Date fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( o == Py_None )
         return Date::NONE();
 
@@ -525,6 +536,8 @@ inline Date fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const Time & t )
 {
+    INIT_PYDATETIME;
+
     if( t == Time::NONE())
         Py_RETURN_NONE;
 
@@ -534,6 +547,8 @@ inline PyObject * toPython( const Time & t )
 template<>
 inline Time fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( o == Py_None )
         return Time::NONE();
 
@@ -555,6 +570,8 @@ inline Time fromPython( PyObject * o )
 template<>
 inline PyObject * toPython( const DateTime & dt )
 {
+    INIT_PYDATETIME;
+
     DateTimeEx dtEx( dt );
     return toPythonCheck( PyDateTime_FromDateAndTime( dtEx.year(), dtEx.month(), dtEx.day(), dtEx.hour(), dtEx.minute(), dtEx.second(), dtEx.microseconds() ) );
 }
@@ -562,6 +579,8 @@ inline PyObject * toPython( const DateTime & dt )
 template<>
 inline DateTime fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( o == Py_None )
         return DateTime::NONE();
 
@@ -609,6 +628,8 @@ inline DateTime fromPython( PyObject * o )
 template<>
 inline DateTimeOrTimeDelta fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( PyDateTime_Check( o ) )
         return fromPython<DateTime>( o );
 
@@ -666,6 +687,8 @@ inline std::vector<Dictionary::Data> fromPython( PyObject * o )
 template<>
 inline Dictionary::Value fromPython( PyObject * o )
 {
+    INIT_PYDATETIME;
+
     if( PyBool_Check( o ) )
         return fromPython<bool>( o );
     else if( PyLong_Check( o ) )
@@ -747,11 +770,11 @@ inline PyObject * toPython( const DictionaryPtr & value)
 }
 
 template<typename StorageT>
-inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & type )
+inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & arrayType )
 {
-    assert( type.type() == CspType::Type::ARRAY );
+    assert( arrayType.type() == CspType::Type::ARRAY );
 
-    const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+    const CspType & elemType = *static_cast<const CspArrayType &>( arrayType ).elemType();
     size_t size = v.size();
     PyObjectPtr list = PyObjectPtr::check( PyList_New( size ) );
 
@@ -764,18 +787,27 @@ inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & typ
 }
 
 template<typename StorageT>
-inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & type, const PyStruct * pystruct )
+inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & arrayType, const PyStruct * pystruct )
 {
-    assert( type.type() == CspType::Type::ARRAY );
+    assert( arrayType.type() == CspType::Type::ARRAY );
 
-    const CspTypePtr elemType = static_cast<const CspArrayType &>( type ).elemType();
+    const CspArrayType & cspArrayType = static_cast<const CspArrayType &>( arrayType );
+    const CspTypePtr elemType = cspArrayType.elemType();
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
     size_t sz = v.size();
 
+    // Create PyStructFastList when requested
+    if( cspArrayType.isPyStructFastList() )
+    {
+        PyObject * fl = PyStructFastList<StorageT>::PyType.tp_alloc( &PyStructFastList<StorageT>::PyType, 0 );
+        new ( fl ) PyStructFastList<StorageT>( const_cast<PyStruct *>( pystruct ), const_cast<std::vector<StorageT> &>( v ), cspArrayType );
+        return fl;
+    }
+    // Create PyStructList otherwise
     // TODO: Implement more efficient list allocation by pre-allocating the space and filling it using PyList_SET_ITEM.
     // As of now, the problem is that Python is not allowing to resize the list via API, and it cannot allocate the list at the base of PyStructList, it can only allocate it somewhere in memory not under control.
     PyObject * psl = PyStructList<StorageT>::PyType.tp_alloc( &PyStructList<StorageT>::PyType, 0 );
-    new ( psl ) PyStructList<StorageT>( const_cast<PyStruct *>( pystruct ), const_cast<std::vector<StorageT> &>( v ), *elemType );
+    new ( psl ) PyStructList<StorageT>( const_cast<PyStruct *>( pystruct ), const_cast<std::vector<StorageT> &>( v ), cspArrayType );
 
     for( size_t index = 0; index < sz; ++index )
     {
@@ -789,15 +821,16 @@ inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & typ
 template<typename StorageT>
 struct FromPython<std::vector<StorageT>>
 {
-    static std::vector<StorageT> impl( PyObject * o, const CspType & type )
+    static std::vector<StorageT> impl( PyObject * o, const CspType & arrayType )
     {
-        assert( type.type() == CspType::Type::ARRAY );
-        const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+        assert( arrayType.type() == CspType::Type::ARRAY );
 
         using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
 
+        const CspType & elemType = *static_cast<const CspArrayType &>( arrayType ).elemType();
+
         std::vector<StorageT> out;
-        //fast path list and tuples since we can size up front
+        //fast path for list and tuple since we can size up front
         if( PyList_Check( o ) )
         {
             size_t size = PyList_GET_SIZE( o );
@@ -840,15 +873,6 @@ struct FromPython<std::vector<StorageT>>
 //timeserise helper method
 PyObject * lastValueToPython( const csp::TimeSeriesProvider * ts );
 PyObject * valueAtIndexToPython( const csp::TimeSeriesProvider * ts, int32_t index );
-
-static bool _initPyDateTimeAPI()
-{
-    PyDateTime_IMPORT;
-    return true;
-}
-
-//init datetime API once up front for this cpp object
-static bool _initDateTimeAPI = _initPyDateTimeAPI();
 
 }
 

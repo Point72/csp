@@ -1,9 +1,9 @@
 import numpy as np
 import os
 import psutil
-import typing
 import unittest
 from datetime import datetime, timedelta
+from typing import List
 
 import csp
 from csp import ts
@@ -636,7 +636,7 @@ class TestHistory(unittest.TestCase):
                         i += 1
 
         def g():
-            n(csp.unroll(csp.const.using(T=[int])(list(range(100000)))))
+            n(csp.unroll(csp.const.using(T=List[int])(list(range(100000)))))
 
         process = psutil.Process(os.getpid())
         mem_before = process.memory_info().rss

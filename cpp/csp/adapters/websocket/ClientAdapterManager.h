@@ -1,17 +1,21 @@
 #ifndef _IN_CSP_ADAPTERS_WEBSOCKETS_CLIENT_ADAPTERMGR_H
 #define _IN_CSP_ADAPTERS_WEBSOCKETS_CLIENT_ADAPTERMGR_H
 
+#include <csp/adapters/websocket/WebsocketEndpoint.h>
+#include <csp/adapters/websocket/ClientInputAdapter.h>
+#include <csp/adapters/websocket/ClientOutputAdapter.h>
+#include <csp/adapters/websocket/ClientHeaderUpdateAdapter.h>
 #include <csp/core/Enum.h>
 #include <csp/core/Hash.h>
 #include <csp/engine/AdapterManager.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/PushInputAdapter.h>
+#include <csp/core/Platform.h>
 #include <thread>
+#include <chrono>
+#include <iomanip>
+#include <iostream>
 
-#include <csp/adapters/websocket/ClientInputAdapter.h>
-#include <csp/adapters/websocket/ClientOutputAdapter.h>
-#include <csp/adapters/websocket/ClientHeaderUpdateAdapter.h>
-#include <csp/adapters/websocket/WebsocketEndpoint.h>
 
 namespace csp::adapters::websocket {
 
@@ -36,10 +40,8 @@ protected:
 
 using ClientStatusType = Enum<WebsocketClientStatusTypeTraits>;
 
-class ClientAdapterManager final : public AdapterManager
+class CSP_PUBLIC ClientAdapterManager final : public AdapterManager
 {
-
-
 public:
     ClientAdapterManager(
         Engine * engine,
@@ -64,7 +66,7 @@ private:
     
     bool m_active;
     bool m_shouldRun;
-    WebsocketEndpointBase* m_endpoint;
+    std::unique_ptr<WebsocketEndpoint> m_endpoint;
     ClientInputAdapter* m_inputAdapter;
     ClientOutputAdapter* m_outputAdapter;
     ClientHeaderUpdateOutputAdapter* m_updateAdapter;

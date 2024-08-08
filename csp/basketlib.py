@@ -12,7 +12,7 @@ Y = TypeVar("Y")
 
 
 @csp.node(cppimpl=_cspbasketlibimpl._sync_list)
-def sync_list(x: [ts["T"]], threshold: timedelta, output_incomplete: bool = True) -> csp.OutputBasket(
+def sync_list(x: List[ts["T"]], threshold: timedelta, output_incomplete: bool = True) -> csp.OutputBasket(
     List[ts["T"]], shape_of="x"
 ):
     with csp.alarms():
@@ -37,7 +37,7 @@ def sync_list(x: [ts["T"]], threshold: timedelta, output_incomplete: bool = True
 
 
 @csp.graph
-def sync_dict(x: {"K": ts["T"]}, threshold: timedelta, output_incomplete: bool = True) -> csp.OutputBasket(
+def sync_dict(x: Dict["K", ts["T"]], threshold: timedelta, output_incomplete: bool = True) -> csp.OutputBasket(
     Dict["K", ts["T"]], shape_of="x"
 ):
     values = list(x.values())
@@ -54,7 +54,7 @@ def sync(x, threshold: timedelta, output_incomplete: bool = True):
 
 
 @csp.node(cppimpl=_cspbasketlibimpl._sample_list)
-def sample_list(trigger: ts["Y"], x: [ts["T"]]) -> csp.OutputBasket(List[ts["T"]], shape_of="x"):
+def sample_list(trigger: ts["Y"], x: List[ts["T"]]) -> csp.OutputBasket(List[ts["T"]], shape_of="x"):
     """will return valid items in x on trigger"""
     with csp.start():
         csp.make_passive(x)
@@ -66,7 +66,7 @@ def sample_list(trigger: ts["Y"], x: [ts["T"]]) -> csp.OutputBasket(List[ts["T"]
 
 
 @csp.graph()
-def sample_dict(trigger: ts["Y"], x: {"K": ts["T"]}) -> csp.OutputBasket(Dict["K", ts["T"]], shape_of="x"):
+def sample_dict(trigger: ts["Y"], x: Dict["K", ts["T"]]) -> csp.OutputBasket(Dict["K", ts["T"]], shape_of="x"):
     """will return valid items in x on trigger"""
     values = list(x.values())
     sampled_values = sample_list(trigger, values)

@@ -3,8 +3,10 @@
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
+#include <csp/python/PyStructFastList_impl.h>
 #include <csp/python/PyStructList_impl.h>
 #include <csp/python/PyStructToJson.h>
+#include <csp/python/PyStructToDict.h>
 #include <unordered_set>
 #include <type_traits>
 
@@ -457,8 +459,11 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
     {
         switchCspType( field -> type(), [field,&struct_=s,value]( auto tag )
         {
-            using CType = typename decltype(tag)::type;
-            auto *typedField = static_cast<const typename StructField::upcast<CType>::type *>( field );
+            //workaround for MS compiler bug, separate into two using lines... :/
+            using TagType = decltype( tag );
+            using CType  = typename TagType::type;
+            using fieldType = typename StructField::upcast<CType>::type;
+            auto *typedField = static_cast<const fieldType *>( field );
 
             if( value )
                 typedField -> setValue( struct_, fromPython<CType>( value, *field -> type() ) );
@@ -474,11 +479,8 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
 
 // Struct printing code
 
-// forward declarations
+// forward declaration
 void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset );
-
-template<typename ElemT>
-void repr_array( const std::vector<ElemT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset );
 
 // helper functions for formatting to Python standard
 void format_bool( const bool val, std::string & tl_repr ) {  tl_repr += ( ( val ? "True" : "False" ) ); }
@@ -552,12 +554,14 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
             auto const * arrayType = static_cast<const CspArrayType*>( field -> type().get() );
             const CspType * elemType = arrayType -> elemType().get();
 
-            switchCspType( elemType, [ field, struct_, &arrayType, &tl_repr, show_unset ]( auto tag )
+            switchCspType( elemType, [ field, struct_, &elemType, &tl_repr, show_unset ]( auto tag )
             {
-                using CElemType = typename decltype( tag )::type;
+                //workaround for MS compiler bug, separate into two using lines... :/
+                using TagType = decltype( tag );
+                using CElemType = typename TagType::type;
                 using ArrayType = typename CspType::Type::toCArrayType<CElemType>::type;
                 const ArrayType & val = field -> value<ArrayType>( struct_ );
-                repr_array( val, *arrayType, tl_repr, show_unset );
+                repr_array( val, *elemType, tl_repr, show_unset );
             } );
 
             break;
@@ -580,7 +584,7 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
 }
 
 template<typename StorageT>
-void repr_array( const std::vector<StorageT> & val, const CspArrayType & arrayType, std::string & tl_repr, bool show_unset )
+void repr_array( const std::vector<StorageT> & val, const CspType & elemType, std::string & tl_repr, bool show_unset )
 {
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
     tl_repr += "[";
@@ -606,11 +610,11 @@ void repr_array( const std::vector<StorageT> & val, const CspArrayType & arrayTy
         else if constexpr( std::is_integral<ElemT>::value )
             tl_repr += std::to_string( *it );
         else if constexpr( is_vector<ElemT>::value )
-            repr_array( *it, static_cast<const CspArrayType&>( arrayType.elemType() ), tl_repr, show_unset ); // recursive, allows for nested arrays!
+            repr_array( *it, elemType, tl_repr, show_unset ); // recursive, allows for nested arrays!
         else
         {
             // if the element is an enum, generic or datetime type, convert to python
-            PyObjectPtr attr = PyObjectPtr::own( toPython( *it, *( arrayType.elemType().get() ) ) );
+            PyObjectPtr attr = PyObjectPtr::own( toPython( *it, elemType ) );
             format_pyobject( attr, tl_repr );
         }
     }
@@ -933,6 +937,28 @@ PyObject * PyStruct_all_fields_set( PyStruct * self )
     return toPython( self -> struct_ -> allFieldsSet() );
 }
 
+PyObject * PyStruct_to_dict( PyStruct * self, PyObject * args, PyObject * kwargs )
+{
+    CSP_BEGIN_METHOD;
+
+    // NOTE: Consider grouping customization properties into a dictionary
+    PyObject * callable = nullptr;
+    if( PyArg_ParseTuple( args, "O:to_dict", &callable ) )
+    {
+        if( ( callable != Py_None ) && !PyCallable_Check( callable ) )
+        {
+            CSP_THROW( TypeError, "Parameter must be callable or None got " + std::string( Py_TYPE( callable ) -> tp_name ) );
+        }
+    }
+    if( callable == Py_None )
+        callable = nullptr;
+    auto struct_ptr = self -> struct_;
+    auto pyobj_ptr = structToDict( struct_ptr, callable );
+    return pyobj_ptr.release();
+
+    CSP_RETURN_NULL;
+}
+
 PyObject * PyStruct_to_json( PyStruct * self, PyObject * args, PyObject * kwargs )
 {
     CSP_BEGIN_METHOD;
@@ -966,6 +992,7 @@ static PyMethodDef PyStruct_methods[] = {
     { "update_from",    (PyCFunction) PyStruct_update_from,    METH_O,      "update from struct. struct must be same type or a derived type. unset fields will be not be copied" },
     { "update",         (PyCFunction) PyStruct_update,         METH_VARARGS | METH_KEYWORDS, "update from key=val.  given fields will be set on struct.  other fields will remain as is in struct" },
     { "all_fields_set", (PyCFunction) PyStruct_all_fields_set, METH_NOARGS, "return true if all fields on the struct are set" },
+    { "to_dict",        (PyCFunction) PyStruct_to_dict,        METH_VARARGS | METH_KEYWORDS, "return a python dict of the struct by recursively converting struct members into python dicts" },
     { "to_json",        (PyCFunction) PyStruct_to_json,        METH_VARARGS | METH_KEYWORDS, "return a json string of the struct by recursively converting struct members into json format" },
     { NULL}
 };
@@ -1017,7 +1044,6 @@ REGISTER_TYPE_INIT( &PyStructMeta::PyType, "PyStructMeta" )
 REGISTER_TYPE_INIT( &PyStruct::PyType,     "PyStruct" )
 
 // Instantiate all templates for PyStructList class
-template struct PyStructList<bool>;
 template struct PyStructList<int8_t>;
 template struct PyStructList<uint8_t>;
 template struct PyStructList<int16_t>;
@@ -1035,5 +1061,24 @@ template struct PyStructList<std::string>;
 template struct PyStructList<DialectGenericType>;
 template struct PyStructList<StructPtr>;
 template struct PyStructList<CspEnum>;
+
+// Instantiate all templates for PyStructFastList class
+template struct PyStructFastList<int8_t>;
+template struct PyStructFastList<uint8_t>;
+template struct PyStructFastList<int16_t>;
+template struct PyStructFastList<uint16_t>;
+template struct PyStructFastList<int32_t>;
+template struct PyStructFastList<uint32_t>;
+template struct PyStructFastList<int64_t>;
+template struct PyStructFastList<uint64_t>;
+template struct PyStructFastList<double>;
+template struct PyStructFastList<DateTime>;
+template struct PyStructFastList<TimeDelta>;
+template struct PyStructFastList<Date>;
+template struct PyStructFastList<Time>;
+template struct PyStructFastList<std::string>;
+template struct PyStructFastList<DialectGenericType>;
+template struct PyStructFastList<StructPtr>;
+template struct PyStructFastList<CspEnum>;
 
 }

@@ -50,18 +50,33 @@ find_package(lz4 REQUIRED)
 find_package(utf8proc REQUIRED)
 find_package(Brotli REQUIRED)
 
-if(CSP_USE_VCPKG)
-  # use staic variants
-  set(ARROW_PACKAGES_TO_LINK parquet_static arrow_static)
+if(WIN32)
+   if(CSP_USE_VCPKG)
+     set(ARROW_PACKAGES_TO_LINK Arrow::arrow_static Parquet::parquet_static )
+     target_compile_definitions(csp_parquet_adapter PUBLIC ARROW_STATIC)
+     target_compile_definitions(csp_parquet_adapter PUBLIC PARQUET_STATIC)
+   else()
+     # use dynamic variants
+     # Until we manage to get the fix for ws3_32.dll in arrow-16 into conda, manually fix the error here
+     get_target_property(LINK_LIBS Arrow::arrow_shared INTERFACE_LINK_LIBRARIES)
+     string(REPLACE "ws2_32.dll" "ws2_32" FIXED_LINK_LIBS "${LINK_LIBS}")
+     set_target_properties(Arrow::arrow_shared PROPERTIES INTERFACE_LINK_LIBRARIES "${FIXED_LINK_LIBS}")
+     set(ARROW_PACKAGES_TO_LINK parquet_shared arrow_shared)
+   endif()
 else()
-  # use dynamic variants
-  set(ARROW_PACKAGES_TO_LINK parquet arrow)
+  if(CSP_USE_VCPKG)
+    # use static variants
+    set(ARROW_PACKAGES_TO_LINK parquet_static arrow_static)
+  else()
+    # use dynamic variants
+    set(ARROW_PACKAGES_TO_LINK parquet arrow)
+  endif()
 endif()
 
 target_link_libraries(csp_parquet_adapter PRIVATE csp_adapter_utils thrift::thrift lz4::lz4 utf8proc::utf8proc ${BROTLI_STATIC_LIB} ${ARROW_PACKAGES_TO_LINK})
 
 install(TARGETS csp_parquet_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/parquet
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )

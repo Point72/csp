@@ -445,13 +445,14 @@ DECLARE_CPPNODE( collect )
         //we expect all elements to be of the same type
         switchCspType( elemType, [this]( auto tag )
                        {
-                           using ElemT  = typename decltype(tag)::type;
-                           using ArrayT = typename CspType::Type::toCArrayType<ElemT>::type;
+                            using TagType = decltype( tag );
+                            using ElemT  = typename TagType::type;
+                            using ArrayT = typename CspType::Type::toCArrayType<ElemT>::type;
 
-                           ArrayT & out = unnamed_output().reserveSpace<ArrayT>();
-                           out.clear();
-                           for( auto it = x.tickedinputs(); it; ++it )
-                               out.emplace_back( it -> lastValueTyped<ElemT>() );
+                            ArrayT & out = unnamed_output().reserveSpace<ArrayT>();
+                            out.clear();
+                            for( auto it = x.tickedinputs(); it; ++it )
+                                out.emplace_back( it -> lastValueTyped<ElemT>() );
                        } );
     }
 };

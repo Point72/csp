@@ -17,7 +17,7 @@ class ClientOutputAdapter final: public OutputAdapter
 public:
     ClientOutputAdapter(
         Engine * engine,
-        WebsocketEndpointBase* endpoint
+        WebsocketEndpoint& endpoint
     );
 
     void executeImpl() override;
@@ -25,7 +25,7 @@ public:
     const char * name() const override { return "WebsocketClientOutputAdapter"; }
 
 private:
-    WebsocketEndpointBase* m_endpoint;
+    WebsocketEndpoint& m_endpoint;
 };
 
 }

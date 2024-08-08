@@ -1,12 +1,16 @@
+import enum
 import json
 import numpy as np
+import pickle
 import pytz
 import typing
 import unittest
 from datetime import date, datetime, time, timedelta
+from typing import Dict, List, Set, Tuple
 
 import csp
-from csp.impl.struct import defineStruct
+from csp.impl.struct import define_nested_struct, define_struct, defineNestedStruct, defineStruct
+from csp.impl.types.typing_utils import FastList
 
 
 class MyEnum(csp.Enum):
@@ -21,10 +25,10 @@ class StructNoDefaults(csp.Struct):
     s: str
     bt: bytes
     o: object
-    a1: [int]
-    a2: [str]
-    a3: [object]
-    a4: [bytes]
+    a1: FastList[int]
+    a2: List[str]
+    a3: FastList[object]
+    a4: List[bytes]
 
 
 class StructWithDefaults(csp.Struct):
@@ -34,9 +38,9 @@ class StructWithDefaults(csp.Struct):
     s: str = "456"
     e: MyEnum = MyEnum.FOO
     o: object
-    a1: [int] = [1, 2, 3]
-    a2: [str] = ["1", "2", "3"]
-    a3: [object] = ["hey", 123, (1, 2, 3)]
+    a1: FastList[int] = [1, 2, 3]
+    a2: List[str] = ["1", "2", "3"]
+    a3: List[object] = ["hey", 123, (1, 2, 3)]
     np_arr: np.ndarray = np.array([1, 9])
 
 
@@ -71,9 +75,9 @@ class BaseMixed(csp.Struct):
     s: str
     l: list
     o: object
-    a1: [int]
-    a2: [str]
-    a3: [object]
+    a1: List[int]
+    a2: FastList[str]
+    a3: List[object]
 
 
 class DerivedFullyNative(BaseNative):
@@ -121,9 +125,10 @@ class StructWithMutableStruct(csp.Struct):
 
 
 class StructWithLists(csp.Struct):
-    # native_list: [int]
-    struct_list: [BaseNative]
-    dialect_generic_list: [list]
+    # native_list: List[int]
+    struct_list: List[BaseNative]
+    fast_list: FastList[BaseNative]
+    dialect_generic_list: List[list]
 
 
 class AllTypes(csp.Struct):
@@ -137,7 +142,8 @@ class AllTypes(csp.Struct):
     s: str = "hello hello"
     e: MyEnum = MyEnum.FOO
     struct: BaseNative = BaseNative(i=123, b=True, f=456.789)
-    arr: [int] = [1, 2, 3]
+    arr: List[int] = [1, 2, 3]
+    fl: FastList[int] = [1, 2, 3, 4]
     o: object = {"k": "v"}
 
 
@@ -166,12 +172,20 @@ class SimpleClass:
         self.x = x
 
 
-# Common set of values for PyStructList tests
+class SimpleStructForPickleList(csp.Struct):
+    a: List[int]
+
+
+class SimpleStructForPickleFastList(csp.Struct):
+    a: FastList[int]
+
+
+# Common set of values for Struct list field tests
 # For each type:
 # items[:-2] are normal values of the given type that should be handled,
 # items[-2] is a normal value for non-generic and non-str types and None for generic and str types (the purpose is to test the raise of TypeError if a single object instead of a sequence is passed),
 # items[-1] is a value of a different type that is not convertible to the give type for non-generic types and None for generic types (the purpose is to test the raise of TypeError if an object of the wrong type is passed).
-pystruct_list_test_values = {
+struct_list_test_values = {
     int: [4, 2, 3, 5, 6, 7, 8, "s"],
     bool: [True, True, True, False, True, False, True, 2],
     float: [1.4, 3.2, 2.7, 1.0, -4.5, -6.0, -2.0, "s"],
@@ -258,6 +272,7 @@ pystruct_list_test_values = {
         None,
     ],  # generic type user-defined
 }
+struct_list_annotation_types = (List, FastList)
 
 
 class TestCspStruct(unittest.TestCase):
@@ -371,7 +386,7 @@ class TestCspStruct(unittest.TestCase):
         # Was a bug with typed list of struct comparisons
         class BAR(csp.Struct):
             a: int
-            b: [FOO]
+            b: List[FOO]
 
         a = BAR(a=123, b=[FOO(a=1, b="2", c=[1, 2, 3])])
         b = BAR(a=123, b=[FOO(a=1, b="2", c=[1, 2, 3])])
@@ -482,15 +497,20 @@ class TestCspStruct(unittest.TestCase):
         o.s.l[0] = -1
         self.assertNotEqual(o, o_deepcopy)
 
-        o = StructWithLists(struct_list=[BaseNative(i=123)], dialect_generic_list=[{"a": 1}])
+        o = StructWithLists(
+            struct_list=[BaseNative(i=123)], fast_list=[BaseNative(i=123)], dialect_generic_list=[{"a": 1}]
+        )
 
         o_deepcopy = o.deepcopy()
         o.struct_list[0].i = -1
+        o.fast_list[0].i = -2
         o.dialect_generic_list[0]["b"] = 2
 
         self.assertEqual(o.struct_list[0].i, -1)
+        self.assertEqual(o.fast_list[0].i, -2)
         self.assertEqual(o.dialect_generic_list[0], {"a": 1, "b": 2})
         self.assertEqual(o_deepcopy.struct_list[0].i, 123)
+        self.assertEqual(o_deepcopy.fast_list[0].i, 123)
         self.assertEqual(o_deepcopy.dialect_generic_list[0], {"a": 1})
 
         # TODO struct deepcopy doesnt actually account for this case right now, which relies on memo passing
@@ -500,7 +520,7 @@ class TestCspStruct(unittest.TestCase):
             v: int
 
         class Outer(csp.Struct):
-            a3: [object]
+            a3: List[object]
 
         i = Inner(v=5)
         s = Outer(a3=[i, i, i])
@@ -687,17 +707,22 @@ class TestCspStruct(unittest.TestCase):
         self.assertFalse(hasattr(dest2, "a1"))
 
     def test_deepcopy_from(self):
-        source = StructWithLists(struct_list=[BaseNative(i=123)], dialect_generic_list=[{"a": 1}])
+        source = StructWithLists(
+            struct_list=[BaseNative(i=123)], fast_list=[BaseNative(i=123)], dialect_generic_list=[{"a": 1}]
+        )
 
         blank = StructWithLists()
         blank.deepcopy_from(source)
 
         source.struct_list[0].i = -1
+        source.fast_list[0].i = -2
         source.dialect_generic_list[0]["b"] = 2
 
         self.assertEqual(source.struct_list[0].i, -1)
+        self.assertEqual(source.fast_list[0].i, -2)
         self.assertEqual(source.dialect_generic_list[0], {"a": 1, "b": 2})
         self.assertEqual(blank.struct_list[0].i, 123)
+        self.assertEqual(blank.fast_list[0].i, 123)
         self.assertEqual(blank.dialect_generic_list[0], {"a": 1})
 
     def test_update_from(self):
@@ -738,9 +763,7 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(dest, DerivedPartialNative(l=[2, 3, 4], f=3.14, b=False, i=5, s="bar"))
 
     def test_multibyte_mask(self):
-        from csp.impl.struct import defineStruct
-
-        BigStruct = defineStruct("BigStruct", {k: float for k in "abcdefghijklmnopqrdtuvwxyz"})
+        BigStruct = define_struct("BigStruct", {k: float for k in "abcdefghijklmnopqrdtuvwxyz"})
 
         s = BigStruct()
         for key in BigStruct.metadata().keys():
@@ -798,8 +821,8 @@ class TestCspStruct(unittest.TestCase):
 
     def test_from_dict_loop_with_generic_typing(self):
         class MyStruct(csp.Struct):
-            foo: typing.Set[int]
-            bar: typing.Tuple[str]
+            foo: Set[int]
+            bar: Tuple[str]
             np_arr: csp.typing.NumpyNDArray[float]
 
         looped = MyStruct.from_dict(MyStruct(foo=set((9, 10)), bar=("a", "b"), np_arr=np.array([1, 3])).to_dict())
@@ -816,13 +839,13 @@ class TestCspStruct(unittest.TestCase):
             default_i: int = 42
 
         class S2(csp.Struct):
-            value: typing.Tuple[int]
-            set_value: typing.Set[str]
+            value: Tuple[int]
+            set_value: Set[str]
 
         class S(csp.Struct):
-            d: typing.Dict[str, S1]
-            ls: typing.List[int]
-            lc: typing.List[S2]
+            d: Dict[str, S1]
+            ls: List[int]
+            lc: List[S2]
 
         input = """
         d:
@@ -910,7 +933,7 @@ class TestCspStruct(unittest.TestCase):
 
     def test_list_field_set_iterator(self):
         class S(csp.Struct):
-            l: [object]
+            l: List[object]
 
         s = S()
         expected = list(range(100))
@@ -1039,47 +1062,72 @@ class TestCspStruct(unittest.TestCase):
             for _ in range(100):
                 csp.run(graph2, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1000))
 
-    def test_defineNestedStruct(self):
-        from csp.impl.struct import defineNestedStruct
-
+    def test_deprecated_defineStruct(self):
         metadata = {
+            "a": float,
+            "b": int,
+        }
+        defaults = {"a": 0.0, "b": 1}
+        TestStruct = define_struct("TestStruct", metadata, defaults)
+        TestStruct2 = defineStruct("TestStruct", metadata, defaults)
+        self.assertEqual(TestStruct.metadata(), TestStruct2.metadata())
+        self.assertEqual(TestStruct.__defaults__, TestStruct2.__defaults__)
+
+    def test_define_nested_struct(self):
+        metadata = {
+            "a": float,
+            "b": int,
+            "c": {
+                "x": MyEnum,
+                "y": List[int],
+            },
+            "d": {"s": object, "t": FastList[object]},
+        }
+
+        normalized_metadata = {
             "a": float,
             "b": int,
             "c": {
                 "x": MyEnum,
                 "y": [int],
             },
-            "d": {"s": object, "t": [object]},
+            "d": {"s": object, "t": [object, True]},
         }
-        TestStruct = defineNestedStruct("TestStruct", metadata)
+        TestStruct = define_nested_struct("TestStruct", metadata)
         self.assertEqual(TestStruct.__name__, "TestStruct")
-        self.assertEqual(list(TestStruct.metadata().keys()), ["a", "b", "c", "d"])
-        self.assertEqual(TestStruct.metadata()["a"], float)
-        self.assertEqual(TestStruct.metadata()["b"], int)
+        self.assertEqual(list(TestStruct.metadata().keys()), list(normalized_metadata.keys()))
+        self.assertEqual(TestStruct.metadata()["a"], normalized_metadata["a"])
+        self.assertEqual(TestStruct.metadata()["b"], normalized_metadata["b"])
         c = TestStruct.metadata()["c"]
         self.assertTrue(issubclass(c, csp.Struct))
         self.assertEqual(c.__name__, "TestStruct_c")
-        self.assertEqual(c.metadata(), metadata["c"])
+        self.assertEqual(c.metadata(), normalized_metadata["c"])
         d = TestStruct.metadata()["d"]
         self.assertTrue(issubclass(d, csp.Struct))
         self.assertEqual(d.__name__, "TestStruct_d")
-        self.assertEqual(d.metadata(), metadata["d"])
+        self.assertEqual(d.metadata(), normalized_metadata["d"])
 
         defaults = {"a": 0.0, "c": {"y": []}, "d": {}}
-        TestStruct2 = defineNestedStruct("TestStruct2", metadata, defaults)
+        TestStruct2 = define_nested_struct("TestStruct2", metadata, defaults)
         s = TestStruct2()
         self.assertEqual(s.a, 0.0)
         self.assertEqual(s.c, s.metadata()["c"]())
         self.assertEqual(s.c.y, [])
         self.assertEqual(s.d, s.metadata()["d"]())
 
-    def test_all_fields_set(self):
-        from csp.impl.struct import defineStruct
+        # Make sure deprecated function still works without raising
+        TestStruct3 = defineNestedStruct("TestStruct3", metadata, defaults)
+        s = TestStruct3()
+        self.assertEqual(s.a, 0.0)
+        self.assertEqual(s.c, s.metadata()["c"]())
+        self.assertEqual(s.c.y, [])
+        self.assertEqual(s.d, s.metadata()["d"]())
 
+    def test_all_fields_set(self):
         types = [int, bool, list, str]
         for num_fields in range(1, 25):
             meta = {chr(ord("a") + x): types[x % len(types)] for x in range(num_fields)}
-            stype = defineStruct("foo", meta)
+            stype = define_struct("foo", meta)
             s = stype()
             self.assertFalse(s.all_fields_set())
             keys = list(meta.keys())
@@ -1092,7 +1140,7 @@ class TestCspStruct(unittest.TestCase):
 
             # Test derived structs
             meta2 = {k + "2": t for k, t in meta.items()}
-            stype2 = defineStruct("foo", meta2, base=stype)
+            stype2 = define_struct("foo", meta2, base=stype)
             s2 = stype2()
             self.assertFalse(s2.all_fields_set())
             keys = list(stype2.metadata().keys())
@@ -1127,12 +1175,10 @@ class TestCspStruct(unittest.TestCase):
         self.assertNotEqual(id(foo), id(foo_unpickled))
 
     def test_struct_type_alloc(self):
-        from csp.impl.struct import defineStruct
-
         for i in range(1000):
             name = f"struct_{i}"
             fieldname = f"field{i}"
-            S = defineStruct(name, {fieldname: int})
+            S = define_struct(name, {fieldname: int})
             s = S()
             setattr(s, fieldname, i)
             ts = getattr(csp.const(s), fieldname)
@@ -1143,7 +1189,7 @@ class TestCspStruct(unittest.TestCase):
         class StructA(csp.Struct):
             a: int
             b: str
-            c: typing.List[int]
+            c: List[int]
 
         s1 = StructA(a=1, b="b", c=[1, 2])
         exp_repr_s1 = "StructA( a=1, b=b, c=[1, 2] )"
@@ -1205,7 +1251,7 @@ class TestCspStruct(unittest.TestCase):
         # test structs with struct, struct array fields
         class StructE(csp.Struct):
             a: StructA
-            b: typing.List[StructC]
+            b: List[StructC]
 
         s5 = StructE(
             a=StructA(a=1, b="b", c=[1, 2]),
@@ -1217,12 +1263,12 @@ class TestCspStruct(unittest.TestCase):
 
         # test array fields
         class StructF(csp.Struct):
-            a: typing.List[int]
-            b: typing.List[bool]
-            c: typing.List[typing.List[float]]
-            d: typing.List[ClassA]
-            e: typing.List[EnumA]
-            f: typing.List[StructC]  # leave unset for test
+            a: List[int]
+            b: List[bool]
+            c: List[List[float]]
+            d: List[ClassA]
+            e: List[EnumA]
+            f: List[StructC]  # leave unset for test
 
         # str (called by print) will show unset fields, repr (called in logging) will not
         s6 = StructF(a=[1], b=[True], c=[[1.0]], d=[ClassA()], e=[EnumA.RED, EnumA.BLUE])
@@ -1236,7 +1282,7 @@ class TestCspStruct(unittest.TestCase):
         # test unset in arrays/nested structs
         class StructG(csp.Struct):
             a: StructA
-            b: typing.List[StructA]
+            b: List[StructA]
             c: ClassA
 
         s7 = StructG(a=StructA(), b=[StructA(), StructA()])
@@ -1319,7 +1365,7 @@ class TestCspStruct(unittest.TestCase):
 
         all = []
         for i in range(10000):
-            sType = defineStruct("foo", {"a": dict})
+            sType = define_struct("foo", {"a": dict})
             all.append(Outer(s=sType(a={"foo": "bar"})))
             repr(all)
             all = all[:100]
@@ -1343,7 +1389,7 @@ class TestCspStruct(unittest.TestCase):
         """Test [bool] specific functionality since its special cased as vector<uint8> in C++"""
 
         class A(csp.Struct):
-            l: [bool]
+            l: List[bool]
 
         raw = [True, False, True]
         a = A(l=raw)
@@ -1351,6 +1397,84 @@ class TestCspStruct(unittest.TestCase):
 
         r = repr(a)
         self.assertTrue(repr(raw) in r)
+
+    def test_to_dict_recursion(self):
+        class MyStruct(csp.Struct):
+            l1: list
+            l2: list
+            d1: dict
+            d2: dict
+            t1: tuple
+            t2: tuple
+
+        test_struct = MyStruct(l1=[1], l2=[2])
+        result_dict = {"l1": [1], "l2": [2]}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
+        test_struct = MyStruct(l1=[1], l2=[2])
+        test_struct.l1.append(test_struct.l2)
+        test_struct.l2.append(test_struct.l1)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(l1=[1])
+        test_struct.l1.append(test_struct.l1)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(l1=[1])
+        test_struct.l1.append(test_struct)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        result_dict = {"d1": {1: 1}, "d2": {2: 2}}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        test_struct.d1["d2"] = test_struct.d2
+        test_struct.d2["d1"] = test_struct.d1
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        test_struct.d1["d1"] = test_struct.d1
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(d1={1: 1}, d2={2: 2})
+        test_struct.d1["d1"] = test_struct
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+        test_struct = MyStruct(t1=(1, 1), t2=(2, 2))
+        result_dict = {"t1": (1, 1), "t2": (2, 2)}
+        self.assertEqual(test_struct.to_dict(), result_dict)
+
+        test_struct = MyStruct(t1=(1, 1))
+        test_struct.t1 = (1, 2, test_struct)
+        with self.assertRaises(RecursionError):
+            test_struct.to_dict()
+
+    def test_to_dict_postprocess(self):
+        class MySubStruct(csp.Struct):
+            i: int = 0
+
+            def postprocess_to_dict(obj):
+                obj["postprocess_called"] = True
+                return obj
+
+        class MyStruct(csp.Struct):
+            i: int = 1
+            mss: MySubStruct = MySubStruct()
+
+            def postprocess_to_dict(obj):
+                obj["postprocess_called"] = True
+                return obj
+
+        test_struct = MyStruct()
+        result_dict = {"i": 1, "postprocess_called": True, "mss": {"i": 0, "postprocess_called": True}}
+        self.assertEqual(test_struct.to_dict(), result_dict)
 
     def test_to_json_primitives(self):
         class MyStruct(csp.Struct):
@@ -1433,6 +1557,11 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 123}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
+        dt = None
+        test_struct = MyStruct(i=456, dt=dt, d=None, t=None, td=None)
+        result_dict = {"i": 456, "dt": None, "d": None, "t": None, "td": None}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
         dt = datetime(2024, 3, 8)
         dt_utc = datetime(2024, 3, 8, tzinfo=pytz.utc)
         test_struct = MyStruct(i=456, dt=dt)
@@ -1478,11 +1607,11 @@ class TestCspStruct(unittest.TestCase):
     def test_to_json_list(self):
         class MyStruct(csp.Struct):
             i: int = 123
-            l_i: typing.List[int]
-            l_b: typing.List[bool]
-            l_dt: typing.List[datetime]
-            l_l_i: typing.List[typing.List[int]]
-            l_tuple: typing.Tuple[int, float, str]
+            l_i: List[int]
+            l_b: List[bool]
+            l_dt: List[datetime]
+            l_l_i: List[List[int]]
+            l_tuple: Tuple[int, float, str]
             l_any: list
 
         test_struct = MyStruct()
@@ -1550,10 +1679,10 @@ class TestCspStruct(unittest.TestCase):
     def test_to_json_dict(self):
         class MyStruct(csp.Struct):
             i: int = 123
-            d_i: typing.Dict[int, int]
-            d_f: typing.Dict[float, int]
-            d_dt: typing.Dict[str, datetime]
-            d_d_s: typing.Dict[str, typing.Dict[str, str]]
+            d_i: Dict[int, int]
+            d_f: Dict[float, int]
+            d_dt: Dict[str, datetime]
+            d_d_s: Dict[str, Dict[str, str]]
             d_any: dict
 
         test_struct = MyStruct()
@@ -1615,6 +1744,7 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "d_any": d_any_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
+        # Special floats not supported as keys
         d_f = {float("nan"): 2, 2.3: 4, 3.4: 6, 4.5: 7}
         d_f_res = {str(k): v for k, v in d_f.items()}
         test_struct = MyStruct(i=456, d_any=d_f)
@@ -1632,6 +1762,65 @@ class TestCspStruct(unittest.TestCase):
         test_struct = MyStruct(i=456, d_any=d_f)
         with self.assertRaises(ValueError):
             test_struct.to_json()
+
+        # None as key
+        d_none = {
+            None: 2,
+        }
+        d_none_res = {"null": 2}
+        test_struct = MyStruct(i=456, d_any=d_none)
+        result_dict = {"i": 456, "d_any": d_none_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        # Bool as key
+        d_bool = {True: 2, False: "abc"}
+        d_bool_res = {str(k): v for k, v in d_bool.items()}
+        test_struct = MyStruct(i=456, d_any=d_bool)
+        result_dict = {"i": 456, "d_any": d_bool_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        # Datetime as key
+        dt = datetime.now(tz=pytz.utc)
+        d_datetime = {dt: "datetime"}
+        test_struct = MyStruct(i=456, d_any=d_datetime)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({datetime.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
+
+        dt = datetime.now(tz=pytz.utc)
+        d_datetime = {dt.date(): "date"}
+        test_struct = MyStruct(i=456, d_any=d_datetime)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({date.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
+
+        dt = datetime.now(tz=pytz.utc)
+        d_datetime = {dt.time(): "time"}
+        test_struct = MyStruct(i=456, d_any=d_datetime)
+        result_dict = json.loads(test_struct.to_json())
+        self.assertEqual({time.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
+
+        # csp.Enum as key
+        class MyCspEnum(csp.Enum):
+            KEY1 = csp.Enum.auto()
+            KEY2 = csp.Enum.auto()
+            KEY3 = csp.Enum.auto()
+
+        d_csp_enum = {MyCspEnum.KEY1: "key1", MyCspEnum.KEY2: "key2", MyCspEnum.KEY3: "key3"}
+        d_csp_enum_res = {k.name: v for k, v in d_csp_enum.items()}
+        test_struct = MyStruct(i=456, d_any=d_csp_enum)
+        result_dict = {"i": 456, "d_any": d_csp_enum_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
+
+        # enum as key
+        class MyPyEnum(enum.Enum):
+            KEY1 = enum.auto()
+            KEY2 = enum.auto()
+            KEY3 = enum.auto()
+
+        d_py_enum = {MyPyEnum.KEY1: "key1", MyPyEnum.KEY2: "key2", MyPyEnum.KEY3: "key3"}
+        d_py_enum_res = {k.name: v for k, v in d_csp_enum.items()}
+        test_struct = MyStruct(i=456, d_any=d_py_enum)
+        result_dict = {"i": 456, "d_any": d_py_enum_res}
+        self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
     def test_to_json_struct(self):
         class MySubSubStruct(csp.Struct):
@@ -1728,14 +1917,14 @@ class TestCspStruct(unittest.TestCase):
 
         class MySubStruct(csp.Struct):
             d_s_msss: dict
-            l_ncsp: typing.List[NonCspStruct]
+            l_ncsp: List[NonCspStruct]
             py_l_ncsp: list
 
         class MyStruct(csp.Struct):
             i: int = 789
             s: str = "MyStruct"
             ts: datetime
-            l_mss: typing.List[MySubStruct]
+            l_mss: List[MySubStruct]
             l_msss: list
             d_i_ncsp: dict
 
@@ -1886,170 +2075,190 @@ class TestCspStruct(unittest.TestCase):
 
     def test_list_field_append(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[])
-            s.a.append(v[0])
+                s = A(a=[])
+                s.a.append(v[0])
 
-            self.assertEqual(s.a, [v[0]])
+                self.assertEqual(s.a, [v[0]])
 
-            s.a.append(v[1])
-            s.a.append(v[2])
+                s.a.append(v[1])
+                s.a.append(v[2])
 
-            self.assertEqual(s.a, [v[0], v[1], v[2]])
+                self.assertEqual(s.a, [v[0], v[1], v[2]])
 
-            # Check if not generic type
-            if v[-1] is not None:
-                with self.assertRaises(TypeError) as e:
-                    s.a.append(v[-1])
+                # Check if not generic type
+                if v[-1] is not None:
+                    with self.assertRaises(TypeError) as e:
+                        s.a.append(v[-1])
 
     def test_list_field_insert(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[])
-            s.a.insert(0, v[0])
+                s = A(a=[])
+                s.a.insert(0, v[0])
 
-            self.assertEqual(s.a, [v[0]])
+                self.assertEqual(s.a, [v[0]])
 
-            s.a.insert(1, v[1])
-            s.a.insert(1, v[2])
+                s.a.insert(1, v[1])
+                s.a.insert(1, v[2])
 
-            self.assertEqual(s.a, [v[0], v[2], v[1]])
+                self.assertEqual(s.a, [v[0], v[2], v[1]])
 
-            s.a.insert(-1, v[3])
+                s.a.insert(-1, v[3])
 
-            self.assertEqual(s.a, [v[0], v[2], v[3], v[1]])
+                self.assertEqual(s.a, [v[0], v[2], v[3], v[1]])
 
-            s.a.insert(100, v[4])
-            s.a.insert(-100, v[5])
+                s.a.insert(100, v[4])
+                s.a.insert(-100, v[5])
 
-            self.assertEqual(s.a, [v[5], v[0], v[2], v[3], v[1], v[4]])
+                self.assertEqual(s.a, [v[5], v[0], v[2], v[3], v[1], v[4]])
 
-            # Check if not generic type
-            if v[-1] is not None:
-                with self.assertRaises(TypeError) as e:
-                    s.a.insert(-1, v[-1])
+                # Check if not generic type
+                if v[-1] is not None:
+                    with self.assertRaises(TypeError) as e:
+                        s.a.insert(-1, v[-1])
 
     def test_list_field_pop(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1], v[2], v[3], v[4]])
-            b = s.a.pop()
+                s = A(a=[v[0], v[1], v[2], v[3], v[4]])
+                b = s.a.pop()
 
-            self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
-            self.assertEqual(b, v[4])
+                self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
+                self.assertEqual(b, v[4])
 
-            b = s.a.pop(-1)
+                b = s.a.pop(-1)
 
-            self.assertEqual(s.a, [v[0], v[1], v[2]])
-            self.assertEqual(b, v[3])
+                self.assertEqual(s.a, [v[0], v[1], v[2]])
+                self.assertEqual(b, v[3])
 
-            b = s.a.pop(1)
+                b = s.a.pop(1)
 
-            self.assertEqual(s.a, [v[0], v[2]])
-            self.assertEqual(b, v[1])
+                self.assertEqual(s.a, [v[0], v[2]])
+                self.assertEqual(b, v[1])
 
-            with self.assertRaises(IndexError) as e:
-                s.a.pop()
-                s.a.pop()
-                s.a.pop()
+                with self.assertRaises(IndexError) as e:
+                    s.a.pop()
+                    s.a.pop()
+                    s.a.pop()
 
-            s = A(a=[v[0], v[1], v[2], v[3], v[4]])
+                s = A(a=[v[0], v[1], v[2], v[3], v[4]])
 
-            b = s.a.pop(-3)
+                b = s.a.pop(-3)
 
-            self.assertEqual(s.a, [v[0], v[1], v[3], v[4]])
-            self.assertEqual(b, v[2])
+                self.assertEqual(s.a, [v[0], v[1], v[3], v[4]])
+                self.assertEqual(b, v[2])
 
-            with self.assertRaises(IndexError) as e:
-                s.a.pop(-5)
+                with self.assertRaises(IndexError) as e:
+                    s.a.pop(-5)
 
-            with self.assertRaises(IndexError) as e:
-                s.a.pop(4)
+                with self.assertRaises(IndexError) as e:
+                    s.a.pop(4)
 
     def test_list_field_set_item(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1], v[2]])
-            s.a.__setitem__(0, v[3])
+                s = A(a=[v[0], v[1], v[2]])
+                s.a.__setitem__(0, v[3])
 
-            self.assertEqual(s.a, [v[3], v[1], v[2]])
+                self.assertEqual(s.a, [v[3], v[1], v[2]])
 
-            s.a[1] = v[4]
+                s.a[1] = v[4]
 
-            self.assertEqual(s.a, [v[3], v[4], v[2]])
+                self.assertEqual(s.a, [v[3], v[4], v[2]])
 
-            s.a[-1] = v[5]
+                s.a[-1] = v[5]
 
-            self.assertEqual(s.a, [v[3], v[4], v[5]])
+                self.assertEqual(s.a, [v[3], v[4], v[5]])
 
-            with self.assertRaises(IndexError) as e:
-                s.a[100] = v[0]
+                with self.assertRaises(IndexError) as e:
+                    s.a[100] = v[0]
 
-            with self.assertRaises(IndexError) as e:
-                s.a[-100] = v[0]
+                with self.assertRaises(IndexError) as e:
+                    s.a[-100] = v[0]
 
-            s.a[5:6] = [v[0], v[1], v[2]]
+                s.a[5:6] = [v[0], v[0], v[0]]
 
-            self.assertEqual(s.a, [v[3], v[4], v[5], v[0], v[1], v[2]])
+                self.assertEqual(s.a, [v[3], v[4], v[5], v[0], v[0], v[0]])
 
-            s.a[2:4] = [v[2]]
+                s.a[4:] = [v[1], v[2]]
 
-            self.assertEqual(s.a, [v[3], v[4], v[2], v[1], v[2]])
+                self.assertEqual(s.a, [v[3], v[4], v[5], v[0], v[1], v[2]])
 
-            s.a[3:5] = [v[0], v[5]]
+                s.a[2:4] = [v[2]]
 
-            self.assertEqual(s.a, [v[3], v[4], v[2], v[0], v[5]])
+                self.assertEqual(s.a, [v[3], v[4], v[2], v[1], v[2]])
 
-            s.a[1:10:2] = [v[1], v[2]]
+                s.a[3:5] = [v[0], v[5]]
 
-            self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+                self.assertEqual(s.a, [v[3], v[4], v[2], v[0], v[5]])
 
-            # Check if not str or generic type (as str is a sequence of str)
-            if v[-2] is not None:
-                with self.assertRaises(TypeError) as e:
-                    s.a[1:4] = v[-2]
+                s.a[1:10:2] = [v[1], v[2]]
 
-            self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+                self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
 
-            # Check if not generic type
-            if v[-1] is not None:
-                with self.assertRaises(TypeError) as e:
-                    s.a[1:4] = [v[-1]]
+                # Check if not str or generic type (as str is a sequence of str)
+                if v[-2] is not None:
+                    with self.assertRaises(TypeError) as e:
+                        s.a[1:4] = v[-2]
 
-            self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+                self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
 
-            with self.assertRaises(ValueError) as e:
-                s.a[1:10:2] = [v[0]]
+                # Check if not generic type
+                if v[-1] is not None:
+                    with self.assertRaises(TypeError) as e:
+                        s.a[1:4] = [v[-1]]
 
-            self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+                self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+
+                with self.assertRaises(ValueError) as e:
+                    s.a[1:10:2] = [v[0]]
+
+                self.assertEqual(s.a, [v[3], v[1], v[2], v[2], v[5]])
+
+                s.a[:2:-1] = [v[3], v[4]]
+
+                self.assertEqual(s.a, [v[3], v[1], v[2], v[4], v[3]])
+
+                with self.assertRaises(ValueError) as e:
+                    s.a[-1:1:-2] = [v[0]]
+
+                s.a[-1:1:-2] = [v[0], v[5]]
+
+                self.assertEqual(s.a, [v[3], v[1], v[5], v[4], v[0]])
 
     def test_list_field_reverse(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1], v[2], v[3]])
-            s.a.reverse()
+                s = A(a=[v[0], v[1], v[2], v[3]])
+                s.a.reverse()
 
-            self.assertEqual(s.a, [v[3], v[2], v[1], v[0]])
+                self.assertEqual(s.a, [v[3], v[2], v[1], v[0]])
 
     def test_list_field_sort(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
@@ -2088,194 +2297,651 @@ class TestCspStruct(unittest.TestCase):
             str: ["s", "xyz", "w", "w", "bds", "a", None],
         }
 
-        for typ, v in values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1], v[2], v[3], v[4], v[5]])
+                s = A(a=[v[0], v[1], v[2], v[3], v[4], v[5]])
 
-            s.a.sort()
+                s.a.sort()
 
-            self.assertEqual(s.a, [v[5], v[4], v[0], v[2], v[3], v[1]])
+                self.assertEqual(s.a, [v[5], v[4], v[0], v[2], v[3], v[1]])
 
-            s.a.sort(reverse=True)
+                s.a.sort(reverse=True)
 
-            self.assertEqual(s.a, [v[1], v[2], v[3], v[0], v[4], v[5]])
+                self.assertEqual(s.a, [v[1], v[2], v[3], v[0], v[4], v[5]])
+
+                with self.assertRaises(TypeError) as e:
+                    s.a.sort(1)
+
+                with self.assertRaises(TypeError) as e:
+                    s.a.sort(key=abs, a=3)
+
+                # Check if sorting key abs() is defined
+                if v[6] is not None:
+                    s.a.sort(key=abs)
+
+                    self.assertEqual(s.a, [v[0], v[4], v[2], v[3], v[1], v[5]])
+
+            class B(csp.Struct):
+                a: List[MyEnum]
+
+            s = B(a=[MyEnum.A, MyEnum.FOO])
 
             with self.assertRaises(TypeError) as e:
-                s.a.sort(1)
-
+                s.a.sort()
             with self.assertRaises(TypeError) as e:
-                s.a.sort(key=abs, a=3)
-
-            # Check if sorting key abs() is defined
-            if v[6] is not None:
-                s.a.sort(key=abs)
-
-                self.assertEqual(s.a, [v[0], v[4], v[2], v[3], v[1], v[5]])
+                s.a.sort(reverse=True)
+            s.a.sort(reverse=True, key=str)
+            self.assertEqual(s.a, [MyEnum.FOO, MyEnum.A])
 
     def test_list_field_extend(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1], v[2]])
-            s.a.extend([v[3]])
+                s = A(a=[v[0], v[1], v[2]])
+                s.a.extend([v[3]])
 
-            self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
+                self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
 
-            s.a.extend([])
-            s.a.extend((v[4], v[5]))
+                s.a.extend([])
+                s.a.extend((v[4], v[5]))
 
-            self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
+                self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
 
-            # Check if not str or generic type (as str is a sequence of str)
-            if v[-2] is not None:
-                with self.assertRaises(TypeError) as e:
-                    s.a.extend(v[-2])
+                # Check if not str or generic type (as str is a sequence of str)
+                if v[-2] is not None:
+                    with self.assertRaises(TypeError) as e:
+                        s.a.extend(v[-2])
 
-            # Check if not generic type
-            if v[-1] is not None:
-                with self.assertRaises(TypeError) as e:
-                    s.a.extend([v[-1]])
+                # Check if not generic type
+                if v[-1] is not None:
+                    with self.assertRaises(TypeError) as e:
+                        s.a.extend([v[-1]])
 
     def test_list_field_remove(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1], v[0], v[2]])
-            s.a.remove(v[0])
+                s = A(a=[v[0], v[1], v[0], v[2]])
+                s.a.remove(v[0])
 
-            self.assertEqual(s.a, [v[1], v[0], v[2]])
+                self.assertEqual(s.a, [v[1], v[0], v[2]])
 
-            s.a.remove(v[2])
+                s.a.remove(v[2])
 
-            self.assertEqual(s.a, [v[1], v[0]])
+                self.assertEqual(s.a, [v[1], v[0]])
 
-            with self.assertRaises(ValueError) as e:
-                s.a.remove(v[3])
+                with self.assertRaises(ValueError) as e:
+                    s.a.remove(v[3])
 
     def test_list_field_clear(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1], v[2], v[3]])
-            s.a.clear()
+                s = A(a=[v[0], v[1], v[2], v[3]])
+                s.a.clear()
 
-            self.assertEqual(s.a, [])
+                self.assertEqual(s.a, [])
 
     def test_list_field_del(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1], v[2], v[3]])
-            del s.a[0]
+                s = A(a=[v[0], v[1], v[2], v[3]])
+                del s.a[0]
 
-            self.assertEqual(s.a, [v[1], v[2], v[3]])
+                self.assertEqual(s.a, [v[1], v[2], v[3]])
 
-            del s.a[1]
+                del s.a[1]
 
-            self.assertEqual(s.a, [v[1], v[3]])
+                self.assertEqual(s.a, [v[1], v[3]])
 
-            s = A(a=[v[0], v[1], v[2], v[3]])
-            del s.a[1:3]
+                s = A(a=[v[0], v[1], v[2], v[3]])
+                del s.a[1:3]
 
-            self.assertEqual(s.a, [v[0], v[3]])
+                self.assertEqual(s.a, [v[0], v[3]])
 
-            del s.a[5:100]
+                del s.a[5:100]
 
-            self.assertEqual(s.a, [v[0], v[3]])
+                self.assertEqual(s.a, [v[0], v[3]])
 
-            with self.assertRaises(IndexError) as e:
-                del s.a[5]
+                del s.a[1:]
+
+                self.assertEqual(s.a, [v[0]])
+
+                s = A(a=[v[0], v[1], v[2], v[3]])
+                del s.a[:1:-1]
+
+                self.assertEqual(s.a, [v[0], v[1]])
+
+                with self.assertRaises(IndexError) as e:
+                    del s.a[5]
 
     def test_list_field_inplace_concat(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1]])
-            s.a.__iadd__([v[2], v[3]])
+                s = A(a=[v[0], v[1]])
+                s.a.__iadd__([v[2], v[3]])
 
-            self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
+                self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
 
-            s.a += (v[4], v[5])
+                s.a += (v[4], v[5])
 
-            self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
+                self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
 
-            s.a += []
+                s.a += []
 
-            self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
+                self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
 
-            with self.assertRaises(TypeError) as e:
-                s.a += v[-1]
-
-            # Check if not generic type
-            if v[-1] is not None:
                 with self.assertRaises(TypeError) as e:
-                    s.a += [v[-1]]
+                    s.a += v[-1]
 
-            self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
+                # Check if not generic type
+                if v[-1] is not None:
+                    with self.assertRaises(TypeError) as e:
+                        s.a += [v[-1]]
+
+                self.assertEqual(s.a, [v[0], v[1], v[2], v[3], v[4], v[5]])
 
     def test_list_field_inplace_repeat(self):
         """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
-        for typ, v in pystruct_list_test_values.items():
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
 
-            class A(csp.Struct):
-                a: [typ]
+                class A(csp.Struct):
+                    a: ann_typ[typ]
 
-            s = A(a=[v[0], v[1]])
-            s.a.__imul__(1)
+                s = A(a=[v[0], v[1]])
+                s.a.__imul__(1)
 
-            self.assertEqual(s.a, [v[0], v[1]])
+                self.assertEqual(s.a, [v[0], v[1]])
 
-            s.a *= 2
+                s.a *= 2
 
-            self.assertEqual(s.a, [v[0], v[1], v[0], v[1]])
+                self.assertEqual(s.a, [v[0], v[1], v[0], v[1]])
 
-            with self.assertRaises(TypeError) as e:
-                s.a *= [3]
+                with self.assertRaises(TypeError) as e:
+                    s.a *= [3]
 
-            with self.assertRaises(TypeError) as e:
-                s.a *= "s"
+                with self.assertRaises(TypeError) as e:
+                    s.a *= "s"
 
-            s.a *= 0
+                s.a *= 0
 
-            self.assertEqual(s.a, [])
+                self.assertEqual(s.a, [])
 
-            s.a += [v[2], v[3]]
+                s.a += [v[2], v[3]]
 
-            self.assertEqual(s.a, [v[2], v[3]])
+                self.assertEqual(s.a, [v[2], v[3]])
 
-            s.a *= -1
+                s.a *= -1
 
-            self.assertEqual(s.a, [])
+                self.assertEqual(s.a, [])
 
     def test_list_field_lifetime(self):
-        """Ensure that the lifetime of PyStructList field exceeds the lifetime of struct holding it"""
+        """Ensure that the lifetime of struct list field exceeds the lifetime of struct holding it"""
+        for ann_typ in struct_list_annotation_types:
+
+            class A(csp.Struct):
+                a: ann_typ[int]
+
+            s = A(a=[1, 2, 3])
+            l = s.a
+            del s
+
+            self.assertEqual(l, [1, 2, 3])
+
+    def test_list_field_len(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+
+                class A(csp.Struct):
+                    a: ann_typ[typ]
+
+                s = A(a=[v[0], v[1]])
+
+                self.assertEqual(len(s.a), 2)
+
+                s.a *= 2
+
+                self.assertEqual(len(s.a), 4)
+
+                s.a.clear()
+
+                self.assertEqual(len(s.a), 0)
+
+    def test_list_field_repr(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+                # Excluding str due to own repr implementation
+                if typ != str:
+
+                    class A(csp.Struct):
+                        a: ann_typ[typ]
+
+                    s = A(a=[v[0], v[1]])
+
+                    self.assertEqual(repr(s.a), f"[{repr(v[0])}, {repr(v[1])}]")
+
+                    s.a *= 2
+
+                    self.assertEqual(repr(s.a), f"[{repr(v[0])}, {repr(v[1])}, {repr(v[0])}, {repr(v[1])}]")
+
+                    s.a.clear()
+
+                    self.assertEqual(repr(s.a), "[]")
+
+    def test_list_field_str(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+                # Excluding str due to own repr implementation
+                if typ != str:
+
+                    class A(csp.Struct):
+                        a: ann_typ[typ]
+
+                    s = A(a=[v[0], v[1]])
+
+                    self.assertEqual(str(s.a), f"[{repr(v[0])}, {repr(v[1])}]")
+
+                    s.a *= 2
+
+                    self.assertEqual(str(s.a), f"[{repr(v[0])}, {repr(v[1])}, {repr(v[0])}, {repr(v[1])}]")
+
+                    s.a.clear()
+
+                    self.assertEqual(str(s.a), "[]")
+
+    def test_list_field_get_item(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+
+                class A(csp.Struct):
+                    a: ann_typ[typ]
+
+                s = A(a=[v[0], v[1], v[2]])
+
+                self.assertEqual(s.a.__getitem__(0), v[0])
+
+                self.assertEqual(s.a[1], v[1])
+
+                self.assertEqual(s.a[-1], v[2])
+
+                with self.assertRaises(IndexError) as e:
+                    b = s.a[100]
+
+                with self.assertRaises(IndexError) as e:
+                    b = s.a[-100]
+
+                self.assertEqual(s.a[5:6], [])
+
+                self.assertEqual(s.a[1:], [v[1], v[2]])
+
+                self.assertEqual(s.a[1:2], [v[1]])
+
+                self.assertEqual(s.a[:10:2], [v[0], v[2]])
+
+                self.assertEqual(s.a[-1::-1], [v[2], v[1], v[0]])
+
+                self.assertEqual(s.a[-1:-3:-1], [v[2], v[1]])
+
+    def test_list_field_copy(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+
+                class A(csp.Struct):
+                    a: ann_typ[typ]
+
+                s = A(a=[v[0], v[1], v[2]])
+
+                self.assertEqual(s.a.copy(), [v[0], v[1], v[2]])
+
+                b = s.a.copy()
+                b.append(v[4])
+                s.a.append(v[3])
+
+                self.assertEqual(s.a, [v[0], v[1], v[2], v[3]])
+                self.assertEqual(b, [v[0], v[1], v[2], v[4]])
+
+                with self.assertRaises(TypeError) as e:
+                    s.a.copy(1)
+
+                with self.assertRaises(TypeError) as e:
+                    s.a.copy(s=2)
+
+                with self.assertRaises(IndexError) as e:
+                    b = s.a[-100]
+
+                self.assertEqual(type(s.a.copy()), list)
+
+    def test_list_field_index(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+
+                class A(csp.Struct):
+                    a: ann_typ[typ]
+
+                s = A(a=[v[0], v[3], v[0]])
+
+                self.assertEqual(s.a.index(v[0]), 0)
+
+                self.assertEqual(s.a.index(v[3]), 1)
+
+                self.assertEqual(s.a.index(v[0], 1), 2)
+
+                self.assertEqual(s.a.index(v[0], 1, 3), 2)
+
+                self.assertEqual(s.a.index(v[0], -2), 2)
+
+                self.assertEqual(s.a.index(v[0], -100, -1), 0)
+
+                self.assertEqual(s.a.index(v[3], -100, 100), 1)
+
+                with self.assertRaises(ValueError) as e:
+                    s.a.index(v[3], 2)
+
+                with self.assertRaises(ValueError) as e:
+                    s.a.index(v[3], -1, 100)
+
+                with self.assertRaises(ValueError) as e:
+                    s.a.index(v[-1])
+
+    def test_list_field_count(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+
+                class A(csp.Struct):
+                    a: ann_typ[typ]
+
+                s = A(a=[v[0], v[3], v[0]])
+
+                self.assertEqual(s.a.count(v[0]), 2)
+
+                self.assertEqual(s.a.count(v[3]), 1)
+
+                self.assertEqual(s.a.count(v[-1]), 0)
+
+    def test_list_field_compare(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        # Not using pystruct_list_test_values, as comaprison tests are of different semantics (order and comparison key existance matters).
+        values = {
+            int: [1, 5, 2, 2, -1, -5, "s"],
+            float: [1.4, 5.2, 2.7, 2.7, -1.4, -5.2, "s"],
+            datetime: [
+                datetime(2022, 12, 6, 1, 2, 3),
+                datetime(2022, 12, 8, 3, 2, 3),
+                datetime(2022, 12, 7, 2, 2, 3),
+                datetime(2022, 12, 7, 2, 2, 3),
+                datetime(2022, 12, 5, 2, 2, 3),
+                datetime(2022, 12, 3, 2, 2, 3),
+                None,
+            ],
+            timedelta: [
+                timedelta(seconds=1),
+                timedelta(seconds=123),
+                timedelta(seconds=12),
+                timedelta(seconds=12),
+                timedelta(seconds=0.1),
+                timedelta(seconds=0.01),
+                None,
+            ],
+            date: [
+                date(2022, 12, 6),
+                date(2022, 12, 8),
+                date(2022, 12, 7),
+                date(2022, 12, 7),
+                date(2022, 12, 5),
+                date(2022, 12, 3),
+                None,
+            ],
+            time: [time(5, 2, 3), time(7, 2, 3), time(6, 2, 3), time(6, 2, 3), time(4, 2, 3), time(3, 2, 3), None],
+            str: ["s", "xyz", "w", "w", "bds", "a", None],
+        }
+
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in values.items():
+
+                class A(csp.Struct):
+                    a: ann_typ[typ]
+
+                s1 = A(a=[v[0], v[1], v[2], v[5]])
+                s1a = [v[0], v[1], v[2], v[5]]
+                s2 = A(a=[v[0], v[1], v[3], v[4]])
+                s2a = [v[0], v[1], v[3], v[4]]
+
+                self.assertEqual(s1.a < s2.a, True)
+                self.assertEqual(s1.a <= s2.a, True)
+                self.assertEqual(s1.a > s2.a, False)
+                self.assertEqual(s1.a >= s2.a, False)
+                self.assertEqual(s1.a != s2.a, True)
+                self.assertEqual(s1.a == s2.a, False)
+
+                self.assertEqual(s1.a == s1a, True)
+                self.assertEqual(s1.a != s1a, False)
+                self.assertEqual(s1.a == s2a, False)
+                self.assertEqual(s1.a != s2a, True)
+
+                self.assertEqual(s1.a < s2a, True)
+                self.assertEqual(s1.a <= s2a, True)
+                self.assertEqual(s1.a > s2a, False)
+                self.assertEqual(s1.a >= s2a, False)
+
+                s3 = A(a=[v[0], v[1], v[2]])
+
+                self.assertEqual(s3.a < s1.a, True)
+
+                s4 = A(a=[v[0], v[1], v[2]])
+
+                self.assertEqual(s4.a == s3.a, True)
+
+            class B(csp.Struct):
+                a: List[MyEnum]
+
+            s = B(a=[MyEnum.A, MyEnum.FOO])
+            t = B(a=[MyEnum.FOO, MyEnum.FOO])
+
+            with self.assertRaises(TypeError) as e:
+                s.a < t.a
+            with self.assertRaises(TypeError) as e:
+                s.a <= t.a
+            with self.assertRaises(TypeError) as e:
+                s.a > t.a
+            with self.assertRaises(TypeError) as e:
+                s.a >= t.a
+            self.assertEqual(s.a == t.a, False)
+            self.assertEqual(s.a != t.a, True)
+
+    def test_list_field_iter(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+
+                class A(csp.Struct):
+                    a: ann_typ[typ]
+
+                s = A(a=[v[0], v[1], v[2]])
+
+                b = iter(s.a)
+                c = s.a.__iter__()
+                d = s.a.__reversed__()
+
+                self.assertEqual(next(b), v[0])
+                self.assertEqual(next(c), v[0])
+                self.assertEqual(next(d), v[2])
+
+                self.assertEqual(next(b), v[1])
+                self.assertEqual(next(c), v[1])
+                self.assertEqual(next(d), v[1])
+
+                self.assertEqual(next(b), v[2])
+                self.assertEqual(next(c), v[2])
+                self.assertEqual(next(d), v[0])
+
+                with self.assertRaises(StopIteration) as e:
+                    next(b)
+                with self.assertRaises(StopIteration) as e:
+                    next(c)
+                with self.assertRaises(StopIteration) as e:
+                    next(d)
+
+    def test_list_field_concat(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+
+                class A(csp.Struct):
+                    a: ann_typ[typ]
+
+                s = A(a=[v[0], v[1]])
+                t = A(a=[v[2], v[3]])
+
+                self.assertEqual(s.a.__add__([v[2], v[3]]), [v[0], v[1], v[2], v[3]])
+                self.assertEqual(s.a.__add__(t.a), [v[0], v[1], v[2], v[3]])
+
+                self.assertEqual(s.a + [v[2], v[3]], [v[0], v[1], v[2], v[3]])
+                self.assertEqual(s.a + t.a, [v[0], v[1], v[2], v[3]])
+
+                self.assertEqual(s.a + [], [v[0], v[1]])
+
+                with self.assertRaises(TypeError) as e:
+                    tmp = s.a = v[-1]
+
+                self.assertEqual(s.a, [v[0], v[1]])
+
+    def test_list_field_repeat(self):
+        """Ensure that non-list-modifying operations on list fields work fine"""
+        for ann_typ in struct_list_annotation_types:
+            for typ, v in struct_list_test_values.items():
+
+                class A(csp.Struct):
+                    a: ann_typ[typ]
+
+                s = A(a=[v[0], v[1]])
+
+                self.assertEqual(s.a.__mul__(1), [v[0], v[1]])
+
+                self.assertEqual(s.a * 2, [v[0], v[1], v[0], v[1]])
+
+                with self.assertRaises(TypeError) as e:
+                    tmp = s.a * [3]
+
+                with self.assertRaises(TypeError) as e:
+                    tmp = s.a * "s"
+
+                self.assertEqual(s.a * 0, [])
+
+                self.assertEqual(s.a * -1, [])
+
+    def test_list_field_correct_type_used(self):
+        """Check that FastList and PyStructList types are used correctly"""
 
         class A(csp.Struct):
-            a: [int]
+            a: List[int]
 
-        s = A(a=[1, 2, 3])
-        l = s.a
-        del s
+        with self.assertRaises(TypeError):
 
-        self.assertEqual(l, [1, 2, 3])
+            class B(csp.Struct):
+                a: List[int, False]
+
+        class C(csp.Struct):
+            a: List[int]
+
+        class D(csp.Struct):
+            a: FastList[int]
+
+        with self.assertRaises(TypeError):
+
+            class E(csp.Struct):
+                a: List[int, True]
+
+        p = A(a=[1, 2])
+        r = C(a=[1, 2])
+        s = D(a=[1, 2])
+
+        self.assertEqual(str(type(p.a)), "<class '_cspimpl.PyStructList'>")
+        self.assertEqual(str(type(r.a)), "<class '_cspimpl.PyStructList'>")
+        self.assertEqual(str(type(s.a)), "<class '_cspimpl.PyStructFastList'>")
+
+    def test_list_field_correct_type_passed(self):
+        """Check that FastList can be passed to where Python list is expected"""
+
+        class A(csp.Struct):
+            a: List[int]
+
+        class B(csp.Struct):
+            a: FastList[int]
+
+        p = csp.unroll(csp.const(A(a=[1, 2, 3])).a)
+        q = csp.unroll(csp.const(B(a=[1, 2, 3])).a)
+
+    def test_list_field_pickle(self):
+        """Was a BUG when the struct with list field was not recognizing changes made to this field in python"""
+        # Not using pystruct_list_test_values, as pickling tests are of different semantics (picklability of struct fields matters).
+        v = [1, 5, 2]
+
+        s = SimpleStructForPickleList(a=[v[0], v[1], v[2]])
+
+        t = pickle.loads(pickle.dumps(s))
+
+        self.assertEqual(t.a, s.a)
+        self.assertEqual(type(t.a), type(s.a))
+
+        b = pickle.loads(pickle.dumps(s.a))
+
+        self.assertEqual(b, s.a)
+        self.assertEqual(type(b), list)
+
+        s = SimpleStructForPickleFastList(a=[v[0], v[1], v[2]])
+
+        t = pickle.loads(pickle.dumps(s))
+
+        self.assertEqual(t.a, s.a)
+        self.assertEqual(type(t.a), type(s.a))
+
+        b = pickle.loads(pickle.dumps(s.a))
+
+        self.assertEqual(b, s.a)
+        self.assertEqual(type(b), list)
+
+    def test_dir(self):
+        s = SimpleStruct(a=0)
+        dir_output = dir(s)
+        self.assertIn("a", dir_output)
+        self.assertIn("to_dict", dir_output)
+        self.assertIn("update", dir_output)
+        self.assertIn("__metadata__", dir_output)
+        self.assertEqual(dir_output, sorted(dir_output))
 
 
 if __name__ == "__main__":

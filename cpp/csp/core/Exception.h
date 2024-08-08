@@ -5,16 +5,22 @@
 #include <sstream>
 #include <string.h>
 #include <csp/core/Likely.h>
+#include <csp/core/Platform.h>
 
 namespace csp
 {
 
-class Exception : public std::exception
+class CSP_PUBLIC Exception : public std::exception
 {
 public:
-    Exception( const char * exType, const std::string & description ) : m_exType( exType ), m_description( description ), m_line ( -1 ) { setbt(); }
     Exception( const char * exType, const std::string & description, const char * file, const char * func, int line ) :
-        m_exType( exType ), m_description( description ), m_file( file ), m_function( func ), m_line( line ) { setbt(); }
+        m_exType( exType ), m_description( description ), m_file( file ), m_function( func ), m_line( line ), m_backtracemessages( nullptr )
+    { 
+        setbt();
+    }
+
+    Exception(const char* exType, const std::string& description) : Exception(exType, description, "", "", -1)
+    {}
     ~Exception() { free( m_backtracemessages ); }
     Exception( const Exception & );
     Exception( Exception&& );
@@ -53,7 +59,7 @@ private:
 };
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define CSP_DECLARE_EXCEPTION( DerivedException, BaseException ) class DerivedException : public BaseException { public: DerivedException( const char * exType, const std::string &r, const char * file, const char * func, int line ) : BaseException( exType, r, file, func, line ) {} };
+#define CSP_DECLARE_EXCEPTION( DerivedException, BaseException ) class CSP_PUBLIC DerivedException : public BaseException { public: DerivedException( const char * exType, const std::string &r, const char * file, const char * func, int line ) : BaseException( exType, r, file, func, line ) {} };
 
 CSP_DECLARE_EXCEPTION( AssertionError,     Exception )
 CSP_DECLARE_EXCEPTION( RuntimeException,   Exception )
@@ -71,9 +77,9 @@ CSP_DECLARE_EXCEPTION( OSError,            RuntimeException )
 CSP_DECLARE_EXCEPTION( OutOfMemoryError,   RuntimeException )
 CSP_DECLARE_EXCEPTION( FileNotFoundError,  IOError )
 
-
 template<typename T>
-[[noreturn]] void throw_exc(T&& e) __attribute__ ((noinline));
+[[noreturn]] NO_INLINE void throw_exc(T&& e);
+
 template<typename T>
 [[noreturn]] inline void throw_exc(T&& e) {throw e;}
 

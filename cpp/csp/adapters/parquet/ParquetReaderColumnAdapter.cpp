@@ -22,7 +22,7 @@ static inline std::unique_ptr<ParquetColumnAdapter> createDateColumnAdapter(
                     new DateColumnAdapter<1000000, ArrowArrayType>( reader, columnName ) );
         case arrow::DateUnit::DAY:
             return std::unique_ptr<ParquetColumnAdapter>(
-                    new DateColumnAdapter<1000000000L * 3600 * 24, ArrowArrayType>( reader, columnName ) );
+                    new DateColumnAdapter<1000000000LL * 3600 * 24, ArrowArrayType>( reader, columnName ) );
     }
     CSP_THROW( csp::TypeError, "Unexpected day unit: " << ( int ) dateType -> unit() << " for column " << columnName );
 }
@@ -524,7 +524,7 @@ void NativeTypeColumnAdapter<ValueType, ArrowArrayType>::readCurValue()
     }
 }
 
-template< long UNIT >
+template< int64_t UNIT >
 void DatetimeColumnAdapter<UNIT>::readCurValue()
 {
     auto curRow = this -> m_parquetReader.getCurRow();
@@ -539,7 +539,7 @@ void DatetimeColumnAdapter<UNIT>::readCurValue()
     }
 }
 
-template< long UNIT >
+template< int64_t UNIT >
 void DurationColumnAdapter<UNIT>::readCurValue()
 {
     auto curRow = this -> m_parquetReader.getCurRow();
@@ -554,7 +554,7 @@ void DurationColumnAdapter<UNIT>::readCurValue()
     }
 }
 
-template< long UNIT, typename ArrowDateArray >
+template< int64_t UNIT, typename ArrowDateArray >
 void DateColumnAdapter<UNIT, ArrowDateArray>::readCurValue()
 {
     auto curRow = this -> m_parquetReader.getCurRow();
@@ -569,7 +569,7 @@ void DateColumnAdapter<UNIT, ArrowDateArray>::readCurValue()
     }
 }
 
-template< long UNIT, typename ArrowTimeArray >
+template< int64_t UNIT, typename ArrowTimeArray >
 void TimeColumnAdapter<UNIT, ArrowTimeArray>::readCurValue()
 {
     auto curRow = this -> m_parquetReader.getCurRow();
@@ -734,7 +734,7 @@ void ListColumnAdapter<ValueArrayType, ValueType>::readCurValue()
     if( this -> m_curChunkArray -> IsValid( curRow ) )
     {
         auto values      = this -> m_curChunkArray -> value_slice( curRow );
-        auto typedValues = std::dynamic_pointer_cast<ValueArrayType>( values );
+        auto typedValues = std::static_pointer_cast<ValueArrayType>( values );
 
         auto arrayValue     = m_listReader -> create( typedValues -> length() );
         auto* internalBuffer = m_listReader -> getRawDataBuffer( arrayValue );

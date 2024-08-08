@@ -25,16 +25,16 @@ ClientInputAdapter::ClientInputAdapter(
     m_converter = adapters::utils::MessageStructConverterCache::instance().create( type, properties );
 };
 
-void ClientInputAdapter::processMessage( std::string payload, PushBatch* batch ) 
+void ClientInputAdapter::processMessage( void* c, size_t t, PushBatch* batch ) 
 {
 
     if( type() -> type() == CspType::Type::STRUCT )
     {
-        auto tick = m_converter -> asStruct( (void*)payload.data(), payload.length() );
+        auto tick = m_converter -> asStruct( c, t );
         pushTick( std::move(tick), batch );
     } else if ( type() -> type() == CspType::Type::STRING )
     {
-        pushTick( std::move(payload), batch );
+        pushTick( std::string((char const*)c, t), batch );
     }
 
 }

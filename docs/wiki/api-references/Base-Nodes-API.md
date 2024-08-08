@@ -174,6 +174,7 @@ csp.unroll(x: ts[['T']]) → ts['T']
 Given a timeseries of a *list* of values, unroll will "unroll" the values in the list into a timeseries of the elements.
 `unroll` will ensure to preserve the order across all list ticks.
 Ticks will be unrolled in subsequent engine cycles.
+For a detailed explanation of this behavior, see the documentation on [duplicate timestamps](Execution-Modes#handling-duplicate-timestamps).
 
 ## `csp.collect`
 
@@ -360,7 +361,7 @@ Given a mathematical expression, and a set of timeseries corresponding to variab
 
 Args:
 
-- **`expression_str`**: an expression, as per the [C++ Mathematical Expression Library](http://www.partow.net/programming/exprtk/) (see [readme](http://www.partow.net/programming/exprtk/code/readme.txt)
+- **`expression_str`**: an expression, as per the [C++ Mathematical Expression Library](http://www.partow.net/programming/exprtk/) (see [readme](http://www.partow.net/programming/exprtk/code/readme.txt))
 - **`inputs`**: a dict basket of timeseries. The keys will correspond to the variables in the expression. The timeseries can be of float or string
 - **`state_vars`**: an optional dictionary of variables to be held in state between executions, and assignable within the expression.  Keys are the variable names and values are the starting values
 - **`trigger`**: an optional trigger for when to calculate. By default will calculate on any input tick

@@ -6,7 +6,6 @@
   - [Create your fork](#create-your-fork)
   - [Configure remotes](#configure-remotes)
   - [Authenticating with GitHub](#authenticating-with-github)
-  - [Configure commit signing](#configure-commit-signing)
 - [Guidelines](#guidelines)
 
 ## Step 1: Build CSP from Source
@@ -31,19 +30,7 @@ already set that way and click "Create fork".
 ### Configure remotes
 
 Next, you should set some names for the `git` remotes corresponding to
-main Point72 repository and your fork. If you started with a clone of
-the main `Point72` repository, you could do something like:
-
-```bash
-cd csp
-git remote rename origin upstream
-
-# for SSH authentication
-git remote add origin git@github.com:<username>/csp.git
-
-# for HTTP authentication
-git remote add origin https://github.com/<username>/csp.git
-```
+main Point72 repository and your fork. See the [GitHub Docs](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/configuring-a-remote-repository-for-a-fork) for more information.
 
 ### Authenticating with GitHub
 
@@ -58,25 +45,6 @@ passkey](https://docs.github.com/en/authentication/authenticating-with-a-passkey
 or adding a [personal access
 token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 to avoid the need to type in your password every time you push to your fork.
-
-### Configure commit signing
-
-Additionally, you will need to configure your local `git` setup and
-GitHub account to use [commit
-signing](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification). All
-commits to the `csp` repository must be signed to increase the
-difficulty of a supply-chain attack against the CSP codebase. The
-easiest way to do this is to [configure `git` to sign commits with your
-SSH
-key](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#ssh-commit-signature-verification). You
-can also use a [GPG
-key](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#gpg-commit-signature-verification)
-to sign commits.
-
-In either case, you must also add your public key to your github account
-as a signing key. Note that if you have already added an SSH key as an
-authentication key, you will need to add it again [as a signing
-key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account).
 
 ## Guidelines
 

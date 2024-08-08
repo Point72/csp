@@ -19,7 +19,7 @@ in c++, we have macros to fwd declare the creator methods that create the C++ no
 and relies on linking in the c+ node library properly.
 */
 
-PyObject * pycppnode_create( PyObject * args, csp::CppNode::Creator creatorFn );
+CSPIMPL_EXPORT PyObject * pycppnode_create( PyObject * args, csp::CppNode::Creator creatorFn );
 
 #define _REGISTER_CPPNODE( Name, Creator ) \
 static PyObject * Name##_cppnode_create( PyObject * module, PyObject * args ) \

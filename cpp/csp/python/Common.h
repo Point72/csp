@@ -5,6 +5,8 @@
 
 #define IS_PRE_PYTHON_3_11 (PY_MAJOR_VERSION < 3 || (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 11) )
 
+#define INIT_PYDATETIME if( !PyDateTimeAPI ) { PyDateTime_IMPORT; }
+
 namespace csp::python
 {
 

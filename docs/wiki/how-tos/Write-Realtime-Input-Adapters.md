@@ -55,7 +55,7 @@ The `py_push_adapter_def` creates a *--graph--* time representation of your adap
 Note that the \*\*kwargs passed to `py_push_adapter_def` should be the names and types of the variables, like `arg1=type1, arg2=type2`.
 These are the names of the kwargs that the returned input adapter will take and pass through to the `PushInputAdapter` implementation, and the types expected for the values of those args.
 
-Example [e_14_user_adapters_03_pushinput.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_user_adapters_03_pushinput.py) demonstrates a simple example of this.
+Example [e4_pushinput.py](https://github.com/Point72/csp/blob/main/examples/04_writing_adapters/e4_pushinput.py) demonstrates a simple example of this.
 
 ```python
 from csp.impl.pushadapter import PushInputAdapter
@@ -128,7 +128,7 @@ If you dont need as much control as `PushInputAdapter` provides, or if you have 
 `csp.GenericPushAdapter` wraps a `csp.PushInputAdapter` implementation internally and provides a simplified interface.
 The downside of `csp.GenericPushAdapter` is that you lose some control of when the input feed starts and stop.
 
-Lets take a look at the example found in [e_14_generic_push_adapter.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_generic_push_adapter.py):
+Lets take a look at the example found in [e1_generic_push_adapter.py](https://github.com/Point72/csp/blob/main/examples/04_writing_adapters/e1_generic_push_adapter.py):
 
 ```python
 # This is an example of some separate thread providing data
@@ -203,7 +203,7 @@ The **\_create** is the bridge between the *--graph--* time `AdapterManager` rep
 **\_create** will be called on the *--graph--* time `AdapterManager` which will in turn create the *--impl--* instance.
 \_create will get two arguments, engine (this represents the runtime engine object that will run the graph) and  memo dict which can optionally be used for any memoization that on might want.
 
-Lets take a look at the example found in [e_14_user_adapters_04_adaptermanager_pushinput.py](https://github.com/Point72/csp/blob/main/examples/4_writing_adapters/e_14_user_adapters_04_adaptermanager_pushinput.py):
+Lets take a look at the example found in [e5_adaptermanager_pushinput.py](https://github.com/Point72/csp/blob/main/examples/04_writing_adapters/e5_adaptermanager_pushinput.py):
 
 ```python
 # This object represents our AdapterManager at graph time. It describes the manager's properties
@@ -405,3 +405,18 @@ csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), re
 ```
 
 Do note that realtime adapters will only run in realtime engines (note the `realtime=True` argument to `csp.run`).
+
+## Engine shutdown
+
+In case a pushing thread hits a terminal error, an exception can be passed to the main engine thread to shut down gracefully through a `shutdown_engine(exc: Exception)` method exposed by `PushInputAdapter`, `PushPullInputAdapter` and `AdapterManagerImpl`.
+
+For example:
+
+```python
+def _run(self):
+   while self._running:
+        try:
+            requests.get(endpoint) # API call over a network, may fail
+        except Exception as exc:
+            self.shutdown_engine(exc)
+```

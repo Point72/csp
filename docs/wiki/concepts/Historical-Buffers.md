@@ -96,17 +96,17 @@ The various historical access methods take the same arguments and return the val
     - If providing  **time** one can either provide a datetime for absolute time, or a timedelta for how far back to access.
       **NOTE that timedelta must be negative** to represent time in the past..
     - If **None** is provided, the range will begin "from the beginning" - i.e., the oldest tick in the buffer.
-  - **end_index_or_time:** same as start_index_or_time
+  - **`end_index_or_time`**: same as start_index_or_time
     - If **None** is provided, the range will go "until the end" - i.e., the newest tick in the buffer.
   - **`start_index_policy`**: only for use with datetime/timedelta as the start and end parameters.
-    - **\`TimeIndexPolicy.INCLUSIVE**: if there is a tick exactly at the requested time, include it
-    - **TimeIndexPolicy.EXCLUSIVE**: if there is a tick exactly at the requested time, exclude it
-    - **TimeIndexPolicy.EXTRAPOLATE**: if there is a tick at the beginning timestamp, include it.
+    - **`TimeIndexPolicy.INCLUSIVE`**: if there is a tick exactly at the requested time, include it
+    - **`TimeIndexPolicy.EXCLUSIVE`**: if there is a tick exactly at the requested time, exclude it
+    - **`TimeIndexPolicy.EXTRAPOLATE`**: if there is a tick at the beginning timestamp, include it.
       Otherwise, if there is a tick before the beginning timestamp, force a tick at the beginning timestamp with the prevailing value at the time.
-  - **end_index_policy** only for use with datetime/timedelta and the start and end parameters.
-    - **TimeIndexPolicy.INCLUSIVE**: if there is a tick exactly at the requested time, include it
-    - **TimeIndexPolicy.EXCLUSIVE**: if there is a tick exactly at the requested time, exclude it
-    - **TimeIndexPolicy.EXTRAPOLATE**: if there is a tick at the end timestamp, include it.
+  - **`end_index_policy`**: only for use with datetime/timedelta and the start and end parameters.
+    - **`TimeIndexPolicy.INCLUSIVE`**: if there is a tick exactly at the requested time, include it
+    - **`TimeIndexPolicy.EXCLUSIVE`**: if there is a tick exactly at the requested time, exclude it
+    - **`TimeIndexPolicy.EXTRAPOLATE`**: if there is a tick at the end timestamp, include it.
       Otherwise, if there is a tick before the end timestamp, force a tick at the end timestamp with the prevailing value at the time
 
 Range access is optimized at the C++ layer and for this reason its far more efficient than calling the single value access methods in a loop, and they should be substituted in where possible.

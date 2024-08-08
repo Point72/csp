@@ -15,7 +15,7 @@ def accum(val: ts[int]) -> ts[int]:
         s_sum = 0
     if csp.ticked(val):
         s_sum += val
-        return val
+        return s_sum
 
 
 @csp.graph

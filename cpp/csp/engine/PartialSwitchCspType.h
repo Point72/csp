@@ -145,7 +145,7 @@ private:
             typename R_T,
             typename ArraySubTypeSwitchT,
             csp::CspType::Type::_enum T = CspType::Type::ARRAY,
-            std::enable_if_t<isSupportedType<T>(), int> = 1 >
+            std::enable_if_t<isSupportedType<T>(), void *> = nullptr >
     static R_T handleArrayType( const CspType *type, F &&f )
     {
         const auto *arrayType = static_cast<const CspArrayType *>( type );
@@ -160,7 +160,7 @@ private:
             typename R_T,
             typename ArraySubTypeSwitchT,
             csp::CspType::Type::_enum T = CspType::Type::ARRAY,
-            std::enable_if_t<!isSupportedType<T>(), int> = 0 >
+            std::enable_if_t<!isSupportedType<T>(), void *> = nullptr >
     static R_T handleArrayType( const CspType *type, F &&f )
     {
         CSP_THROW( UnsupportedSwitchType, "Unsupported type " << CspType::Type( T ));
@@ -169,7 +169,7 @@ private:
     template< csp::CspType::Type::_enum T,
             typename F,
             typename R_T,
-            std::enable_if_t<isSupportedType<T>(), int> = 0 >
+            std::enable_if_t<isSupportedType<T>(), void *> = nullptr >
     static R_T handleType( const CspType *type, F &&f )
     {
         return f( CspType::Type::toCType<T>());
@@ -178,7 +178,7 @@ private:
     template< csp::CspType::Type::_enum T,
             typename F,
             typename R_T,
-            std::enable_if_t<!isSupportedType<T>(), int> = 0 >
+            std::enable_if_t<!isSupportedType<T>(), void *> = nullptr >
     static R_T handleType( const CspType *type, F &&f )
     {
         CSP_THROW( UnsupportedSwitchType, "Unsupported type " << CspType::Type( T ));

@@ -6,6 +6,13 @@ import typing
 
 import csp.typing
 
+T = typing.TypeVar("T")
+
+
+class FastList(typing.Generic[T]):
+    def __init__(self):
+        raise NotImplementedError("Can not init FastList class")
+
 
 class CspTypingUtils37:
     _ORIGIN_COMPAT_MAP = {list: typing.List, set: typing.Set, dict: typing.Dict, tuple: typing.Tuple}

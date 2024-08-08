@@ -1,8 +1,6 @@
 #ifndef _IN_CSP_ADAPTERS_WEBSOCKETS_CLIENT_HEADERUPDATEADAPTER_H
 #define _IN_CSP_ADAPTERS_WEBSOCKETS_CLIENT_HEADERUPDATEADAPTER_H
 
-#include <websocketpp/config/asio_client.hpp>
-#include <websocketpp/client.hpp>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/OutputAdapter.h>
 #include <csp/adapters/utils/MessageWriter.h>

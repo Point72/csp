@@ -3,11 +3,13 @@ import os
 import pandas as pd
 import pytz
 import string
+import sys
 import tempfile
 import time as Time
 import unittest
 from datetime import date, datetime, time, timedelta
 from functools import reduce
+from typing import List
 
 import csp
 import csp.stats as stats
@@ -107,9 +109,12 @@ class TestProfiler(unittest.TestCase):
 
         prof = p.results()
 
-        self.assertGreater(prof.average_cycle_time, 1.0)
+        epsilon = 0.0
+        if sys.platform == "win32":
+            epsilon = 0.05  # Clock resolution on windows is pretty bad
+        self.assertGreater(prof.average_cycle_time + epsilon, 1.0)
         self.assertGreater(prof.max_cycle_time, 1.0)
-        self.assertGreater(prof.node_stats["sleep_for"]["total_time"], 2.0)
+        self.assertGreater(prof.node_stats["sleep_for"]["total_time"] + epsilon, 2.0)
         self.assertGreater(prof.node_stats["sleep_for"]["max_time"], 1.0)
         self.assertEqual(prof.node_stats["sleep_for"]["executions"], 2)
         self.assertEqual(prof.cycle_count, 2)
@@ -139,7 +144,7 @@ class TestProfiler(unittest.TestCase):
 
         # From test_dynamic.py
         @csp.graph
-        def dyn(key: str, val: [str], key_ts: ts[DynData], scalar: str):
+        def dyn(key: str, val: List[str], key_ts: ts[DynData], scalar: str):
             csp.add_graph_output(f"{key}_key", csp.const(key))
             csp.add_graph_output(f"{key}_val", csp.const(val))
             csp.add_graph_output(f"{key}_ts", key_ts)
@@ -150,7 +155,7 @@ class TestProfiler(unittest.TestCase):
         def graph3():
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), True)
             csp.add_graph_output("keys", keys)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(basket, dyn, csp.snapkey(), csp.snap(keys), csp.attach(), "hello world!")
 
         with profiler.Profiler() as p:
@@ -223,7 +228,7 @@ class TestProfiler(unittest.TestCase):
         max_times = df_node.groupby("Node Type").max().reset_index()
         self.assertEqual(
             round(prof_info.node_stats["cast_int_to_float"]["max_time"], 4),
-            round(float(max_times.loc[max_times["Node Type"] == "cast_int_to_float"]["Execution Time"]), 4),
+            round(float(max_times.loc[max_times["Node Type"] == "cast_int_to_float"]["Execution Time"].iloc[0]), 4),
         )
 
         # Cleanup files

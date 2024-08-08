@@ -1,11 +1,10 @@
 import logging
 import math
 import threading
-import typing
 import urllib
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional, TypeVar, Union
 
 import csp
 from csp import ts
@@ -31,7 +30,7 @@ _ = (
     RawBytesMessageMapper,
     RawTextMessageMapper,
 )
-T = typing.TypeVar("T")
+T = TypeVar("T")
 
 
 try:
@@ -221,7 +220,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         MAX_RECORDS = 100
         start_idx = 0
         while start_idx < len(snapshots):
-            msg = {"messageType": "snap", "data": snapshots[start_idx : start_idx + MAX_RECORDS]}
+            msg = {
+                "messageType": "snap",
+                "data": snapshots[start_idx : start_idx + MAX_RECORDS],
+            }
             self.send(msg)
             start_idx += MAX_RECORDS
 
@@ -325,7 +327,11 @@ class TableAdapter:
         self.columns = {}
         self.schema = {}
 
-    def publish(self, value: ts[object], field_map: typing.Union[typing.Dict[str, str], str, None] = None):
+    def publish(
+        self,
+        value: ts[object],
+        field_map: Union[Dict[str, str], str, None] = None,
+    ):
         """
         :param value - timeseries to publish onto this table
         :param field_map: if publishing structs, a dictionary of struct field -> perspective fieldname ( if None will pass struct fields as is )
@@ -338,7 +344,7 @@ class TableAdapter:
                 raise TypeError("Expected type str for field_map on single column publish, got %s" % type(field_map))
             self._publish_field(value, field_map)
 
-    def _publish_struct(self, value: ts[csp.Struct], field_map: typing.Optional[typing.Dict[str, str]]):
+    def _publish_struct(self, value: ts[csp.Struct], field_map: Optional[Dict[str, str]]):
         field_map = field_map or {k: k for k in value.tstype.typ.metadata()}
         for k, v in field_map.items():
             self._publish_field(getattr(value, k), v)
@@ -385,34 +391,42 @@ class WebsocketAdapterManager:
     def __init__(
         self,
         uri: str,
-        verbose_log: bool = False,
         reconnect_interval: timedelta = timedelta(seconds=2),
         headers: Dict[str, str] = None,
     ):
         """
         uri: str
             where to connect
-        verbose_log: bool = False
-            should the websocket client also log using the builtin
         reconnect_interval: timedelta = timedelta(seconds=2)
             time interval to wait before trying to reconnect (must be >= 1 second)
         headers: Dict[str, str] = None
             headers to apply to the request during the handshake
         """
         assert reconnect_interval >= timedelta(seconds=1)
+        resp = urllib.parse.urlparse(uri)
+        if resp.hostname is None:
+            raise ValueError(f"Failed to parse host from URI: {uri}")
+
         self._properties = dict(
-            uri=uri,
-            verbose_log=verbose_log,
+            host=resp.hostname,
+            # if no port is explicitly present in the uri, the resp.port is None
+            port=self._sanitize_port(uri, resp.port),
+            route=resp.path or "/",  # resource shouldn't be empty string
+            use_ssl=uri.startswith("wss"),
             reconnect_interval=reconnect_interval,
             headers=headers if headers else {},
-            use_tls=uri.startswith("wss"),
         )
+
+    def _sanitize_port(self, uri: str, port):
+        if port:
+            return str(port)
+        return "443" if uri.startswith("wss") else "80"
 
     def subscribe(
         self,
         ts_type: type,
         msg_mapper: MsgMapper,
-        field_map: typing.Union[dict, str] = None,
+        field_map: Union[dict, str] = None,
         meta_field_map: dict = None,
         push_mode: csp.PushMode = csp.PushMode.NON_COLLAPSING,
     ):
@@ -433,7 +447,7 @@ class WebsocketAdapterManager:
     def send(self, x: ts["T"]):
         return _websocket_output_adapter_def(self, x)
 
-    def update_headers(self, x: ts[List[str]]):
+    def update_headers(self, x: ts[List[WebsocketHeaderUpdate]]):
         return _websocket_header_update_adapter_def(self, x)
 
     def status(self, push_mode=csp.PushMode.NON_COLLAPSING):

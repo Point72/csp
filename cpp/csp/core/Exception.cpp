@@ -1,7 +1,6 @@
 #include <csp/core/Exception.h>
+#include <csp/core/System.h>
 
-#include <cxxabi.h>
-#include <execinfo.h>
 #include <signal.h>
 #include <string.h>
 
@@ -9,6 +8,10 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <memory>
+
+#ifndef WIN32
+#include <execinfo.h>
+#endif
 
 //From https://stackoverflow.com/questions/2443135/how-do-i-find-where-an-exception-was-thrown-in-c/2443366
 static void csp_terminate( void );
@@ -53,12 +56,14 @@ static void printBacktrace( char ** messages, int size, std::ostream & dest )
             begin_name++;
             *begin_offset = '\0';
 
+#ifndef WIN32
             int status;
-            char* demangled = abi::__cxa_demangle(begin_name,
-                                                  NULL, NULL, &status);
-
+            char* demangled = abi::__cxa_demangle(begin_name, NULL, NULL, &status);
             dest << "[bt]: (" << i << ") " << ( status == 0 ? demangled : messages[i] ) << std::endl;
             free( demangled );
+#else
+            dest << "[bt]: (" << i << ") " << messages[i] << std::endl;
+#endif
         }
         else
         {
@@ -71,11 +76,14 @@ static void printBacktrace( char ** messages, int size, std::ostream & dest )
 
 void printBacktrace()
 {
+//TODO get stack traces on windows
+#ifndef WIN32
     void *array[50];
     int size = backtrace( array, 50 );
     auto messages = backtrace_symbols( array, size );
     printBacktrace( messages, size, std::cerr );
     free( messages );
+#endif
 }
 
 void csp_terminate()
@@ -115,41 +123,61 @@ void csp_terminate()
 }
 
 //This is for coredumps
-void sigabrt_handler( int sig_num, siginfo_t * info, void * ctx ) 
+#ifndef WIN32
+void sigabrt_handler(int sig_num, siginfo_t* info, void* ctx)
 {
-    std::cerr << "signal " << sig_num 
-              << " (" << strsignal( sig_num ) << "), address is " 
-              << info -> si_addr << " from " << std::endl;
+    std::cerr << "signal " << sig_num
+        << " (" << strsignal(sig_num) << "), address is "
+        << info -> si_addr << " from " << std::endl;
 
     printBacktrace();
 
-    signal( SIGABRT, SIG_DFL );
-    signal( SIGSEGV, SIG_DFL );
-    signal( SIGBUS,  SIG_DFL );
+    signal(SIGABRT, SIG_DFL);
+    signal(SIGSEGV, SIG_DFL);
+    signal(SIGBUS, SIG_DFL);
 
     abort();
 }
 
 bool set_sigabrt_handler()
 {
-
     static struct sigaction sigact;
 
     sigact.sa_sigaction = sigabrt_handler;
-    sigact.sa_flags     = SA_RESTART | SA_SIGINFO;
+    sigact.sa_flags = SA_RESTART | SA_SIGINFO;
 
-    sigaction( SIGABRT, &sigact, NULL );
-    sigaction( SIGSEGV, &sigact, NULL );
-    sigaction( SIGBUS,  &sigact, NULL );
+    sigaction(SIGABRT, &sigact, NULL);
+    sigaction(SIGSEGV, &sigact, NULL);
+    sigaction(SIGBUS, &sigact, NULL);
     return true;
 }
+#else
+void sigabrt_handler(int sig_num)
+{
+    std::cerr << "signal " << sig_num << " from " << std::endl;
+    printBacktrace();
+
+    signal(SIGABRT, SIG_DFL);
+    signal(SIGSEGV, SIG_DFL);
+    abort();
+}
+
+bool set_sigabrt_handler()
+{
+    signal(SIGABRT, sigabrt_handler);
+    signal(SIGSEGV, sigabrt_handler);
+    return true;
+}
+#endif
 
 void csp::Exception::setbt()
 {
+#ifndef WIN32
     void *array[50];
     m_backtracesize = backtrace( array, 50 );
     char **messages = backtrace_symbols( array, m_backtracesize );
     m_backtracemessages = messages;
+#endif
 }
 
 static char ** dupe_backtraces( char** bt, int n )

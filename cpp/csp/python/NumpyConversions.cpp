@@ -64,7 +64,7 @@ NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr )
     return dtMeta -> base;
 }
 
-static std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> wstr_converter;
+static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> wstr_converter;
 
 void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem_size_bytes )
 {
@@ -73,17 +73,17 @@ void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem
 
     if( numpy_type == NPY_UNICODELTR)
     {
-        const wchar_t * const raw_value = (const wchar_t *) data;
-        const int field_size = elem_size_bytes / __SIZEOF_WCHAR_T__;
+        const char32_t* const raw_value = (const char32_t *) data;
+        const int field_size = elem_size_bytes / sizeof( char32_t );
 
         if( raw_value[field_size - 1] == 0 )
         {
-            std::wstring wstr( raw_value );
+            std::u32string wstr( raw_value );
             out = wstr_converter.to_bytes( wstr );
         }
         else
         {
-            std::wstring wstr( raw_value, field_size );
+            std::u32string wstr( raw_value, field_size );
             out = wstr_converter.to_bytes( wstr );
         }
     }

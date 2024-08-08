@@ -1,34 +1,33 @@
 EXTRA_ARGS :=
 
-UNAME := $(shell uname)
-ifeq ($(UNAME), Linux)
-NPROC = $(shell nproc)
-endif
-ifeq ($(UNAME), Darwin)
-NPROC = $(shell sysctl -n hw.physicalcpu)
-endif
-
 #########
 # BUILD #
 #########
 .PHONY: requirements develop build build-debug build-conda install
 
 requirements:  ## install python dev and runtime dependencies
+ifeq ($(OS),Windows_NT)
+	Powershell.exe -executionpolicy bypass -noprofile .\ci\scripts\windows\make_requirements.ps1
+else
 	python -m pip install toml
 	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["build-system"]["requires"]))'`
 	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["project"]["optional-dependencies"]["develop"]))'`
+endif
 
 develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
 build:  ## build the library
-	python setup.py build build_ext --inplace -- -- -j$(NPROC)
+	python setup.py build build_ext --inplace
 
 build-debug:  ## build the library ( DEBUG ) - May need a make clean when switching from regular build to build-debug and vice versa
-	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace -- -- -j$(NPROC)
+	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
 
 build-conda:  ## build the library in Conda
-	CSP_USE_VCPKG=0 python setup.py build build_ext --inplace -- -- -j$(NPROC)
+	python setup.py build build_ext --csp-no-vcpkg --inplace
+
+build-conda-debug:  ## build the library ( DEBUG ) - in Conda
+	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --csp-no-vcpkg --inplace
 
 install:  ## install library
 	python -m pip install .
@@ -90,7 +89,11 @@ test-py: ## Clean and Make unit tests
 	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
 
 test-cpp: ## Make C++ unit tests
+ifneq ($(OS),Windows_NT)
 	for f in ./csp/tests/bin/*; do $$f; done || (echo "TEST FAILED" && exit 1)
+else
+	.\ci\scripts\windows\run_cpp_tests.bat
+endif
 
 coverage-py:
 	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
@@ -177,8 +180,13 @@ deep-clean: ## clean everything from the repository
 	git clean -fdx
 
 clean: ## clean the repository
+ifneq ($(OS),Windows_NT)
 	rm -rf .coverage coverage cover htmlcov logs build dist wheelhouse *.egg-info
 	rm -rf csp/lib csp/bin csp/include _skbuild
+else
+	del /s /q .coverage coverage cover htmlcov logs build dist wheelhouse *.egg-info
+	del /s/ q csp\lib csp\bin csp\include _skbuild
+endif
 
 ################
 # Dependencies #
@@ -195,11 +203,11 @@ dependencies-debian:  ## install dependencies for linux
 dependencies-fedora:  ## install dependencies for linux
 	yum install -y automake bison ccache cmake curl flex perl-IPC-Cmd tar unzip zip
 
-dependencies-vcpkg:  ## install dependnecies via vcpkg
+dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
 
-dependencies-win:  ## install dependnecies via windows (vcpkg)
-	cd vcpkg && ./bootstrap-vcpkg.bat && ./vcpkg install
+dependencies-win:  ## install dependencies via windows
+	choco install cmake curl winflexbison ninja unzip zip --no-progress -y
 
 ############################################################################################
 # Thanks to Francoise at marmelab.com for this

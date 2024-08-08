@@ -2,16 +2,10 @@ name: Setup Caches
 description: 'Ensure various caches are setup like homebrew, vcpkg, ccache, etc'
 
 inputs:
-  cibuildwheel:
-    type: choice
-    description: "cibuildwheel run"
-    options:
-      - 'cp38'
-      - 'cp39'
-      - 'cp310'
-      - 'cp311'
-      - 'cp312'
-    default: 'cp39'
+  vcpkg:
+    type: boolean
+    description: "cache vcpkg assets"
+    default: true
 
 runs:
   using: 'composite'
@@ -38,7 +32,7 @@ runs:
         mkdir -p /home/runner/vcpkg_download_cache
         echo "VCPKG_DEFAULT_BINARY_CACHE=/home/runner/vcpkg_cache" >> $GITHUB_ENV
         echo "VCPKG_DOWNLOADS=/home/runner/vcpkg_download_cache" >> $GITHUB_ENV
-      if: ${{ runner.os == 'Linux' }}
+      if: ${{ runner.os == 'Linux' && inputs.vcpkg == 'true' }}
 
     - name: Setup vcpkg cache (Linux)
       uses: actions/cache@v4
@@ -48,7 +42,7 @@ runs:
           /home/runner/vcpkg_download_cache
         key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
         restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
-      if: ${{ runner.os == 'Linux' }}
+      if: ${{ runner.os == 'Linux' && inputs.vcpkg == 'true' }}
 
     - name: Setup vcpkg cache in shell (macOS)
       shell: bash
@@ -57,7 +51,7 @@ runs:
         mkdir -p /Users/runner/vcpkg_download_cache
         echo "VCPKG_DEFAULT_BINARY_CACHE=/Users/runner/vcpkg_cache" >> $GITHUB_ENV
         echo "VCPKG_DOWNLOADS=/Users/runner/vcpkg_download_cache" >> $GITHUB_ENV
-      if: ${{ runner.os == 'macOS' }}
+      if: ${{ runner.os == 'macOS' && inputs.vcpkg == 'true' }}
 
     - name: Setup vcpkg cache (macOS)
       uses: actions/cache@v4
@@ -67,4 +61,23 @@ runs:
           /Users/runner/vcpkg_download_cache
         key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
         restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
-      if: ${{ runner.os == 'macOS' }}
+      if: ${{ runner.os == 'macOS' && inputs.vcpkg == 'true'}}
+
+    - name: Setup vcpkg cache in shell (Windows)
+      shell: bash
+      run: |
+        mkdir C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_cache
+        mkdir C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_download_cache
+        echo "VCPKG_DEFAULT_BINARY_CACHE=C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_cache" >> $GITHUB_ENV
+        echo "VCPKG_DOWNLOADS=C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_download_cache" >> $GITHUB_ENV
+      if: ${{ runner.os == 'Windows' && inputs.vcpkg == 'true'}}
+
+    - name: Setup vcpkg cache (Windows)
+      uses: actions/cache@v4
+      with:
+        path: |
+          C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_cache
+          C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_download_cache
+        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+        restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
+      if: ${{ runner.os == 'Windows' && inputs.vcpkg == 'true'}}

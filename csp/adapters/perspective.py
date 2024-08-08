@@ -1,6 +1,6 @@
 import threading
-import typing
 from datetime import timedelta
+from typing import Dict, Optional, Union
 
 import csp
 from csp import ts
@@ -148,7 +148,7 @@ class PerspectiveTableAdapter:
         self.index = index
         self.columns = {}
 
-    def publish(self, value: ts[object], field_map: typing.Union[typing.Dict[str, str], str, None] = None):
+    def publish(self, value: ts[object], field_map: Union[Dict[str, str], str, None] = None):
         """
         :param value - timeseries to publish onto this table
         :param field_map: if publishing structs, a dictionary of struct field -> perspective fieldname ( if None will pass struct fields as is )
@@ -161,7 +161,7 @@ class PerspectiveTableAdapter:
                 raise TypeError("Expected type str for field_map on single column publish, got %s" % type(field_map))
             self._publish_field(value, field_map)
 
-    def _publish_struct(self, value: ts[csp.Struct], field_map: typing.Optional[typing.Dict[str, str]]):
+    def _publish_struct(self, value: ts[csp.Struct], field_map: Optional[Dict[str, str]]):
         field_map = field_map or {k: k for k in value.tstype.typ.metadata()}
         for k, v in field_map.items():
             self._publish_field(getattr(value, k), v)

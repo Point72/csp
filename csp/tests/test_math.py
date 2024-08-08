@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import sys
 import unittest
 from datetime import datetime, timedelta
 
@@ -135,6 +136,13 @@ class TestMath(unittest.TestCase):
             csp.erf: lambda x: math.erf(x),
         }
 
+        # Wheel builds on GH seem to produce slightly different results, maybe the python
+        # version built against was compiled with slightly different math args?
+        EPSILONS = {}
+        if sys.platform == "win32":
+            EPSILONS[csp.arcsinh] = 1e-12
+            EPSILONS[csp.arccosh] = 1e-12
+
         @csp.graph
         def graph():
             x = csp.count(csp.timer(timedelta(seconds=0.25)))
@@ -148,7 +156,12 @@ class TestMath(unittest.TestCase):
         xv = [v[1] for v in results["x"]]
 
         for op, comp in OPS.items():
-            self.assertEqual([v[1] for v in results[op.__name__]], [comp(x) for x in xv], op.__name__)
+            eps = EPSILONS.get(op, None)
+            if eps:
+                for v, x in zip(results[op.__name__], xv):
+                    self.assertAlmostEqual(v[1], comp(x), msg=op.__name__, delta=eps)
+            else:
+                self.assertEqual([v[1] for v in results[op.__name__]], [comp(x) for x in xv], op.__name__)
 
     def test_math_unary_ops_numpy(self):
         OPS = {
@@ -197,6 +210,10 @@ class TestMath(unittest.TestCase):
             csp.arctanh: lambda x: math.atanh(x),
         }
 
+        EPSILONS = {}
+        if sys.platform == "win32":
+            EPSILONS[csp.arctanh] = 1e-12
+
         @csp.graph
         def graph():
             x = 1 / (csp.count(csp.timer(timedelta(seconds=0.25))) * math.pi)
@@ -210,7 +227,12 @@ class TestMath(unittest.TestCase):
         xv = [v[1] for v in results["x"]]
 
         for op, comp in OPS.items():
-            self.assertEqual([v[1] for v in results[op.__name__]], [comp(x) for x in xv], op.__name__)
+            eps = EPSILONS.get(op, None)
+            if eps:
+                for v, x in zip(results[op.__name__], xv):
+                    self.assertAlmostEqual(v[1], comp(x), msg=op.__name__, delta=eps)
+            else:
+                self.assertEqual([v[1] for v in results[op.__name__]], [comp(x) for x in xv], op.__name__)
 
     def test_comparisons(self):
         OPS = {

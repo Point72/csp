@@ -18,7 +18,7 @@ namespace csp::adapters::parquet
 
 
 //Top level AdapterManager object for all parquet adapters in the engine
-class ParquetInputAdapterManager final : public csp::AdapterManager
+class CSP_PUBLIC ParquetInputAdapterManager final : public csp::AdapterManager
 {
 public:
     using GeneratorPtr = csp::Generator<std::string, csp::DateTime, csp::DateTime>::Ptr;

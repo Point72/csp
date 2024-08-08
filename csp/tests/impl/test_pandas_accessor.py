@@ -447,7 +447,8 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         )
         out = self.df.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=0))
         dtypes = pd.Series(
-            [object, np.int64, np.float64, bool, object, object],
+            # Note we use np.array([1]).dtype because on windows it defaults to int32, linux is int64
+            [object, np.array([1]).dtype, np.float64, bool, object, object],
             index=["s_str", "s_int", "s_float", "s_bool", "s_date", "s_object"],
         )
         pd.testing.assert_series_equal(out.dtypes, dtypes)

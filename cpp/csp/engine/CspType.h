@@ -115,7 +115,7 @@ private:
     Type m_type;
 };
 
-class CspStringType:public CspType
+class CspStringType : public CspType
 {
 public:
     CspStringType(bool isBytes)
@@ -127,7 +127,6 @@ private:
 
 inline CspType::Ptr & CspType::STRING() { static CspType::Ptr s_type = std::make_shared<const CspStringType>( false ); return s_type; }
 inline CspType::Ptr & CspType::BYTES() { static CspType::Ptr s_type = std::make_shared<const CspStringType>( true ); return s_type; }
-
 
 using CspTypePtr = CspType::Ptr;
 
@@ -171,18 +170,21 @@ private:
 class CspArrayType : public CspType
 {
 public:
-    CspArrayType( CspTypePtr elemType ) : CspType( CspType::Type::ARRAY ),
-                                          m_elemType( elemType )
+    CspArrayType( CspTypePtr elemType, bool isPyStructFastList = false ) :
+        CspType( CspType::Type::ARRAY ), m_elemType( elemType ), m_isPyStructFastList( isPyStructFastList )
     {}
+    ~CspArrayType() {}
 
     const CspTypePtr & elemType() const { return m_elemType; }
+    bool isPyStructFastList() const     { return m_isPyStructFastList; }
 
     //Used by BURST mode to avoid creating more instances of CspArrayTypes than needed
     //returns CspArrayType with the given elemType
-    static CspTypePtr & create( const CspTypePtr & elemType );
+    static CspTypePtr & create( const CspTypePtr & elemType, bool isPyStructFastList = false );
 
 private:
     CspTypePtr m_elemType;
+    bool       m_isPyStructFastList;
 };
 
 template<> struct CspType::TypeTraits::fromCType<bool>                     { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::BOOL;            };
@@ -204,6 +206,7 @@ template<> struct CspType::TypeTraits::fromCType<CspType::StringCType>     { sta
 template<> struct CspType::TypeTraits::fromCType<StructPtr>                { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::STRUCT;          };
 template<typename T> struct CspType::TypeTraits::fromCType<TypedStructPtr<T>> { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::STRUCT;       };
 template<> struct CspType::TypeTraits::fromCType<DialectGenericType>       { static constexpr CspType::TypeTraits::_enum type = CspType::TypeTraits::DIALECT_GENERIC; };
+
 template<typename StorageT> struct CspType::TypeTraits::fromCType<std::vector<StorageT>>
 { 
     static_assert( !std::is_same<StorageT,bool>::value, "vector<bool> should not be getting instantiated" );

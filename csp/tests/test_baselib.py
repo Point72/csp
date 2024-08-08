@@ -6,11 +6,12 @@ import numpy as np
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum, auto
+from typing import List
 
 import csp
 from csp import ts
 from csp.baselib import _convert_ts_object_for_print
-from csp.impl.struct import defineStruct
+from csp.impl.struct import define_struct
 
 
 class TestBaselib(unittest.TestCase):
@@ -210,7 +211,7 @@ class TestBaselib(unittest.TestCase):
         st = datetime(2020, 1, 1)
         td = timedelta(seconds=1)
         x = csp.curve(
-            [int],
+            List[int],
             [
                 (st, [1]),
                 (st + td * 1, [2, 3, 4]),
@@ -220,7 +221,7 @@ class TestBaselib(unittest.TestCase):
             ],
         )
         x2 = csp.curve(
-            [[int]],
+            List[List[int]],
             [
                 (st, [[1]]),
                 (st + td * 1, [[2, 3, 4]]),
@@ -662,7 +663,7 @@ class TestBaselib(unittest.TestCase):
         @csp.graph
         def my_graph():
             ticks = [MyStruct(key=chr(ord("A") + i % 5), value=i) for i in range(1000)]
-            ticks = csp.unroll(csp.const.using(T=[MyStruct])(ticks))
+            ticks = csp.unroll(csp.const.using(T=List[MyStruct])(ticks))
             demux = csp.DelayedDemultiplex(ticks, ticks.key, raise_on_bad_key=False)
 
             csp.add_graph_output("A", demux.demultiplex("A"))
@@ -759,9 +760,16 @@ class TestBaselib(unittest.TestCase):
             )
             gated_x = csp.gate(x, gate)
             validate(gated_x, gate)
-            csp.add_graph_output("gate", gated_x)
 
-        res = csp.run(g, starttime=datetime(2022, 5, 13), endtime=timedelta(seconds=20))["gate"]
+            release = csp.timer(timedelta(seconds=5), True)  # only release every 5 seconds
+            gated_release_x = csp.gate(x, release, release_on_tick=True)
+            validate(gated_release_x, release)
+
+            csp.add_graph_output("gate", gated_x)
+            csp.add_graph_output("gate_rel_on_tick", gated_release_x)
+
+        out = csp.run(g, starttime=datetime(2022, 5, 13), endtime=timedelta(seconds=20))
+        res = out["gate"]
         all_values = functools.reduce(lambda x, y: x + y, [v[1] for v in res])
 
         p = 0
@@ -769,14 +777,20 @@ class TestBaselib(unittest.TestCase):
             self.assertEqual(x, p + 1)
             p = x
 
+        release_res = out["gate_rel_on_tick"]
+        all_values = functools.reduce(lambda x, y: x + y, [[v[1]] for v in release_res])
+        for i, x in enumerate(all_values):
+            # Only release every 5 seconds
+            self.assertEqual(x, [j + 1 for j in range(i * 5, (i + 1) * 5)])
+
     def test_drop_dups(self):
         @csp.graph
         def g(d1: list, d2: list, d3: list, d4: list, d5: list):
-            d1 = csp.unroll(csp.const.using(T=[int])(d1))
-            d2 = csp.unroll(csp.const.using(T=[tuple])(d2))
-            d3 = csp.unroll(csp.const.using(T=[float])(d3))
-            d4 = csp.unroll(csp.const.using(T=[float])(d4))
-            d5 = csp.unroll(csp.const.using(T=[float])(d5))
+            d1 = csp.unroll(csp.const.using(T=List[int])(d1))
+            d2 = csp.unroll(csp.const.using(T=List[tuple])(d2))
+            d3 = csp.unroll(csp.const.using(T=List[float])(d3))
+            d4 = csp.unroll(csp.const.using(T=List[float])(d4))
+            d5 = csp.unroll(csp.const.using(T=List[float])(d5))
 
             csp.add_graph_output("d1", csp.drop_dups(d1))
             csp.add_graph_output("d2", csp.drop_dups(d2))
@@ -886,8 +900,8 @@ class TestBaselib(unittest.TestCase):
             e: MyEnum
             st: MyStruct
             o: MyObject
-            l: [int]
-            lb: [bool]
+            l: List[int]
+            lb: List[bool]
 
         @csp.node
         def random_gen(trigger: ts[object], typ: "T") -> ts["T"]:
@@ -934,7 +948,7 @@ class TestBaselib(unittest.TestCase):
                 return tick
 
         @csp.node
-        def accum_list(x: ts["T"]) -> ts[["T"]]:
+        def accum_list(x: ts["T"]) -> ts[List["T"]]:
             with csp.state():
                 s_nextcount = 1
                 s_accum = []
@@ -1061,7 +1075,7 @@ class TestBaselib(unittest.TestCase):
 
         # test log dominated graph (proper thread waiting/joining)
         fields = 1000
-        LargeStruct = defineStruct("LargeStruct", {f"{i}": int for i in range(fields)})  # struct with 1000 int fields
+        LargeStruct = define_struct("LargeStruct", {f"{i}": int for i in range(fields)})  # struct with 1000 int fields
         structs = []
         for i in range(60):
             struct = LargeStruct()

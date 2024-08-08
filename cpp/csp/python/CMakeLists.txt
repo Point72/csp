@@ -5,7 +5,10 @@ set(CSPTYPESIMPL_PUBLIC_HEADERS
         PyCspType.h
         PyStruct.h
         PyStructList.h
-        PyStructList_impl.h)
+        PyStructList_impl.h
+        PyStructFastList.h
+        PyStructFastList_impl.h
+        VectorWrapper.h )
 
 add_library(csptypesimpl
             csptypesimpl.cpp
@@ -13,10 +16,14 @@ add_library(csptypesimpl
             PyCspEnum.cpp
             PyCspType.cpp
             PyStruct.cpp
-            PyStructToJson.cpp)
+            PyStructToJson.cpp
+            PyStructToDict.cpp)
+
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
 target_compile_definitions(csptypesimpl PUBLIC RAPIDJSON_HAS_STDSTRING=1)
 target_link_libraries(csptypesimpl csp_core csp_types)
+target_compile_definitions(csptypesimpl PRIVATE CSPTYPESIMPL_EXPORTS=1)
+
 
 set(CSPIMPL_PUBLIC_HEADERS
         Common.h
@@ -42,8 +49,7 @@ set(CSPIMPL_PUBLIC_HEADERS
         PyOutputProxy.h
         PyConstants.h
         PyStructToJson.h
-        PyStructList.h
-        PyStructList_impl.h)
+        PyStructToDict.h)
 
 add_library(cspimpl SHARED
         cspimpl.cpp
@@ -78,8 +84,11 @@ add_library(cspimpl SHARED
 
 set_target_properties(cspimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_PUBLIC_HEADERS}")
 
-target_link_libraries(cspimpl csptypesimpl csp_core csp_engine)
+target_link_libraries(cspimpl csptypesimpl csp_core csp_engine )
+
 target_compile_definitions(cspimpl PUBLIC NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
+target_compile_definitions(cspimpl PRIVATE CSPIMPL_EXPORTS=1)
+
 
 ## Baselib c++ module
 add_library(cspbaselibimpl SHARED cspbaselibimpl.cpp)
@@ -113,6 +122,6 @@ target_include_directories(cspnpstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 
 install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl csptestlibimpl cspnpstatsimpl
         PUBLIC_HEADER DESTINATION include/csp/python
-        RUNTIME DESTINATION bin/
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )

@@ -2,7 +2,7 @@
 # Project Configuration #
 #########################
 cmake_minimum_required(VERSION 3.20.0)
-project(csp VERSION "0.0.3")
+project(csp VERSION "0.0.5")
 set(CMAKE_CXX_STANDARD 20)
 
 ###################################################################################################################################################
@@ -152,28 +152,27 @@ endif()
 
 ###################################################################################################################################################
 # Flags #
-#########
 # Optimization Flags
 if(WIN32)
     if(CMAKE_BUILD_TYPE_LOWER STREQUAL debug)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
-            /DEBUG \
-            /Z7 \
-            /Zi \
-            ")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DEBUG /Z7 /Zi")
         add_definitions(-DCSP_DEBUG)
     else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
-            /NDEBUG \
-            /O2 \
-            ")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2")
         add_definitions(-DNDEBUG)
     endif()
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /MP /bigobj")
+    foreach(warning 4244 4251 4267 4275 4290 4786 4305 4996)
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd${warning}")
+    endforeach(warning)
+    add_compile_definitions(WIN32 _WIN32)
+
 else()
     if(CSP_BUILD_NO_CXX_ABI)
-        # TODO windows
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
     endif()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
     if (COVERAGE)
         # TODO windows
         add_compile_options(--coverage)
@@ -181,7 +180,6 @@ else()
         link_libraries(gcov)
     endif ()
     if (GPROF_BUILD)
-        # TODO windows
         set(CMAKE_CXX_FLAGS "-pg ${CMAKE_CXX_FLAGS}")
         set(CMAKE_EXE_LINKER_FLAGS "-pg ${CMAKE_EXE_LINKER_FLAGS}")
         set(CMAKE_SHARED_LINKER_FLAGS "-pg ${CMAKE_SHARED_LINKER_FLAGS}")
@@ -197,6 +195,7 @@ else()
         -O3 \
         -g0 \
         -Wall \
+        -Werror \
         -Wno-deprecated-declarations \
         -Wno-deprecated \
         ")
@@ -209,14 +208,6 @@ else()
     endif()
 endif()
 
-# Other Flags
-if(WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /MP /bigobj")
-    foreach(warning 4244 4251 4267 4275 4290 4786 4305 4996)
-        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd${warning}")
-    endforeach(warning)
-    add_compile_definitions(WIN32 _WIN32)
-endif()
 
 ###################################################################################################################################################
 # Messages #
@@ -250,13 +241,25 @@ function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OU
         set(CSP_AUTOGEN_EXTRA_ARGS "")
     endif()
 
-    add_custom_command(OUTPUT  "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.cpp" "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.h"
-        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${PROJECT_BINARY_DIR}/lib:${CMAKE_SOURCE_DIR}:$$PYTHONPATH" "LD_LIBRARY_PATH=${PROJECT_BINARY_DIR}/lib:$$LD_LIBRARY_PATH}" ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/csp/build/csp_autogen.py -m ${MODULE_NAME} -d ${CMAKE_CURRENT_BINARY_DIR}/csp_autogen -o ${DEST_FILENAME} ${CSP_AUTOGEN_EXTRA_ARGS}
-            COMMENT "generating csp c++ types from module ${MODULE_NAME} ${PROJECT_BINARY_DIR} ${CMAKE_SOURCE_DIR}/csp/build/csp_autogen.py"
-            DEPENDS mkdir_autogen_${MODULE_NAME}
+    cmake_path(SET CSP_AUTOGEN_MODULE_PATH NORMALIZE "${CMAKE_SOURCE_DIR}/csp/build/csp_autogen.py")
+    cmake_path(SET CSP_AUTOGEN_DESTINATION_FOLDER NORMALIZE "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen")
+    cmake_path(SET CSP_AUTOTGEN_CPP_OUT NORMALIZE "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.cpp")
+    cmake_path(SET CSP_AUTOTGEN_H_OUT NORMALIZE "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.h")
+
+    if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+        set(CSP_AUTOGEN_PYTHONPATH ${PROJECT_BINARY_DIR}/lib/${CMAKE_BUILD_TYPE};${CMAKE_SOURCE_DIR};%PYTHONPATH% )
+    else()
+        set(CSP_AUTOGEN_PYTHONPATH ${PROJECT_BINARY_DIR}/lib:${CMAKE_SOURCE_DIR}:$$PYTHONPATH )
+    endif()
+
+    add_custom_command(OUTPUT "${CSP_AUTOTGEN_CPP_OUT}" "${CSP_AUTOTGEN_H_OUT}"
+        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CSP_AUTOGEN_PYTHONPATH}" ${Python_EXECUTABLE} ${CSP_AUTOGEN_MODULE_PATH} -m ${MODULE_NAME} -d ${CSP_AUTOGEN_DESTINATION_FOLDER} -o ${DEST_FILENAME} ${CSP_AUTOGEN_EXTRA_ARGS}
+        COMMENT "generating csp c++ types from module ${MODULE_NAME}"
+        DEPENDS mkdir_autogen_${MODULE_NAME} 
                     ${CMAKE_SOURCE_DIR}/csp/build/csp_autogen.py
                     ${CMAKE_SOURCE_DIR}/${MODULE_FILENAME}
-                    csptypesimpl )
+                    csptypesimpl
+    )
 
     set(${SOURCE_NAME_OUTVAR} "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.cpp" PARENT_SCOPE )
     set(${HEADER_NAME_OUTVAR} "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.h" PARENT_SCOPE )
@@ -329,6 +332,9 @@ if(NOT WIN32)
 
     # static suffix is _static.a # TODO decide if we want this
     set(CMAKE_STATIC_LIBRARY_SUFFIX _static.a)
+else()
+    # shared suffix is .pyd for windows
+    set(CMAKE_SHARED_LIBRARY_SUFFIX .pyd)
 endif()
 
 
@@ -341,7 +347,15 @@ include_directories("${CMAKE_BINARY_DIR}/cpp")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+if(WIN32)
+    # On windows, force dlls into lib folder
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+    set(CSP_RUNTIME_INSTALL_SUBDIR lib/)
+else()
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    set(CSP_RUNTIME_INSTALL_SUBDIR bin/)
+endif()
 
 add_subdirectory(cpp/csp/adapters)
 add_subdirectory(cpp/csp/core)

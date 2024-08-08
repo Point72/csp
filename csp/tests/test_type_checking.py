@@ -350,6 +350,9 @@ class TestTypeChecking(unittest.TestCase):
                     },
                 )
             l_good = csp.const.using(T={int: float})({})
+            l_also_good = csp.const({})
+            self.assertEqual(l_also_good.tstype.typ, dict)
+
             if USE_PYDANTIC:
                 msg = "(?s)1 validation error for csp.const.*unable to resolve container type for type variable T: explicit value must have uniform values and be non empty"
             else:
@@ -424,6 +427,9 @@ class TestTypeChecking(unittest.TestCase):
                 typed_ts_and_scalar_generic(l_i, [1, 2], TestTypeChecking.Dummy())
 
             l_good = csp.const.using(T=[int])([])
+            l_also_good = csp.const([])
+            self.assertEqual(l_also_good.tstype.typ, list)
+
             if USE_PYDANTIC:
                 msg = "(?s)1 validation error for csp.const.*unable to resolve container type for type variable T: explicit value must have uniform values and be non empty"
             else:
@@ -492,6 +498,9 @@ class TestTypeChecking(unittest.TestCase):
                 typed_ts_and_scalar_generic(l_i, {1, 2}, TestTypeChecking.Dummy())
 
             l_good = csp.const.using(T={int})(set())
+            l_also_good = csp.const(set())
+            self.assertEqual(l_also_good.tstype.typ, set)
+
             if USE_PYDANTIC:
                 msg = "(?s)unable to resolve container type for type variable T: explicit value must have uniform values and be non empty"
             else:
@@ -669,6 +678,21 @@ class TestTypeChecking(unittest.TestCase):
         for err in errors:
             pickled = pickle.loads(pickle.dumps(err))
             self.assertEqual(str(err), str(pickled))
+
+    def test_empty_containers(self):
+        def g():
+            x = csp.const([])
+            y = csp.const(set())
+            z = csp.const(dict())
+
+            csp.add_graph_output("x", x)
+            csp.add_graph_output("y", y)
+            csp.add_graph_output("z", z)
+
+        res = csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta())
+        self.assertEqual(res["x"][0][1], [])
+        self.assertEqual(res["y"][0][1], set())
+        self.assertEqual(res["z"][0][1], {})
 
 
 if __name__ == "__main__":

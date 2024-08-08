@@ -6,7 +6,7 @@ import time
 import unittest
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import List
+from typing import Dict, List
 
 import csp
 from csp import ts
@@ -18,7 +18,7 @@ class DynData(csp.Struct):
 
 
 @csp.node
-def gen_basket(keys: ts[[str]], deletes: ts[[str]]) -> csp.DynamicBasket[str, DynData]:
+def gen_basket(keys: ts[List[str]], deletes: ts[List[str]]) -> csp.DynamicBasket[str, DynData]:
     with csp.state():
         s_counts = defaultdict(int)
     if csp.ticked(keys):
@@ -32,7 +32,7 @@ def gen_basket(keys: ts[[str]], deletes: ts[[str]]) -> csp.DynamicBasket[str, Dy
 
 
 @csp.node
-def random_keys(keys: [str], interval: timedelta, repeat: bool) -> ts[[str]]:
+def random_keys(keys: List[str], interval: timedelta, repeat: bool) -> ts[List[str]]:
     with csp.alarms():
         x = csp.alarm(int)
     with csp.state():
@@ -55,9 +55,9 @@ def random_keys(keys: [str], interval: timedelta, repeat: bool) -> ts[[str]]:
 
 
 @csp.node
-def delayed_deletes(keys: ts[[str]], delay: timedelta) -> ts[[str]]:
+def delayed_deletes(keys: ts[List[str]], delay: timedelta) -> ts[List[str]]:
     with csp.alarms():
-        delete = csp.alarm([str])
+        delete = csp.alarm(List[str])
     with csp.state():
         s_pending = set()
 
@@ -104,7 +104,7 @@ class TestDynamic(unittest.TestCase):
 
         def g():
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), True)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(basket, dyn_graph, csp.snapkey())
             csp.add_graph_output("keys", keys)
 
@@ -154,7 +154,7 @@ class TestDynamic(unittest.TestCase):
         """test various "special" arguments"""
 
         @csp.graph
-        def dyn_graph(key: str, val: [str], key_ts: ts[DynData], scalar: str):
+        def dyn_graph(key: str, val: List[str], key_ts: ts[DynData], scalar: str):
             csp.add_graph_output(f"{key}_key", csp.const(key))
             csp.add_graph_output(f"{key}_val", csp.const(val))
             csp.add_graph_output(f"{key}_ts", key_ts)
@@ -168,7 +168,7 @@ class TestDynamic(unittest.TestCase):
         def g():
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), True)
             csp.add_graph_output("keys", keys)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(basket, dyn_graph, csp.snapkey(), csp.snap(keys), csp.attach(), "hello world!")
 
         res = csp.run(g, starttime=datetime(2021, 6, 22), endtime=timedelta(seconds=60))
@@ -211,7 +211,7 @@ class TestDynamic(unittest.TestCase):
             s = source_node()
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), True)
             csp.add_graph_output("keys", keys)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(basket, dyn_graph, csp.snapkey(), s)
 
         csp.run(g, starttime=datetime(2021, 6, 22), endtime=timedelta(seconds=60))
@@ -317,7 +317,7 @@ class TestDynamic(unittest.TestCase):
             return v
 
         @csp.graph
-        def dyn_graph(key: str, x: ts[int]) -> ts[{str: DynData}]:
+        def dyn_graph(key: str, x: ts[int]) -> ts[Dict[str, DynData]]:
             keys = random_keys(list("ABC"), timedelta(seconds=0.5), False)
             deletes = delayed_deletes(keys, timedelta(seconds=1.1))
             basket = gen_basket(keys, deletes)
@@ -420,7 +420,7 @@ class TestDynamic(unittest.TestCase):
 
         def g():
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), False)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(
                 basket, dyn_graph, csp.attach(), csp.timer(timedelta(seconds=1)), csp.timer(timedelta(seconds=0.17))
             )
@@ -446,12 +446,12 @@ class TestDynamic(unittest.TestCase):
     def test_exceptions(self):
         # snap / attach in container
         @csp.graph
-        def dyn_graph(k: [str]):
+        def dyn_graph(k: List[str]):
             pass
 
         def g():
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), False)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(basket, dyn_graph, [csp.snapkey()])
 
         with self.assertRaisesRegex(TypeError, "csp.snap and csp.attach are not supported as members of containers"):
@@ -459,12 +459,12 @@ class TestDynamic(unittest.TestCase):
 
         # dynamic basket outputs
         @csp.graph
-        def dyn_graph(k: str) -> [ts[int]]:
+        def dyn_graph(k: str) -> List[ts[int]]:
             return [csp.const(1)]
 
         def g():
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), False)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(basket, dyn_graph, csp.snapkey())
 
         with self.assertRaisesRegex(TypeError, "csp.dynamic does not support basket outputs of sub_graph"):
@@ -477,7 +477,7 @@ class TestDynamic(unittest.TestCase):
 
         def g():
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), False)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(basket, dyn_graph, csp.snapkey())
 
         with self.assertRaisesRegex(ValueError, 'graph output key "duplicate" is already bound'):
@@ -490,7 +490,7 @@ class TestDynamic(unittest.TestCase):
 
         def g():
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), False)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(basket, dyn_graph, csp.snap(csp.null_ts(int)))
 
         with self.assertRaisesRegex(RuntimeError, "csp.snap input \\( sub_graph arg 0 \\) is not valid"):

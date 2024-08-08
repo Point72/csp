@@ -1,6 +1,11 @@
 #include <csp/engine/WindowBuffer.h>
 #include <gtest/gtest.h>
 
+//Note clear why windows linker is looknig for this
+#ifdef WIN32
+bool csp::DialectGenericType::operator==( struct csp::DialectGenericType const & ) const { return false; }
+#endif
+
 TEST( WindowBufferTest, test_time_window )
 {
     csp::VariableSizeWindowBuffer<double> buffer;

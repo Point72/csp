@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_CPPNODE_H
 #define _IN_CSP_ENGINE_CPPNODE_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/Node.h>
 #include <csp/engine/PartialSwitchCspType.h>
@@ -672,7 +673,7 @@ public:                                                      \
 
 #define STATE_VAR( Type, Name ) Type Name;
 
-#define START() void start() override __attribute__((noinline))
+#define START() NO_INLINE void start() override
 #define STOP() void stop() override
 
 //wrap _executeImpl so we clear basket flags at the end of execute call

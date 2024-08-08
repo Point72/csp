@@ -1,48 +1,116 @@
-When writing CSP code there will be runtime components in the form of `csp.node` methods, as well as graph-building components in the form of `csp.graph` components.
+csp is a graph-based stream processing library, where you create directed graphs for real-time event streaming workflows.
+In this introductory tutorial, you will write a csp program to calculate the Bid-Ask Spread for specified `bid` and `ask` values.
 
-It is important to understand that `csp.graph` components will only be executed once at application startup in order to construct the graph.
-Once the graph is constructed, `csp.graph` code is no longer needed.
-Once the graph is run, only inputs, `csp.node`s and outputs will be active as data flows through the graph, driven by input ticks.
+> \[!TIP\]
+> The bid–ask spread is the difference between the prices quoted for an immediate sale (ask) and an immediate purchase (bid) for stocks, futures contracts, options, or currency pairs in some auction scenario.
+> ~ [Bid–ask spread on Wikipedia](https://en.wikipedia.org/wiki/Bid%E2%80%93ask_spread)
 
-For example, this is a simple bit of graph code:
+## Introduction to real-time event stream processing
+
+Real-time data is continuously collected or updated data like IT log monitorings or weather recordings. Stream processing is a the practice of working with or analyzing this data in real time. Streaming applications are driven by updates or changes to the input values. In csp, you refer to the input changes as "tick"s, and write the analysis workflow as a directed graph.
+
+csp programs are written in a functional-style, and consist of:
+
+- runtime components in the form of `csp.node` methods, and
+- graph-building components in the form of `csp.graph` components.
+
+## Imports
 
 ```python
+from datetime import datetime, timedelta
+
 import csp
 from csp import ts
-from datetime import datetime
+```
 
+Data streams are often expressed as Time Series, and csp defines a high-level `ts` type that denotes a Time Series input. Most csp computation nodes require Time Series inputs.
 
+## Create a `csp.node` to calculate spread
+
+`csp.node`s are the computational building-blocks of a csp program. You can use the `@csp.node` decorator to create a node that calculates the bid-ask spread.
+
+```python
 @csp.node
 def spread(bid: ts[float], ask: ts[float]) -> ts[float]:
-    if csp.valid(bid, ask):
+    if csp.ticked(bid, ask) and csp.valid(bid, ask):
         return ask - bid
+```
 
+The `bid` and `ask` values are expected to be Time Series values.
 
+> \[!IMPORTANT\]
+> csp nodes are strictly typed, and the type is enforced by the C++ engine.
+
+This node needs to be executed each time the `ask` and `bid` values change, so we use the following built-in nodes:
+
+- `csp.valid` - To ensure the values have ticked at least once, where a "tick" refers to any change in the input
+- `csp.ticked(bid, ask)` - to check if ask OR bid have ticked since we last checked
+
+csp have several helpful nodes for common computations. Check out the API Reference documentation pages to learn more.
+
+## Create the graph
+
+Next, you need a graph that defines the workflow, and you can use the `@csp.graph` decorator to create a graph.
+
+In the following graph, we define the example ask and bid values using [`csp.timer`](Base-Adapters-API#csptimer) and [`csp.count`](Base-Nodes-API#cspcount) and calculate the spread.
+
+`csp.timer` creates a repeating edge that **ticks** at the specified interval with the specified value (set to `True` here). `csp.count` continuously counts the number of ticks.
+
+```python
 @csp.graph
 def my_graph():
-    bid = csp.const(1.0)
-    ask = csp.const(2.0)
-    bid = csp.multiply(bid, csp.const(4))
-    ask = csp.multiply(ask, csp.const(3))
+    bid = csp.count(csp.timer(timedelta(seconds=2.5), True))
+    ask = csp.count(csp.timer(timedelta(seconds=1), True))
     s = spread(bid, ask)
 
-    csp.print('spread', s)
-    csp.print('bid', bid)
-    csp.print('ask', ask)
+    csp.print("bid", bid)
+    csp.print("ask", ask)
+    csp.print("spread", s)
+```
 
+`csp.graph` components are only executed once, during application startup to construct the graph. Once the graph is constructed, `csp.graph` code is no longer needed.
 
+During runtime, only the inputs, `csp.node`s, and outputs will be active as data flows through the graph. The graph run is driven by input **ticks**.
+
+[csp.const](Base-Adapters-API#cspconst)
+
+> \[!TIP\]
+> You can also create csp-friendly constant time series values with [csp.const](Base-Adapters-API#cspconst).
+
+## Run the program
+
+`csp.run` is the entry point to the graph, and you can define a particular start time and optionally an end time.
+
+```python
 if __name__ == '__main__':
-    csp.run(my_graph, starttime=datetime.utcnow())
+    csp.run(my_graph, starttime=datetime(2020, 3, 1), endtime=timedelta(seconds=10))
 ```
 
-In order to help visualize this graph, you can call `csp.show_graph`:
+The program will produce the following:
 
-![359407708](https://github.com/Point72/csp/assets/3105306/8cc50ad4-68f9-4199-9695-11c136e3946c)
-
-The result of this would be:
-
+```python-console
+2020-03-01 00:00:01 ask:2.0
+2020-03-01 00:00:02 ask:4.0
+2020-03-01 00:00:02.500000 bid:2.0
+2020-03-01 00:00:02.500000 spread:2.0
+2020-03-01 00:00:03 ask:6.0
+2020-03-01 00:00:03 spread:4.0
+...
+2020-03-01 00:00:10 bid:8.0
+2020-03-01 00:00:10 ask:20.0
+2020-03-01 00:00:10 spread:12.0
 ```
-2020-04-02 15:33:38.256724 bid:4.0
-2020-04-02 15:33:38.256724 ask:6.0
-2020-04-02 15:33:38.256724 spread:2.0
+
+## Visualize
+
+To visualize this graph, you can [install `graphviz`](https://graphviz.readthedocs.io/en/stable/manual.html) and use `csp.show_graph` to view and save the image.
+
+```python
+csp.show_graph(my_graph, graph_filename="tmp.png")
 ```
+
+![Output generated by show_graph](images/ask-bid-graph.png)
+
+In the above graph, the blue arrows (`csp.timer`) indicate inputs and the red arrows (`print`) indicate outputs. The operations, in our case `count`, `cast_int_to_float`, and `spread`, are denoted by rectangles. `cast_int_to_float` is an implicit operation because `csp.count` returns integer values.
+
+Check out the expanded and complete example: [e3_show_graph.py](https://github.com/Point72/csp/blob/main/examples/01_basics/e3_show_graph.py).

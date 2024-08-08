@@ -10,7 +10,7 @@
 [![PyPI](https://img.shields.io/pypi/v/csp.svg?style=flat)](https://pypi.python.org/pypi/csp)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](https://github.com/Point72/csp/LICENSE)
 [![Build Status](https://github.com/Point72/csp/actions/workflows/build.yml/badge.svg)](https://github.com/Point72/csp/actions/workflows/build.yml)
-[![Python Versions](https://img.shields.io/badge/python-3.8_%7C_3.9_%7C_3.10_%7C_3.11-blue)](https://github.com/Point72/csp/blob/main/pyproject.toml)
+[![Python Versions](https://img.shields.io/badge/python-3.8_%7C_3.9_%7C_3.10_%7C_3.11_%7C_3.12-blue)](https://github.com/Point72/csp/blob/main/pyproject.toml)
 
 <br/>
 
@@ -18,7 +18,7 @@
 
 The high level goal of `csp` is to make writing realtime code simple and performant. Write event driven code once, test it in simulation, then deploy as realtime without any code changes.
 
-Here is a very simple example of a small `csp` program to calculate a [bid-ask spread](https://www.investopedia.com/terms/b/bid-askspread.asp). In this example, we use a constant bid and ask, but in the real world you might pipe these directly into your live streaming data source, or into your historical data source, without modifications to your core logic.
+Here is a very simple example of a small `csp` program to calculate a [bid-ask spread](https://en.wikipedia.org/wiki/Bid%E2%80%93ask_spread). In this example, we use a constant bid and ask, but in the real world you might pipe these directly in from your live streaming data source, or in from your historical data source, without modifications to your core logic.
 
 ```python
 import csp

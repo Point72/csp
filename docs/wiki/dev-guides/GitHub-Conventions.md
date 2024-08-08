@@ -34,10 +34,10 @@ docs](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/
 1. Fetch the pull request ref and assign it to a local branch name.
 
    ```bash
-   git fetch upstream pull/<ID>/HEAD/:LOCAL_BRANCH_NAME
+   git fetch <remote> pull/<ID>/head:LOCAL_BRANCH_NAME
    ```
 
-   where `<ID>` is the PR ID number and `LOCAL_BRANCH_NAME` is a name
+   where `<remote>` is the remote (usually `origin`), `<ID>` is the PR ID number and `LOCAL_BRANCH_NAME` is a name
    chosen for the PR branch in your local checkout of CSP.
 
 1. Switch to the PR branch
@@ -61,10 +61,10 @@ instructions. Then make the changes needed for the pull request and push
 the local branch back to GitHub:
 
 ```bash
-git push upstream LOCAL_BRANCH_NAME
+git push <remote> LOCAL_BRANCH_NAME
 ```
 
-Where `LOCAL_BRANCH_NAME` is the name you gave to the PR branch when you
+where `<remote>` is the remote (usually `origin`) and `LOCAL_BRANCH_NAME` is the name you gave to the PR branch when you
 fetched it from GitHub.
 
 Note that if the user who created the pull request selected the option

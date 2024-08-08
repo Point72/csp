@@ -12,6 +12,7 @@ import traceback
 import typing
 import unittest
 from datetime import datetime, timedelta
+from typing import Callable, Dict, List
 
 import csp
 from csp import PushMode, ts
@@ -453,7 +454,7 @@ class TestEngine(unittest.TestCase):
     def test_with_support(self):
         # This test case tests a parsing bug that we had, where "with" statement at the main function block was causing parse error
         class ValueSetter(object):
-            def __init__(self, l: typing.List[int]):
+            def __init__(self, l: List[int]):
                 self._l = l
 
             def __enter__(self):
@@ -463,7 +464,7 @@ class TestEngine(unittest.TestCase):
                 self._l.append(2)
 
         @csp.node
-        def my_node(inp: ts[bool]) -> ts[[int]]:
+        def my_node(inp: ts[bool]) -> ts[List[int]]:
             with csp.state():
                 l = []
             with ValueSetter(l):
@@ -801,6 +802,55 @@ class TestEngine(unittest.TestCase):
                 b[t].append(v)
         self.assertEqual(results["b"], list(b.items()))
 
+    def test_adapter_manager_engine_shutdown(self):
+        from csp.impl.adaptermanager import AdapterManagerImpl, ManagedSimInputAdapter
+        from csp.impl.wiring import py_managed_adapter_def
+
+        class TestAdapterManager:
+            def __init__(self):
+                self._impl = None
+
+            def subscribe(self):
+                return TestAdapter(self)
+
+            def _create(self, engine, memo):
+                self._impl = TestAdapterManagerImpl(engine)
+                return self._impl
+
+        class TestAdapterManagerImpl(AdapterManagerImpl):
+            def __init__(self, engine):
+                super().__init__(engine)
+
+            def start(self, starttime, endtime):
+                pass
+
+            def stop(self):
+                pass
+
+            def process_next_sim_timeslice(self, now):
+                try:
+                    [].pop()
+                except IndexError as e:
+                    self.shutdown_engine(e)
+
+        class TestAdapterImpl(ManagedSimInputAdapter):
+            def __init__(self, manager_impl):
+                pass
+
+        TestAdapter = py_managed_adapter_def("TestAdapter", TestAdapterImpl, ts[int], TestAdapterManager)
+
+        def graph():
+            adapter = TestAdapterManager()
+            nc = adapter.subscribe()
+            csp.add_graph_output("nc", nc)
+
+        try:
+            csp.run(graph, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+        except IndexError:
+            tb = traceback.format_exc()
+
+        self.assertTrue("[].pop()" in tb and "process_next_sim_timeslice" in tb)
+
     def test_feedback(self):
         # Dummy example
         class Request(csp.Struct):
@@ -884,8 +934,8 @@ class TestEngine(unittest.TestCase):
 
     def test_list_feedback_typecheck(self):
         @csp.graph
-        def g() -> csp.ts[[int]]:
-            fb = csp.feedback([int])
+        def g() -> csp.ts[List[int]]:
+            fb = csp.feedback(List[int])
             if USE_PYDANTIC:
                 msg = re.escape(
                     "cannot validate ts[int] as ts[typing.List[int]]: <class 'int'> is not a subclass of <class 'list'>"
@@ -903,8 +953,8 @@ class TestEngine(unittest.TestCase):
 
         # Test Typing.List which was a bug "crash on feedback tick"
         @csp.graph
-        def g() -> csp.ts[typing.List[int]]:
-            fb = csp.feedback(typing.List[int])
+        def g() -> csp.ts[List[int]]:
+            fb = csp.feedback(List[int])
             if USE_PYDANTIC:
                 msg = re.escape(
                     "cannot validate ts[int] as ts[typing.List[int]]: <class 'int'> is not a subclass of <class 'list'>"
@@ -924,7 +974,7 @@ class TestEngine(unittest.TestCase):
         '''was a bug "Empty list inside callable annotation raises exception"'''
 
         @csp.graph
-        def graph(v: typing.Dict[str, typing.Callable[[], str]]):
+        def graph(v: Dict[str, Callable[[], str]]):
             pass
 
         csp.run(graph, {"x": (lambda v: v)}, starttime=datetime(2020, 6, 17))
@@ -1090,13 +1140,18 @@ class TestEngine(unittest.TestCase):
 
         results = csp.run(graph, 4, False, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)[0]
         self.assertEqual(len(results), 4)
+
         self.assertTrue(all((results[i][0] - results[i - 1][0]) == timer_interval for i in range(1, len(results))))
         # Assert lag from engine -> wallclock on last tick is greater than minimum expected amount
         self.assertGreater(results[-1][1] - results[-1][0], (delay - timer_interval) * len(results))
 
         results = csp.run(graph, 5, True, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)[0]
         self.assertEqual(len(results), 5)
-        self.assertTrue(all((results[i][0] - results[i - 1][0]) > delay for i in range(2, len(results))))
+        eps = timedelta()
+        # Windows clock resolution is...
+        if sys.platform == "win32":
+            eps = timedelta(milliseconds=50)
+        self.assertTrue(all((results[i][0] - results[i - 1][0]) + eps > delay for i in range(2, len(results))))
 
     def test_timer_exception(self):
         with self.assertRaisesRegex(ValueError, "csp.timer interval must be > 0"):
@@ -1104,7 +1159,7 @@ class TestEngine(unittest.TestCase):
 
     def test_list_comprehension_bug(self):
         @csp.node
-        def list_comprehension_bug_node(n_seconds: int, input: csp.ts["T"]) -> csp.ts[["T"]]:
+        def list_comprehension_bug_node(n_seconds: int, input: csp.ts["T"]) -> csp.ts[List["T"]]:
             with csp.start():
                 csp.set_buffering_policy(input, tick_history=timedelta(seconds=30))
 
@@ -1245,6 +1300,8 @@ class TestEngine(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "csp graph information is not available"):
             csp.engine_start_time()
 
+    # SIGINT wont work on windows ( https://docs.python.org/3/library/os.html#os.kill ), may not be worth the trouble to make this test work on windows
+    @unittest.skipIf(sys.platform == "win32", "tests needs windows port")
     def test_ctrl_c(self):
         pid = os.fork()
         if pid == 0:
@@ -1342,8 +1399,9 @@ class TestEngine(unittest.TestCase):
         for d in [
             datetime(2020, 12, 24, 1, 2, 3, 123456),
             datetime(1970, 1, 1),
-            datetime(1969, 5, 6, 2, 3, 4),
-            datetime(1969, 5, 6, 2, 3, 4, 123456),
+            # Negative Epochs times are not supported on windows
+            datetime(1969, 5, 6, 2, 3, 4) if sys.platform != "win32" else datetime(1970, 1, 1),
+            datetime(1969, 5, 6, 2, 3, 4, 123456) if sys.platform != "win32" else datetime(1970, 1, 1),
             # Edge cases, DateTime MIN / MAX
             datetime(1678, 1, 1) if sys.platform == "linux" else datetime(1970, 1, 1),
             datetime(2261, 12, 31, 23, 59, 59, 999999),
@@ -1383,6 +1441,13 @@ class TestEngine(unittest.TestCase):
             realtime=True,
             queue_wait_time=timedelta(days=1),
         )
+
+    def test_start_realtime_in_future(self):
+        import pytz
+
+        t = datetime.now(pytz.UTC) + timedelta(seconds=1)
+        res = csp.run(csp.const(123), starttime=t, endtime=t, realtime=True)[0][0]
+        self.assertEqual(res[1], 123)
 
     def test_threaded_run(self):
         # simple test
@@ -1434,8 +1499,8 @@ class TestEngine(unittest.TestCase):
 
         @csp.node
         def basket_wrapper(l: [csp.ts[float]], d: {str: csp.ts[float]}) -> csp.Outputs(
-            l=csp.OutputBasket(typing.List[csp.ts[float]], shape_of="l"),
-            d=csp.OutputBasket(typing.Dict[str, csp.ts[float]], shape_of="d"),
+            l=csp.OutputBasket(List[csp.ts[float]], shape_of="l"),
+            d=csp.OutputBasket(Dict[str, csp.ts[float]], shape_of="d"),
         ):
             if csp.ticked(l):
                 ticked_value_types = set(map(type, l.tickedvalues()))
@@ -1579,7 +1644,7 @@ class TestEngine(unittest.TestCase):
             )
 
         @csp.graph
-        def dictbasket_graph(x: csp.ts[int]) -> {str: csp.ts[str]}:
+        def dictbasket_graph(x: csp.ts[int]) -> Dict[str, csp.ts[str]]:
             return csp.output({"a": x})
 
         if USE_PYDANTIC:
@@ -1592,7 +1657,7 @@ class TestEngine(unittest.TestCase):
             csp.run(dictbasket_graph, csp.const(1), starttime=datetime.utcnow())
 
         @csp.graph
-        def listbasket_graph(x: csp.ts[int]) -> [csp.ts[str]]:
+        def listbasket_graph(x: csp.ts[int]) -> List[csp.ts[str]]:
             return csp.output([x])
 
         if USE_PYDANTIC:
@@ -1706,12 +1771,12 @@ class TestEngine(unittest.TestCase):
 
     def test_unnamed_basket_return(self):
         @csp.node
-        def n(x: {str: csp.ts["T"]}) -> csp.OutputBasket(typing.Dict[str, csp.ts["T"]], shape_of="x"):
+        def n(x: {str: csp.ts["T"]}) -> csp.OutputBasket(Dict[str, csp.ts["T"]], shape_of="x"):
             if csp.ticked(x):
                 return csp.output({k: v for k, v in x.tickeditems()})
 
         @csp.node
-        def n2(x: [csp.ts["T"]]) -> csp.OutputBasket(typing.List[csp.ts["T"]], shape_of="x"):
+        def n2(x: [csp.ts["T"]]) -> csp.OutputBasket(List[csp.ts["T"]], shape_of="x"):
             if csp.ticked(x):
                 return csp.output({k: v for k, v in x.tickeditems()})
 
@@ -1837,15 +1902,13 @@ class TestEngine(unittest.TestCase):
 
         @csp.graph
         def aux(x: [ts[float]], y: {str: ts[float]}) -> csp.Outputs(
-            o1=csp.OutputBasket(typing.List[ts[float]], shape_of="x"),
-            o2=csp.OutputBasket(typing.Dict[str, ts[float]], shape_of="y"),
+            o1=csp.OutputBasket(List[ts[float]], shape_of="x"),
+            o2=csp.OutputBasket(Dict[str, ts[float]], shape_of="y"),
         ):
             return csp.output(o1=x, o2=y)
 
         @csp.graph
-        def g() -> (
-            csp.Outputs(o1=csp.OutputBasket(typing.List[ts[float]]), o2=csp.OutputBasket(typing.Dict[str, ts[float]]))
-        ):
+        def g() -> csp.Outputs(o1=csp.OutputBasket(List[ts[float]]), o2=csp.OutputBasket(Dict[str, ts[float]])):
             res = aux([csp.const(1.0), csp.const(2.0)], {"3": csp.const(3.0), "4": csp.const(4.0)})
             return csp.output(o1=res.o1, o2=res.o2)
 
@@ -2085,6 +2148,8 @@ class TestEngine(unittest.TestCase):
         csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta())
         self.assertTrue(status["started"] and status["stopped"])
 
+    # SIGINT wont work on windows ( https://docs.python.org/3/library/os.html#os.kill ), may not be worth the trouble to make this test work on windows
+    @unittest.skipIf(sys.platform == "win32", "tests needs windows port")
     def test_interrupt_stops_all_nodes(self):
         @csp.node
         def n(l: list, idx: int):

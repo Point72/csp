@@ -267,9 +267,9 @@ class DBReader:
             table = db.Table(self._table_name, db_metadata, autoload_with=self._connection)
             struct_metadata = {col: col_obj.type.python_type for col, col_obj in table.columns.items()}
 
-            from csp.impl.struct import defineStruct
+            from csp.impl.struct import define_struct
 
-            typ = defineStruct(name, struct_metadata)
+            typ = define_struct(name, struct_metadata)
             globals()[name] = typ
         return globals()[name]
 

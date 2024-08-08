@@ -45,7 +45,7 @@ test                           run the tests
 
 ## Prerequisites
 
-CSP has a few system-level dependencies which you can install from your machine package manager. Other package managers like `conda`, `nix`, etc, should also work fine. Currently, CSP relies on the `GNU` compiler toolchain only.
+CSP has a few system-level dependencies which you can install from your machine package manager. Other package managers like `conda`, `nix`, etc, should also work fine.
 
 ## Building with Conda on Linux
 
@@ -196,13 +196,15 @@ By default, we pull and build dependencies with [vcpkg](https://vcpkg.io/en/). W
 
 ## Lint and Autoformat
 
-CSP has listing and auto formatting.
+CSP has linting and auto formatting.
 
 | Language | Linter         | Autoformatter  | Description |
 | :------- | :------------- | :------------- | :---------- |
 | C++      | `clang-format` | `clang-format` | Style       |
 | Python   | `ruff`         | `ruff`         | Style       |
 | Python   | `isort`        | `isort`        | Imports     |
+| Markdown | `mdformat`     | `mdformat`     | Style       |
+| Markdown | `codespell`    |                | Spelling    |
 
 **C++ Linting**
 

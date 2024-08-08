@@ -19,7 +19,7 @@ public:
         const Dictionary & properties
     );
 
-    void processMessage( std::string payload, PushBatch* batch );
+    void processMessage( void* c, size_t t, PushBatch* batch );
 
 private:
     adapters::utils::MessageStructConverterPtr m_converter;

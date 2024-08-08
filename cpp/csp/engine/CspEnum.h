@@ -76,7 +76,7 @@ public:
         auto it = m_mapping.find( key );
         if( it == m_mapping.end() )
             CSP_THROW( ValueError, "Unrecognized enum name " << key << " for enum " << m_name );
-        return CspEnum( &it -> second -> second );
+        return CspEnum( it -> second -> second.get() );
     }
 
     CspEnum create( int64_t value ) const
@@ -84,12 +84,12 @@ public:
         auto found = m_instanceMap.find( value );
         if( found == m_instanceMap.end() )
             CSP_THROW( RuntimeException, "Unrecognized value " << value << " for enum " << m_name );
-        return CspEnum( &found -> second );
+        return CspEnum( found -> second.get() );
     }
 
 private:
-    using InstanceMapping = std::unordered_map<int64_t, CspEnumInstance>;
-    using Mapping        = std::unordered_map<const char *,InstanceMapping::iterator, hash::CStrHash, hash::CStrEq >;
+    using InstanceMapping = std::unordered_map<int64_t, std::shared_ptr<CspEnumInstance>>;
+    using Mapping         = std::unordered_map<const char *,InstanceMapping::iterator, hash::CStrHash, hash::CStrEq >;
 
     std::string    m_name;
     Mapping        m_mapping;

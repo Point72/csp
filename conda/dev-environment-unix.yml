@@ -45,7 +45,6 @@ dependencies:
  - ruamel.yaml
  - ruff>=0.3,<0.4
  - scikit-build
- - slack-sdk
  - sqlalchemy
  - tar
  - threadpoolctl

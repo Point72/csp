@@ -30,9 +30,9 @@ class TVarValidationContext:
         self._conflicting_tvar_types = {}
 
         if self._forced_tvars:
-            config = {"arbitrary_types_allowed": True}
+            config = {"arbitrary_types_allowed": True, "strict": True}
             self._forced_tvars = {k: ContainerTypeNormalizer.normalize_type(v) for k, v in self._forced_tvars.items()}
-            self._forced_tvar_adpaters = {
+            self._forced_tvar_adapters = {
                 tvar: TypeAdapter(List[t], config=config) for tvar, t in self._forced_tvars.items()
             }
             self._forced_tvar_validators = {tvar: TsTypeValidator(t) for tvar, t in self._forced_tvars.items()}
@@ -61,7 +61,7 @@ class TVarValidationContext:
     def resolve_tvars(self):
         # Validate instances against forced tvars
         if self._forced_tvars:
-            for tvar, adapter in self._forced_tvar_adpaters.items():
+            for tvar, adapter in self._forced_tvar_adapters.items():
                 for field_name, field_values in self._tvar_refs.get(tvar, {}).items():
                     # Validate using TypeAdapter(List[t]) in pydantic as it's faster than iterating through in python
                     adapter.validate_python(field_values, strict=True)
@@ -158,12 +158,7 @@ class TVarValidationContext:
             else:
                 return False
         if len(arg) == 0:
-            if raise_on_error:
-                raise ValueError(
-                    f"unable to resolve container type for type variable {tvar}: explicit value must have uniform values and be non empty"
-                )
-            else:
-                return None
+            return container_typ
         res = None
         if isinstance(arg, set):
             first_val = arg.__iter__().__next__()

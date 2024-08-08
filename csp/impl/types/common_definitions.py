@@ -3,9 +3,9 @@ from collections import namedtuple
 from enum import Enum, IntEnum, auto
 from typing import Dict, List, Optional, Union
 
-from .container_type_normalizer import ContainerTypeNormalizer
-from .tstype import isTsBasket
-from .typing_utils import CspTypingUtils
+from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
+from csp.impl.types.tstype import isTsBasket
+from csp.impl.types.typing_utils import CspTypingUtils
 
 
 class OutputTypeError(TypeError):
@@ -81,7 +81,7 @@ def _make_pydantic_outputs(kwargs):
             name: (ContainerTypeNormalizer.normalize_type(annotation), ...)
             for name, annotation in kwargs["__annotations__"].items()
         }
-    config = {"arbitrary_types_allowed": True, "extra": "forbid"}
+    config = {"arbitrary_types_allowed": True, "extra": "forbid", "strict": True}
     kwargs["__pydantic_model__"] = create_model("OutputsModel", __config__=config, **model_fields)
     kwargs["__get_pydantic_core_schema__"] = classmethod(
         lambda cls, source_type, handler: core_schema.no_info_after_validator_function(
@@ -106,8 +106,10 @@ class OutputBasket(object):
         if shape and shape_of:
             raise OutputBasketMixedShapeAndShapeOf()
         elif shape:
-            if not isinstance(shape, (list, int, str)):
-                raise OutputBasketWrongShapeType((list, int, str), shape)
+            if CspTypingUtils.get_origin(typ) is Dict and not isinstance(shape, (list, tuple, str)):
+                raise OutputBasketWrongShapeType((list, tuple, str), shape)
+            if CspTypingUtils.get_origin(typ) is List and not isinstance(shape, (int, str)):
+                raise OutputBasketWrongShapeType((int, str), shape)
             kwargs["shape"] = shape
             kwargs["shape_func"] = "with_shape"
         elif shape_of:

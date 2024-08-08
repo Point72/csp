@@ -32,7 +32,7 @@ dependencies:
  - polars
  - psutil
  - pyarrow=16
- - pydantic>2
+ - pydantic>=2
  - pytest
  - pytest-asyncio
  - pytest-cov

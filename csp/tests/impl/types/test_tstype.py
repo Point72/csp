@@ -125,6 +125,8 @@ class TestOutputBasketValidation(TestCase):
         ta.validate_python({"x": csp.null_ts(float), "y": csp.null_ts(float)})
 
     def test_dict_shape_validation(self):
+        self.assertRaises(Exception, OutputBasket, Dict[str, TsType[float]], shape=2)
+
         ta = TypeAdapter(OutputBasket(Dict[str, TsType[float]], shape=["x", "y"]))
         ta.validate_python({"x": csp.null_ts(float), "y": csp.null_ts(float)})
         self.assertRaises(Exception, ta.validate_python, {"x": csp.null_ts(float)})
@@ -132,7 +134,7 @@ class TestOutputBasketValidation(TestCase):
             Exception, ta.validate_python, {"x": csp.null_ts(float), "y": csp.null_ts(float), "z": csp.null_ts(float)}
         )
 
-        ta = TypeAdapter(OutputBasket(Dict[str, TsType[float]], shape=2))
+        ta = TypeAdapter(OutputBasket(Dict[str, TsType[float]], shape=("x", "y")))
         ta.validate_python({"x": csp.null_ts(float), "y": csp.null_ts(float)})
         self.assertRaises(Exception, ta.validate_python, {"x": csp.null_ts(float)})
         self.assertRaises(
@@ -140,6 +142,8 @@ class TestOutputBasketValidation(TestCase):
         )
 
     def test_list_shape_validation(self):
+        self.assertRaises(Exception, OutputBasket, List[TsType[float]], shape=["a", "b"])
+
         ta = TypeAdapter(OutputBasket(List[TsType[float]], shape=2))
         ta.validate_python([csp.null_ts(float)] * 2)
         self.assertRaises(Exception, ta.validate_python, [csp.null_ts(float)])

@@ -103,24 +103,25 @@ class TsTypeValidator:
     For validation of csp baskets, this piece becomes the bottleneck
     """
 
-    _cache: typing.Dict[typing.Type, "TsTypeValidator"] = {}
+    _cache: typing.Dict[type, "TsTypeValidator"] = {}
 
     @classmethod
-    def make_cached(cls, source_type: typing.Type):
+    def make_cached(cls, source_type: type):
         """Make and cache the instance by source_type"""
         if source_type not in cls._cache:
             cls._cache[source_type] = cls(source_type)
         return cls._cache[source_type]
 
-    def __init__(self, source_type: typing.Type):
+    def __init__(self, source_type: type):
         from pydantic import TypeAdapter
 
-        from .pydantic_types import CspTypeVarType
-        from .tstype import TsType
+        from csp.impl.types.pydantic_types import CspTypeVarType
+        from csp.impl.types.tstype import TsType
 
         self._source_type = source_type
         # Use CspTypingUtils for 3.8 compatibility, to map list -> typing.List, so one can call List[float]
         self._source_origin = typing.get_origin(source_type)
+        self._source_is_union = CspTypingUtils.is_union_type(source_type)
         self._source_args = typing.get_args(source_type)
         self._source_adapter = None
         if type(source_type) in (typing.ForwardRef, typing.TypeVar):
@@ -129,10 +130,12 @@ class TsTypeValidator:
             # self._source_adapter = TypeAdapter(typing.Type[source_type])
             pass
         elif self._source_origin is CspTypeVarType:  # Handles TVar resolution
-            self._source_adapter = TypeAdapter(self._source_type, config={"arbitrary_types_allowed": True})
+            self._source_adapter = TypeAdapter(
+                self._source_type, config={"arbitrary_types_allowed": True, "strict": True}
+            )
         elif type(self._source_origin) is type:  # Catch other types like list, dict, set, etc
             self._source_args_validators = [TsTypeValidator.make_cached(arg) for arg in self._source_args]
-        elif self._source_origin is typing.Union:
+        elif self._source_is_union:
             self._source_args_validators = [TsTypeValidator.make_cached(arg) for arg in self._source_args]
         elif self._source_origin is TsType:
             # Common mistake, so have good error message
@@ -181,8 +184,7 @@ class TsTypeValidator:
             # track the TVars
             return self._source_adapter.validate_python(value_type, context=info.context if info else None)
         elif self._source_origin is typing.Union:
-            value_origin = typing.get_origin(value_type)
-            if value_origin is typing.Union:
+            if CspTypingUtils.is_union_type(value_type):
                 value_args = typing.get_args(value_type)
                 if set(value_args) <= set(self._source_args):
                     return value_type

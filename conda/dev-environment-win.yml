@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
+ - asv
  - brotli
  - build
  - bump2version>=1

@@ -32,6 +32,7 @@ dependencies:
  - pillow
  - polars
  - psutil
+ - pydantic>2
  - pyarrow=16
  - pytz
  - pytest

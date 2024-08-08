@@ -1,10 +1,8 @@
 import collections.abc
-import platform
 import sys
 import types
 import typing
 import typing_extensions
-from packaging import version
 from pydantic import GetCoreSchemaHandler, ValidationInfo, ValidatorFunctionWrapHandler
 from pydantic_core import CoreSchema, core_schema
 from typing import Any, ForwardRef, Generic, Optional, Type, TypeVar, Union, get_args, get_origin
@@ -16,7 +14,7 @@ from csp.impl.types.typing_utils import TsTypeValidator
 # Required for py38 compatibility
 # In python 3.8, get_origin(List[float]) returns list, but you can't call list[float] to retrieve the annotation
 # Furthermore, Annotated is part of typing_Extensions and get_origin(Annotated[str, ...]) returns str rather than Annotated
-_IS_PY38 = version.parse(platform.python_version()) < version.parse("3.9")
+_IS_PY38 = sys.version_info < (3, 9)
 # For a more complete list, see https://github.com/alexmojaki/eval_type_backport/blob/main/eval_type_backport/eval_type_backport.py
 _PY38_ORIGIN_MAP = {
     tuple: typing.Tuple,
@@ -51,7 +49,7 @@ def _check_source_type(cls, source_type):
 
 class CspTypeVarType(Generic[_T]):
     """A special type representing a template variable for csp.
-    It behaves similarly to a ForwardRef, but where the type of the forward arg is *implied* by the input type.
+    It behaves similarly to a ForwardRef, but where the type of the forward arg is *implied* by a passed type, i.e. "float".
     """
 
     @classmethod
@@ -70,7 +68,8 @@ class CspTypeVarType(Generic[_T]):
 
 class CspTypeVar(Generic[_T]):
     """A special type representing a template variable for csp.
-    It behaves similarly to a ForwardRef, but where the type of the forward arg is *implied* by the type of the input.
+    It behaves similarly to a ForwardRef, but where the type of the forward arg is *implied* by the type of the input,
+    i.e. passing "1.0" implies a type of "float".
     """
 
     @classmethod
@@ -101,9 +100,7 @@ class DynamicBasketPydantic(Generic[_K, _T]):
 
         def _validator(v: Any, info: ValidationInfo):
             """Functional validator for dynamic baskets"""
-            if not isinstance(v, Edge):
-                raise ValueError("value must be an instance of Edge")
-            if not isTsDynamicBasket(v.tstype):
+            if not isinstance(v, Edge) or not isTsDynamicBasket(v.tstype):
                 raise ValueError("value must be a DynamicBasket")
             ts_validator_key.validate(v.tstype.__args__[0].typ, info)
             ts_validator_value.validate(v.tstype.__args__[1].typ, info)
@@ -139,7 +136,7 @@ def adjust_annotations(
     to make the type Optional if the flag is set.
     """
     # TODO: Long term we should disable the make_optional flag and force people to use Optional as python intended
-    from .tstype import TsType  # Avoid circular import
+    from csp.impl.types.tstype import TsType  # Avoid circular import
 
     forced_tvars = forced_tvars or {}
     origin = get_origin(annotation)

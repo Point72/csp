@@ -17,7 +17,6 @@ dependencies:
  - graphviz
  - python-graphviz
  - gtest
- - httpx>=0.20,<1
  - isort>=5,<6
  - libarrow=16
  - libboost>=1.80.0

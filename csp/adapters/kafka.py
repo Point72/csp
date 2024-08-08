@@ -6,19 +6,13 @@ from uuid import uuid4
 import csp
 from csp import ts
 from csp.adapters.status import Status
-from csp.adapters.utils import (
-    BytesMessageProtoMapper,
-    DateTimeType,
-    JSONTextMessageMapper,
-    MsgMapper,
-    RawBytesMessageMapper,
-    RawTextMessageMapper,
-)
+from csp.adapters.utils import MsgMapper
 from csp.impl.wiring import input_adapter_def, output_adapter_def, status_adapter_def
 from csp.lib import _kafkaadapterimpl
 
-_ = BytesMessageProtoMapper, DateTimeType, JSONTextMessageMapper, RawBytesMessageMapper, RawTextMessageMapper
 T = TypeVar("T")
+
+__all__ = ("KafkaStatusMessageType", "KafkaStartOffset", "KafkaAdapterManager")
 
 
 class KafkaStatusMessageType(IntEnum):
@@ -73,7 +67,7 @@ class KafkaAdapterManager:
 
         consumer_properties = {
             "group.id": group_id,
-            # To get end of parition notification for live / not live flag
+            # To get end of partition notification for live / not live flag
             "enable.partition.eof": "true",
         }
 

@@ -636,7 +636,6 @@ jobs:
           env:
             CSP_TEST_SKIP_EXAMPLES: "1"
 
-
     ####################################################
     #..................................................#
     #..|########|..|########|..../####\....|########|..#
@@ -736,7 +735,68 @@ jobs:
     ###########################################################################################################
     #  Test Service Adapters                                                                                  #
     ###########################################################################################################
-    # Coming soon!
+    test_adapters:
+      needs:
+        - initialize
+        - build
+
+      strategy:
+        matrix:
+          os:
+            - ubuntu-20.04
+          python-version:
+            - 3.11
+          adapter:
+            - kafka
+
+      runs-on: ${{ matrix.os }}
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+              submodules: recursive
+
+        - name: Set up Python ${{ matrix.python-version }}
+          uses: ./.github/actions/setup-python
+          with:
+            version: '${{ matrix.python-version }}'
+
+        - name: Install python dependencies
+          run: make requirements
+
+        - name: Install test dependencies
+          shell: bash
+          run: sudo apt-get install graphviz
+
+        # Download artifact
+        - name: Download wheel
+          uses: actions/download-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
+
+        - name: Install wheel
+          run: |
+            python -m pip install -U *manylinux*.whl
+            python -m pip install -U --no-deps *manylinux*.whl --target .
+
+        - name: Spin up adapter service
+          run: make dockerup ADAPTER=${{ matrix.adapter }} DOCKERARGS="--wait --wait-timeout 30"
+
+        - name: Wait a few seconds after docker images have been spun up
+          run: sleep 30
+
+        # Run tests
+        - name: Setup test flags
+          shell: bash
+          run: echo "CSP_TEST_$( echo ${{ matrix.adapter }} | awk '{print toupper($0)}' )=1" >> $GITHUB_ENV
+
+        - name: Python Test Steps
+          run: make test-py TEST_ARGS="-k ${{ matrix.adapter }}"
+
+        - name: Spin down adapter service
+          run: make dockerdown ADAPTER=${{ matrix.adapter }}
+          if: ${{ always() }}
 
     ############################################################################################
     #..........................................................................................#
@@ -751,7 +811,6 @@ jobs:
     ############################################################################################
     # Upload Release Artifacts                                                                 #
     ############################################################################################
-
     # only publish artifacts on tags, but otherwise this always runs
     # Note this whole workflow only triggers on release tags (e.g. "v0.1.0")
     publish_release_artifacts:
@@ -763,6 +822,7 @@ jobs:
         - test
         - test_sdist
         - test_dependencies
+        - test_adapters
 
       if: startsWith(github.ref, 'refs/tags/v')
       runs-on: ubuntu-22.04

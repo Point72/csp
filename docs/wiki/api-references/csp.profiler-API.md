@@ -2,6 +2,7 @@
 
 Users can simply run graphs under a `Profiler()` context to extract profiling information.
 The code snippet below runs a graph in profile mode and extracts the profiling data by calling `results()`.
+Note that profiling can also be done in real-time with live updating visuals: see the [how-to](Profile-CSP-Code#profiling-a-real-time-cspgraph) guide here.
 
 ```python
 from csp import profiler

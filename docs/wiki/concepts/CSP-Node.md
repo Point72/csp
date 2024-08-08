@@ -3,7 +3,7 @@
 - [Table of Contents](#table-of-contents)
 - [Anatomy of a `csp.node`](#anatomy-of-a-cspnode)
 - [Basket inputs](#basket-inputs)
-- [**Node Outputs**](#node-outputs)
+- [Node Outputs](#node-outputs)
 - [Basket Outputs](#basket-outputs)
 - [Generic Types](#generic-types)
 
@@ -21,7 +21,7 @@ They may (or may not) generate an output as a result of an input tick.
 ```python
 from datetime import timedelta
 
-@csp.node                                                                # 1
+@csp.node(name='my_node')                                                # 1
 def demo_node(n: int, xs: ts[float], ys: ts[float]) -> ts[float]:        # 2
     with csp.alarms():                                                   # 3
         # Define an alarm time-series of type bool                       # 4
@@ -52,7 +52,7 @@ def demo_node(n: int, xs: ts[float], ys: ts[float]) -> ts[float]:        # 2
 
 Lets review line by line
 
-1\) Every CSP node must start with the **`@csp.node`** decorator
+1\) Every CSP node must start with the **`@csp.node`** decorator. The name of the node will be the name of the function, unless a `name` argument is provided. The name is used when visualizing a graph with `csp.show_graph` or profiling with CSP's builtin [`profiler`](#Profile-csp-code).
 
 2\) CSP nodes are fully typed and type-checking is strictly enforced.
 All arguments must be typed, as well as all outputs.
@@ -269,3 +269,6 @@ This allows us to pass in a `ts[int]` for example, and get a `ts[int]` as an out
 
 `const` takes value as an *instance* of type `T`, and returns a timeseries of type `T`.
 So we can call `const(5)` and get a `ts[int]` output, or `const('hello!')` and get a `ts[str]` output, etc...
+
+If a value is provided rather than an explicit type argument (for example, to `const`) then CSP resolves the type using internal logic. In some cases, it may be easier to override the automatic type inference.
+Users can force a type variable to be a specific value with the `.using` function. For example, `csp.const(1)` will be resolved to a `ts[int]`; if you want to instead force the type to be `float`, do `csp.const.using(T=float)(1)`.

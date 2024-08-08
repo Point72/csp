@@ -194,14 +194,14 @@ endif
 .PHONY: dependencies-mac dependencies-debian dependencies-fedora dependencies-vcpkg dependencies-win
 
 dependencies-mac:  ## install dependencies for mac
-	HOMEBREW_NO_AUTO_UPDATE=1 brew install bison cmake flex make ninja
+	HOMEBREW_NO_AUTO_UPDATE=1 brew install autoconf autoconf-archive bison cmake flex libtool make ninja pkg-config
 	brew unlink bison flex && brew link --force bison flex
 
 dependencies-debian:  ## install dependencies for linux
-	apt-get install -y automake bison cmake curl flex ninja-build tar unzip zip
+	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip zip
 
 dependencies-fedora:  ## install dependencies for linux
-	yum install -y automake bison ccache cmake curl flex perl-IPC-Cmd tar unzip zip
+	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip zip
 
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install

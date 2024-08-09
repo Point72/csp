@@ -442,7 +442,10 @@ class WebsocketAdapterManager:
         properties["field_map"] = field_map
         properties["meta_field_map"] = meta_field_map
 
-        return _websocket_input_adapter_def(self, ts_type, properties, push_mode)
+        edge = _websocket_input_adapter_def(self, ts_type, properties, push_mode)
+        if push_mode == csp.PushMode.BURST:
+            edge.tstype = csp.ts[List[ts_type]]
+        return edge
 
     def send(self, x: ts["T"]):
         return _websocket_output_adapter_def(self, x)

@@ -126,3 +126,30 @@ class TestWebsocket(unittest.TestCase):
             csp.stop_engine(ws.status())
 
         csp.run(g, starttime=datetime.now(pytz.UTC), realtime=True)
+
+    def test_send_recv_burst_json(self):
+        class MsgStruct(csp.Struct):
+            a: int
+            b: str
+
+        @csp.node
+        def send_msg_on_open(status: ts[Status]) -> ts[str]:
+            if csp.ticked(status):
+                return MsgStruct(a=1234, b="im a string").to_json()
+
+        @csp.graph
+        def g():
+            ws = WebsocketAdapterManager("ws://localhost:8000/")
+            status = ws.status()
+            ws.send(send_msg_on_open(status))
+            recv = ws.subscribe(MsgStruct, JSONTextMessageMapper(), push_mode=csp.PushMode.BURST)
+
+            csp.add_graph_output("recv", recv)
+            csp.stop_engine(recv)
+
+        msgs = csp.run(g, starttime=datetime.now(pytz.UTC), realtime=True)
+        obj = msgs["recv"][0][1]
+        assert isinstance(obj, list)
+        innerObj = obj[0]
+        assert innerObj.a == 1234
+        assert innerObj.b == "im a string"

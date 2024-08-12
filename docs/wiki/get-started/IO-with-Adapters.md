@@ -1,13 +1,13 @@
 In [First Steps](First-Steps) and [More with csp](More-with-CSP) you created example/sample data for the streaming workflows. In real workflows, you use data stored in particular formats and storage spaces, that can be accessed directly or through an API.
 
-CSP has [several built-in "adapters" to access certain types of data](Input-Output-Adapters-API), including Kafka and Parquet. CSP requires friendly (Time Series) data types, and the I/O adapters form the interface between the data types. You can also write your own adapters for other data types, check the corresponding how-to guides for more details.
+csp has [several built-in "adapters" to access certain types of data](Input-Output-Adapters-API), including Kafka and Parquet. csp requires friendly (Time Series) data types, and the I/O adapters form the interface between the data types. You can also write your own adapters for other data types, check the corresponding how-to guides for more details.
 
 In this tutorial, you write to, and read from, Parquet files on the local file system.
 
-CSP has the `ParquetWriter` and `ParquetReader` adapters to stream data to and from Parquet files. Check out the complete [API in the Reference documentation](https://github.com/Point72/csp/wiki/Input-Output-Adapters-API#parquet).
+csp has the `ParquetWriter` and `ParquetReader` adapters to stream data to and from Parquet files. Check out the complete [API in the Reference documentation](https://github.com/Point72/csp/wiki/Input-Output-Adapters-API#parquet).
 
 > \[!IMPORTANT\]
-> csp can handle historical and real-time data, and the CSP program remains similar in both cases.
+> csp can handle historical and real-time data, and the csp program remains similar in both cases.
 
 ## Example
 
@@ -25,7 +25,7 @@ class Example(csp.Struct):
 
 In a graph, create some sample values for `Example` and use `ParquetWriter` to stream it to a Parquet file.
 
-1. The `timestamp_column_name` is how CSP preserves the timestamps. Since you need to read this file back into CSP, you can provide a column name. If this was the final output and the time stamp information is not required, you can provide `None`.
+1. The `timestamp_column_name` is how csp preserves the timestamps. Since you need to read this file back into csp, you can provide a column name. If this was the final output and the time stamp information is not required, you can provide `None`.
 
 1. You can provide optional configurations to `config` in the `ParquetOutputConfig` format (which can set `allow_overwrite`, , `batch_size`, `compression`, `write_arrow_binary`).
 
@@ -62,4 +62,4 @@ def read_struct(file_name: str):
     csp.print("struct_all", struct_all)
 ```
 
-Go through the complete example at [e1_parquet_write_read.py](https://github.com/Point72/csp/blob/main/examples/03_using_adapters/parquet/e1_parquet_write_read.py) and check out the the [API reference](Input-Output-Adapters-API#parquet) for more details.
+Go through the complete example at [examples/03_using_adapters/parquet/e1_parquet_write_read.py](https://github.com/Point72/csp/blob/main/examples/03_using_adapters/parquet/e1_parquet_write_read.py) and check out the the [API reference](Input-Output-Adapters-API#parquet) for more details.

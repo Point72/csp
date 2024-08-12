@@ -18,7 +18,7 @@
 
 The high level goal of `csp` is to make writing realtime code simple and performant. Write event driven code once, test it in simulation, then deploy as realtime without any code changes.
 
-Here is a very simple example of a small `csp` program to calculate a [bid-ask spread](https://en.wikipedia.org/wiki/Bid%E2%80%93ask_spread). In this example, we use a constant bid and ask, but in the real world you might pipe these directly into your live streaming data source, or into your historical data source, without modifications to your core logic.
+Here is a very simple example of a small `csp` program to calculate a [bid-ask spread](https://en.wikipedia.org/wiki/Bid%E2%80%93ask_spread). In this example, we use a constant bid and ask, but in the real world you might pipe these directly in from your live streaming data source, or in from your historical data source, without modifications to your core logic.
 
 ```python
 import csp

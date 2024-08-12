@@ -1,5 +1,6 @@
 """this test is derived from e_14_user_adapters_05 and e_14_user_adapters_06"""
 
+import inspect
 import random
 import threading
 import unittest
@@ -198,3 +199,9 @@ class TestPythonOutputAdapter(unittest.TestCase):
                     self.assertIn("publication_data_1", entry)
                 elif "symbol=data_3" in entry:
                     self.assertIn("publication_data_3", entry)
+
+    def test_help(self):
+        # for `help` to work on output adapters, signature must be defined
+        sig = inspect.signature(MyBufferWriterAdapter)
+        self.assertEqual(sig.parameters["input"].annotation, ts["T"])
+        self.assertEqual(sig.parameters["output_buffer"].annotation, list)

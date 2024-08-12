@@ -143,6 +143,64 @@ class TestPushPullAdapter(unittest.TestCase):
         result = [out[1] for out in graph_out[0]]
         self.assertEqual(result, [1, 2, 3])
 
+    def test_adapter_engine_shutdown(self):
+        class MyPushPullAdapterImpl(PushPullInputAdapter):
+            def __init__(self, typ, data, shutdown_before_live):
+                self._data = data
+                self._thread = None
+                self._running = False
+                self._shutdown_before_live = shutdown_before_live
+
+            def start(self, starttime, endtime):
+                self._running = True
+                self._thread = threading.Thread(target=self._run)
+                self._thread.start()
+
+            def stop(self):
+                if self._running:
+                    self._running = False
+                    self._thread.join()
+
+            def _run(self):
+                idx = 0
+                while self._running and idx < len(self._data):
+                    if idx and self._shutdown_before_live:
+                        time.sleep(0.1)
+                        self.shutdown_engine(ValueError("Dummy exception message"))
+                    t, v = self._data[idx]
+                    self.push_tick(False, t, v)
+                    idx += 1
+                self.flag_replay_complete()
+
+                idx = 0
+                while self._running:
+                    self.push_tick(True, datetime.utcnow(), len(self._data) + 1)
+                    if idx and not self._shutdown_before_live:
+                        time.sleep(0.1)
+                        self.shutdown_engine(TypeError("Dummy exception message"))
+                    idx += 1
+
+        MyPushPullAdapter = py_pushpull_adapter_def(
+            "MyPushPullAdapter", MyPushPullAdapterImpl, ts["T"], typ="T", data=list, shutdown_before_live=bool
+        )
+
+        @csp.graph
+        def graph(shutdown_before_live: bool):
+            data = [(datetime(2020, 1, 1, 2), 1), (datetime(2020, 1, 1, 3), 2)]
+            adapter = MyPushPullAdapter(int, data, shutdown_before_live)
+            csp.print("adapter", adapter)
+
+        with self.assertRaisesRegex(ValueError, "Dummy exception message"):
+            csp.run(graph, True, starttime=datetime(2020, 1, 1, 1))
+        with self.assertRaisesRegex(TypeError, "Dummy exception message"):
+            csp.run(
+                graph,
+                False,
+                starttime=datetime(2020, 1, 1, 1),
+                endtime=datetime.utcnow() + timedelta(seconds=2),
+                realtime=True,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

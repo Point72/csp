@@ -8,21 +8,21 @@ from typing import Dict, List, TypeVar, Union
 import csp
 from csp import ts
 from csp.impl.pandas_ext_type import TsDtype, is_csp_type
-from csp.impl.struct import defineNestedStruct
+from csp.impl.struct import define_nested_struct
 from csp.impl.wiring.edge import Edge
 
 T = TypeVar("T")
 
 
 @csp.node
-def _basket_valid(xs: [ts[object]]) -> ts[bool]:
+def _basket_valid(xs: List[ts[object]]) -> ts[bool]:
     if csp.valid(xs):
         csp.make_passive(xs)
         return True
 
 
 @csp.node
-def _basket_synchronize(xs: [ts["T"]], threshold: timedelta) -> csp.OutputBasket(List[ts["T"]], shape_of="xs"):
+def _basket_synchronize(xs: List[ts["T"]], threshold: timedelta) -> csp.OutputBasket(List[ts["T"]], shape_of="xs"):
     with csp.alarms():
         a_end = csp.alarm(bool)
 
@@ -615,7 +615,7 @@ class CspDataFrameAccessor(object):
             datatree[parts[-1]] = self._obj[col]
 
         if not struct_type:
-            struct_type = defineNestedStruct("_C", metadata, defaults)
+            struct_type = define_nested_struct("_C", metadata, defaults)
 
         if not data:
             return csp.null_ts(struct_type)
@@ -662,7 +662,7 @@ class ToCspFrameAccessor(object):
 
 
 @csp.node
-def _collect_numpy(x: [ts[object]], dim: int) -> ts[object]:
+def _collect_numpy(x: List[ts[object]], dim: int) -> ts[object]:
     with csp.state():
         s_array = np.array([np.nan for _ in range(dim)], dtype=object)
 

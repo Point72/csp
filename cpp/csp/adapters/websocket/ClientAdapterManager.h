@@ -40,10 +40,8 @@ protected:
 
 using ClientStatusType = Enum<WebsocketClientStatusTypeTraits>;
 
-class ClientAdapterManager final : public AdapterManager
+class CSP_PUBLIC ClientAdapterManager final : public AdapterManager
 {
-
-
 public:
     ClientAdapterManager(
         Engine * engine,

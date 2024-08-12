@@ -1,6 +1,7 @@
 import time
 import unittest
 from datetime import datetime, timedelta
+from typing import List
 
 import csp
 from csp import PushMode, ts
@@ -15,7 +16,7 @@ class TestPullAdapter(unittest.TestCase):
     def test_basic(self):
         # We just use the existing curve adapter to test pull since its currently implemented as a python PullInputAdapter
         @csp.node
-        def check(burst: ts[["T"]], lv: ts["T"], nc: ts["T"]):
+        def check(burst: ts[List["T"]], lv: ts["T"], nc: ts["T"]):
             if csp.ticked(burst):
                 self.assertEqual(len(burst), 2)
                 self.assertEqual(burst[0], nc)

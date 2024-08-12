@@ -1,7 +1,9 @@
+import inspect
 import threading
 import time
 import unittest
 from datetime import datetime, timedelta
+from typing import List
 
 import csp
 from csp import PushMode, ts
@@ -111,7 +113,7 @@ curve_push_adapter = py_push_adapter_def("test", CurvePushAdapter, ts["T"], Curv
 class TestPushAdapter(unittest.TestCase):
     def test_basic(self):
         @csp.node
-        def check(burst: ts[["T"]], lv: [ts["T"]], nc: ts["T"]):
+        def check(burst: ts[List["T"]], lv: List[ts["T"]], nc: ts["T"]):
             # Assert all last values have the same value since theyre injected in the same batch
             if csp.ticked(lv) and csp.valid(lv):
                 self.assertTrue(all(v == lv[0] for v in lv.validvalues()))
@@ -239,6 +241,60 @@ class TestPushAdapter(unittest.TestCase):
         result = csp.run(graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)["v"]
         result = list(x[1] for x in result)
         self.assertEqual(result, expected)
+
+    def test_adapter_engine_shutdown(self):
+        class MyPushAdapterImpl(PushInputAdapter):
+            def __init__(self):
+                self._thread = None
+                self._running = False
+
+            def start(self, starttime, endtime):
+                self._running = True
+                self._thread = threading.Thread(target=self._run)
+                self._thread.start()
+
+            def stop(self):
+                if self._running:
+                    self._running = False
+                    self._thread.join()
+
+            def _run(self):
+                pushed = False
+                while self._running:
+                    if pushed:
+                        time.sleep(0.1)
+                        self.shutdown_engine(TypeError("Dummy exception message"))
+                    else:
+                        self.push_tick(0)
+                        pushed = True
+
+        MyPushAdapter = py_push_adapter_def("MyPushAdapter", MyPushAdapterImpl, ts[int])
+
+        status = {"count": 0}
+
+        @csp.node
+        def node(x: ts[object]):
+            if csp.ticked(x):
+                status["count"] += 1
+
+        @csp.graph
+        def graph():
+            adapter = MyPushAdapter()
+            node(adapter)
+            csp.print("adapter", adapter)
+
+        with self.assertRaisesRegex(TypeError, "Dummy exception message"):
+            csp.run(graph, starttime=datetime.utcnow(), realtime=True)
+        self.assertEqual(status["count"], 1)
+
+    def test_help(self):
+        # for `help` to work on adapters, signature must be defined
+        sig = inspect.signature(test_adapter)
+        self.assertEqual(sig.parameters["typ"].annotation, "T")
+        self.assertEqual(sig.parameters["interval"].annotation, int)
+        self.assertEqual(sig.parameters["ticks_per_interval"].annotation, int)
+        self.assertEqual(sig.parameters["push_mode"].annotation, PushMode)
+        self.assertEqual(sig.parameters["push_group"].annotation, object)
 
 
 if __name__ == "__main__":

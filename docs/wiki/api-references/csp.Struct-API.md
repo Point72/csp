@@ -142,6 +142,7 @@ print(f"Using FastList field: value {s.a}, type {type(s.a)}, is Python list: {is
 - **`from_dict(self, dict)`**: convert a regular python dict to an instance of the struct
 - **`metadata(self)`**: returns the struct's metadata as a dictionary of key : type pairs
 - **`to_dict(self)`**: convert struct instance to a python dictionary
+- **`to_json(self, callback=lambda x: x)`**: convert struct instance to a json string, callback is invoked for any values encountered when processing the struct that are not basic Python types, datetime types, tuples, lists, dicts, csp.Structs, or csp.Enums. The callback should convert the unhandled type to a combination of the known types.
 - **`all_fields_set(self)`**: returns `True` if all the fields on the struct are set. Note that this will not recursively check sub-struct fields
 
 # Note on inheritance

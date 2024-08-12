@@ -1,4 +1,7 @@
+import inspect
 from datetime import timedelta
+from typing import List
+from typing_extensions import override
 
 from csp.impl.__cspimpl import _cspimpl
 from csp.impl.mem_cache import csp_memoized_graph_object
@@ -30,7 +33,7 @@ class AdapterDefMeta(type):
             # Note that we augment the returned Edge to be list of expected type, but not the output def
             # output def remains the original type
             if kwargs.get("push_mode", None) == PushMode.BURST:
-                output.tstype = tstype.ts[[output.tstype.typ]]
+                output.tstype = tstype.ts[List[output.tstype.typ]]
 
         return output
 
@@ -42,6 +45,20 @@ class AdapterDefMeta(type):
 
     def using(cls, name=None, **__forced_tvars):
         return lambda *args, **kwargs: cls._instantiate(__forced_tvars, name, *args, **kwargs)
+
+    @property
+    def __signature__(cls):
+        # Implement so that `help` works properly on adapter definitions.
+        parameters = [
+            inspect.Parameter(
+                input_def.name,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                annotation=input_def.typ,
+                default=cls._signature.defaults.get(input_def.name, inspect.Parameter.empty),
+            )
+            for input_def in cls._signature.inputs
+        ]
+        return inspect.Signature(parameters)
 
 
 # Every AdapterDef instance represents an instance of a wiring-time input or output adapter
@@ -348,7 +365,18 @@ def py_output_adapter_def(name, adapterimpl, manager_type=None, memoize=True, fo
     )
 
 
-add_graph_output = output_adapter_def(
+@override
+def add_graph_output(
+    key: object,
+    input: tstype.ts["T"],  # noqa: F821
+    tick_count: int = -1,
+    tick_history: timedelta = timedelta(),
+):
+    # Stub for IDE auto-complete/static type checking
+    ...
+
+
+add_graph_output = output_adapter_def(  # noqa: F811
     "add_graph_output",
     _cspimpl._graph_output_adapter,
     key=object,

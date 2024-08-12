@@ -516,7 +516,6 @@ static PyObject * PyStructFastList_reduce( PyStructFastList<StorageT> * self, Py
 {
     CSP_BEGIN_METHOD;
     
-    typename VectorWrapper<StorageT>::IndexType sz = self -> vector.size();
     PyObjectPtr list = PyObjectPtr::own( toPython( self -> vector.getVector(), self -> arrayType ) );
     PyObject * result = Py_BuildValue( "O(O)", &PyList_Type, list.ptr() );
     return result;

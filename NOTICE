@@ -2,7 +2,7 @@ CSP - Copyright 2024 Point72, L.P.
 This project contains software with the below copyrights
 
 
-vcpkg_installed/arm64-osx/share/abseil/copyright
+vcpkg_installed/x64-linux/share/abseil/copyright
 
 
 
@@ -210,7 +210,7 @@ vcpkg_installed/arm64-osx/share/abseil/copyright
 
 
 
-vcpkg_installed/arm64-osx/share/arrow/copyright
+vcpkg_installed/x64-linux/share/arrow/copyright
 
 
 
@@ -2476,7 +2476,7 @@ These file are derived from code from Netty, which is made available under the
 Apache License 2.0.
 
 
-vcpkg_installed/arm64-osx/share/boost-algorithm/copyright
+vcpkg_installed/x64-linux/share/boost-algorithm/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2504,7 +2504,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-align/copyright
+vcpkg_installed/x64-linux/share/boost-align/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2532,7 +2532,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-array/copyright
+vcpkg_installed/x64-linux/share/boost-array/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2560,7 +2560,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-asio/copyright
+vcpkg_installed/x64-linux/share/boost-asio/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2588,7 +2588,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-assert/copyright
+vcpkg_installed/x64-linux/share/boost-assert/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2616,7 +2616,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-atomic/copyright
+vcpkg_installed/x64-linux/share/boost-atomic/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2644,7 +2644,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-beast/copyright
+vcpkg_installed/x64-linux/share/boost-beast/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2672,7 +2672,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-bind/copyright
+vcpkg_installed/x64-linux/share/boost-bind/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2700,7 +2700,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-chrono/copyright
+vcpkg_installed/x64-linux/share/boost-chrono/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2728,7 +2728,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-cmake/copyright
+vcpkg_installed/x64-linux/share/boost-cmake/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2756,7 +2756,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-concept-check/copyright
+vcpkg_installed/x64-linux/share/boost-concept-check/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2784,7 +2784,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-config/copyright
+vcpkg_installed/x64-linux/share/boost-config/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2812,7 +2812,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-container-hash/copyright
+vcpkg_installed/x64-linux/share/boost-container/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2840,7 +2840,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-container/copyright
+vcpkg_installed/x64-linux/share/boost-container-hash/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2868,7 +2868,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-context/copyright
+vcpkg_installed/x64-linux/share/boost-context/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2896,7 +2896,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-conversion/copyright
+vcpkg_installed/x64-linux/share/boost-conversion/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2924,7 +2924,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-core/copyright
+vcpkg_installed/x64-linux/share/boost-core/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2952,7 +2952,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-coroutine/copyright
+vcpkg_installed/x64-linux/share/boost-coroutine/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -2980,7 +2980,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-date-time/copyright
+vcpkg_installed/x64-linux/share/boost-date-time/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3008,7 +3008,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-describe/copyright
+vcpkg_installed/x64-linux/share/boost-describe/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3036,7 +3036,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-detail/copyright
+vcpkg_installed/x64-linux/share/boost-detail/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3064,7 +3064,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-dynamic-bitset/copyright
+vcpkg_installed/x64-linux/share/boost-dynamic-bitset/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3092,7 +3092,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-endian/copyright
+vcpkg_installed/x64-linux/share/boost-endian/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3120,7 +3120,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-exception/copyright
+vcpkg_installed/x64-linux/share/boost-exception/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3148,7 +3148,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-filesystem/copyright
+vcpkg_installed/x64-linux/share/boost-filesystem/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3176,7 +3176,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-function-types/copyright
+vcpkg_installed/x64-linux/share/boost-functional/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3204,7 +3204,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-function/copyright
+vcpkg_installed/x64-linux/share/boost-function/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3232,7 +3232,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-functional/copyright
+vcpkg_installed/x64-linux/share/boost-function-types/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3260,7 +3260,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-fusion/copyright
+vcpkg_installed/x64-linux/share/boost-fusion/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3288,7 +3288,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-headers/copyright
+vcpkg_installed/x64-linux/share/boost-headers/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3316,7 +3316,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-integer/copyright
+vcpkg_installed/x64-linux/share/boost-integer/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3344,7 +3344,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-intrusive/copyright
+vcpkg_installed/x64-linux/share/boost-intrusive/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3372,7 +3372,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-io/copyright
+vcpkg_installed/x64-linux/share/boost-io/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3400,7 +3400,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-iterator/copyright
+vcpkg_installed/x64-linux/share/boost-iterator/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3428,7 +3428,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-lexical-cast/copyright
+vcpkg_installed/x64-linux/share/boost-lexical-cast/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3456,7 +3456,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-locale/copyright
+vcpkg_installed/x64-linux/share/boost-locale/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3484,7 +3484,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-logic/copyright
+vcpkg_installed/x64-linux/share/boost-logic/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3512,7 +3512,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-math/copyright
+vcpkg_installed/x64-linux/share/boost-math/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3540,7 +3540,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-move/copyright
+vcpkg_installed/x64-linux/share/boost-move/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3568,7 +3568,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-mp11/copyright
+vcpkg_installed/x64-linux/share/boost-mp11/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3596,7 +3596,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-mpl/copyright
+vcpkg_installed/x64-linux/share/boost-mpl/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3624,7 +3624,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-multiprecision/copyright
+vcpkg_installed/x64-linux/share/boost-multiprecision/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3652,7 +3652,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-numeric-conversion/copyright
+vcpkg_installed/x64-linux/share/boost-numeric-conversion/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3680,7 +3680,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-optional/copyright
+vcpkg_installed/x64-linux/share/boost-optional/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3708,7 +3708,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-pool/copyright
+vcpkg_installed/x64-linux/share/boost-pool/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3736,7 +3736,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-predef/copyright
+vcpkg_installed/x64-linux/share/boost-predef/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3764,7 +3764,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-preprocessor/copyright
+vcpkg_installed/x64-linux/share/boost-preprocessor/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3792,7 +3792,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-random/copyright
+vcpkg_installed/x64-linux/share/boost-random/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3820,7 +3820,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-range/copyright
+vcpkg_installed/x64-linux/share/boost-range/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3848,7 +3848,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-ratio/copyright
+vcpkg_installed/x64-linux/share/boost-ratio/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3876,7 +3876,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-regex/copyright
+vcpkg_installed/x64-linux/share/boost-regex/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3904,7 +3904,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-scope-exit/copyright
+vcpkg_installed/x64-linux/share/boost-scope/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3932,7 +3932,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-smart-ptr/copyright
+vcpkg_installed/x64-linux/share/boost-scope-exit/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3960,7 +3960,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-static-assert/copyright
+vcpkg_installed/x64-linux/share/boost-smart-ptr/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -3988,7 +3988,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-static-string/copyright
+vcpkg_installed/x64-linux/share/boost-static-assert/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4016,7 +4016,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-system/copyright
+vcpkg_installed/x64-linux/share/boost-static-string/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4044,7 +4044,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-thread/copyright
+vcpkg_installed/x64-linux/share/boost-system/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4072,7 +4072,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-throw-exception/copyright
+vcpkg_installed/x64-linux/share/boost-thread/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4100,7 +4100,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-tokenizer/copyright
+vcpkg_installed/x64-linux/share/boost-throw-exception/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4128,7 +4128,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-tuple/copyright
+vcpkg_installed/x64-linux/share/boost-tokenizer/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4156,7 +4156,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-type-index/copyright
+vcpkg_installed/x64-linux/share/boost-tuple/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4184,7 +4184,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-type-traits/copyright
+vcpkg_installed/x64-linux/share/boost-type-index/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4212,7 +4212,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-typeof/copyright
+vcpkg_installed/x64-linux/share/boost-typeof/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4240,7 +4240,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-unordered/copyright
+vcpkg_installed/x64-linux/share/boost-type-traits/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4268,7 +4268,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-utility/copyright
+vcpkg_installed/x64-linux/share/boost-unordered/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4296,7 +4296,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-variant2/copyright
+vcpkg_installed/x64-linux/share/boost-utility/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4324,7 +4324,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/boost-winapi/copyright
+vcpkg_installed/x64-linux/share/boost-variant2/copyright
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -4352,7 +4352,35 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/brotli/copyright
+vcpkg_installed/x64-linux/share/boost-winapi/copyright
+
+
+Boost Software License - Version 1.0 - August 17th, 2003
+
+Permission is hereby granted, free of charge, to any person or organization
+obtaining a copy of the software and accompanying documentation covered by
+this license (the "Software") to use, reproduce, display, distribute,
+execute, and transmit the Software, and to prepare derivative works of the
+Software, and to permit third-parties to whom the Software is furnished to
+do so, all subject to the following:
+
+The copyright notices in the Software and this entire statement, including
+the above license grant, this restriction and the following disclaimer,
+must be included in all copies of the Software, in whole or in part, and
+all derivative works of the Software, unless such copies or derivative
+works are solely in the form of machine-executable object code generated by
+a source language processor.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+
+vcpkg_installed/x64-linux/share/brotli/copyright
 
 
 Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
@@ -4376,7 +4404,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/bzip2/copyright
+vcpkg_installed/x64-linux/share/bzip2/copyright
 
 
 
@@ -4423,7 +4451,7 @@ bzip2/libbzip2 version 1.0.8 of 13 July 2019
 --------------------------------------------------------------------------
 
 
-vcpkg_installed/arm64-osx/share/exprtk/copyright
+vcpkg_installed/x64-linux/share/exprtk/copyright
 
 
 Copyright 1999-2022 Arash Partow
@@ -4436,7 +4464,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/gflags/copyright
+vcpkg_installed/x64-linux/share/gflags/copyright
 
 
 Copyright (c) 2006, Google Inc.
@@ -4469,7 +4497,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-vcpkg_installed/arm64-osx/share/gtest/copyright
+vcpkg_installed/x64-linux/share/gtest/copyright
 
 
 Copyright 2008, Google Inc.
@@ -4502,7 +4530,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-vcpkg_installed/arm64-osx/share/libevent/copyright
+vcpkg_installed/x64-linux/share/libevent/copyright
 
 
 Libevent is available for use under the following license, commonly known
@@ -4658,7 +4686,7 @@ limitations under the License.
 This file is part of mbed TLS (https://tls.mbed.org)
 
 
-vcpkg_installed/arm64-osx/share/librdkafka/copyright
+vcpkg_installed/x64-linux/share/librdkafka/copyright
 
 
 LICENSE
@@ -5056,7 +5084,7 @@ For the files wingetopt.c wingetopt.h downloaded from https://github.com/alex85k
 
 
 
-vcpkg_installed/arm64-osx/share/lz4/copyright
+vcpkg_installed/x64-linux/share/lz4/copyright
 
 
 LZ4 Library
@@ -5085,7 +5113,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-vcpkg_installed/arm64-osx/share/openssl/copyright
+vcpkg_installed/x64-linux/share/openssl/copyright
 
 
 
@@ -5267,7 +5295,7 @@ vcpkg_installed/arm64-osx/share/openssl/copyright
    END OF TERMS AND CONDITIONS
 
 
-vcpkg_installed/arm64-osx/share/protobuf/copyright
+vcpkg_installed/x64-linux/share/protobuf/copyright
 
 
 Copyright 2008 Google Inc.  All rights reserved.
@@ -5304,7 +5332,7 @@ standalone and requires a support library to be linked with it.  This
 support library is itself covered by the above license.
 
 
-vcpkg_installed/arm64-osx/share/rapidjson/copyright
+vcpkg_installed/x64-linux/share/rapidjson/copyright
 
 
 Tencent is pleased to support the open source community by making RapidJSON available. 
@@ -5366,7 +5394,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/re2/copyright
+vcpkg_installed/x64-linux/share/re2/copyright
 
 
 // Copyright (c) 2009 The RE2 Authors. All rights reserved.
@@ -5398,7 +5426,7 @@ vcpkg_installed/arm64-osx/share/re2/copyright
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-vcpkg_installed/arm64-osx/share/snappy/copyright
+vcpkg_installed/x64-linux/share/snappy/copyright
 
 
 Copyright 2011, Google Inc.
@@ -5457,7 +5485,7 @@ Some of the benchmark data in testdata/ is licensed differently:
    (http://www.gutenberg.org/ebooks/53).
 
 
-vcpkg_installed/arm64-osx/share/thrift/copyright
+vcpkg_installed/x64-linux/share/thrift/copyright
 
 
 
@@ -5768,7 +5796,7 @@ For t_cl_generator.cc
 ---------------------------------------------------
 
 
-vcpkg_installed/arm64-osx/share/utf8proc/copyright
+vcpkg_installed/x64-linux/share/utf8proc/copyright
 
 
 ## utf8proc license ##
@@ -5866,7 +5894,34 @@ registered in some jurisdictions. All other trademarks and registered
 trademarks mentioned herein are the property of their respective owners.
 
 
-vcpkg_installed/arm64-osx/share/vcpkg-boost/copyright
+vcpkg_installed/x64-linux/share/utf8-range/copyright
+
+
+MIT License
+
+Copyright (c) 2019 Yibo Cai
+Copyright 2022 Google LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+vcpkg_installed/x64-linux/share/vcpkg-boost/copyright
 
 
 MIT License
@@ -5891,7 +5946,7 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/vcpkg-cmake-config/copyright
+vcpkg_installed/x64-linux/share/vcpkg-cmake-config/copyright
 
 
 Copyright (c) Microsoft Corporation
@@ -5919,7 +5974,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/vcpkg-cmake-get-vars/copyright
+vcpkg_installed/x64-linux/share/vcpkg-cmake/copyright
 
 
 MIT License
@@ -5944,7 +5999,7 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/vcpkg-cmake/copyright
+vcpkg_installed/x64-linux/share/vcpkg-cmake-get-vars/copyright
 
 
 MIT License
@@ -5969,7 +6024,7 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-vcpkg_installed/arm64-osx/share/xsimd/copyright
+vcpkg_installed/x64-linux/share/xsimd/copyright
 
 
 Copyright (c) 2016, Johan Mabille, Sylvain Corlay, Wolf Vollprecht and Martin Renou
@@ -6003,7 +6058,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-vcpkg_installed/arm64-osx/share/zlib/copyright
+vcpkg_installed/x64-linux/share/zlib/copyright
 
 
 Copyright notice:
@@ -6030,7 +6085,7 @@ Copyright notice:
   jloup@gzip.org          madler@alumni.caltech.edu
 
 
-vcpkg_installed/arm64-osx/share/zstd/copyright
+vcpkg_installed/x64-linux/share/zstd/copyright
 
 
 ZSTD is dual licensed under BSD and GPLv2.

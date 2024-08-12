@@ -9,6 +9,7 @@ import time as Time
 import unittest
 from datetime import date, datetime, time, timedelta
 from functools import reduce
+from typing import List
 
 import csp
 import csp.stats as stats
@@ -143,7 +144,7 @@ class TestProfiler(unittest.TestCase):
 
         # From test_dynamic.py
         @csp.graph
-        def dyn(key: str, val: [str], key_ts: ts[DynData], scalar: str):
+        def dyn(key: str, val: List[str], key_ts: ts[DynData], scalar: str):
             csp.add_graph_output(f"{key}_key", csp.const(key))
             csp.add_graph_output(f"{key}_val", csp.const(val))
             csp.add_graph_output(f"{key}_ts", key_ts)
@@ -154,7 +155,7 @@ class TestProfiler(unittest.TestCase):
         def graph3():
             keys = random_keys(list(string.ascii_uppercase), timedelta(seconds=1), True)
             csp.add_graph_output("keys", keys)
-            basket = gen_basket(keys, csp.null_ts([str]))
+            basket = gen_basket(keys, csp.null_ts(List[str]))
             csp.dynamic(basket, dyn, csp.snapkey(), csp.snap(keys), csp.attach(), "hello world!")
 
         with profiler.Profiler() as p:
@@ -227,7 +228,7 @@ class TestProfiler(unittest.TestCase):
         max_times = df_node.groupby("Node Type").max().reset_index()
         self.assertEqual(
             round(prof_info.node_stats["cast_int_to_float"]["max_time"], 4),
-            round(float(max_times.loc[max_times["Node Type"] == "cast_int_to_float"]["Execution Time"]), 4),
+            round(float(max_times.loc[max_times["Node Type"] == "cast_int_to_float"]["Execution Time"].iloc[0]), 4),
         )
 
         # Cleanup files

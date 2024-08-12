@@ -119,12 +119,22 @@ struct PyPushPullInputAdapter_PyObject
         CSP_RETURN_NONE;
     }
 
+    static PyObject * shutdown_engine( PyPushPullInputAdapter_PyObject * self, PyObject * pyException )
+    {
+        CSP_BEGIN_METHOD;
+        
+        self -> adapter -> rootEngine() -> shutdown( PyEngine_shutdown_make_exception( pyException ) );
+
+        CSP_RETURN_NONE;
+    }
+
     static PyTypeObject PyType;
 };
 
 static PyMethodDef PyPushPullInputAdapter_PyObject_methods[] = {
-    { "push_tick", (PyCFunction) PyPushPullInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
-    { "flag_replay_complete", (PyCFunction) PyPushPullInputAdapter_PyObject::flagReplayComplete, METH_VARARGS, "finish replay ticks" },
+    { "push_tick",              (PyCFunction) PyPushPullInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
+    { "flag_replay_complete",   (PyCFunction) PyPushPullInputAdapter_PyObject::flagReplayComplete, METH_VARARGS, "finish replay ticks" },
+    { "shutdown_engine",        (PyCFunction) PyPushPullInputAdapter_PyObject::shutdown_engine, METH_O, "shutdown engine" },
     {NULL}
 };
 

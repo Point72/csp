@@ -1,17 +1,17 @@
-In [First Steps](First-Steps) and [More with csp](More-with-CSP) you created example/sample data for the streaming workflows. In real workflows, you use data stored in particular formats and storage spaces, that can be accessed directly or through an API.
+In [First Steps](First-Steps) and [More with CSP](More-with-CSP) we used toy data for the streaming workflows. In real workflows, we need to access data stored in particular storage formats. To bring data into or out of a `csp` graph, we use **adapters**.
 
-csp has [several built-in "adapters" to access certain types of data](Input-Output-Adapters-API), including Kafka and Parquet. csp requires friendly (Time Series) data types, and the I/O adapters form the interface between the data types. You can also write your own adapters for other data types, check the corresponding how-to guides for more details.
+`csp` has [several built-in adapters to access certain types of data](Input-Output-Adapters-API) such as Kafka and Parquet. You can also write your own adapters for any other data format; for reference, see the various "How-to" guides for [historical](Write-Historical-Input-Adapters), [real-time](Write-Realtime-Input-Adapters) and [output](Write-Output-Adapters) adapters. I/O adapters form the interface between external data and the time series format used in `csp`.
 
-In this tutorial, you write to, and read from, Parquet files on the local file system.
+In this tutorial, you write to and read from Parquet files on the local file system.
 
-csp has the `ParquetWriter` and `ParquetReader` adapters to stream data to and from Parquet files. Check out the complete [API in the Reference documentation](https://github.com/Point72/csp/wiki/Input-Output-Adapters-API#parquet).
+`csp` has the `ParquetWriter` and `ParquetReader` adapters to stream data to and from Parquet files. Check out the complete [API in the Reference documentation](https://github.com/Point72/csp/wiki/Input-Output-Adapters-API#parquet).
 
 > \[!IMPORTANT\]
-> csp can handle historical and real-time data, and the csp program remains similar in both cases.
+> `csp` graphs can process historical *and* real-time data with little to no changes in the application code.
 
-## Example
+## Streaming a csp.Struct
 
-You start with an Example `csp.Struct` data type which will be streamed into a Parquet file.
+A `csp.Struct` is a basic form of structured data in `csp` where each field can be accessed as its own time series. It is analogous to a dataclass in Python, and its fields must be type annotated. We will store some example data in a custom struct called `Example` and then stream the struct to a Parquet file.
 
 ```python
 from csp.adapters.parquet import ParquetOutputConfig, ParquetWriter, ParquetReader
@@ -23,13 +23,11 @@ class Example(csp.Struct):
 
 ## Write to a Parquet file
 
-In a graph, create some sample values for `Example` and use `ParquetWriter` to stream it to a Parquet file.
+In a graph, create some sample values for `Example` and use `ParquetWriter` to stream to a Parquet file.
 
-1. The `timestamp_column_name` is how csp preserves the timestamps. Since you need to read this file back into csp, you can provide a column name. If this was the final output and the time stamp information is not required, you can provide `None`.
-
-1. You can provide optional configurations to `config` in the `ParquetOutputConfig` format (which can set `allow_overwrite`, , `batch_size`, `compression`, `write_arrow_binary`).
-
-1. Use `publish_struct` to publish (write) the data as Time Series.
+1. The `timestamp_column_name` is how `csp` preserves the timestamps on each event. If the timestamp information is not required, you can set the column name argument to `None`.
+1. You can provide optional configurations in the `ParquetOutputConfig` format which can set `allow_overwrite`, `batch_size`, `compression`, and `write_arrow_binary`.
+1. We use `publish_struct` to publish (write) the time series data to disk.
 
 ```python
 @csp.graph
@@ -52,7 +50,7 @@ def write_struct(file_name: str):
 
 ## Read from Parquet file
 
-You can use `ParquetReader` with a `time_column`, and read all the `Example` rows with `subscribe_all`.
+You can use `ParquetReader` with a `time_column` to read back the data.
 
 ```python
 @csp.graph

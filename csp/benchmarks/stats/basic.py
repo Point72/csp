@@ -3,12 +3,11 @@ from datetime import datetime, timedelta
 from timeit import Timer
 
 import csp
-from csp.benchmarks import ASVBenchmarkHelper
 
 __all__ = ("StatsBenchmarkSuite",)
 
 
-class StatsBenchmarkSuite(ASVBenchmarkHelper):
+class StatsBenchmarkSuite:
     """
     python -m csp.benchmarks.stats.basic
     """
@@ -43,8 +42,3 @@ class StatsBenchmarkSuite(ASVBenchmarkHelper):
         )
         elapsed = timer.timeit(1)
         return elapsed
-
-
-if __name__ == "__main__":
-    sbs = StatsBenchmarkSuite()
-    sbs.run_all()

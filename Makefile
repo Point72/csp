@@ -124,9 +124,23 @@ dockerdown:  ## spin up docker compose services for adapter testing
 ##############
 # BENCHMARKS #
 ##############
-.PHONY: benchmark benchmarks benchmark-regen benchmark-view benchmarks-regen benchmarks-view
+.PHONY: benchmark benchmarks benchmark-quick benchmarks-quick benchmark-local benchmarks-local benchmark-debug benchmarks-debug benchmark-regen benchmarks-regen benchmark-view benchmarks-view
 benchmark:  ## run benchmarks
 	python -m asv run --config csp/benchmarks/asv.conf.jsonc --verbose `git rev-parse --abbrev-ref HEAD`^!
+
+benchmark-quick: ## run quick benchmark
+	python -m asv run --quick --config csp/benchmarks/asv.conf.jsonc --verbose `git rev-parse --abbrev-ref HEAD`^!
+
+benchmark-local: ## run benchmark using the local env
+	python -m asv run --python=same --config csp/benchmarks/asv.conf.jsonc --verbose
+
+benchmark-debug: ## debug a failing benchmark
+	if [ -z "${BENCHMARK_NAME}" ]; then echo 'Usage: make benchmark-debug BENCHMARK_NAME=<name of benchmark> [PARAM_INDEX=<index of param permutation>]'; exit 1; fi
+	if [ -z "${PARAM_INDEX}" ]; then \
+		python -m pdb -m asv.benchmark run csp/benchmarks ${BENCHMARK_NAME} "{}" debug_profile.txt debug_results.txt; \
+	else \
+		python -m pdb -m asv.benchmark run csp/benchmarks ${BENCHMARK_NAME}-${PARAM_INDEX} "{}" debug_profile.txt debug_results.txt; \
+	fi;
 
 # https://github.com/airspeed-velocity/asv/issues/1027
 # https://github.com/airspeed-velocity/asv/issues/488
@@ -140,6 +154,9 @@ benchmark-view:  ## generate viewable website of benchmark results
 
 # Alias
 benchmarks: benchmark
+benchmarks-quick: benchmark-quick
+benchmarks-local: benchmark-local
+benchmarks-debug: benchmark-debug
 benchmarks-regen: benchmark-regen
 benchmarks-view: benchmark-view
 
@@ -205,9 +222,11 @@ clean: ## clean the repository
 ifneq ($(OS),Windows_NT)
 	rm -rf .coverage coverage cover htmlcov logs build dist wheelhouse *.egg-info
 	rm -rf csp/lib csp/bin csp/include _skbuild
+	rm -rf debug_*.txt
 else
 	del /s /q .coverage coverage cover htmlcov logs build dist wheelhouse *.egg-info
 	del /s/ q csp\lib csp\bin csp\include _skbuild
+	del debug_*.txt
 endif
 
 ################

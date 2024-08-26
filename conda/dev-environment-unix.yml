@@ -5,7 +5,6 @@ channels:
 dependencies:
  - bison
  - brotli
- - build
  - bump2version>=1
  - cmake
  - codespell>=2.2.6,<2.3
@@ -15,7 +14,6 @@ dependencies:
  - exprtk
  - flex
  - graphviz
- - python-graphviz
  - gtest
  - httpx>=0.20,<1
  - isort>=5,<6
@@ -33,13 +31,15 @@ dependencies:
  - polars
  - psutil
  - pyarrow=16
- - pytz
  - pytest
  - pytest-asyncio
  - pytest-cov
  - pytest-sugar
  - python<3.13
+ - python-build
+ - python-graphviz
  - python-rapidjson
+ - pytz
  - rapidjson
  - requests
  - ruamel.yaml

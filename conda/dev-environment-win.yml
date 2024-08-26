@@ -4,7 +4,6 @@ channels:
   - nodefaults
 dependencies:
  - brotli
- - build
  - bump2version>=1
  - cmake
  - codespell>=2.2.6,<2.3
@@ -36,6 +35,7 @@ dependencies:
  - pytest-cov
  - pytest-sugar
  - python<3.13
+ - python-build
  - python-graphviz
  - python-rapidjson
  - pytz

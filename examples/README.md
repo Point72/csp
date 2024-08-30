@@ -27,6 +27,10 @@
             <td><a href="./01_basics/e4_trade_pnl.py">Complete Example (Trading)</a></td>
             <td>Volume weighted average price (VWAP) and profit and loss (PnL)</td>
         </tr>
+        <tr>
+            <td><a href="./01_basics/e5_retail_cart.py">Complete Example (Retail)</a></td>
+            <td>Maintain a shopping cart with time-based discounts for customers</td>
+        </tr>
         <!-- Intermediate -->
         <tr>
             <td rowspan=4><a href="./02_intermediate/">Intermediate</a></td>

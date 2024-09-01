@@ -56,7 +56,7 @@ jobs:
     # github.event.head_commit.message otherwise on pull
     # requests)
     initialize:
-      runs-on: ubuntu-22.04
+      runs-on: ubuntu-24.04
 
       outputs:
         COMMIT_MESSAGE: ${{ steps.setup.outputs.COMMIT_MSG }}
@@ -130,7 +130,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
+            - ubuntu-24.04
           python-version:
             - 3.9
 
@@ -173,7 +173,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md
+            - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
             - macos-12 # https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2019 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2019-Readme.md
@@ -385,7 +385,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
+            - ubuntu-24.04
           python-version:
             - 3.9
 
@@ -438,7 +438,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
+            - ubuntu-24.04
             - macos-12
             - macos-14
             - windows-2019
@@ -592,7 +592,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
+            - ubuntu-24.04
           python-version:
             - 3.9
 
@@ -765,7 +765,7 @@ jobs:
         - test_dependencies
 
       if: startsWith(github.ref, 'refs/tags/v')
-      runs-on: ubuntu-22.04
+      runs-on: ubuntu-24.04
 
       steps:
         - name: Download wheels and sdist

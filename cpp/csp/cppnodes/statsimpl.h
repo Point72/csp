@@ -1357,7 +1357,7 @@ class Rank
     private:
         ost<std::less<double>> m_mintree;
         ost<std::greater<double>> m_maxtree;
-        double m_lastval;
+        double m_lastval = std::numeric_limits<double>::quiet_NaN();
 
         int64_t m_method;
         int64_t m_nanopt;

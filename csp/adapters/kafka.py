@@ -9,7 +9,7 @@ import csp
 from csp import ts
 from csp.adapters.status import Status
 from csp.adapters.utils import MsgMapper, hash_mutable
-from csp.impl.wiring import input_adapter_def, output_adapter_def, status_adapter_def
+from csp.impl.wiring import ReplayMode, input_adapter_def, output_adapter_def, status_adapter_def
 from csp.lib import _kafkaadapterimpl
 
 __all__ = ("KafkaStatusMessageType", "KafkaStartOffset", "KafkaAdapterManager")

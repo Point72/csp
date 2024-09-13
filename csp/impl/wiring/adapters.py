@@ -1,6 +1,6 @@
 import inspect
 from datetime import timedelta
-from typing import List
+from typing import List, TypeVar
 from typing_extensions import override
 
 from csp.impl.__cspimpl import _cspimpl
@@ -13,6 +13,7 @@ from csp.impl.types.tstype import ts
 from csp.impl.wiring.signature import Signature
 
 _ = ReplayMode
+T = TypeVar("T")
 
 
 # Every AdapterDefMeta instance represents an input or output adapter *definition* type

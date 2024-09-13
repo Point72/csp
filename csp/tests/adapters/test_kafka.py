@@ -127,13 +127,18 @@ class TestKafka:
                 return csp.now()
 
         def graph(symbols: list, count: int):
-            b = csp.merge(
-                csp.timer(timedelta(seconds=0.2), True),
-                csp.delay(csp.timer(timedelta(seconds=0.2), False), timedelta(seconds=0.1)),
+            delay = timedelta(seconds=1)
+            b = csp.delay(
+                csp.merge(
+                    csp.timer(timedelta(seconds=0.2), True),
+                    csp.delay(csp.timer(timedelta(seconds=0.2), False), timedelta(seconds=0.1)),
+                ),
+                delay=delay,
             )
-            i = csp.count(csp.timer(timedelta(seconds=0.15)))
-            d = csp.count(csp.timer(timedelta(seconds=0.2))) / 2.0
-            s = csp.sample(csp.timer(timedelta(seconds=0.4)), csp.const("STRING"))
+
+            i = csp.delay(csp.count(csp.timer(timedelta(seconds=0.15))), delay=delay)
+            d = csp.delay(csp.count(csp.timer(timedelta(seconds=0.2))) / 2.0, delay=delay)
+            s = csp.delay(csp.sample(csp.timer(timedelta(seconds=0.4)), csp.const("STRING")), delay=delay)
             dt = curtime(b)
             struct = MyData.collectts(b=b, i=i, d=d, s=s, dt=dt)
 
@@ -156,8 +161,6 @@ class TestKafka:
                     b=b, i=i, d=d, s=s, dt=dt, b2=struct.b, i2=struct.i, d2=struct.d, s2=struct.s, dt2=struct.dt
                 )
                 csp.add_graph_output(f"pall_{symbol}", pub_data)
-
-                # csp.print('status', kafkaadapter.status())
 
                 sub_data = kafkaadapter.subscribe(
                     ts_type=SubData,

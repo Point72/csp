@@ -1,7 +1,8 @@
 import math
-import numpy as np
 from functools import lru_cache
 from typing import List, TypeVar, get_origin
+
+import numpy as np
 
 import csp
 from csp.impl.types.tstype import ts

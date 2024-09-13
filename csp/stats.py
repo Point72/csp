@@ -1,6 +1,7 @@
-import numpy as np
 from datetime import datetime, timedelta
 from typing import Any, List, Optional, TypeVar, Union
+
+import numpy as np
 
 import csp
 from csp import ts
@@ -232,7 +233,7 @@ def _setup(x, interval, min_window, trigger, sampler, reset, weights=None, ignor
     if min_window is None:
         min_window = interval
     else:
-        if type(min_window) != type(interval):
+        if type(min_window) is not type(interval):
             raise TypeError("Interval and min_window must be of the same type")
 
     if sampler is None:

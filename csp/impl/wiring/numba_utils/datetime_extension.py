@@ -7,6 +7,7 @@ Regular datetime and timedelta arithmetic can be used.
 """
 
 import datetime
+
 import numba
 
 from csp.impl.wiring.numba_utils.csp_cpp_numba_interface import C as csp_c

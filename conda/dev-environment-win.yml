@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
+#  - bison  # not available on windows
  - brotli
  - bump2version>=1
  - cmake
@@ -11,6 +12,7 @@ dependencies:
  - cyrus-sasl
  - deprecated
  - exprtk
+#  - flex  # not available on windows
  - graphviz
  - gtest
  - httpx>=0.20,<1
@@ -42,11 +44,14 @@ dependencies:
  - rapidjson
  - requests
  - ruamel.yaml
- - ruff>=0.3,<0.4
+ - ruff>=0.5,<0.6
  - scikit-build
  - setuptools>=69,<74
  - sqlalchemy
+#  - tar  # not available on windows
  - threadpoolctl
  - tornado
  - twine
+#  - unzip  # not available on windows
  - wheel
+#  - zip  # not available on windows

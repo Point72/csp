@@ -1,8 +1,9 @@
-import pytz
 import threading
 import time
 from collections import deque
 from datetime import datetime, timedelta
+
+import pytz
 
 from csp.impl.__cspimpl import _cspimpl
 from csp.impl.error_handling import ExceptionContext

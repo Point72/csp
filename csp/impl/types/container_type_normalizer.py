@@ -1,5 +1,6 @@
-import numpy
 import typing
+
+import numpy
 
 import csp.typing
 from csp.impl.types.typing_utils import CspTypingUtils, FastList

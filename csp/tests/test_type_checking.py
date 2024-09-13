@@ -1,8 +1,9 @@
-import numpy as np
 import pickle
 import typing
 import unittest
 from datetime import datetime, time, timedelta
+
+import numpy as np
 
 import csp
 import csp.impl.types.instantiation_type_resolver as type_resolver

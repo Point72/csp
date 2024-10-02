@@ -4,18 +4,17 @@
 #include <algorithm>
 #include <string>
 
-namespace csp::piglatin
-{
+class piglatin : public csp::CppNode {
+  [[maybe_unused]] CSP csp;
+public:     
+    const char * name() const override { return #Name; }
+    _STATIC_CREATE_METHOD( Class )
+    piglatin( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef ) : csp::CppNode( engine, nodedef ) {}
 
-DECLARE_CPPNODE(piglatin)
-{
-    INIT_CPPNODE(piglatin)
-    {}
-
-    TS_INPUT(std::string, x);
+    TS_INPUT(const char*, x);
     SCALAR_INPUT(bool, capitalize);
     // ALARM(Generic, alarm);
-    TS_OUTPUT(std::string);
+    TS_OUTPUT(const char*);
 
     START()
     {}
@@ -35,8 +34,6 @@ DECLARE_CPPNODE(piglatin)
 };
 
 EXPORT_CPPNODE(piglatin);
-}
-
 REGISTER_CPPNODE(csp::piglatin, piglatin);
 
 static PyModuleDef _piglatin_module = {

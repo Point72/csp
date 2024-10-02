@@ -11,5 +11,5 @@ python setup.py build build_ext --inplace
 Run:
 
 ```bash
-python -m struct
+python -m mystruct
 ```

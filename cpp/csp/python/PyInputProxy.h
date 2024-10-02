@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_PYINPUTPROXY_H
 #define _IN_CSP_PYTHON_PYINPUTPROXY_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/InputId.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/NumpyConversions.h>
@@ -11,7 +12,7 @@ namespace csp::python
 
 class PyNode;
 
-class PyInputProxy : public PyObject
+class CSP_PUBLIC PyInputProxy : public PyObject
 {
 public:
     PyInputProxy( PyNode * node, InputId id );

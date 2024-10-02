@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_PUSHEVENT_H
 #define _IN_CSP_ENGINE_PUSHEVENT_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/CspType.h>
 
 namespace csp
@@ -8,7 +9,7 @@ namespace csp
 
 class PushInputAdapter;
 
-struct PushEvent
+struct CSP_PUBLIC PushEvent
 {
     PushEvent( PushInputAdapter *adapter ) : m_adapter( adapter ), next( nullptr )
     {}

@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_ROOTENGINE_H
 
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/core/SRMWLockFreeQueue.h>
 #include <csp/core/System.h>
 #include <csp/core/Time.h>
@@ -33,7 +34,7 @@ private:
     bool m_dirty = false;
 };
 
-class RootEngine : public Engine
+class CSP_PUBLIC RootEngine : public Engine
 {
     using PushEventQueue  = SRMWLockFreeQueue<PushEvent>;
 

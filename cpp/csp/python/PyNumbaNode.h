@@ -1,6 +1,7 @@
 #ifndef _IN_PYTHON_PYNUMBANODE_H
 #define _IN_PYTHON_PYNUMBANODE_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/Node.h>
 #include <csp/python/PyObjectPtr.h>
@@ -12,7 +13,7 @@ class PyEngine;
 
 typedef void (*CallbackType)(void *node, void *state);
 
-class PyNumbaNode final : public csp::Node
+class CSP_PUBLIC PyNumbaNode final : public csp::Node
 {
 public:
     // TODO: Add suppot for initialization callback as well

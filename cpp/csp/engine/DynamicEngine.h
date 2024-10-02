@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_DYNAMICENGINE_H
 #define _IN_CSP_ENGINE_DYNAMICENGINE_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/Engine.h>
 #include <csp/engine/OutputAdapter.h>
 #include <string>
@@ -9,7 +10,7 @@
 namespace csp
 {
 
-class DynamicEngine final : public Engine
+class CSP_PUBLIC DynamicEngine final : public Engine
 {
 public:
     using ShutdownFn = std::function<void()>;

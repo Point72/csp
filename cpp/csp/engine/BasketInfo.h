@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_BASKETINFO_H
 
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/InputId.h>
 #include <csp/engine/RootEngine.h>
 #include <csp/engine/TimeSeriesProvider.h>
@@ -12,7 +13,7 @@ namespace csp
 
 class Node;
 
-class InputBasketInfo
+class CSP_PUBLIC InputBasketInfo
 {
     using TickedInputs = std::vector<INOUT_ELEMID_TYPE>;
 
@@ -188,7 +189,7 @@ protected:
     bool                        m_isDynamic;
 };
 
-class DynamicInputBasketInfo : public InputBasketInfo
+class CSP_PUBLIC DynamicInputBasketInfo : public InputBasketInfo
 {
 public:
     using ChangeCallback = std::function<void(const DialectGenericType & key,bool added, int64_t elemId, int64_t replaceId )>;
@@ -227,7 +228,7 @@ private:
     TimeDelta         m_timeWindowPolicy;
 };
 
-class OutputBasketInfo
+class CSP_PUBLIC OutputBasketInfo
 {
 public:
     OutputBasketInfo( CspTypePtr & type, Node * node, size_t size, bool isDynamic = false );
@@ -254,7 +255,7 @@ protected:
     bool                   m_isDynamic;
 };
 
-class DynamicOutputBasketInfo : public OutputBasketInfo
+class CSP_PUBLIC DynamicOutputBasketInfo : public OutputBasketInfo
 {
 public:
     DynamicOutputBasketInfo( CspTypePtr & type, Node * node );

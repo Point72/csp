@@ -3,6 +3,7 @@
 
 #include <csp/core/Exception.h>
 #include <csp/core/Hash.h>
+#include <csp/core/Platform.h>
 #include <limits>
 #include <string>
 #include <vector>
@@ -14,7 +15,7 @@ namespace csp
 
 class CspEnumMeta;
 
-class CspEnumInstance
+class CSP_PUBLIC CspEnumInstance
 {
 public:
     CspEnumInstance( std::string name, int64_t value, csp::CspEnumMeta * meta ) : m_name( name ), m_value( value ), m_meta( meta ) {}
@@ -34,7 +35,7 @@ private:
 
 //As an optimization we do NOT attach meta or value to every instance of an enum.  Instead, the enum
 //holds only a pointer to a singleton CspEnumInstance, which holds the value, name, and meta pointer.
-class CspEnum
+class CSP_PUBLIC CspEnum
 {
 public:
     CspEnum();
@@ -58,7 +59,7 @@ protected:
 
 std::ostream &operator<<( std::ostream &os, const CspEnum & rhs );
 
-class CspEnumMeta
+class CSP_PUBLIC CspEnumMeta
 {
 public:
     using ValueDef = std::unordered_map<std::string,int64_t>;

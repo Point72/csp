@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_EVENTPROPAGATOR_H
 #define _IN_CSP_ENGINE_EVENTPROPAGATOR_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/InputId.h>
 #include <stdint.h>
 
@@ -9,7 +10,7 @@ namespace csp
 
 class Consumer;
 
-class EventPropagator
+class CSP_PUBLIC EventPropagator
 {
 public:
     EventPropagator();

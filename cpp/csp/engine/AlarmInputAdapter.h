@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_ALARMINPUTADAPTER_H
 #define _IN_CSP_ENGINE_ALARMINPUTADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/InputAdapter.h>
 #include <unordered_set>
 
@@ -8,7 +9,7 @@ namespace csp
 {
 
 template<typename T>
-class AlarmInputAdapter final : public InputAdapter
+class CSP_PUBLIC AlarmInputAdapter final : public InputAdapter
 {
 public:
     AlarmInputAdapter( Engine * engine, CspTypePtr & type ) : InputAdapter( engine, type, PushMode::NON_COLLAPSING )

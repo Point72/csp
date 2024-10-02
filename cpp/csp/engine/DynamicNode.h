@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_DYNAMIC_H
 #define _IN_CSP_ENGINE_DYNAMIC_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/CspType.h>
 #include <csp/engine/CycleStepTable.h>
 #include <csp/engine/Node.h>
@@ -17,7 +18,7 @@ class DynamicEngine;
 //external inputs and triggering a cycle step.  
 //All dynamic engine input adapters as well as all external timeseries wired into dynamic are registered as inputs
 //into the DynanicNode instance so that it can invoke cycle step at the appropriate times.
-class DynamicNode final : public Node
+class CSP_PUBLIC DynamicNode final : public Node
 {
 public:
     using Outputs = std::vector<const TimeSeriesProvider *>;

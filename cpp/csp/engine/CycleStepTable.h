@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_CYCLESTEPTABLE_H
 
 #include <csp/core/DynamicBitSet.h>
+#include <csp/core/Platform.h>
 #include <stdint.h>
 #include <vector>
 
@@ -11,7 +12,7 @@ namespace csp
 class Consumer;
 class Profiler;
     
-class CycleStepTable
+class CSP_PUBLIC CycleStepTable
 {
 public:
     CycleStepTable();

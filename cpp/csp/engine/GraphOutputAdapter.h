@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_GRAPHOUTPUTADAPTER_H
 #define _IN_CSP_ENGINE_GRAPHOUTPUTADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/OutputAdapter.h>
 #include <memory>
 
@@ -14,7 +15,7 @@ namespace csp
 //GraphOutputAdapters are also special in that they are registered in both a dynamic engine and the root engine as sahred_ptr.  They make it into root
 //so that the root processes them at the end of the csp.run call ( dynamics could be shutdown by then ).  We also register in root
 //to ensure we dont hit key clashses.
-class GraphOutputAdapter : public OutputAdapter, public std::enable_shared_from_this<GraphOutputAdapter>
+class CSP_PUBLIC GraphOutputAdapter : public OutputAdapter, public std::enable_shared_from_this<GraphOutputAdapter>
 {
 public:
     GraphOutputAdapter( csp::Engine * engine, int32_t tickCount, TimeDelta tickHistory );

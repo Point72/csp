@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_CONSUMER_H
 #define _IN_CSP_ENGINE_CONSUMER_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/TaggedPointerUnion.h>
 #include <csp/engine/BasketInfo.h>
 #include <csp/engine/InputId.h>
@@ -13,7 +14,7 @@ namespace csp
 class InputAdapter;
 
 //Base of either regular Nodes or output adapters
-class Consumer
+class CSP_PUBLIC Consumer
 {
 public:
     Consumer( Engine * );

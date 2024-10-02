@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_CORE_TAGGEDPOINTERUNION_H
 #define _IN_CSP_CORE_TAGGEDPOINTERUNION_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/System.h>
 
 namespace csp
@@ -25,7 +26,7 @@ struct IndexOf<T, TypeList<TOther, Ts...> >
 
 
 template<typename... Ts>
-class TaggedPointerUnion
+class CSP_PUBLIC TaggedPointerUnion
 {
 public:
     static inline constexpr size_t NUM_TAGS = sizeof...(Ts);

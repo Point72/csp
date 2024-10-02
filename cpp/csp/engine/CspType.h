@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_CSPTYPE_H
 
 #include <csp/core/Enum.h>
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/CspEnum.h>
 #include <csp/engine/DialectGenericType.h>
@@ -14,7 +15,7 @@ namespace csp
 
 class CspStringType;
 
-class CspType
+class CSP_PUBLIC CspType
 {
 public:
 
@@ -115,7 +116,7 @@ private:
     Type m_type;
 };
 
-class CspStringType : public CspType
+class CSP_PUBLIC CspStringType : public CspType
 {
 public:
     CspStringType(bool isBytes)
@@ -134,7 +135,7 @@ class CspEnum;
 
 class CspEnumMeta;
 
-class CspEnumType : public CspType
+class CSP_PUBLIC CspEnumType : public CspType
 {
 public:
     CspEnumType( std::shared_ptr<CspEnumMeta> & meta ) : CspType( CspType::Type::ENUM ),
@@ -154,7 +155,7 @@ using StructPtr = TypedStructPtr<Struct>;
 
 class StructMeta;
 
-class CspStructType : public CspType
+class CSP_PUBLIC CspStructType : public CspType
 {
 public:
     CspStructType( const std::shared_ptr<StructMeta> & meta ) : CspType( CspType::Type::STRUCT ),
@@ -167,7 +168,7 @@ private:
     std::shared_ptr<StructMeta> m_meta;
 };
 
-class CspArrayType : public CspType
+class CSP_PUBLIC CspArrayType : public CspType
 {
 public:
     CspArrayType( CspTypePtr elemType, bool isPyStructFastList = false ) :

@@ -13,6 +13,7 @@ else()
 endif()
 
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/../../../cpp/cmake/modules")
+set(ENV{PYTHONPATH} "${CMAKE_SOURCE_DIR}/../../../:$ENV{PYTHONPATH}")
 
 set(CMAKE_MACOSX_RPATH TRUE)
 set(CMAKE_SKIP_RPATH FALSE)
@@ -100,6 +101,7 @@ find_package(CSP REQUIRED)
 message("${Cyan}Found CSP:\n\tincludes in: ${CSP_INCLUDE_DIR}\n\tlibraries in: ${CSP_LIBS_DIR}${ColorReset}")
 include_directories(${CSP_INCLUDE_DIR})
 
+find_package(csp_autogen REQUIRED)
 csp_autogen(mystruct.struct mystruct STRUCT_AUTOGEN_HEADER STRUCT_AUTOGEN_SOURCE)
 
 add_library(mystruct SHARED struct.cpp ${STRUCT_AUTOGEN_SOURCE})

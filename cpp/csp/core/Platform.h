@@ -90,7 +90,6 @@ inline uint8_t ffs(uint64_t n)
 }
 
 #else
-
 #define CSPIMPL_EXPORT      __attribute__ ((visibility ("default")))
 #define CSPTYPESIMPL_EXPORT __attribute__ ((visibility ("default")))
 

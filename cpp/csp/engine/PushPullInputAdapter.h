@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_PUSHPULLINPUTADAPTER_H
 #define _IN_CSP_ENGINE_PUSHPULLINPUTADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <queue>
 
@@ -9,7 +10,7 @@ namespace csp
 //A variation of PushInputAdapter that lets you schedule historical data as well.  Used for adapters
 //that can replay history and switch to realtime seamlessly ( ie kafka )
 
-class PushPullInputAdapter : public PushInputAdapter
+class CSP_PUBLIC PushPullInputAdapter : public PushInputAdapter
 {
 public:
     PushPullInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode,

@@ -1,17 +1,20 @@
 #ifndef _IN_CSP_CORE_QUEUEBLOCKINGWAIT_H
 #define _IN_CSP_CORE_QUEUEBLOCKINGWAIT_H
 
+#include <csp/core/Platform.h>
+#include <csp/core/System.h>
+#include <csp/core/Time.h>
+
 #include <mutex>
 #include <condition_variable>
-#include <csp/core/Time.h>
-#include <csp/core/System.h>
+
 
 namespace csp
 {
 
 class TimeDelta;
 
-class QueueWaiter
+class CSP_PUBLIC QueueWaiter
 {
 public:
     QueueWaiter() : m_eventsPending( false )

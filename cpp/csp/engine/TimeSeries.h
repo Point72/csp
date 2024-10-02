@@ -3,6 +3,7 @@
 
 #include <csp/core/Enum.h>
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/TickBuffer.h>
 
@@ -10,7 +11,7 @@ namespace csp
 {
 
 template<typename T>
-class TickBufferAccess
+class CSP_PUBLIC TickBufferAccess
 {
 public:
     TickBufferAccess() : m_buffer( nullptr ), m_lastValue() { }
@@ -55,7 +56,7 @@ private:
     T m_lastValue;
 };
 
-class TimeSeries
+class CSP_PUBLIC TimeSeries
 {
 public:
     // Should match the DuplicatePolicy enum in python!!!
@@ -143,7 +144,7 @@ protected:
 };
 
 template< typename T >
-class TimeSeriesTyped : public TimeSeries
+class CSP_PUBLIC TimeSeriesTyped : public TimeSeries
 {
 public:
     TimeSeriesTyped() : m_dataline()

@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_NODE_H
 
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/AlarmInputAdapter.h>
 #include <csp/engine/BasketInfo.h>
 #include <csp/engine/Consumer.h>
@@ -24,7 +25,7 @@ struct NodeDef
     INOUT_ID_TYPE numOutputs;
 };
     
-class Node : public Consumer, public EngineOwned
+class CSP_PUBLIC Node : public Consumer, public EngineOwned
 {
 public:
     Node( NodeDef def, Engine * );

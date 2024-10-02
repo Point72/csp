@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_SCHEDULER_H
 
 #include <csp/core/BasicAllocator.h>
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <cassert>
 #include <functional>
@@ -14,7 +15,7 @@ namespace csp
 
 class InputAdapter;
 
-class Scheduler
+class CSP_PUBLIC Scheduler
 {
     struct Event;
 

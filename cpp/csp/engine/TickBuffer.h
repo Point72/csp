@@ -6,6 +6,7 @@
  ** it uses a circular buffer for storage but only allows pushing back
  ** and resizing 
  ***********************************************************************/
+#include <csp/core/Platform.h>
 #include <csp/core/System.h>
 #include <csp/core/Time.h>
 #include <memory>
@@ -16,7 +17,7 @@ namespace csp
 {
 
 template< typename T >
-class TickBuffer
+class CSP_PUBLIC TickBuffer
 {
 public:
     TickBuffer( uint32_t capacity = 1 );

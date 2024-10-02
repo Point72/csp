@@ -13,7 +13,7 @@
 namespace csp
 {
 
-class Profiler
+class CSP_PUBLIC Profiler
 {
     // All times are returned as doubles representing time in seconds
 

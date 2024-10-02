@@ -1,6 +1,8 @@
 #ifndef _IN_CSP_CORE_ENUMBITSET_H
 #define _IN_CSP_CORE_ENUMBITSET_H
 
+#include <csp/core/Platform.h>
+
 #include <stddef.h>
 #include <stdint.h>
 #include <initializer_list>
@@ -12,7 +14,7 @@ namespace csp
 //Utility class to hold enums as a bitmask ( where enum values are incremental from 0 )
 //enum must have a NUM_TYPES entry for number of entries
 template< typename EnumT >
-class EnumBitSet
+class CSP_PUBLIC EnumBitSet
 {
     using value_type = uint64_t;
 

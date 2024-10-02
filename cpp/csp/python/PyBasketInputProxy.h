@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_PYBASKETINPUTPROXY_H
 #define _IN_CSP_PYTHON_PYBASKETINPUTPROXY_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/InputId.h>
 #include <csp/python/Conversions.h>
 #include <Python.h>
@@ -14,7 +15,7 @@ class PyInputProxy;
 using PyInputProxyPtr = PyPtr<PyInputProxy>; 
 class PyNode;
 
-class PyBaseBasketInputProxy : public PyObject
+class CSP_PUBLIC PyBaseBasketInputProxy : public PyObject
 {
 public:
     PyBaseBasketInputProxy( PyNode * node, INOUT_ID_TYPE id );
@@ -37,7 +38,7 @@ protected:
 };
 
 
-class PyListBasketInputProxy final: public PyBaseBasketInputProxy
+class CSP_PUBLIC PyListBasketInputProxy final: public PyBaseBasketInputProxy
 {
 public:
     PyListBasketInputProxy( PyNode * node, INOUT_ID_TYPE id, size_t shape );
@@ -62,7 +63,7 @@ private:
 };
 
 
-class PyDictBasketInputProxy : public PyBaseBasketInputProxy
+class CSP_PUBLIC PyDictBasketInputProxy : public PyBaseBasketInputProxy
 {
 public:
     PyDictBasketInputProxy( PyNode * node, INOUT_ID_TYPE id, PyObject * shape );
@@ -85,7 +86,7 @@ protected:
     PyObjectPtr m_proxyMapping;
 };
 
-class PyDynamicBasketInputProxy final : public PyDictBasketInputProxy
+class CSP_PUBLIC PyDynamicBasketInputProxy final : public PyDictBasketInputProxy
 {
 public:
     PyDynamicBasketInputProxy( PyNode * node, INOUT_ID_TYPE id, PyObject * shape );

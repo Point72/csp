@@ -41,7 +41,7 @@ jobs:
         - name: Checkout
           uses: actions/checkout@v4
 
-        - uses: mamba-org/setup-micromamba@v1
+        - uses: mamba-org/setup-micromamba@v2
           with:
             micromamba-version: '1.5.7-0'
             environment-file: conda/dev-environment-unix.yml
@@ -51,7 +51,7 @@ jobs:
             post-cleanup: 'all'
           if: ${{ runner.os != 'Windows' }}
 
-        - uses: mamba-org/setup-micromamba@v1
+        - uses: mamba-org/setup-micromamba@v2
           with:
             micromamba-version: '1.5.7-0'
             environment-file: conda/dev-environment-win.yml

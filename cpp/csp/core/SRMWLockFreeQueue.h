@@ -1,7 +1,6 @@
 #ifndef _IN_CSP_CORE_SRMWLOCKFREEQUEUE_H
 #define _IN_CSP_CORE_SRMWLOCKFREEQUEUE_H
 
-#include <csp/core/Platform.h>
 #include <csp/core/QueueWaiter.h>
 #include <csp/core/System.h>
 #include <csp/core/Time.h>
@@ -15,7 +14,7 @@ namespace csp
   one of the simplest!  template type is required to have an intrinsic next pointer
 */
 template< typename T >
-class alignas(CACHELINE_SIZE) CSP_PUBLIC SRMWLockFreeQueue
+class alignas(CACHELINE_SIZE) SRMWLockFreeQueue
 {
 public:
     class Batch

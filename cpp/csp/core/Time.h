@@ -360,7 +360,7 @@ public:
     static Time fromString( const std::string & );
 
     static Time NONE() { return Time( -1 ); }
-    static Time MIN()  { return Time( 0, 0, 0 ); }
+    static Time MIN_VALUE()  { return Time( 0, 0, 0 ); }
 
 private:
     Time( int64_t raw );

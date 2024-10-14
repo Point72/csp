@@ -7,6 +7,7 @@ requires = [
     "ruamel.yaml",
     "scikit-build",
     "setuptools>=69,<74",
+    "typing-extensions",
 ]
 build-backend="setuptools.build_meta"
 
@@ -29,6 +30,7 @@ dependencies = [
     "pytz",
     "ruamel.yaml",
     "sqlalchemy",
+    "typing-extensions",
 ]
 
 classifiers = [

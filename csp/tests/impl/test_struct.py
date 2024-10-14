@@ -7,6 +7,7 @@ import typing
 import unittest
 from datetime import date, datetime, time, timedelta
 from typing import Dict, List, Set, Tuple
+from typing_extensions import Annotated
 
 import csp
 from csp.impl.struct import define_nested_struct, define_struct, defineNestedStruct, defineStruct
@@ -2942,6 +2943,22 @@ class TestCspStruct(unittest.TestCase):
         self.assertIn("update", dir_output)
         self.assertIn("__metadata__", dir_output)
         self.assertEqual(dir_output, sorted(dir_output))
+
+    def test_annotations(self):
+        class StructWithAnnotations(csp.Struct):
+            b: Annotated[float, "test"]
+            d: Annotated[Dict[str, Annotated[int, "test_int"]], "test_dict"]
+            s: str
+
+        self.assertEqual(
+            StructWithAnnotations.metadata(typed=True),
+            {
+                "b": Annotated[float, "test"],
+                "d": Annotated[Dict[str, Annotated[int, "test_int"]], "test_dict"],
+                "s": str,
+            },
+        )
+        self.assertEqual(StructWithAnnotations.metadata(typed=False), {"b": float, "d": dict, "s": str})
 
 
 if __name__ == "__main__":

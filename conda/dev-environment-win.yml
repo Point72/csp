@@ -50,4 +50,5 @@ dependencies:
  - threadpoolctl
  - tornado
  - twine
+ - typing-extensions
  - wheel

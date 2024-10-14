@@ -1,5 +1,6 @@
 import numpy
 import typing
+import typing_extensions
 
 import csp.typing
 from csp.impl.types.typing_utils import CspTypingUtils, FastList
@@ -70,6 +71,8 @@ class ContainerTypeNormalizer:
 
     @classmethod
     def normalized_type_to_actual_python_type(cls, typ, level=0):
+        if isinstance(typ, typing_extensions._AnnotatedAlias):
+            typ = CspTypingUtils.get_origin(typ)
         if CspTypingUtils.is_generic_container(typ):
             if CspTypingUtils.get_origin(typ) is FastList and level == 0:
                 return [cls.normalized_type_to_actual_python_type(typ.__args__[0], level + 1), True]

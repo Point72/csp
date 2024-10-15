@@ -4,7 +4,7 @@ channels:
   - nodefaults
 dependencies:
  - brotli
- - bump2version>=1
+ - bump-my-version
  - cmake
  - codespell>=2.2.6,<2.3
  - compilers

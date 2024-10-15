@@ -72,7 +72,7 @@ your users.
 ### Preparing and tagging a release
 
 Follow these steps when it's time to tag a new release. Before doing
-this, you will need to ensure `bump2version` is installed into your
+this, you will need to ensure `bump-my-version` is installed into your
 development environment.
 
 > \[!NOTE\]
@@ -89,7 +89,7 @@ development environment.
    ```
 
 1. Make a branch and update version numbers in your local clone using
-   the `bump2version` integration in the Makefile.
+   the `bump-my-version` integration in the Makefile.
 
    First, make a branch that will be pushed to the main `csp`
    repository. Using a name like `release/v0.3.4` should avoid any
@@ -99,7 +99,7 @@ development environment.
    git checkout -b release/v0.x.x
    ```
 
-   You can update the version number in the codebase using `bump2version`. For a
+   You can update the version number in the codebase using `bump-my-version`. For a
    bugfix release, you would do:
 
    ```bash
@@ -127,7 +127,7 @@ development environment.
 
 1. Tag the release
 
-   Use the version number `bump2version` generated and make sure the
+   Use the version number `bump-my-version` generated and make sure the
    tag name begins with a `v`.
 
    ```bash

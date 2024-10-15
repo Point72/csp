@@ -2,7 +2,6 @@
 * @robambalu @AdamGlustein @svatasoiu @alexddobkin
 
 # Packaging code
-.bumpversion.cfg @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
 conda @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
 CMakeLists.txt @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
 Makefile @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine

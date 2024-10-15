@@ -52,6 +52,7 @@ dependencies:
  - threadpoolctl
  - tornado
  - twine
+ - typing-extensions
  - unzip
  - wheel
  - zip

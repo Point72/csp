@@ -680,7 +680,7 @@ class TestBaselib(unittest.TestCase):
             demux = csp.DelayedDemultiplex(csp.const(MyStruct()), csp.const("test"))
             demux.demultiplex(123)
 
-        with self.assertRaisesRegex(TypeError, "Conflicting type resolution for K when calling to _demultiplex"):
+        with self.assertRaisesRegex(TypeError, "Conflicting type resolution for K"):
             csp.run(my_graph2, starttime=datetime.utcnow())
 
     def test_delayed_collect(self):

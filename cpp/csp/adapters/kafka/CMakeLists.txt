@@ -22,7 +22,7 @@ set_target_properties(csp_kafka_adapter PROPERTIES PUBLIC_HEADER "${KAFKA_HEADER
 
 find_package(DepsKafkaAdapter REQUIRED)
 
-target_link_libraries(csp_kafka_adapter PRIVATE csp_adapter_utils RdKafka::rdkafka RdKafka::rdkafka++)
+target_link_libraries(csp_kafka_adapter PUBLIC csp_adapter_utils RdKafka::rdkafka RdKafka::rdkafka++)
 
 install(TARGETS csp_kafka_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/kafka

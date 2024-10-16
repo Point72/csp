@@ -25,10 +25,6 @@ runs:
 
     ################
     # Linux # NOTE: skip for manylinux image
-    # - name: Linux init steps
-    #   shell: bash
-    #   run: make dependencies-vcpkg
-    #   if: ${{ runner.os == 'Linux' }} # skip
 
     ################
     # Mac
@@ -36,16 +32,6 @@ runs:
       shell: bash
       run: make dependencies-mac
       if: ${{ runner.os == 'macOS' }}
-
-    # - name: Setup vcpkg cache in shell
-    #   shell: bash
-    #   run: |
-    #     which -a gcc-12
-    #     echo "CC=/usr/local/bin/gcc-12" >> $GITHUB_ENV
-    #     echo "CMAKE_C_COMPILER=/usr/local/bin/gcc-12" >> $GITHUB_ENV
-    #     echo "CXX=/usr/local/bin/g++-12" >> $GITHUB_ENV
-    #     echo "CMAKE_CXX_COMPILER=/usr/local/bin/g++-12" >> $GITHUB_ENV
-    #   if: ${{ runner.os == 'macOS' }}
 
     ################
     # Windows

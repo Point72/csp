@@ -6,6 +6,8 @@
 #include <csp/core/Time.h>
 #include <csp/engine/CycleStepTable.h>
 #include <csp/engine/DialectGenericType.h>
+#include <csp/engine/Node.h>
+#include <csp/engine/OutputAdapter.h>
 #include <memory>
 #include <unordered_map>
 #include <vector>

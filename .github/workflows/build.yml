@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - tkp/sym
     tags:
       - v*
     paths-ignore:

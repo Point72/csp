@@ -1,0 +1,33 @@
+// https://asv.readthedocs.io/en/v0.6.3/asv.conf.json.html
+{
+    "version": 1,
+    "project": "csp",
+    "project_url": "https://github.com/Point72/csp",
+    "repo": "../..",
+    "branches": ["main", "tkp/bm"],
+    "dvcs": "git",
+
+    "install_command": ["in-dir={env_dir} python -mpip install {wheel_file}"],
+    "uninstall_command": ["return-code=any python -mpip uninstall -y {project}"],
+    "build_command": [
+        "python -m pip install build",
+        "python -m build --wheel -o {build_cache_dir} {build_dir}"
+    ],
+    "environment_type": "virtualenv",
+    "install_timeout": 600,
+    "show_commit_url": "http://github.com/point72/csp/commit/",
+
+    "pythons": ["3.11"],
+
+    // "environment_type": "mamba",
+    // "conda_channels": ["conda-forge"],
+    // "conda_environment_file": "conda/dev-environment-unix.yml",
+
+    "benchmark_dir": "../../csp/benchmarks",
+    "env_dir": "../../.asv/env",
+    "results_dir": "../../ci/benchmarks",
+    "html_dir": "../../.asv/html",
+
+    "hash_length": 8,
+    "build_cache_size": 2
+}

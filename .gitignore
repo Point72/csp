@@ -104,6 +104,11 @@ csp/lib/
 *.so
 *.tsbuildinfo
 
+# Benchmarks
+.asv
+ci/benchmarks/*
+!ci/benchmarks/benchmarks.json
+
 # Jupyter / Editors
 .ipynb_checkpoints
 .autoversion

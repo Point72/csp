@@ -78,7 +78,6 @@ develop = [
     "graphviz",
     "pillow",
     # adapters
-    "httpx>=0.20,<1",  # kafka
     "polars",  # parquet
     "psutil",  # test_engine/test_history
     "sqlalchemy",  # db
@@ -96,7 +95,6 @@ test = [
     "pytest-asyncio",
     "pytest-cov",
     "pytest-sugar",
-    "httpx>=0.20,<1",
     "polars",
     "psutil",
     "requests",

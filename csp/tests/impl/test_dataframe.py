@@ -134,10 +134,13 @@ class TestCspDataFrame(unittest.TestCase):
         starttime = datetime(2021, 4, 26)
         endtime = starttime + timedelta(seconds=10)
 
-        _ = df.to_perspective(starttime, endtime)
+        server = perspective.Server()
+        client = server.new_local_client()
+
+        _ = df.to_perspective(client, starttime, endtime)
 
         # realtime
-        widget = df.to_perspective(datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
+        widget = df.to_perspective(client, datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
         import time
 
         time.sleep(1)

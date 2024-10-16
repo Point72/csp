@@ -1,6 +1,7 @@
 import pandas as pd
+import pyarrow as pa
 import pytz
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pandas.compat import set_function_name
 from typing import Optional
 
@@ -40,7 +41,8 @@ def _apply_updates(
         if throttle > timedelta(0):
             csp.schedule_alarm(alarm, throttle, True)
         s_has_time_col = time_col and time_col not in data.keys()
-        s_datetime_cols = set([c for c, t in table.schema().items() if t == datetime])
+        s_datetime_cols = set([c for c, t in table.schema().items() if t == "datetime"])
+        s_date_cols = set([c for c, t in table.schema().items() if t == "date"])
 
     with csp.stop():
         try:
@@ -81,14 +83,22 @@ def _apply_updates(
                     row[index_col] = idx
                 if s_has_time_col:
                     if localize:
-                        row[time_col] = pytz.utc.localize(csp.now())
+                        row[time_col] = int(pytz.utc.localize(csp.now()).timestamp() * 1000)
                     else:
-                        row[time_col] = csp.now()
+                        row[time_col] = int(pytz.utc.localize(csp.now()).timestamp() * 1000)
             else:
                 row = new_rows[idx]
 
-            if localize and col in s_datetime_cols and value.tzinfo is None:
-                row[col] = pytz.utc.localize(value)
+            if col in s_date_cols:
+                row[col] = int(
+                    datetime(year=value.year, month=value.month, day=value.day, tzinfo=timezone.utc).timestamp() * 1000
+                )
+
+            elif localize and col in s_datetime_cols:
+                if value.tzinfo is None:
+                    row[col] = int(pytz.utc.localize(value).timestamp() * 1000)
+                else:
+                    row[col] = int(pytz.utc.localize(value).timestamp() * 1000)
             else:
                 row[col] = value
 
@@ -160,28 +170,41 @@ class CspPerspectiveTable:
         self._limit = limit
         self._localize = localize
 
+        # TODO: we do not want 1 server per table, make a Client param?
+        self._psp_server = perspective.Server()
+        self._psp_client = self._psp_server.new_local_client()
+
         self._basket = _frame_to_basket(data)
         self._static_frame = data.csp.static_frame()
-        self._static_table = perspective.Table(self._static_frame)
+        self._static_table = self._psp_client.table(self._static_frame)
         static_schema = self._static_table.schema()
         # Since the index will be accounted for separately, remove the index from the static table schema,
         # and re-enter it under index_col
         raw_index_name = self._static_frame.index.name or "index"
         index_type = static_schema.pop(raw_index_name)
         schema = {index_col: index_type}
+        perspective_type_map = {
+            str: "string",
+            float: "float",
+            int: "integer",
+            date: "date",
+            datetime: "datetime",
+            bool: "boolean",
+        }
+
         if time_col:
-            schema[time_col] = datetime
+            schema[time_col] = "datetime"
         for col, series in data.items():
             if is_csp_type(series):
-                schema[col] = series.dtype.subtype
+                schema[col] = perspective_type_map[series.dtype.subtype]
             else:
                 schema[col] = static_schema[col]
 
         if self._keep_history:
-            self._table = perspective.Table(schema, index=None, limit=limit)
+            self._table = self._psp_client.table(schema, index=None, limit=limit)
             self._static_records = self._static_frame.to_dict(orient="index")
         else:
-            self._table = perspective.Table(schema, index=self._index_col)
+            self._table = self._psp_client.table(schema, index=self._index_col)
             self._static_frame.index = self._static_frame.index.rename(self._index_col)
             self._table.update(self._static_frame)
             self._static_records = None  # No need to update dynamically
@@ -222,7 +245,7 @@ class CspPerspectiveTable:
             index = self._index_col
         if self._limit:
             df = df.sort_values(self._time_col).tail(self._limit).reset_index(drop=True)
-        return perspective.Table(df.to_dict("series"), index=index)
+        return self._psp_client.table(df, index=index)
 
     def run(self, starttime=None, endtime=timedelta(seconds=60), realtime=True, clear=False):
         """Run a graph that sends data to the table on the current thread.
@@ -280,7 +303,7 @@ class CspPerspectiveTable:
                 "sort": [[self._time_col, "desc"]],
             }
         else:
-            kwargs = {"columns": list(self._table.schema())}
+            kwargs = {"columns": list(self._table.columns())}
         kwargs.update(override_kwargs)
         return perspective.PerspectiveWidget(self._table, **kwargs)
 
@@ -294,13 +317,29 @@ class CspPerspectiveTable:
 
     @classmethod
     def _add_view_methods(cls):
-        cls.to_df = cls._create_view_method(perspective.View.to_df)
-        cls.to_dict = cls._create_view_method(perspective.View.to_dict)
         cls.to_json = cls._create_view_method(perspective.View.to_json)
         cls.to_csv = cls._create_view_method(perspective.View.to_csv)
-        cls.to_numpy = cls._create_view_method(perspective.View.to_numpy)
         cls.to_columns = cls._create_view_method(perspective.View.to_columns)
         cls.to_arrow = cls._create_view_method(perspective.View.to_arrow)
+
+    def to_df(self, **kwargs):
+        ipc_bytes = self.to_arrow()
+        table = pa.ipc.open_stream(ipc_bytes).read_all()
+        df = pd.DataFrame(table.to_pandas(**kwargs))
+
+        # DAVIS: `pyarrow` does not force alphabetical order on categories, so
+        # we correct this here to make assertions pass. We can enforce this in
+        # Perspective at a performance hit/API complexity.
+        for column in df:
+            if df[column].dtype == "datetime64[ms]":
+                df[column] = df[column].astype("datetime64[ns]")
+            elif df[column].dtype == "category":
+                df[column] = df[column].cat.reorder_categories(df[column].cat.categories.sort_values())
+
+        if df.index.dtype == "category":
+            df.index = df.index.cat.reorder_categories(df.index.cat.categories.sort_values())
+
+        return df
 
 
 CspPerspectiveTable._add_view_methods()

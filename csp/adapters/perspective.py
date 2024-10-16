@@ -1,5 +1,6 @@
 import threading
 from datetime import timedelta
+from perspective import PerspectiveTornadoHandler, Server
 from typing import Dict, Optional, Union
 
 import csp
@@ -13,21 +14,20 @@ try:
 except ImportError:
     raise ImportError("perspective adapter requires tornado package")
 
-
 try:
-    from perspective import PerspectiveManager, Table as Table_, View as View_, __version__, set_threadpool_size
+    from perspective import Server, Table as Table_, View as View_, __version__, set_threadpool_size
 
     MAJOR, MINOR, PATCH = map(int, __version__.split("."))
-    if (MAJOR, MINOR, PATCH) < (0, 6, 2):
-        raise ImportError("perspective adapter requires 0.6.2 or greater of the perspective-python package")
+    if (MAJOR, MINOR, PATCH) < (3, 1, 0):
+        raise ImportError("perspective adapter requires version 3.1.0 or greater of the perspective-python package")
 except ImportError:
-    raise ImportError("perspective adapter requires 0.6.2 or greater of the perspective-python package")
+    raise ImportError("perspective adapter requires version 3.1.0 or greater of the perspective-python package")
 
 
 # Run perspective update in a separate tornado loop
-def perspective_thread(manager):
+def perspective_thread(client):
     loop = tornado.ioloop.IOLoop()
-    manager.set_loop_callback(loop.add_callback)
+    client.set_loop_callback(loop.add_callback)
     loop.start()
 
 
@@ -54,19 +54,17 @@ def _apply_updates(table: object, data: {str: ts[object]}, throttle: timedelta):
 
 
 @csp.node
-def _launch_application(port: int, manager: object, stub: ts[object]):
+def _launch_application(port: int, server: Server, stub: ts[object]):
     with csp.state():
         s_app = None
         s_ioloop = None
         s_iothread = None
 
     with csp.start():
-        from perspective import PerspectiveTornadoHandler
-
         s_app = tornado.web.Application(
             [
                 # create a websocket endpoint that the client Javascript can access
-                (r"/websocket", PerspectiveTornadoHandler, {"manager": manager, "check_origin": True})
+                (r"/websocket", PerspectiveTornadoHandler, {"perspective_server": server, "check_origin": True})
             ],
             websocket_ping_interval=15,
         )
@@ -197,10 +195,10 @@ class PerspectiveAdapter(DelayedNodeWrapperDef):
 
     def _instantiate(self):
         set_threadpool_size(self._threadpool_size)
+        server = Server()
+        client = server.new_local_client()
 
-        manager = PerspectiveManager()
-
-        thread = threading.Thread(target=perspective_thread, kwargs=dict(manager=manager))
+        thread = threading.Thread(target=perspective_thread, kwargs=dict(client=client))
         thread.daemon = True
         thread.start()
 
@@ -208,9 +206,8 @@ class PerspectiveAdapter(DelayedNodeWrapperDef):
             schema = {
                 k: v.tstype.typ if not issubclass(v.tstype.typ, csp.Enum) else str for k, v in table.columns.items()
             }
-            ptable = Table(schema, limit=table.limit, index=table.index)
-            manager.host_table(table_name, ptable)
+            ptable = client.table(schema, name=table_name, limit=table.limit, index=table.index)
 
             _apply_updates(ptable, table.columns, self._throttle)
 
-        _launch_application(self._port, manager, csp.const("stub"))
+        _launch_application(self._port, server, csp.const("stub"))

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Dict, Optional
 
 import csp.baselib
@@ -198,7 +198,7 @@ class DataFrame:
 
         return make_pandas(trigger, self._data, window, tindex, wait_all_valid)
 
-    def to_perspective(self, starttime: datetime, endtime: datetime = None, realtime: bool = False):
+    def to_perspective(self, client, starttime: datetime, endtime: datetime = None, realtime: bool = False):
         import csp
 
         try:
@@ -229,7 +229,7 @@ class DataFrame:
             return perspective.PerspectiveWidget(df.ffill(), plugin="Y Line", columns=self._columns, group_by="index")
 
         @csp.node
-        def apply_updates(table: object, data: {str: csp.ts[object]}, timecol: str, throttle: timedelta):
+        def apply_updates(table: object, data: Dict[str, csp.ts[object]], timecol: str, throttle: timedelta):
             with csp.alarms():
                 alarm = csp.alarm(bool)
             with csp.state():
@@ -240,7 +240,7 @@ class DataFrame:
 
             if csp.ticked(data):
                 s_buffer.append(dict(data.tickeditems()))
-                s_buffer[-1][timecol] = csp.now()
+                s_buffer[-1][timecol] = int(csp.now().timestamp() * 1000)
 
             if csp.ticked(alarm):
                 if len(s_buffer) > 0:
@@ -250,9 +250,17 @@ class DataFrame:
                 csp.schedule_alarm(alarm, throttle, True)
 
         timecol = "time"
-        schema = {k: v.tstype.typ for k, v in self._data.items()}
-        schema[timecol] = datetime
-        table = perspective.Table(schema)
+        perspective_type_map = {
+            str: "string",
+            float: "float",
+            int: "integer",
+            date: "date",
+            datetime: "datetime",
+            bool: "boolean",
+        }
+        schema = {k: perspective_type_map[v.tstype.typ] for k, v in self._data.items()}
+        schema[timecol] = "datetime"
+        table = client.table(schema)
         runner = csp.run_on_thread(
             apply_updates,
             table,

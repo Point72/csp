@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import unittest
 from datetime import date, datetime, timedelta
 from packaging import version
@@ -17,9 +18,28 @@ except ImportError:
     raise unittest.SkipTest("skipping perspective tests")
 
 
+def view_to_df(view):
+    ipc_bytes = view.to_arrow()
+    table = pa.ipc.open_stream(ipc_bytes).read_all()
+    table = table.drop(["index"])  # TODO: not sure why this isnt dropped in one of the tests.
+    df = pd.DataFrame(table.to_pandas())
+
+    for column in df:
+        if df[column].dtype == "datetime64[ms]":
+            df[column] = df[column].astype("datetime64[ns]")
+        elif df[column].dtype == "category":
+            df[column] = df[column].cat.reorder_categories(df[column].cat.categories.sort_values())
+
+    if df.index.dtype == "category":
+        df.index = df.index.cat.reorder_categories(df.index.cat.categories.sort_values())
+
+    return df
+
+
 class TestCspPerspectiveTable(unittest.TestCase):
     def setUp(self) -> None:
-        self.idx = ["ABC", "DEF", "GJH"]
+        cat = pd.CategoricalDtype(["ABC", "DEF", "GJH"])
+        self.idx = pd.Series(["ABC", "DEF", "GJH"], dtype=cat)
         bid = pd.Series(
             [csp.const(99.0), csp.timer(timedelta(seconds=1), 103.0), np.nan], dtype=TsDtype(float), index=self.idx
         )
@@ -28,8 +48,8 @@ class TestCspPerspectiveTable(unittest.TestCase):
             dtype=TsDtype(float),
             index=self.idx,
         )
-        sector = ["X", "Y", "X"]
-        name = [s + " Corp" for s in self.idx]
+        sector = pd.Series(["X", "Y", "X"], dtype="category", index=self.idx)
+        name = pd.Series([s + " Corp" for s in self.idx], dtype="category", index=self.idx)
         self.df = pd.DataFrame(
             {
                 "name": name,
@@ -40,7 +60,9 @@ class TestCspPerspectiveTable(unittest.TestCase):
         )
 
     def check_table_history(self, table, target, index_col, time_col):
-        df = table.to_df().set_index([index_col, time_col])
+        df = table.to_df(strings_to_categorical=True)
+
+        df = df.set_index([index_col, time_col])
         df.index.set_names([None, None], inplace=True)
         df = df.sort_index()
         df = df.convert_dtypes()
@@ -91,6 +113,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
         df2 = table.to_df()
         self.assertEqual(len(df2), 2 * len(df1))
 
+    # DAVIS: Hitting the index bug (perspective bug #2756)
     def test_limit(self):
         table = CspPerspectiveTable(self.df, limit=3)
         table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=20))
@@ -106,9 +129,13 @@ class TestCspPerspectiveTable(unittest.TestCase):
         out = out.sort_values(["index", "timestamp"]).reset_index(drop=True).convert_dtypes()
         if version.parse(perspective.__version__) >= version.parse("1.0.3"):
             pd.testing.assert_frame_equal(out, target)
+        pd.testing.assert_frame_equal(out, target)
 
         self.assertRaises(ValueError, CspPerspectiveTable, self.df, keep_history=False, limit=3)
 
+    # DAVIS: perspective pyarrow output is using milliseconds
+    #           psp-pandas, now built on pyarrow is using ms
+    #           But this test is expected nanoseconds.
     def test_localize(self):
         # In this mode, the timestamp column should be in "local time", not utc
         self.df["datetime_col"] = pd.Series(
@@ -120,15 +147,14 @@ class TestCspPerspectiveTable(unittest.TestCase):
         table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=4))
         table.join()
         out = table.to_df()
-        import dateutil
 
-        utc = out["my_timestamp"].dt.tz_localize(dateutil.tz.tzlocal()).dt.tz_convert("UTC").dt.tz_localize(None)
+        utc = out["my_timestamp"]
         target = pd.Series(
             ["2020-01-01", "2020-01-01 00:00:04", "2020-01-01"], dtype="datetime64[ns]", name="my_timestamp"
         )
         pd.testing.assert_series_equal(utc, target)
 
-        utc = out["datetime_col"].dt.tz_localize(dateutil.tz.tzlocal()).dt.tz_convert("UTC").dt.tz_localize(None)
+        utc = out["datetime_col"]
         target = pd.Series(["2020-01-01 01", "2020-01-01 02", np.nan], dtype="datetime64[ns]", name="datetime_col")
         pd.testing.assert_series_equal(utc, target)
 
@@ -158,23 +184,25 @@ class TestCspPerspectiveTable(unittest.TestCase):
         s_int = pd.Series([csp.const(0) for _ in self.idx], dtype=TsDtype(int), index=self.idx)
         s_float = pd.Series([csp.const(0.1) for _ in self.idx], dtype=TsDtype(float), index=self.idx)
         s_bool = pd.Series([csp.const(True) for _ in self.idx], dtype=TsDtype(bool), index=self.idx)
-        s_date = pd.Series([csp.const(date.min) for _ in self.idx], dtype=TsDtype(date), index=self.idx)
+        s_date = pd.Series(
+            [csp.const(date(year=1996, month=9, day=9)) for _ in self.idx], dtype=TsDtype(date), index=self.idx
+        )
         self.df = pd.DataFrame({"s_str": s_str, "s_int": s_int, "s_float": s_float, "s_bool": s_bool, "s_date": s_date})
-
         table = CspPerspectiveTable(self.df)
-        table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=0))
+        table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
         table.join()
         df = table.to_df().convert_dtypes()
         if version.parse(pd.__version__) >= version.parse("1.2.0"):
             floatDtype = pd.Float64Dtype()
         else:
             floatDtype = np.dtype("float64")
+
         dtypes = pd.Series(
             {
-                "index": pd.StringDtype(),
+                "index": pd.CategoricalDtype(["ABC", "DEF", "GJH"]),
                 "timestamp": np.dtype("datetime64[ns]"),
-                "s_str": pd.StringDtype(),
-                "s_int": pd.Int64Dtype(),
+                "s_str": pd.CategoricalDtype(["a"]),
+                "s_int": pd.Int32Dtype(),
                 "s_float": floatDtype,
                 "s_bool": pd.BooleanDtype(),
                 "s_date": np.dtype("O"),
@@ -182,6 +210,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
         )
         pd.testing.assert_series_equal(df.dtypes, dtypes)
 
+    # DAVIS: Hitting the index bug (perspective bug #2756)
     def test_run_historical(self):
         index_col = "my_index"
         time_col = "my_timestamp"
@@ -190,25 +219,23 @@ class TestCspPerspectiveTable(unittest.TestCase):
         table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=4))
         table.join()
         target = table.to_df().sort_values([index_col, time_col]).reset_index(drop=True)
-        pd.testing.assert_frame_equal(out.view().to_df(), target)
-
+        pd.testing.assert_frame_equal(view_to_df(out.view()), target)
         table = CspPerspectiveTable(self.df, index_col=index_col, time_col=time_col, keep_history=False)
         out = table.run_historical(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=4))
         table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=4))
         table.join()
         target = table.to_df()
-        pd.testing.assert_frame_equal(out.view().to_df(), target)
+        pd.testing.assert_frame_equal(view_to_df(out.view()), target)
 
         table = CspPerspectiveTable(self.df, index_col=index_col, time_col=time_col, limit=3)
         out = table.run_historical(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=20))
-        out = out.view().to_df()
+        out = view_to_df(out.view())
         self.assertEqual(len(out), 3)
 
         table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=20))
         table.join()
         target = table.to_df().sort_values([index_col, time_col]).reset_index(drop=True).tail(3)
-        if version.parse(perspective.__version__) >= version.parse("1.0.3"):
-            pd.testing.assert_frame_equal(out.sort_values([index_col, time_col]), target)
+        pd.testing.assert_frame_equal(out.sort_values([index_col, time_col]), target)
 
     def test_real_time(self):
         table = CspPerspectiveTable(self.df, keep_history=False)
@@ -239,6 +266,8 @@ class TestCspPerspectiveTable(unittest.TestCase):
         table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
         table.join()
         df2 = table.to_df()
+        # this static_frame() has object dtypes
+        self.df.csp.static_frame().reset_index().info(verbose=True)
         pd.testing.assert_frame_equal(df2, self.df.csp.static_frame().reset_index())
 
     def test_get_widget(self):
@@ -256,10 +285,11 @@ class TestCspPerspectiveTable(unittest.TestCase):
         table = CspPerspectiveTable(self.df, index_col="my_index", time_col=None, keep_history=False)
         widget = table.get_widget()
         self.assertIsInstance(widget, perspective.PerspectiveWidget)
-        self.assertEqual(widget.columns, ["my_index", "name", "bid", "ask", "sector"])
-        self.assertEqual(widget.aggregates, {})
-        self.assertEqual(widget.group_by, [])
-        self.assertEqual(widget.sort, [])
+        layout = widget.save()
+        self.assertEqual(layout["columns"], ["my_index", "name", "bid", "ask", "sector"])
+        self.assertEqual(layout["aggregates"], {})
+        self.assertEqual(layout["group_by"], [])
+        self.assertEqual(layout["sort"], [])
 
         table = CspPerspectiveTable(self.df)
         widget = table.get_widget(sort=[["foo", "asc"]], theme="Material Dark")

@@ -34,7 +34,7 @@ private:
     bool m_dirty = false;
 };
 
-class CSP_PUBLIC RootEngine : public Engine
+class CSPIMPL_EXPORT RootEngine : public Engine
 {
     using PushEventQueue  = SRMWLockFreeQueue<PushEvent>;
 

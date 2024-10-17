@@ -7,7 +7,7 @@
 namespace csp
 {
 template< typename V, typename ...Args >
-class CSP_PUBLIC Generator
+class CSPIMPL_EXPORT Generator
 {
 public:
     using Ptr = std::shared_ptr<Generator<V, Args...>>;

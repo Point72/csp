@@ -12,7 +12,7 @@ namespace csp::python
 
 class PyEngine;
 
-class CSP_PUBLIC PyNode final: public csp::Node
+class CSPIMPL_EXPORT PyNode final: public csp::Node
 {
 public:
     PyNode( csp::Engine * engine, PyObjectPtr gen, PyObjectPtr inputs, PyObjectPtr outputs,

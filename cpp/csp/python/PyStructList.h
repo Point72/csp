@@ -12,7 +12,7 @@ namespace csp::python
 {
 
 template<typename StorageT>
-struct CSP_PUBLIC PyStructList : public PyObject
+struct CSPIMPL_EXPORT PyStructList : public PyObject
 {
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
 

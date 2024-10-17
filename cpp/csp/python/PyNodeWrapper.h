@@ -9,7 +9,7 @@ namespace csp::python
 {
 
 //simple wrapper for python level access when wiring
-class CSP_PUBLIC PyNodeWrapper : public PyObject
+class CSPIMPL_EXPORT PyNodeWrapper : public PyObject
 {
 public:
     csp::Node * node() { return m_node; }

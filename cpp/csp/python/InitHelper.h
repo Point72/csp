@@ -125,7 +125,7 @@ inline bool InitHelper::execute( PyObject * module )
 #undef PyMODINIT_FUNC
 #endif
 
-#define PyMODINIT_FUNC extern "C" CSP_PUBLIC PyObject*
+#define PyMODINIT_FUNC extern "C" CSPIMPL_EXPORT PyObject*
 #endif
 
 #endif

@@ -8,7 +8,7 @@
 namespace csp::python
 {
 
-class CSP_PUBLIC PyGraphOutputAdapter : public GraphOutputAdapter
+class CSPIMPL_EXPORT PyGraphOutputAdapter : public GraphOutputAdapter
 {
 public:
     using GraphOutputAdapter::GraphOutputAdapter;

@@ -9,7 +9,7 @@
 namespace csp::python
 {
 
-class CSP_PUBLIC PyOutputProxy final: public PyObject
+class CSPIMPL_EXPORT PyOutputProxy final: public PyObject
 {
 public:
     PyOutputProxy( PyObject *pyType, Node * node, OutputId );

@@ -11,7 +11,7 @@ namespace csp
 struct PushGroup;
 class PushInputAdapters;
 
-class CSP_PUBLIC PendingPushEvents
+class CSPIMPL_EXPORT PendingPushEvents
 {
 public:
     PendingPushEvents();

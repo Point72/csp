@@ -13,7 +13,7 @@ class PyOutputProxy;
 using PyOutputProxyPtr = PyPtr<PyOutputProxy>;
 class PyNode;
 
-class CSP_PUBLIC PyBaseBasketOutputProxy : public PyObject
+class CSPIMPL_EXPORT PyBaseBasketOutputProxy : public PyObject
 {
 public:
     PyBaseBasketOutputProxy( Node * node, INOUT_ID_TYPE id );
@@ -23,7 +23,7 @@ protected:
     INOUT_ID_TYPE                 m_id;
 };
 
-class CSP_PUBLIC PyListBasketOutputProxy final : public PyBaseBasketOutputProxy
+class CSPIMPL_EXPORT PyListBasketOutputProxy final : public PyBaseBasketOutputProxy
 {
 public:
     PyListBasketOutputProxy( PyObject *pyType, Node * node, INOUT_ID_TYPE id, size_t shape );
@@ -44,7 +44,7 @@ private:
     std::vector<PyOutputProxyPtr> m_proxies;
 };
 
-class CSP_PUBLIC PyDictBasketOutputProxy : public PyBaseBasketOutputProxy
+class CSPIMPL_EXPORT PyDictBasketOutputProxy : public PyBaseBasketOutputProxy
 {
 public:
     PyDictBasketOutputProxy( PyObject *pyType, Node * node, INOUT_ID_TYPE id, PyObject * shape );
@@ -59,7 +59,7 @@ protected:
     PyObjectPtr m_proxyMapping;
 };
 
-class CSP_PUBLIC PyDynamicBasketOutputProxy final : public PyDictBasketOutputProxy
+class CSPIMPL_EXPORT PyDynamicBasketOutputProxy final : public PyDictBasketOutputProxy
 {
 public:
     PyDynamicBasketOutputProxy( PyObject *pyType, Node * node, INOUT_ID_TYPE id, PyObject * shape );

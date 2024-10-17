@@ -9,7 +9,7 @@ namespace csp
 
 class PushInputAdapter;
 
-struct CSP_PUBLIC PushEvent
+struct CSPIMPL_EXPORT PushEvent
 {
     PushEvent( PushInputAdapter *adapter ) : m_adapter( adapter ), next( nullptr )
     {}

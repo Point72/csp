@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_NUMPYINPUTADAPTER_H
 #define _IN_CSP_PYTHON_NUMPYINPUTADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/PullInputAdapter.h>
 #include <csp/python/NumpyConversions.h>
 
@@ -11,7 +12,7 @@
 namespace csp::python
 {
 
-class NumpyCurveAccessor
+class CSPIMPL_EXPORT NumpyCurveAccessor
 {
     // Accesses values by indexing only on the outermost dimension of an n-dimensional Numpy array and then creating a view to the subarray
     // Thus, you can get the nested Numpy array values in csp.curve with zero-copy operations

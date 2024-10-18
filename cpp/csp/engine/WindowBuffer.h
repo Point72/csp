@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_WINDOWBUFFER_H
 #define _IN_CSP_ENGINE_WINDOWBUFFER_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/CspType.h>
 
 /************************************************************************

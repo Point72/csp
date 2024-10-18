@@ -1,3 +1,7 @@
+#ifndef _IN_CSP_PYTHON_PYNODEWRAPPER_H
+#define _IN_CSP_PYTHON_PYNODEWRAPPER_H
+
+#include <csp/core/Platform.h>
 #include <csp/engine/Node.h>
 #include <Python.h>
 
@@ -5,7 +9,7 @@ namespace csp::python
 {
 
 //simple wrapper for python level access when wiring
-class PyNodeWrapper : public PyObject
+class CSPIMPL_EXPORT PyNodeWrapper : public PyObject
 {
 public:
     csp::Node * node() { return m_node; }
@@ -20,3 +24,5 @@ private:
 };
 
 }
+
+#endif

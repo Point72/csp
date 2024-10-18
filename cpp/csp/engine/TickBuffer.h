@@ -6,6 +6,7 @@
  ** it uses a circular buffer for storage but only allows pushing back
  ** and resizing 
  ***********************************************************************/
+#include <csp/core/Platform.h>
 #include <csp/core/System.h>
 #include <csp/core/Time.h>
 #include <memory>

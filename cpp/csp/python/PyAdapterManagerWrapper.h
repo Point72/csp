@@ -2,6 +2,7 @@
 #define _IN_CSP_PYTHON_PYADAPTERMANAGERWRAPPER_H
 
 #include <Python.h>
+#include <csp/core/Platform.h>
 #include <csp/python/Exception.h>
 #include <csp/python/InitHelper.h>
 

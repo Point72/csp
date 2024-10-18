@@ -1,12 +1,13 @@
 #ifndef _IN_CSP_CORE_GENERATOR_H
 #define _IN_CSP_CORE_GENERATOR_H
 
+#include <csp/core/Platform.h>
 #include <memory>
 
 namespace csp
 {
 template< typename V, typename ...Args >
-class Generator
+class CSPIMPL_EXPORT Generator
 {
 public:
     using Ptr = std::shared_ptr<Generator<V, Args...>>;

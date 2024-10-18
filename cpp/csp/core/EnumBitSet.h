@@ -1,6 +1,8 @@
 #ifndef _IN_CSP_CORE_ENUMBITSET_H
 #define _IN_CSP_CORE_ENUMBITSET_H
 
+#include <csp/core/Platform.h>
+
 #include <stddef.h>
 #include <stdint.h>
 #include <initializer_list>

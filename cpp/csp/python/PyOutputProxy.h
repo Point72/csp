@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_PYOUTPUTPROXY_H
 #define _IN_CSP_PYTHON_PYOUTPUTPROXY_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/Node.h>
 #include <csp/engine/InputId.h>
 #include <Python.h>
@@ -8,7 +9,7 @@
 namespace csp::python
 {
 
-class PyOutputProxy final: public PyObject
+class CSPIMPL_EXPORT PyOutputProxy final: public PyObject
 {
 public:
     PyOutputProxy( PyObject *pyType, Node * node, OutputId );

@@ -14,7 +14,7 @@ namespace csp
 //Utility class to hold enums as a bitmask ( where enum values are incremental from 0 )
 //enum must have a NUM_TYPES entry for number of entries
 template< typename EnumT >
-class CSPIMPL_EXPORT EnumBitSet
+class EnumBitSet
 {
     using value_type = uint64_t;
 

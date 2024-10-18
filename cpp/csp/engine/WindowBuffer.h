@@ -16,7 +16,7 @@ namespace csp
 // Class declarations
 
 template<typename T>
-class CSPIMPL_EXPORT WindowBuffer
+class WindowBuffer
 {
 public:
     WindowBuffer();

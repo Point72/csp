@@ -14,7 +14,7 @@ namespace csp
 
 class TimeDelta;
 
-class CSPIMPL_EXPORT QueueWaiter
+class QueueWaiter
 {
 public:
     QueueWaiter() : m_eventsPending( false )

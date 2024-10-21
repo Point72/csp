@@ -580,7 +580,7 @@ TypedStructPtr<T> structptr_cast( const TypedStructPtr<U> & r )
     return out;
 }
 
-class StructMeta : public std::enable_shared_from_this<StructMeta>
+class CSPTYPESIMPL_EXPORT StructMeta : public std::enable_shared_from_this<StructMeta>
 {
 public:
     using Fields = std::vector<StructFieldPtr>;
@@ -684,7 +684,7 @@ std::shared_ptr<typename StructField::upcast<T>::type> StructMeta::getMetaField(
 
 using StructMetaPtr = std::shared_ptr<StructMeta>;
 
-class Struct
+class CSPTYPESIMPL_EXPORT Struct
 {
 public:
 

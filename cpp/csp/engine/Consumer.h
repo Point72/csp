@@ -13,7 +13,7 @@ namespace csp
 class InputAdapter;
 
 //Base of either regular Nodes or output adapters
-class Consumer
+class CSP_PUBLIC Consumer
 {
 public:
     Consumer( Engine * );

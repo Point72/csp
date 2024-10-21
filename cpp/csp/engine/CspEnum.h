@@ -34,7 +34,7 @@ private:
 
 //As an optimization we do NOT attach meta or value to every instance of an enum.  Instead, the enum
 //holds only a pointer to a singleton CspEnumInstance, which holds the value, name, and meta pointer.
-class CspEnum
+class CSPTYPESIMPL_EXPORT CspEnum
 {
 public:
     CspEnum();

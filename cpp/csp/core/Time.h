@@ -21,7 +21,7 @@ const int64_t NANOS_PER_SECOND      = 1000000000;
 const int64_t SECONDS_PER_DAY       = 86400;
 const int64_t NANOS_PER_DAY         = NANOS_PER_SECOND * SECONDS_PER_DAY;
 
-class TimeDelta
+class CSPTYPESIMPL_EXPORT TimeDelta
 {
 public:
     constexpr TimeDelta() : TimeDelta( TimeDelta::NONE() ) {}
@@ -165,7 +165,7 @@ inline std::ostream & operator <<( std::ostream &os, const TimeDelta & d )
     return os;
 }
 
-class Date
+class CSPTYPESIMPL_EXPORT Date
 {
 public:
     Date() : Date( NONE() ) {}
@@ -316,7 +316,7 @@ inline std::ostream & operator <<( std::ostream &os, const Date & d )
     return os;
 }
 
-class Time
+class CSPTYPESIMPL_EXPORT Time
 {
 public:
     Time() : Time( -1 ) {} //NONE
@@ -446,7 +446,7 @@ inline std::ostream & operator <<( std::ostream &os, const Time & t )
 
 // Time is internally stored as an int64_t nanoseconds since 1970. 
 // All DateTime objects are stored as UTC and should be treated as such
-class DateTime
+class CSPTYPESIMPL_EXPORT DateTime
 {
 public:
     DateTime() : DateTime( DateTime::NONE() ) {}

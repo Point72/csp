@@ -14,7 +14,7 @@ namespace csp
 
 class CspStringType;
 
-class CspType
+class CSPTYPESIMPL_EXPORT CspType
 {
 public:
 

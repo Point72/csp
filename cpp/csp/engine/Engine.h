@@ -34,7 +34,7 @@ struct EngineOwned
     void operator delete( void* ptr )            { ::operator delete(ptr); }
 };
 
-class Engine
+class CSP_PUBLIC Engine
 {
     using AdapterManagers   = std::vector<std::shared_ptr<AdapterManager>>;
     using InputAdapters     = std::vector<std::unique_ptr<InputAdapter>>;

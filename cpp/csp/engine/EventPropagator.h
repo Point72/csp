@@ -9,7 +9,7 @@ namespace csp
 
 class Consumer;
 
-class EventPropagator
+class CSP_PUBLIC EventPropagator
 {
 public:
     EventPropagator();

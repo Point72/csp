@@ -22,47 +22,42 @@ class TsType(Protocol[_TYPE_VAR]):
     # __add__ = __bin__
     # ...
 
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        """Validation of TsType for pydantic v2"""
+        from pydantic_core import core_schema
+
+        from csp.impl.wiring.edge import Edge
+
+        source_args = typing.get_args(source_type)
+        if len(source_args) != 1:
+            raise TypeError("TsType only accepts a single argument")
+        type_validator = TsTypeValidator.make_cached(source_args[0])
+
+        def _validate(v, info):
+            # Assume info.context, if provided, is of type TVarValidationContext
+            # Normally, allowing None in place of a ts should be accomplished using Optional, but for historical reasons
+            # it is allowed for csp.graph (but not csp.node), controlled by a flag that is passed to validation through the context
+            # TODO: Long term we should disable this and force people to use Optional as python intended
+            if v is None and info.context is not None and info.context.allow_none_ts:
+                return v
+            if isinstance(v, AttachType):
+                type_validator.validate(v.value_tstype.typ, info)
+                return v
+            if not isinstance(v, Edge):
+                raise ValueError("value passed to argument of type TsType must be an instance of Edge")
+            if source_args[0] is float and v.tstype.typ is int:
+                from csp.baselib import cast_int_to_float
+
+                return cast_int_to_float(v)
+
+            type_validator.validate(v.tstype.typ, info)
+            return v
+
+        return core_schema.with_info_plain_validator_function(_validate)
+
 
 ts = TsType
-
-
-# Add core schema to TsType
-def __get_pydantic_core_schema__(cls, source_type, handler):
-    """Validation of TsType for pydantic v2"""
-    from pydantic_core import core_schema
-
-    from csp.impl.wiring.edge import Edge
-
-    source_args = typing.get_args(source_type)
-    if len(source_args) != 1:
-        raise TypeError("TsType only accepts a single argument")
-    type_validator = TsTypeValidator.make_cached(source_args[0])
-
-    def _validate(v, info):
-        # Assume info.context, if provided, is of type TVarValidationContext
-        # Normally, allowing None in place of a ts should be accomplished using Optional, but for historical reasons
-        # it is allowed for csp.graph (but not csp.node), controlled by a flag that is passed to validation through the context
-        # TODO: Long term we should disable this and force people to use Optional as python intended
-        if v is None and info.context is not None and info.context.allow_none_ts:
-            return v
-        if isinstance(v, AttachType):
-            type_validator.validate(v.value_tstype.typ, info)
-            return v
-        if not isinstance(v, Edge):
-            raise ValueError("value passed to argument of type TsType must be an instance of Edge")
-        if source_args[0] is float and v.tstype.typ is int:
-            from csp.baselib import cast_int_to_float
-
-            v = cast_int_to_float(v)
-        else:
-            type_validator.validate(v.tstype.typ, info)
-        return v
-
-    return core_schema.with_info_plain_validator_function(_validate)
-
-
-# Put the validator on TsType
-TsType.__get_pydantic_core_schema__ = classmethod(__get_pydantic_core_schema__)
 
 
 # This is just syntactic sugar, converts into typing.Dict[ ts[key_type], ts[value_type] ]

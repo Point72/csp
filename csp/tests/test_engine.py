@@ -1055,7 +1055,7 @@ class TestEngine(unittest.TestCase):
         build_graph(graph, csp.const(1.1))
         build_graph(graph, csp.const("s"))
         if USE_PYDANTIC:
-            msg = re.escape("cannot validate ts[typing.List[float]] as ts[typing.Union[int, float, str]]")
+            msg = "cannot validate ts\\[typing.List\\[float\\]\\] as ts\\[typing.Union\\[.*\\]\\]"
         else:
             msg = "In function graph: Expected ts\\[typing.Union\\[.*\\]\\] for argument 'x', got ts\\[typing.List\\[float\\]\\]"
         with self.assertRaisesRegex(TypeError, msg):

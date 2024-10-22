@@ -127,29 +127,19 @@ class OutputBasket(object):
 
         return type("OutputBasket", (OutputBasket,), kwargs)
 
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        from pydantic_core import core_schema
 
-# Add core schema to OutputBasket
-def __get_pydantic_core_schema__(cls, source_type, handler):
-    from pydantic_core import core_schema
+        def validate_shape(v, info):
+            shape = cls.shape
+            if isinstance(shape, int) and len(v) != shape:
+                raise ValueError(f"Wrong shape: got {len(v)}, expecting {shape}")
+            if isinstance(shape, (list, tuple)) and v.keys() != set(shape):
+                raise ValueError(f"Wrong dict shape: got {v.keys()}, expecting {set(shape)}")
+            return v
 
-    def validate_shape(v, info):
-        shape = cls.shape
-        # Allow the context to override the shape, for the cases where shape references an input variable name
-        # and so is not known until later
-        if info.context and hasattr(info.context, "shapes"):
-            override_shape = info.context.shapes.get(info.field_name)
-            if override_shape is not None:
-                shape = override_shape
-        if isinstance(shape, int) and len(v) != shape:
-            raise ValueError(f"Wrong shape! Got {len(v)}, expecting {shape}")
-        if isinstance(shape, (list, tuple)) and v.keys() != set(shape):
-            raise ValueError(f"Wrong dict shape! Got {v.keys()}, expecting {set(shape)}")
-        return v
-
-    return core_schema.with_info_after_validator_function(validate_shape, handler(cls.typ))
-
-
-OutputBasket.__get_pydantic_core_schema__ = classmethod(__get_pydantic_core_schema__)
+        return core_schema.with_info_after_validator_function(validate_shape, handler(cls.typ))
 
 
 class OutputBasketContainer:

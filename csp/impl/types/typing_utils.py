@@ -9,7 +9,7 @@ import csp.typing
 T = typing.TypeVar("T")
 
 
-class FastList(typing.Generic[T]):
+class FastList(typing.List, typing.Generic[T]):  # Need to inherit from Generic[T] for py38
     def __init__(self):
         raise NotImplementedError("Can not init FastList class")
 

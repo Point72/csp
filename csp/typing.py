@@ -1,32 +1,46 @@
 import numpy
-import sys
-from typing import TypeVar
+from typing import Generic, TypeVar, get_args
 
 T = TypeVar("T")
 
-if sys.version_info.major > 3 or sys.version_info.minor >= 7:
-    import typing
 
-    class Numpy1DArray(typing.Generic[T], numpy.ndarray):
-        pass
+class NumpyNDArray(Generic[T], numpy.ndarray):
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        """Validation of NumpyNDArray for pydantic v2"""
+        from pydantic_core import core_schema
 
-    class NumpyNDArray(typing.Generic[T], numpy.ndarray):
-        pass
-else:
-    from typing import MutableSequence, TypeVar, _generic_new
+        source_args = get_args(source_type)
+        if not source_args:
+            raise TypeError(f"Must provide a single generic argument to {cls}")
 
-    class Numpy1DArray(numpy.ndarray, MutableSequence[T], extra=numpy.ndarray):
-        __slots__ = ()
+        def _validate(v):
+            if not isinstance(v, numpy.ndarray):
+                raise ValueError("value must be an instance of numpy.ndarray")
+            if not numpy.issubdtype(v.dtype, source_args[0]):
+                raise ValueError(f"dtype of array must be a subdtype of {source_args[0]}")
+            return v
 
-        def __new__(cls, *args, **kwds):
-            if cls._gorg is Numpy1DArray:
-                raise TypeError("Type NumpyArray cannot be instantiated; " "use ndarray() instead")
-            return _generic_new(list, cls, *args, **kwds)
+        return core_schema.no_info_plain_validator_function(_validate)
 
-    class NumpyNDArray(numpy.ndarray, MutableSequence[T], extra=numpy.ndarray):
-        __slots__ = ()
 
-        def __new__(cls, *args, **kwds):
-            if cls._gorg is NumpyNDArray:
-                raise TypeError("Type NumpyMultidmensionalArray cannot be instantiated; " "use ndarray() instead")
-            return _generic_new(list, cls, *args, **kwds)
+class Numpy1DArray(NumpyNDArray[T]):
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        """Validation of Numpy1DArray for pydantic v2"""
+        from pydantic_core import core_schema
+
+        source_args = get_args(source_type)
+        if not source_args:
+            raise TypeError(f"Must provide a single generic argument to {cls}")
+
+        def _validate(v):
+            if not isinstance(v, numpy.ndarray):
+                raise ValueError("value must be an instance of numpy.ndarray")
+            if not numpy.issubdtype(v.dtype, source_args[0]):
+                raise ValueError(f"dtype of array must be a subdtype of {source_args[0]}")
+            if len(v.shape) != 1:
+                raise ValueError("array must be one dimensional")
+            return v
+
+        return core_schema.no_info_plain_validator_function(_validate)

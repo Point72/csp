@@ -192,10 +192,12 @@ class Edge:
     def __getattr__(self, key):
         from csp.impl.struct import Struct
 
-        if issubclass(self.tstype.typ, Struct):
+        typ = super().__getattribute__("tstype").typ
+
+        if issubclass(typ, Struct):
             import csp
 
-            elemtype = self.tstype.typ.metadata(typed=True).get(key)
+            elemtype = typ.metadata(typed=True).get(key)
             if elemtype is None:
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.tstype.typ.__name__, key))
             return csp.struct_field(self, key, elemtype)

@@ -21,6 +21,8 @@ from csp.impl.wiring.delayed_node import DelayedNodeWrapperDef
 from csp.impl.wiring.runtime import build_graph
 from csp.lib import _csptestlibimpl
 
+USE_PYDANTIC = os.environ.get("CSP_PYDANTIC")
+
 
 @csp.graph
 def _dummy_graph():
@@ -898,17 +900,23 @@ class TestEngine(unittest.TestCase):
         ## Test exceptions
         def graph():
             fb = csp.feedback(int)
-            with self.assertRaisesRegex(
-                TypeError,
-                re.escape(r"""In function _bind: Expected csp.impl.types.tstype.TsType[""")
-                + ".*"
-                + re.escape(r"""('T')] for argument 'x', got 1 (int)"""),
-            ):
+            if USE_PYDANTIC:
+                msg = ".*value passed to argument of type TsType must be an instance of Edge.*"
+            else:
+                msg = (
+                    re.escape(r"""In function _bind: Expected csp.impl.types.tstype.TsType[""")
+                    + ".*"
+                    + re.escape(r"""('T')] for argument 'x', got 1 (int)""")
+                )
+            with self.assertRaisesRegex(TypeError, msg):
                 fb.bind(1)
 
-            with self.assertRaisesRegex(
-                TypeError, re.escape(r"""In function _bind: Expected ts[T] for argument 'x', got ts[str](T=int)""")
-            ):
+            if USE_PYDANTIC:
+                msg = re.escape("cannot validate ts[str] as ts[int]: <class 'str'> is not a subclass of <class 'int'>")
+            else:
+                msg = re.escape(r"""In function _bind: Expected ts[T] for argument 'x', got ts[str](T=int)""")
+
+            with self.assertRaisesRegex(TypeError, msg):
                 fb.bind(csp.const("123"))
 
             fb.bind(csp.const(1))
@@ -928,9 +936,13 @@ class TestEngine(unittest.TestCase):
         @csp.graph
         def g() -> csp.ts[List[int]]:
             fb = csp.feedback(List[int])
-            with self.assertRaisesRegex(
-                TypeError, re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
-            ):
+            if USE_PYDANTIC:
+                msg = re.escape(
+                    "cannot validate ts[int] as ts[typing.List[int]]: <class 'int'> is not a subclass of <class 'list'>"
+                )
+            else:
+                msg = re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
+            with self.assertRaisesRegex(TypeError, msg):
                 fb.bind(csp.const(42))
 
             fb.bind(csp.const([42]))
@@ -943,9 +955,13 @@ class TestEngine(unittest.TestCase):
         @csp.graph
         def g() -> csp.ts[List[int]]:
             fb = csp.feedback(List[int])
-            with self.assertRaisesRegex(
-                TypeError, re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
-            ):
+            if USE_PYDANTIC:
+                msg = re.escape(
+                    "cannot validate ts[int] as ts[typing.List[int]]: <class 'int'> is not a subclass of <class 'list'>"
+                )
+            else:
+                msg = re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
+            with self.assertRaisesRegex(TypeError, msg):
                 fb.bind(csp.const(42))
 
             fb.bind(csp.const([42]))
@@ -1001,13 +1017,16 @@ class TestEngine(unittest.TestCase):
             # Should never get here
             self.assertFalse(True)
         except Exception as e:
-            self.assertIsInstance(e, TSArgTypeMismatchError)
+            self.assertIsInstance(e, TypeError)
             traceback_list = list(
                 filter(lambda v: v.startswith("File"), (map(str.strip, traceback.format_exc().split("\n"))))
             )
             self.assertTrue(__file__ in traceback_list[-1])
             self.assertLessEqual(len(traceback_list), 10)
-            self.assertEqual(str(e), "In function aux: Expected ts[T] for argument 'my_arg', got None")
+            if USE_PYDANTIC:
+                self.assertIn("value passed to argument of type TsType must be an instance of Edge", str(e))
+            else:
+                self.assertEqual(str(e), "In function aux: Expected ts[T] for argument 'my_arg', got None")
 
     def test_union_type_check(self):
         '''was a bug "Add support for typing.Union in type checking layer"'''
@@ -1019,10 +1038,13 @@ class TestEngine(unittest.TestCase):
         build_graph(graph, 1)
         build_graph(graph, 1.1)
         build_graph(graph, "s")
-        with self.assertRaisesRegex(
-            TypeError,
-            "In function graph: Expected typing.Union\\[int, float, str\\] for argument 'x', got \\[1.1\\] \\(list\\)",
-        ):
+        if USE_PYDANTIC:
+            # Pydantic's error reporting for unions is a bit quirky, as it reports a validation error for each sub-type
+            # that fails to validate
+            msg = "3 validation errors for graph"
+        else:
+            msg = "In function graph: Expected typing.Union\\[.*\\] for argument 'x', got \\[1.1\\] \\(list\\)"
+        with self.assertRaisesRegex(TypeError, msg):
             build_graph(graph, [1.1])
 
         @csp.graph
@@ -1032,10 +1054,11 @@ class TestEngine(unittest.TestCase):
         build_graph(graph, csp.const(1))
         build_graph(graph, csp.const(1.1))
         build_graph(graph, csp.const("s"))
-        with self.assertRaisesRegex(
-            TypeError,
-            "In function graph: Expected ts\\[typing.Union\\[int, float, str\\]\\] for argument 'x', got ts\\[typing.List\\[float\\]\\]",
-        ):
+        if USE_PYDANTIC:
+            msg = "cannot validate ts\\[typing.List\\[float\\]\\] as ts\\[typing.Union\\[.*\\]\\]"
+        else:
+            msg = "In function graph: Expected ts\\[typing.Union\\[.*\\]\\] for argument 'x', got ts\\[typing.List\\[float\\]\\]"
+        with self.assertRaisesRegex(TypeError, msg):
             build_graph(graph, csp.const([1.1]))
 
     def test_realtime_timers(self):
@@ -1238,7 +1261,7 @@ class TestEngine(unittest.TestCase):
             pass
 
         csp.run(g.using(X=int).using(Y=float), 1, 2, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=10))
-        with self.assertRaises(ArgTypeMismatchError):
+        with self.assertRaises(TypeError):
             csp.run(g.using(X=int).using(Y=str), 1, 2, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=10))
 
     def test_null_nodes(self):
@@ -1251,7 +1274,7 @@ class TestEngine(unittest.TestCase):
         def g():
             assert_never_ticks.using(T=str)(csp.null_ts(str))
             assert_never_ticks(csp.null_ts(str))
-            with self.assertRaises(TSArgTypeMismatchError):
+            with self.assertRaises(TypeError):
                 assert_never_ticks.using(T=int)(csp.null_ts(str))
 
         csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=10))
@@ -1590,7 +1613,7 @@ class TestEngine(unittest.TestCase):
             endtime=timedelta(seconds=10),
         )
         self.assertEqual(res3["o"][0][1], 6)
-        with self.assertRaises(TSArgTypeMismatchError):
+        with self.assertRaises(TypeError):
             csp.run(
                 main,
                 False,
@@ -1608,31 +1631,41 @@ class TestEngine(unittest.TestCase):
         def my_graph(x: csp.ts[int]) -> csp.ts[str]:
             return x
 
-        with self.assertRaises(TSArgTypeMismatchError) as ctxt:
+        with self.assertRaises(TypeError) as ctxt:
             csp.run(my_graph, csp.const(1), starttime=datetime.utcnow())
-        self.assertEqual(str(ctxt.exception), "In function my_graph: Expected ts[str] for return value, got ts[int]")
+        if USE_PYDANTIC:
+            self.assertIn(
+                "cannot validate ts[int] as ts[str]: <class 'int'> is not a subclass of <class 'str'>",
+                str(ctxt.exception),
+            )
+        else:
+            self.assertEqual(
+                str(ctxt.exception), "In function my_graph: Expected ts[str] for return value, got ts[int]"
+            )
 
         @csp.graph
         def dictbasket_graph(x: csp.ts[int]) -> Dict[str, csp.ts[str]]:
             return csp.output({"a": x})
 
-        with self.assertRaises(ArgTypeMismatchError) as ctxt:
+        if USE_PYDANTIC:
+            msg = re.escape("cannot validate ts[int] as ts[str]: <class 'int'> is not a subclass of <class 'str'>")
+        else:
+            msg = (
+                "In function dictbasket_graph: Expected typing\.Dict\[str, .* for return value, got \{'a': .* \(dict\)"
+            )
+        with self.assertRaisesRegex(TypeError, msg):
             csp.run(dictbasket_graph, csp.const(1), starttime=datetime.utcnow())
-        self.assertRegex(
-            str(ctxt.exception),
-            "In function dictbasket_graph: Expected typing\.Dict\[str, .* for return value, got \{'a': .* \(dict\)",
-        )
 
         @csp.graph
         def listbasket_graph(x: csp.ts[int]) -> List[csp.ts[str]]:
             return csp.output([x])
 
-        with self.assertRaises(ArgTypeMismatchError) as ctxt:
+        if USE_PYDANTIC:
+            msg = re.escape("cannot validate ts[int] as ts[str]: <class 'int'> is not a subclass of <class 'str'>")
+        else:
+            msg = "In function listbasket_graph: Expected typing\.List\[.* for return value, got \[.* \(list\)"
+        with self.assertRaisesRegex(TypeError, msg):
             csp.run(listbasket_graph, csp.const(1), starttime=datetime.utcnow())
-        self.assertRegex(
-            str(ctxt.exception),
-            "In function listbasket_graph: Expected typing\.List\[.* for return value, got \[.* \(list\)",
-        )
 
     def test_global_context(self):
         try:
@@ -1785,9 +1818,11 @@ class TestEngine(unittest.TestCase):
             x.bind(csp.const(456))
 
         # Type check
-        with self.assertRaisesRegex(
-            TypeError, re.escape(r"""Expected ts[T] for argument 'edge', got ts[int](T=str)""")
-        ):
+        if USE_PYDANTIC:
+            msg = r"""cannot validate ts[int] as ts[str]: <class 'int'> is not a subclass of <class 'str'>"""
+        else:
+            msg = r"""Expected ts[T] for argument 'edge', got ts[int](T=str)"""
+        with self.assertRaisesRegex(TypeError, re.escape(msg)):
             y = csp.DelayedEdge(ts[str])
             y.bind(csp.const(123))
 

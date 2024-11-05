@@ -1,5 +1,4 @@
 import itertools
-import numpy
 import random
 import string
 import time
@@ -7,6 +6,8 @@ import unittest
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, List
+
+import numpy
 
 import csp
 from csp import ts

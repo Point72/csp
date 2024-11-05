@@ -1,15 +1,16 @@
 import copy
 import functools
-import numpy as np
 import operator
-import pandas as pd
 import re
+from pydoc import locate
+from typing import Any, List, Type, TypeVar, Union, cast
+
+import numpy as np
+import pandas as pd
 from pandas.api.types import is_integer, is_list_like
 from pandas.core.arrays import ExtensionArray, ExtensionScalarOpsMixin, IntervalArray
 from pandas.core.dtypes.dtypes import PandasExtensionDtype, register_extension_dtype
 from pandas.core.indexers import check_array_indexer
-from pydoc import locate
-from typing import Any, List, Type, TypeVar, Union, cast
 
 import csp
 from csp.impl.types.tstype import TsType, isTsType, ts

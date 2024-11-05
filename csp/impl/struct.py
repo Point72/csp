@@ -1,7 +1,8 @@
 import io
-import ruamel.yaml
 import typing
 from copy import deepcopy
+
+import ruamel.yaml
 from deprecated import deprecated
 
 import csp

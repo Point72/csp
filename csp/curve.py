@@ -1,8 +1,9 @@
 import copy
-import numpy as np
-import pytz
 from datetime import timedelta
 from typing import Union
+
+import numpy as np
+import pytz
 
 from csp import null_ts
 from csp.impl.__cspimpl import _cspimpl

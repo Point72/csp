@@ -1,9 +1,10 @@
+from datetime import datetime, timedelta
+from typing import Dict, List, TypeVar, Union
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
 from pandas.api.extensions import register_dataframe_accessor, register_series_accessor
 from pandas.core.arrays import ExtensionArray
-from typing import Dict, List, TypeVar, Union
 
 import csp
 from csp import ts

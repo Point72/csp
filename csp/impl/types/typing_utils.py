@@ -1,8 +1,9 @@
 # utils for dealing with typing types
-import numpy
 import sys
 import types
 import typing
+
+import numpy
 
 import csp.typing
 

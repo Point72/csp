@@ -66,9 +66,8 @@ develop = [
     "wheel",
     # lint
     "codespell>=2.2.6,<2.3",
-    "isort>=5,<6",
     "mdformat>=0.7.17,<0.8",
-    "ruff>=0.3,<0.4",
+    "ruff>=0.7,<0.8",
     # test
     "pytest",
     "pytest-asyncio",
@@ -151,23 +150,27 @@ before-build = "make requirements"
 archs = "AMD64"
 skip = "*win32 *arm_64"
 
-[tool.isort]
-combine_as_imports = true
-include_trailing_comma = true
-line_length = 120
-profile = "black"
-
-default_section = "THIRDPARTY"
-sections = "FUTURE,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
-
-known_first_party = "csp"
-
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 testpaths = "csp/tests"
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+default-section = "third-party"
+known-first-party = ["csp"]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]

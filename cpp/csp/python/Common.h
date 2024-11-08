@@ -11,7 +11,7 @@
 namespace csp::python
 {
 
-class CSP_PUBLIC AcquireGIL
+class CSPIMPL_EXPORT AcquireGIL
 {
 public:
     AcquireGIL()  { m_state = PyGILState_Ensure(); }
@@ -21,7 +21,7 @@ private:
     PyGILState_STATE m_state;
 };
 
-class CSP_PUBLIC ReleaseGIL
+class CSPIMPL_EXPORT ReleaseGIL
 {
 public:
     ReleaseGIL()  { m_saveState = PyEval_SaveThread(); }

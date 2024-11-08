@@ -3,6 +3,7 @@
 
 #include <csp/core/Enum.h>
 #include <csp/core/Hash.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/AdapterManager.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/PushInputAdapter.h>
@@ -10,6 +11,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+
 
 namespace RdKafka
 {
@@ -47,7 +49,7 @@ protected:
 using KafkaStatusMessageType = csp::Enum<KafkaStatusMessageTypeTraits>;
 
 //Top level AdapterManager object for all kafka adapters in the engine
-class CSP_PUBLIC KafkaAdapterManager final : public csp::AdapterManager
+class CSPKAFKAADAPTERIMPL_EXPORT KafkaAdapterManager final : public csp::AdapterManager
 {
 public:
     KafkaAdapterManager( csp::Engine * engine, const Dictionary & properties );

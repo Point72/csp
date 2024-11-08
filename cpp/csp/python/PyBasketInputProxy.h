@@ -15,7 +15,7 @@ class PyInputProxy;
 using PyInputProxyPtr = PyPtr<PyInputProxy>; 
 class PyNode;
 
-class CSP_PUBLIC PyBaseBasketInputProxy : public PyObject
+class CSPIMPL_EXPORT PyBaseBasketInputProxy : public PyObject
 {
 public:
     PyBaseBasketInputProxy( PyNode * node, INOUT_ID_TYPE id );
@@ -38,7 +38,7 @@ protected:
 };
 
 
-class CSP_PUBLIC PyListBasketInputProxy final: public PyBaseBasketInputProxy
+class CSPIMPL_EXPORT PyListBasketInputProxy final: public PyBaseBasketInputProxy
 {
 public:
     PyListBasketInputProxy( PyNode * node, INOUT_ID_TYPE id, size_t shape );
@@ -63,7 +63,7 @@ private:
 };
 
 
-class CSP_PUBLIC PyDictBasketInputProxy : public PyBaseBasketInputProxy
+class CSPIMPL_EXPORT PyDictBasketInputProxy : public PyBaseBasketInputProxy
 {
 public:
     PyDictBasketInputProxy( PyNode * node, INOUT_ID_TYPE id, PyObject * shape );
@@ -86,7 +86,7 @@ protected:
     PyObjectPtr m_proxyMapping;
 };
 
-class CSP_PUBLIC PyDynamicBasketInputProxy final : public PyDictBasketInputProxy
+class CSPIMPL_EXPORT PyDynamicBasketInputProxy final : public PyDictBasketInputProxy
 {
 public:
     PyDynamicBasketInputProxy( PyNode * node, INOUT_ID_TYPE id, PyObject * shape );

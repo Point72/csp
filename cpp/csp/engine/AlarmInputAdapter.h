@@ -9,7 +9,7 @@ namespace csp
 {
 
 template<typename T>
-class CSP_PUBLIC AlarmInputAdapter final : public InputAdapter
+class CSPIMPL_EXPORT AlarmInputAdapter final : public InputAdapter
 {
 public:
     AlarmInputAdapter( Engine * engine, CspTypePtr & type ) : InputAdapter( engine, type, PushMode::NON_COLLAPSING )

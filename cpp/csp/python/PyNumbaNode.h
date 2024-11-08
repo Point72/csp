@@ -13,7 +13,7 @@ class PyEngine;
 
 typedef void (*CallbackType)(void *node, void *state);
 
-class CSP_PUBLIC PyNumbaNode final : public csp::Node
+class CSPIMPL_EXPORT PyNumbaNode final : public csp::Node
 {
 public:
     // TODO: Add suppot for initialization callback as well

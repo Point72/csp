@@ -12,7 +12,7 @@ namespace csp::python
 
 class PyNode;
 
-class CSP_PUBLIC PyInputProxy : public PyObject
+class CSPIMPL_EXPORT PyInputProxy : public PyObject
 {
 public:
     PyInputProxy( PyNode * node, InputId id );

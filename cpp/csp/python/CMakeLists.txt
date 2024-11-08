@@ -1,3 +1,5 @@
+include(GenerateExportHeader)
+
 # types library
 set(CSPTYPESIMPL_PUBLIC_HEADERS
         CspTypeFactory.h
@@ -19,6 +21,9 @@ add_library(csptypesimpl
             PyStructToJson.cpp
             PyStructToDict.cpp)
 
+
+message(STATUS "\n\n\nBinary directory: ${CMAKE_CURRENT_BINARY_DIR}\n\n\n")
+generate_export_header(csptypesimpl)
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
 target_compile_definitions(csptypesimpl PUBLIC RAPIDJSON_HAS_STDSTRING=1)
 target_link_libraries(csptypesimpl csp_core csp_types)
@@ -82,6 +87,8 @@ add_library(cspimpl SHARED
         PyConstants.cpp
         ${CSPIMPL_PUBLIC_HEADERS})
 
+
+generate_export_header(cspimpl)
 set_target_properties(cspimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_PUBLIC_HEADERS}")
 
 target_link_libraries(cspimpl csptypesimpl csp_core csp_engine )
@@ -92,6 +99,7 @@ target_compile_definitions(cspimpl PRIVATE CSPIMPL_EXPORTS=1)
 
 ## Baselib c++ module
 add_library(cspbaselibimpl SHARED cspbaselibimpl.cpp)
+generate_export_header(cspbaselibimpl)
 target_link_libraries(cspbaselibimpl cspimpl baselibimpl)
 
 # Include exprtk include directory for exprtk node
@@ -125,3 +133,9 @@ install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl
         RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )
+
+install(FILES 
+        ${CMAKE_CURRENT_BINARY_DIR}/csptypesimpl_export.h
+        ${CMAKE_CURRENT_BINARY_DIR}/cspimpl_export.h
+        DESTINATION include/csp/python
+)

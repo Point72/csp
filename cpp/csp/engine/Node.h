@@ -25,7 +25,7 @@ struct NodeDef
     INOUT_ID_TYPE numOutputs;
 };
     
-class CSP_PUBLIC Node : public Consumer, public EngineOwned
+class CSPIMPL_EXPORT Node : public Consumer, public EngineOwned
 {
 public:
     Node( NodeDef def, Engine * );

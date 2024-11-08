@@ -10,7 +10,7 @@ namespace csp
 {
 
 template<typename T>
-class CSP_PUBLIC PullInputAdapter : public InputAdapter
+class CSPIMPL_EXPORT PullInputAdapter : public InputAdapter
 {
 public:
     PullInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode ) : InputAdapter( engine, type, pushMode ) 

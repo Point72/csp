@@ -17,7 +17,7 @@ class AdapterManager;
 
 class Engine;
 
-class CSP_PUBLIC ManagedSimInputAdapter : public InputAdapter
+class CSPIMPL_EXPORT ManagedSimInputAdapter : public InputAdapter
 {
 public:
     ManagedSimInputAdapter( csp::Engine *engine, const CspTypePtr &type, AdapterManager *manager, PushMode pushMode );
@@ -94,7 +94,7 @@ bool ManagedSimInputAdapter::pushNullTick()
     return true;
 }
 
-class CSP_PUBLIC AdapterManager : public EngineOwned
+class CSPIMPL_EXPORT AdapterManager : public EngineOwned
 {
 public:
     AdapterManager( csp::Engine * );

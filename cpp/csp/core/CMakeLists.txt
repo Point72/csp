@@ -1,3 +1,5 @@
+include(GenerateExportHeader)
+
 set(CORE_PUBLIC_HEADERS
       BasicAllocator.h
       Config.h.in
@@ -25,7 +27,11 @@ set(CORE_SOURCE_FILES
 
 configure_file(Config.h.in ${CMAKE_CURRENT_BINARY_DIR}/cpp/csp/core/Config.h)
 
-add_library(csp_core STATIC ${CORE_SOURCE_FILES})
+add_library(csp_core SHARED ${CORE_SOURCE_FILES})
+generate_export_header(csp_core
+        BASE_NAME cspcore
+        EXPORT_MACRO_NAME CSPCORE_EXPORT
+)
 set_target_properties(csp_core PROPERTIES PUBLIC_HEADER "${CORE_PUBLIC_HEADERS}")
 
 install(TARGETS csp_core
@@ -34,3 +40,4 @@ install(TARGETS csp_core
         LIBRARY DESTINATION lib/
        )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cpp/csp/core/Config.h DESTINATION include/csp/core)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cspcore_export.h DESTINATION include/csp/core)

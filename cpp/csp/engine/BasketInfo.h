@@ -13,7 +13,7 @@ namespace csp
 
 class Node;
 
-class CSPIMPL_EXPORT InputBasketInfo
+class CSPENGINE_EXPORT InputBasketInfo
 {
     using TickedInputs = std::vector<INOUT_ELEMID_TYPE>;
 
@@ -189,7 +189,7 @@ protected:
     bool                        m_isDynamic;
 };
 
-class CSPIMPL_EXPORT DynamicInputBasketInfo : public InputBasketInfo
+class CSPENGINE_EXPORT DynamicInputBasketInfo : public InputBasketInfo
 {
 public:
     using ChangeCallback = std::function<void(const DialectGenericType & key,bool added, int64_t elemId, int64_t replaceId )>;
@@ -228,7 +228,7 @@ private:
     TimeDelta         m_timeWindowPolicy;
 };
 
-class CSPIMPL_EXPORT OutputBasketInfo
+class CSPENGINE_EXPORT OutputBasketInfo
 {
 public:
     OutputBasketInfo( CspTypePtr & type, Node * node, size_t size, bool isDynamic = false );
@@ -255,7 +255,7 @@ protected:
     bool                   m_isDynamic;
 };
 
-class CSPIMPL_EXPORT DynamicOutputBasketInfo : public OutputBasketInfo
+class CSPENGINE_EXPORT DynamicOutputBasketInfo : public OutputBasketInfo
 {
 public:
     DynamicOutputBasketInfo( CspTypePtr & type, Node * node );

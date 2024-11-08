@@ -21,7 +21,7 @@ const int64_t NANOS_PER_SECOND      = 1000000000;
 const int64_t SECONDS_PER_DAY       = 86400;
 const int64_t NANOS_PER_DAY         = NANOS_PER_SECOND * SECONDS_PER_DAY;
 
-class CSPTYPESIMPL_EXPORT TimeDelta
+class CSPCORE_EXPORT TimeDelta
 {
 public:
     constexpr TimeDelta() : TimeDelta( TimeDelta::NONE() ) {}
@@ -165,7 +165,7 @@ inline std::ostream & operator <<( std::ostream &os, const TimeDelta & d )
     return os;
 }
 
-class CSPTYPESIMPL_EXPORT Date
+class CSPCORE_EXPORT Date
 {
 public:
     Date() : Date( NONE() ) {}
@@ -316,7 +316,7 @@ inline std::ostream & operator <<( std::ostream &os, const Date & d )
     return os;
 }
 
-class CSPTYPESIMPL_EXPORT Time
+class CSPCORE_EXPORT Time
 {
 public:
     Time() : Time( -1 ) {} //NONE
@@ -446,7 +446,7 @@ inline std::ostream & operator <<( std::ostream &os, const Time & t )
 
 // Time is internally stored as an int64_t nanoseconds since 1970. 
 // All DateTime objects are stored as UTC and should be treated as such
-class CSPTYPESIMPL_EXPORT DateTime
+class CSPCORE_EXPORT DateTime
 {
 public:
     DateTime() : DateTime( DateTime::NONE() ) {}
@@ -597,7 +597,7 @@ inline std::ostream & operator <<( std::ostream &os, const DateTime & dt )
 //Helper class to extract day/month/year/etc info from raw timestamp
 //ie DateTimeEx dte( existingDt )
 //dte.day, etc etc
-class CSPTYPESIMPL_EXPORT DateTimeEx : public DateTime
+class CSPCORE_EXPORT DateTimeEx : public DateTime
 {
 public:
     DateTimeEx( const DateTime & dt );

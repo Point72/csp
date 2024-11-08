@@ -76,7 +76,7 @@ private:
     PushGroup * m_group; //used for assertion check
 };
 
-class CSPIMPL_EXPORT PushInputAdapter : public InputAdapter
+class CSPENGINE_EXPORT PushInputAdapter : public InputAdapter
 {
 public:
     PushInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode,

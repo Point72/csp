@@ -14,7 +14,7 @@ namespace csp
 class InputAdapter;
 
 //Base of either regular Nodes or output adapters
-class CSPIMPL_EXPORT Consumer
+class CSPENGINE_EXPORT Consumer
 {
 public:
     Consumer( Engine * );

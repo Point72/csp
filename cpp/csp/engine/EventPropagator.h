@@ -10,7 +10,7 @@ namespace csp
 
 class Consumer;
 
-class CSPIMPL_EXPORT EventPropagator
+class CSPENGINE_EXPORT EventPropagator
 {
 public:
     EventPropagator();

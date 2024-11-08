@@ -10,7 +10,7 @@ namespace csp
 //A variation of PushInputAdapter that lets you schedule historical data as well.  Used for adapters
 //that can replay history and switch to realtime seamlessly ( ie kafka )
 
-class CSPIMPL_EXPORT PushPullInputAdapter : public PushInputAdapter
+class CSPENGINE_EXPORT PushPullInputAdapter : public PushInputAdapter
 {
 public:
     PushPullInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode,

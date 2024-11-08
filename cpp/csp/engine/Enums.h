@@ -8,7 +8,7 @@ namespace csp
 {
 
 // NOTE this must align with the python side Enum definition ///
-struct CSPIMPL_EXPORT PushModeTraits
+struct CSPENGINE_EXPORT PushModeTraits
 {
     enum _enum : unsigned char
     {

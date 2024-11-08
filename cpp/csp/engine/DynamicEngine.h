@@ -10,7 +10,7 @@
 namespace csp
 {
 
-class CSPIMPL_EXPORT DynamicEngine final : public Engine
+class CSPENGINE_EXPORT DynamicEngine final : public Engine
 {
 public:
     using ShutdownFn = std::function<void()>;

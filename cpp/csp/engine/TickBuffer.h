@@ -17,7 +17,7 @@ namespace csp
 {
 
 template< typename T >
-class CSPIMPL_EXPORT TickBuffer
+class CSPTYPESIMPL_EXPORT TickBuffer
 {
 public:
     TickBuffer( uint32_t capacity = 1 );

@@ -10,7 +10,7 @@ namespace csp
 
 class TimeSeriesProvider;
 
-class CSPIMPL_EXPORT OutputAdapter : public Consumer, public EngineOwned
+class CSPENGINE_EXPORT OutputAdapter : public Consumer, public EngineOwned
 {
 public:
     OutputAdapter( csp::Engine * engine );

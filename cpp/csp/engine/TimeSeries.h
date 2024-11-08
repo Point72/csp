@@ -11,7 +11,7 @@ namespace csp
 {
 
 template<typename T>
-class CSPIMPL_EXPORT TickBufferAccess
+class CSPENGINE_EXPORT TickBufferAccess
 {
 public:
     TickBufferAccess() : m_buffer( nullptr ), m_lastValue() { }
@@ -56,7 +56,7 @@ private:
     T m_lastValue;
 };
 
-class CSPIMPL_EXPORT TimeSeries
+class CSPENGINE_EXPORT TimeSeries
 {
 public:
     // Should match the DuplicatePolicy enum in python!!!
@@ -144,7 +144,7 @@ protected:
 };
 
 template< typename T >
-class CSPIMPL_EXPORT TimeSeriesTyped : public TimeSeries
+class CSPENGINE_EXPORT TimeSeriesTyped : public TimeSeries
 {
 public:
     TimeSeriesTyped() : m_dataline()

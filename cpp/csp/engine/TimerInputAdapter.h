@@ -8,7 +8,7 @@ namespace csp
 {
 
 template<typename T>
-class CSPIMPL_EXPORT TimerInputAdapter : public PullInputAdapter<T>
+class CSPTYPESIMPL_EXPORT TimerInputAdapter : public PullInputAdapter<T>
 {
 public:
     TimerInputAdapter( Engine * engine, CspTypePtr & type, TimeDelta interval, 

@@ -24,7 +24,7 @@ class TimeSeriesProvider;
 class Engine;
 class RootEngine;
 
-struct CSPIMPL_EXPORT EngineOwned
+struct CSPENGINE_EXPORT EngineOwned
 {
     //force objects derived from EngineOwned to go through engine createOwnedObject methods
     //little trick here to force all derivations to fail
@@ -35,7 +35,7 @@ struct CSPIMPL_EXPORT EngineOwned
     void operator delete( void* ptr )            { ::operator delete(ptr); }
 };
 
-class CSPIMPL_EXPORT Engine
+class CSPENGINE_EXPORT Engine
 {
     using AdapterManagers   = std::vector<std::shared_ptr<AdapterManager>>;
     using InputAdapters     = std::vector<std::unique_ptr<InputAdapter>>;

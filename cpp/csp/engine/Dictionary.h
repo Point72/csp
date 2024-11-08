@@ -23,7 +23,7 @@ using DictionaryPtr = std::shared_ptr<Dictionary>;
 class StructMeta;
 using StructMetaPtr = std::shared_ptr<StructMeta>;
 
-class CSPTYPESIMPL_EXPORT Dictionary
+class CSPENGINE_EXPORT Dictionary
 {
 public:
     struct Data;

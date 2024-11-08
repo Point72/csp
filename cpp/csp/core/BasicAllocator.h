@@ -15,7 +15,7 @@ namespace csp
 {
 
 // Extremely basic non-thread safe fixed-size allocator
-class CSPIMPL_EXPORT BasicAllocator
+class CSPCORE_EXPORT BasicAllocator
 {
 public:
     //elemsize is size of a single alloc, blockSize is number of elements to 

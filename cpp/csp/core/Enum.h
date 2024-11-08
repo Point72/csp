@@ -73,7 +73,7 @@ bool UnknownOnInvalidValue(long) { return false; }
 
 START_PACKED
 template<typename EnumTraits>
-struct CSPTYPESIMPL_EXPORT Enum : public EnumTraits
+struct CSPCORE_EXPORT Enum : public EnumTraits
 {
     using EnumV = typename EnumTraits::_enum;
     using Mapping = std::vector<std::string>;

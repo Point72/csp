@@ -13,7 +13,7 @@
 namespace csp
 {
 
-class CSPIMPL_EXPORT Profiler
+class CSPENGINE_EXPORT Profiler
 {
     // All times are returned as doubles representing time in seconds
 

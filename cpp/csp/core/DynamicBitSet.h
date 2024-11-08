@@ -9,7 +9,7 @@ namespace csp
 {
 
 template<typename NodeT = uint64_t, typename IndexT = int32_t>
-class CSPIMPL_EXPORT DynamicBitSet
+class CSPCORE_EXPORT DynamicBitSet
 {
 
 public:

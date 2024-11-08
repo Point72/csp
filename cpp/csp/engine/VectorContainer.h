@@ -6,7 +6,7 @@
 
 namespace csp
 {
-class CSPTYPESIMPL_EXPORT VectorContainer
+class CSPENGINE_EXPORT VectorContainer
 {
 public:
     VectorContainer(const VectorContainer&) = delete;

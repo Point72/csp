@@ -31,6 +31,7 @@ dependencies:
  - polars
  - psutil
  - pyarrow=16
+ - pydantic>=2
  - pytest
  - pytest-asyncio
  - pytest-cov
@@ -50,4 +51,5 @@ dependencies:
  - threadpoolctl
  - tornado
  - twine
+ - typing-extensions
  - wheel

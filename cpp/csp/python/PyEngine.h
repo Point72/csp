@@ -17,7 +17,7 @@ namespace csp::python
 class PyEngine;
 
 //This is the actual python root engine
-class CSP_PUBLIC PythonEngine final : public csp::RootEngine
+class CSPIMPL_EXPORT PythonEngine final : public csp::RootEngine
 {
 public:
     PythonEngine( PyEngine * parent, const Dictionary & );

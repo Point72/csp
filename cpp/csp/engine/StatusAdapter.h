@@ -30,7 +30,7 @@ struct StatusLevelTraits
 
 using StatusLevel = csp::Enum<StatusLevelTraits>;
 
-class CSP_PUBLIC StatusAdapter : public PushInputAdapter
+class CSPENGINE_EXPORT StatusAdapter : public PushInputAdapter
 {
 public:
     StatusAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode, PushGroup * group = nullptr ) : PushInputAdapter( engine, type, pushMode, group )

@@ -15,7 +15,7 @@ namespace csp
 
 class InputAdapter;
 
-class CSP_PUBLIC Scheduler
+class CSPENGINE_EXPORT Scheduler
 {
     struct Event;
 

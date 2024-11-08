@@ -19,7 +19,7 @@ class TypedStructPtr;
 
 using StructPtr = TypedStructPtr<Struct>;
 
-class CSP_PUBLIC StructField
+class CSPTYPES_EXPORT StructField
 {
 public:
 
@@ -114,7 +114,7 @@ private:
 using StructFieldPtr = std::shared_ptr<StructField>;
 
 template<typename T>
-class CSP_PUBLIC NativeStructField : public StructField
+class CSPTYPES_EXPORT NativeStructField : public StructField
 {
     static_assert( CspType::Type::fromCType<T>::type <= CspType::Type::MAX_NATIVE_TYPE );
     static_assert( sizeof(T) == alignof(T) );
@@ -177,7 +177,7 @@ using TimeDeltaStructField = NativeStructField<TimeDelta>;
 using DateStructField      = NativeStructField<Date>;
 using TimeStructField      = NativeStructField<Time>;
 
-class CSP_PUBLIC CspEnumStructField final : public NativeStructField<CspEnum>
+class CSPTYPES_EXPORT CspEnumStructField final : public NativeStructField<CspEnum>
 {
 public:
     CspEnumStructField( CspTypePtr type, const std::string & fieldname ) : NativeStructField( type, fieldname )
@@ -185,7 +185,7 @@ public:
 };
 
 template<typename T>
-class CSP_PUBLIC NotImplementedStructField : public StructField
+class CSPTYPES_EXPORT NotImplementedStructField : public StructField
 {
 public:
     const T & value( const Struct * s ) const
@@ -216,7 +216,7 @@ public:
 
 
 //Non-native fields need to have these specialized in dialect-specific code
-class CSP_PUBLIC NonNativeStructField : public StructField
+class CSPTYPES_EXPORT NonNativeStructField : public StructField
 {
 public:
     NonNativeStructField( CspTypePtr type, const std::string &fieldname, size_t size, size_t alignment ) :
@@ -240,7 +240,7 @@ private:
     virtual void clearValueImpl( Struct * s ) const = 0;
 };
 
-class CSP_PUBLIC StringStructField final : public NonNativeStructField
+class CSPTYPES_EXPORT StringStructField final : public NonNativeStructField
 {
 public:
     using CType = csp::CspType::StringCType;
@@ -310,7 +310,7 @@ private:
 };
 
 template<typename CType>
-class CSP_PUBLIC ArrayStructField : public NonNativeStructField
+class CSPTYPES_EXPORT ArrayStructField : public NonNativeStructField
 {
     using ElemT = typename CType::value_type;
 
@@ -419,7 +419,7 @@ private:
     }
 };
 
-class CSP_PUBLIC DialectGenericStructField : public NonNativeStructField
+class CSPTYPES_EXPORT DialectGenericStructField : public NonNativeStructField
 {
 public:
     DialectGenericStructField( const std::string & fieldname, size_t size, size_t alignment ) :
@@ -479,7 +479,7 @@ public:
 };
 
 template<typename T>
-class CSP_PUBLIC TypedStructPtr
+class CSPTYPES_EXPORT TypedStructPtr
 {
 public:
     TypedStructPtr() : m_obj( nullptr ) {}
@@ -581,7 +581,7 @@ TypedStructPtr<T> structptr_cast( const TypedStructPtr<U> & r )
     return out;
 }
 
-class CSP_PUBLIC StructMeta : public std::enable_shared_from_this<StructMeta>
+class CSPTYPES_EXPORT StructMeta : public std::enable_shared_from_this<StructMeta>
 {
 public:
     using Fields = std::vector<StructFieldPtr>;
@@ -685,7 +685,7 @@ std::shared_ptr<typename StructField::upcast<T>::type> StructMeta::getMetaField(
 
 using StructMetaPtr = std::shared_ptr<StructMeta>;
 
-class CSP_PUBLIC Struct
+class CSPTYPES_EXPORT Struct
 {
 public:
 
@@ -817,7 +817,7 @@ bool TypedStructPtr<T>::operator==( const TypedStructPtr<T> & rhs ) const
 }
 
 //field that is another struct
-class CSP_PUBLIC StructStructField final : public NonNativeStructField
+class CSPTYPES_EXPORT StructStructField final : public NonNativeStructField
 {
 public:
     StructStructField( CspTypePtr cspType, const std::string &fieldname ) :

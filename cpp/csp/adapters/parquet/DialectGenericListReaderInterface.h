@@ -25,7 +25,7 @@ public:
 };
 
 template< typename T >
-class CSP_PUBLIC TypedDialectGenericListReaderInterface : public DialectGenericListReaderInterface
+class CSPPARQUETADAPTER_EXPORT TypedDialectGenericListReaderInterface : public DialectGenericListReaderInterface
 {
 public:
     using Ptr = std::shared_ptr<TypedDialectGenericListReaderInterface<T>>;

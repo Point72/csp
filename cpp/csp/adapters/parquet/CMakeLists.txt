@@ -41,6 +41,7 @@ set(PARQUET_SOURCE_FILES
 
 add_library(csp_parquet_adapter STATIC ${PARQUET_SOURCE_FILES})
 set_target_properties(csp_parquet_adapter PROPERTIES PUBLIC_HEADER "${PARQUET_HEADER_FILES}")
+set_target_properties(csp_parquet_adapter PROPERTIES DEFINITIONS CSPPARQUETADAPTER_EXPORTS)
 target_include_directories(csp_parquet_adapter PRIVATE ${ARROW_INCLUDE_DIR} ${PARQUET_INCLUDE_DIR})
 
 find_package(Arrow REQUIRED)

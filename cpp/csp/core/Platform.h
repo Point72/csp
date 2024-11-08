@@ -14,20 +14,165 @@
 #undef ERROR
 #undef GetMessage
 
-#define CSP_LOCAL
-#define CSP_PUBLIC __declspec(dllexport)
+#ifdef KAFKAADAPTERIMPL_EXPORTS
+#define KAFKAADAPTERIMPL_EXPORT __declspec(dllexport)
+#define CSPKAFKAADAPTER_EXPORT __declspec(dllexport)
+#else
+#define KAFKAADAPTERIMPL_EXPORT __declspec(dllimport)
+#define CSPKAFKAADAPTER_EXPORT
+#endif
+
+#ifdef CSPKAFKAADAPTER_EXPORTS
+// static
+#endif
+
+#ifdef PARQUETADAPTERIMPL_EXPORTS
+#define PARQUETADAPTERIMPL_EXPORT __declspec(dllexport)
+#define CSPPARQUETADAPTER_EXPORT __declspec(dllexport)
+#else
+#define PARQUETADAPTERIMPL_EXPORT __declspec(dllimport)
+#define CSPPARQUETADAPTER_EXPORT
+#endif
+
+#ifdef CSPPARQUETADAPTER_EXPORTS
+// static
+#endif
+
+#ifdef WEBSOCKETADAPTERIMPL_EXPORTS
+#define WEBSOCKETADAPTERIMPL_EXPORTS __declspec(dllexport)
+#define CSPWEBSOCKETCLIENTADAPTER_EXPORT __declspec(dllexport)
+#else
+#define WEBSOCKETADAPTERIMPL_EXPORTS __declspec(dllimport)
+#define CSPWEBSOCKETCLIENTADAPTER_EXPORT
+#endif
+
+#ifdef CSPWEBSOCKETCLIENTADAPTER_EXPORTS
+// static
+#endif
+
+// #ifdef CSPADAPTERUTILS_EXPORTS
+#define CSPADAPTERUTILS_EXPORT
+// #endif
+
+#ifdef CSPCORE_EXPORTS
+// static
+#endif
+
+#ifdef BASELIBIMPL_EXPORTS
+// static
+#endif
+
+#ifdef BASKETLIBIMPL_EXPORTS
+// static
+#endif
+
+#ifdef MATHIMPL_EXPORTS
+// static
+#endif
+
+#ifdef STATSIMPL_EXPORTS
+// static
+#endif
+
+#ifdef CSPTYPES_EXPORTS
+// static
+#endif
+
+#ifdef CSPENGINE_EXPORTS
+// static
+#endif
 
 #ifdef CSPTYPESIMPL_EXPORTS
 #define CSPTYPESIMPL_EXPORT __declspec(dllexport)
+#define CSPTYPES_EXPORT __declspec(dllexport)
 #else
 #define CSPTYPESIMPL_EXPORT __declspec(dllimport)
+#define CSPTYPES_EXPORT
 #endif
 
 #ifdef CSPIMPL_EXPORTS
 #define CSPIMPL_EXPORT __declspec(dllexport)
+#define CSPCORE_EXPORT __declspec(dllexport)
+#define CSPENGINE_EXPORT __declspec(dllexport)
 #else
-#define CSPIMPL_EXPORT __declspec(dllimport)
+// #define CSPIMPL_EXPORT  __declspec(dllimport)
+#define CSPIMPL_EXPORT
+#define CSPCORE_EXPORT
+#define CSPENGINE_EXPORT
 #endif
+
+#ifdef CSPBASELIBIMPL_EXPORTS
+#define CSPBASELIBIMPL_EXPORT __declspec(dllexport)
+#define BASELIBIMPL_EXPORT __declspec(dllexport)
+#else
+#define CSPBASELIBIMPL_EXPORT __declspec(dllimport)
+#define BASELIBIMPL_EXPORT
+#endif
+
+#ifdef CSPBASKETLIBIMPL_EXPORTS
+#define CSPBASKETLIBIMPL_EXPORT __declspec(dllexport)
+#define BASKETLIBIMPL_EXPORT __declspec(dllexport)
+#else
+#define CSPBASKETLIBIMPL_EXPORT __declspec(dllimport)
+#define BASKETLIBIMPL_EXPORT
+#endif
+
+#ifdef CSPMATHIMPL_EXPORTS
+#define CSPMATHIMPL_EXPORT __declspec(dllexport)
+#define MATHIMPL_EXPORT __declspec(dllexport)
+#else
+#define CSPMATHIMPL_EXPORT __declspec(dllimport)
+#define MATHIMPL_EXPORT
+#endif
+
+#ifdef CSPSTATSIMPL_EXPORTS
+#define CSPSTATSIMPL_EXPORT __declspec(dllexport)
+#define STATSIMPL_EXPORT __declspec(dllexport)
+#else
+#define CSPSTATSIMPL_EXPORT __declspec(dllimport)
+#define STATSIMPL_EXPORT
+#endif
+
+#ifdef CSPTESTLIBIMPL_EXPORTS
+#define CSPTESTLIBIMPL_EXPORT __declspec(dllexport)
+#else
+#define CSPTESTLIBIMPL_EXPORT __declspec(dllimport)
+#endif
+
+#ifdef NPSTATSIMPL_EXPORTS
+#define NPSTATSIMPL_EXPORT __declspec(dllexport)
+#define CSPNPSTATSIMPL_EXPORT __declspec(dllexport)
+#else
+#define NPSTATSIMPL_EXPORT __declspec(dllimport)
+#define CSPNPSTATSIMPL_EXPORT
+#endif
+
+#define CSP_PYTHON_EXPORT
+#define CSP_PUBLIC_EXPORT __declspec(dllexport)
+
+// KAFKAADAPTERIMPL_EXPORTS
+// CSPKAFKAADAPTER_EXPORTS
+// PARQUETADAPTERIMPL_EXPORTS
+// CSPPARQUETADAPTER_EXPORTS
+// WEBSOCKETADAPTERIMPL_EXPORTS
+// CSPWEBSOCKETCLIENTADAPTER_EXPORTS
+// CSPADAPTERUTILS_EXPORTS
+// CSPCORE_EXPORTS
+// BASELIBIMPL_EXPORTS
+// BASKETLIBIMPL_EXPORTS
+// MATHIMPL_EXPORTS
+// STATSIMPL_EXPORTS
+// CSPTYPES_EXPORTS
+// CSPENGINE_EXPORTS
+// CSPTYPESIMPL_EXPORTS
+// CSPIMPL_EXPORTS
+// BASELIBIMPL_EXPORTS
+// CSPBASKETLIBIMPL_EXPORTS
+// CSPMATHIMPL_EXPORTS
+// CSPSTATSIMPL_EXPORTS
+// CSPTESTLIBIMPL_EXPORTS
+// NPSTATSIMPL_EXPORTS
+// CSPNPSTATSIMPL_EXPORTS
 
 #define START_PACKED __pragma( pack(push, 1) )
 #define END_PACKED   __pragma( pack(pop))
@@ -90,11 +235,34 @@ inline uint8_t ffs(uint64_t n)
 }
 
 #else
-#define CSPIMPL_EXPORT      __attribute__ ((visibility ("default")))
-#define CSPTYPESIMPL_EXPORT __attribute__ ((visibility ("default")))
 
-#define CSP_LOCAL  __attribute__ ((visibility ("hidden")))
-#define CSP_PUBLIC __attribute__ ((visibility ("default")))
+#define KAFKAADAPTERIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPKAFKAADAPTER_EXPORT __attribute__((visibility ("default")))
+#define PARQUETADAPTERIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPPARQUETADAPTER_EXPORT __attribute__((visibility ("default")))
+#define WEBSOCKETADAPTERIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPWEBSOCKETCLIENTADAPTER_EXPORT __attribute__((visibility ("default")))
+#define CSPADAPTERUTILS_EXPORT __attribute__((visibility ("default")))
+#define CSPCORE_EXPORT __attribute__((visibility ("default")))
+#define BASELIBIMPL_EXPORT __attribute__((visibility ("default")))
+#define BASKETLIBIMPL_EXPORT __attribute__((visibility ("default")))
+#define MATHIMPL_EXPORT __attribute__((visibility ("default")))
+#define STATSIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPTYPES_EXPORT __attribute__((visibility ("default")))
+#define CSPENGINE_EXPORT __attribute__((visibility ("default")))
+#define CSPTYPESIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPBASELIBIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPBASKETLIBIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPMATHIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPSTATSIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPTESTLIBIMPL_EXPORT __attribute__((visibility ("default")))
+#define NPSTATSIMPL_EXPORT __attribute__((visibility ("default")))
+#define CSPNPSTATSIMPL_EXPORT __attribute__((visibility ("default")))
+
+// Others
+#define CSP_PYTHON_EXPORT  __attribute__ ((visibility ("hidden")))
+#define CSP_PUBLIC_EXPORT __attribute__((visibility("default")))
 
 #define START_PACKED
 #define END_PACKED __attribute__((packed))

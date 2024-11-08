@@ -9,7 +9,8 @@ namespace csp
 {
 
 // Note that this is intentionally exported with CSPTYPESIMPL_EXPORT because the actual impl is compiled into the dialect specific impl library
-struct CSPTYPESIMPL_EXPORT DialectGenericType
+// struct CSPTYPESIMPL_EXPORT DialectGenericType
+struct CSPTYPES_EXPORT DialectGenericType
 {
 public:
     DialectGenericType();

@@ -1,4 +1,5 @@
 #include <Python.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/CppNode.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/InitHelper.h>
@@ -114,7 +115,7 @@ static PyModuleDef _csptestlibimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__csptestlibimpl(void)
+extern "C" CSPTESTLIBIMPL_EXPORT PyObject*  PyInit__csptestlibimpl(void)
 {
     PyObject* m;
 

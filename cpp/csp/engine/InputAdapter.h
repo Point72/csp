@@ -12,7 +12,7 @@ namespace csp
 
 class Consumer;
 
-class CSP_PUBLIC InputAdapter : public TimeSeriesProvider, public EngineOwned
+class CSPENGINE_EXPORT InputAdapter : public TimeSeriesProvider, public EngineOwned
 {
 public:
     InputAdapter( Engine * engine, const CspTypePtr & type, PushMode pushMode );

@@ -18,7 +18,7 @@ class DynamicEngine;
 //external inputs and triggering a cycle step.  
 //All dynamic engine input adapters as well as all external timeseries wired into dynamic are registered as inputs
 //into the DynanicNode instance so that it can invoke cycle step at the appropriate times.
-class CSP_PUBLIC DynamicNode final : public Node
+class CSPENGINE_EXPORT DynamicNode final : public Node
 {
 public:
     using Outputs = std::vector<const TimeSeriesProvider *>;

@@ -12,7 +12,7 @@ namespace csp
 class Consumer;
 class Profiler;
     
-class CSP_PUBLIC CycleStepTable
+class CSPENGINE_EXPORT CycleStepTable
 {
 public:
     CycleStepTable();

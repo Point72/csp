@@ -23,6 +23,7 @@ set(ADAPTER_UTILS_FILES
 
 add_library(csp_adapter_utils STATIC ${ADAPTER_UTILS_FILES})
 set_target_properties(csp_adapter_utils PROPERTIES PUBLIC_HEADER "${ADAPTER_UTILS_PUBLIC_HEADERS}")
+set_target_properties(csp_adapter_utils PROPERTIES DEFINITIONS CSPADAPTERUTILS_EXPORTS)
 
 find_package(Protobuf REQUIRED)
 target_link_libraries(csp_adapter_utils PRIVATE protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite)

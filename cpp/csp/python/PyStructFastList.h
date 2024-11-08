@@ -14,7 +14,7 @@ namespace csp::python
 {
 
 template<typename StorageT>
-struct CSP_PUBLIC PyStructFastList : public PyObject
+struct CSPTYPESIMPL_EXPORT PyStructFastList : public PyObject
 {
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
 

@@ -1,3 +1,4 @@
+#include <csp/core/Platform.h>
 #include <csp/python/Common.h>
 #include <csp/python/PyCppNode.h>
 #include <csp/engine/CppNode.h>
@@ -359,7 +360,7 @@ static PyModuleDef _cspbaselibimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__cspbaselibimpl(void)
+extern "C" CSPBASELIBIMPL_EXPORT PyObject* PyInit__cspbaselibimpl(void)
 {
     PyObject* m;
 

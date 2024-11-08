@@ -1,4 +1,5 @@
 #include <csp/adapters/websocket/ClientAdapterManager.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
@@ -69,7 +70,7 @@ static PyModuleDef _websocketadapterimpl_module = {
         NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__websocketadapterimpl(void)
+extern "C" WEBSOCKETADAPTERIMPL_EXPORT PyObject*  PyInit__websocketadapterimpl(void)
 {
     PyObject* m;
 

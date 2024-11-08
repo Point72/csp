@@ -8,7 +8,7 @@ namespace csp::python
 {
 
 //PushBatch
-struct CSP_PUBLIC PyPushBatch
+struct CSPIMPL_EXPORT PyPushBatch
 {
     PyObject_HEAD
     PushBatch batch;

@@ -19,6 +19,7 @@ set(KAFKA_SOURCE_FILES
 
 add_library(csp_kafka_adapter STATIC ${KAFKA_SOURCE_FILES})
 set_target_properties(csp_kafka_adapter PROPERTIES PUBLIC_HEADER "${KAFKA_HEADER_FILES}")
+set_target_properties(csp_kafka_adapter PROPERTIES DEFINITIONS CSPKAFKAADAPTER_EXPORTS)
 
 find_package(DepsKafkaAdapter REQUIRED)
 

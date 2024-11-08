@@ -15,7 +15,7 @@ namespace csp
 
 class CspEnumMeta;
 
-class CSP_PUBLIC CspEnumInstance
+class CSPTYPES_EXPORT CspEnumInstance
 {
 public:
     CspEnumInstance( std::string name, int64_t value, csp::CspEnumMeta * meta ) : m_name( name ), m_value( value ), m_meta( meta ) {}
@@ -35,7 +35,7 @@ private:
 
 //As an optimization we do NOT attach meta or value to every instance of an enum.  Instead, the enum
 //holds only a pointer to a singleton CspEnumInstance, which holds the value, name, and meta pointer.
-class CSP_PUBLIC CspEnum
+class CSPTYPES_EXPORT CspEnum
 {
 public:
     CspEnum();
@@ -59,7 +59,7 @@ protected:
 
 std::ostream &operator<<( std::ostream &os, const CspEnum & rhs );
 
-class CSP_PUBLIC CspEnumMeta
+class CSPTYPES_EXPORT CspEnumMeta
 {
 public:
     using ValueDef = std::unordered_map<std::string,int64_t>;

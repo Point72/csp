@@ -1,3 +1,4 @@
+#include <csp/core/Platform.h>
 #include <csp/engine/DynamicEngine.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/InitHelper.h>
@@ -135,7 +136,7 @@ static PyModuleDef _cspimpl_module = {
     _cspimpl_methods, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__cspimpl(void)
+extern "C" CSPIMPL_EXPORT PyObject* PyInit__cspimpl(void)
 {
     PyObject* m;
 

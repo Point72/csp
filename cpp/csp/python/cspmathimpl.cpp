@@ -1,3 +1,4 @@
+#include <csp/core/Platform.h>
 #include <csp/python/PyCppNode.h>
 #include <csp/engine/CppNode.h>
 #include <csp/python/Conversions.h>
@@ -83,7 +84,7 @@ static PyModuleDef _cspmathimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__cspmathimpl(void)
+extern "C" CSPMATHIMPL_EXPORT PyObject*  PyInit__cspmathimpl(void)
 {
     PyObject* m;
 

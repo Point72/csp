@@ -1,6 +1,7 @@
 
 if(CSP_BUILD_KAFKA_ADAPTER)
     add_library(kafkaadapterimpl SHARED kafkaadapterimpl.cpp)
+    set_target_properties(kafkaadapterimpl PROPERTIES DEFINITIONS KAFKAADAPTERIMPL_EXPORTS)
     target_link_libraries(kafkaadapterimpl csp_core csp_engine cspimpl csp_kafka_adapter)
     install(TARGETS kafkaadapterimpl RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR})
 endif()
@@ -29,6 +30,7 @@ if(CSP_BUILD_PARQUET_ADAPTER)
         ${VENDORED_PYARROW_ROOT}/arrow/python/csv.cc
         ${VENDORED_PYARROW_ROOT}/arrow/python/filesystem.cc)
     add_library(parquetadapterimpl SHARED parquetadapterimpl.cpp ${ARROW_PYTHON_SRCS})
+    set_target_properties(parquetadapterimpl PROPERTIES DEFINITIONS PARQUETADAPTERIMPL_EXPORTS)
     # Ignore warning regarding static datetime API initialization coming from vendored Arrow code
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         set_target_properties(parquetadapterimpl PROPERTIES COMPILE_OPTIONS "-Wno-unused-variable")
@@ -41,6 +43,7 @@ endif()
 
 if(CSP_BUILD_WS_CLIENT_ADAPTER)
     add_library(websocketadapterimpl SHARED websocketadapterimpl.cpp)
+    set_target_properties(websocketadapterimpl PROPERTIES DEFINITIONS WEBSOCKETADAPTERIMPL_EXPORTS)
     target_link_libraries(websocketadapterimpl csp_core csp_engine cspimpl csp_websocket_client_adapter)
     install(TARGETS websocketadapterimpl RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR})
 endif()

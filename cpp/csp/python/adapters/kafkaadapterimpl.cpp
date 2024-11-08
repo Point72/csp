@@ -1,4 +1,5 @@
 #include <csp/adapters/kafka/KafkaAdapterManager.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
@@ -69,7 +70,7 @@ static PyModuleDef _kafkaadapterimpl_module = {
         NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__kafkaadapterimpl(void)
+extern "C" KAFKAADAPTERIMPL_EXPORT PyObject*  PyInit__kafkaadapterimpl(void)
 {
     PyObject* m;
 

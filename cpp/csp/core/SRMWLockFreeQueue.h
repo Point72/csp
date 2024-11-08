@@ -15,7 +15,7 @@ namespace csp
   one of the simplest!  template type is required to have an intrinsic next pointer
 */
 template< typename T >
-class alignas(CACHELINE_SIZE) CSP_PUBLIC SRMWLockFreeQueue
+class alignas(CACHELINE_SIZE) CSPCORE_EXPORT SRMWLockFreeQueue
 {
 public:
     class Batch

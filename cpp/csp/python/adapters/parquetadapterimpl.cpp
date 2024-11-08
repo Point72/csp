@@ -4,6 +4,7 @@
 #include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <csp/core/Generator.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
@@ -682,7 +683,7 @@ static PyModuleDef _parquetadapterimpl_module = {
         NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__parquetadapterimpl( void )
+extern "C" PARQUETADAPTERIMPL_EXPORT PyObject*  PyInit__parquetadapterimpl( void )
 {
     PyObject *m;
 

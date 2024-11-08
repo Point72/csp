@@ -1,3 +1,4 @@
+#include <csp/core/Platform.h>
 #include <csp/engine/CppNode.h>
 #include <csp/python/PyCppNode.h>
 
@@ -12,7 +13,7 @@ static PyModuleDef _cspbasketlibimpl_module = {
         NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__cspbasketlibimpl(void)
+extern "C" CSPBASKETLIBIMPL_EXPORT PyObject*  PyInit__cspbasketlibimpl(void)
 {
     PyObject* m;
 

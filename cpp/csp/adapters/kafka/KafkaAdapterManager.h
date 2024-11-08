@@ -47,7 +47,7 @@ protected:
 using KafkaStatusMessageType = csp::Enum<KafkaStatusMessageTypeTraits>;
 
 //Top level AdapterManager object for all kafka adapters in the engine
-class CSP_PUBLIC KafkaAdapterManager final : public csp::AdapterManager
+class CSPKAFKAADAPTER_EXPORT KafkaAdapterManager final : public csp::AdapterManager
 {
 public:
     KafkaAdapterManager( csp::Engine * engine, const Dictionary & properties );

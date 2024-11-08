@@ -14,7 +14,7 @@ class Consumer;
 class Node;
 
 //Holder of a single timeseries buffer and all associated links to consumers
-class CSP_PUBLIC TimeSeriesProvider
+class CSPENGINE_EXPORT TimeSeriesProvider
 {
 public:
     using DuplicatePolicyEnum = TimeSeries::DuplicatePolicyEnum;

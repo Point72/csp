@@ -1,3 +1,4 @@
+#include <csp/core/Platform.h>
 #include <csp/engine/CppNode.h>
 #include <csp/python/PyCppNode.h>
 
@@ -60,7 +61,7 @@ static PyModuleDef _cspnpstatsimpl_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__cspnpstatsimpl(void)
+extern "C" CSPNPSTATSIMPL_EXPORT PyObject*  PyInit__cspnpstatsimpl(void)
 {
     PyObject* m;
 

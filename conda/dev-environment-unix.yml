@@ -20,7 +20,7 @@ dependencies:
  - libarrow=16
  - libboost>=1.80.0
  - libboost-headers>=1.80.0
- - libprotobuf<5
+ - libprotobuf
  - librdkafka
  - lz4-c
  - mamba

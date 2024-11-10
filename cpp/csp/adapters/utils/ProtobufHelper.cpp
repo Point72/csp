@@ -3,6 +3,7 @@
 #include <csp/core/Platform.h>
 #include <csp/core/System.h>
 #include <csp/engine/PartialSwitchCspType.h>
+#include <absl/strings/string_view.h>
 
 namespace proto = google::protobuf;
 
@@ -28,12 +29,12 @@ public:
         return m_pool.FindFileByName( filename );
     }
 
-    void AddError( const std::string& filename, int line, int column,
-                   const std::string& message ) override
+    void RecordError( absl::string_view filename, int line, int column,
+                      absl::string_view message ) override
     {
-        CSP_THROW( RuntimeException, "Failed to load proto schema " << filename << ":" << line << ":" << column << ": " << message );
+        CSP_THROW( RuntimeException, "Failed to load proto schema " << std::string(filename) << ":" << line << ":" << column << ": " << message );
     }
-    
+
 private:
     proto::DescriptorPoolDatabase                 m_wellKnownTypesDatabase;
     proto::compiler::SourceTreeDescriptorDatabase m_database;

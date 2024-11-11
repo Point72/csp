@@ -10,7 +10,7 @@
 namespace csp
 {
 
-class CSPCORE_EXPORT Exception : public std::exception
+class CSP_PUBLIC Exception : public std::exception
 {
 public:
     Exception( const char * exType, const std::string & description, const char * file, const char * func, int line ) :

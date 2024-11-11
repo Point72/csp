@@ -26,7 +26,7 @@ message(STATUS "\n\n\nBinary directory: ${CMAKE_CURRENT_BINARY_DIR}\n\n\n")
 generate_export_header(csptypesimpl)
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
 target_compile_definitions(csptypesimpl PUBLIC RAPIDJSON_HAS_STDSTRING=1)
-target_link_libraries(csptypesimpl csp_core csp_types)
+target_link_libraries(csptypesimpl csp_core csp_types csp_engine)
 target_compile_definitions(csptypesimpl PRIVATE CSPTYPESIMPL_EXPORTS=1)
 
 

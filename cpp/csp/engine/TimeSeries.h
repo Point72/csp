@@ -60,7 +60,7 @@ class CSPENGINE_EXPORT TimeSeries
 {
 public:
     // Should match the DuplicatePolicy enum in python!!!
-    struct DuplicatePolicyTraits {
+    struct CSPENGINE_EXPORT DuplicatePolicyTraits {
         enum _enum : uint8_t {
             UNKNOWN = 0,
             LAST_VALUE = 1,

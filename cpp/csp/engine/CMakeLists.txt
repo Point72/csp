@@ -87,8 +87,9 @@ generate_export_header(csp_types
         EXPORT_MACRO_NAME CSPTYPES_EXPORT
 )
 set_target_properties(csp_types PROPERTIES PUBLIC_HEADER "${CSP_TYPES_PUBLIC_HEADERS}")
+target_link_libraries(csp_types csp_core)
 
-add_library(csp_engine STATIC ${ENGINE_SOURCE_FILES})
+add_library(csp_engine SHARED ${ENGINE_SOURCE_FILES})
 generate_export_header(csp_engine
         BASE_NAME cspengine
         EXPORT_MACRO_NAME CSPENGINE_EXPORT

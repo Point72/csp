@@ -1,5 +1,7 @@
 find_package(GTest CONFIG REQUIRED)
 
+list(APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
+
 add_executable(test_dictionary test_dictionary.cpp )
 target_link_libraries(test_dictionary csp_engine GTest::gtest GTest::gtest_main)
 # For DialectGeneric impl registration ( needed on windows to get it exported )

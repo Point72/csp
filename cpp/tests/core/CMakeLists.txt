@@ -1,6 +1,8 @@
 enable_testing() 
 find_package(GTest CONFIG REQUIRED)
 
+list(APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
+
 add_executable(test_basic_allocator test_basic_allocator.cpp)
 target_link_libraries(test_basic_allocator GTest::gtest GTest::gtest_main)
 

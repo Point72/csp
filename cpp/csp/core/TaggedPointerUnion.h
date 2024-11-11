@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_CORE_TAGGEDPOINTERUNION_H
 #define _IN_CSP_CORE_TAGGEDPOINTERUNION_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/System.h>
 
 namespace csp

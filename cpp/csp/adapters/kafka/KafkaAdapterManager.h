@@ -3,6 +3,7 @@
 
 #include <csp/core/Enum.h>
 #include <csp/core/Hash.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/AdapterManager.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/PushInputAdapter.h>
@@ -10,6 +11,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+
 
 namespace RdKafka
 {

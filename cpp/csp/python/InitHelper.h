@@ -10,7 +10,7 @@
 namespace csp::python
 {
 
-class CSP_LOCAL InitHelper
+class InitHelper
 {
 public:
     ~InitHelper() {}

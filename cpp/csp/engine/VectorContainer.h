@@ -1,11 +1,12 @@
 #ifndef _IN_CSP_ENGINE_VECTORALLOCATOR_H
 #define _IN_CSP_ENGINE_VECTORALLOCATOR_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/CspType.h>
 
 namespace csp
 {
-class VectorContainer
+class CSPENGINE_EXPORT VectorContainer
 {
 public:
     VectorContainer(const VectorContainer&) = delete;

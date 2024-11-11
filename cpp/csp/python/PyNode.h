@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_PYNODE_H
 #define _IN_CSP_PYTHON_PYNODE_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/Node.h>
 #include <csp/python/PyObjectPtr.h>
@@ -11,7 +12,7 @@ namespace csp::python
 
 class PyEngine;
 
-class PyNode final: public csp::Node
+class CSPIMPL_EXPORT PyNode final: public csp::Node
 {
 public:
     PyNode( csp::Engine * engine, PyObjectPtr gen, PyObjectPtr inputs, PyObjectPtr outputs,

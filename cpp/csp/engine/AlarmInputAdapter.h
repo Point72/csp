@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_ALARMINPUTADAPTER_H
 #define _IN_CSP_ENGINE_ALARMINPUTADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/InputAdapter.h>
 #include <unordered_set>
 

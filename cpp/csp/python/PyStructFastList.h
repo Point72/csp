@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_PYSTRUCTFASTLIST_H
 #define _IN_CSP_PYTHON_PYSTRUCTFASTLIST_H
 
+#include <csp/core/Platform.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyIterator.h>
@@ -13,7 +14,7 @@ namespace csp::python
 {
 
 template<typename StorageT>
-struct PyStructFastList : public PyObject
+struct CSPTYPESIMPL_EXPORT PyStructFastList : public PyObject
 {
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
 

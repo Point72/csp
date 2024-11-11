@@ -2,6 +2,7 @@
 #define _IN_CSP_ADAPTERS_PARQUET_DialectGenericListReaderInterface_H
 
 #include <memory>
+#include <csp/core/Platform.h>
 #include <csp/engine/DialectGenericType.h>
 #include <csp/adapters/parquet/ParquetReaderColumnAdapter.h>
 #include <arrow/array/builder_base.h>
@@ -9,7 +10,7 @@
 namespace csp::adapters::parquet
 {
 
-class DialectGenericListReaderInterface
+class CSPPARQUETADAPTERIMPL_EXPORT DialectGenericListReaderInterface
 {
 public:
     using Ptr = std::shared_ptr<DialectGenericListReaderInterface>;
@@ -25,7 +26,7 @@ public:
 };
 
 template< typename T >
-class CSP_PUBLIC TypedDialectGenericListReaderInterface : public DialectGenericListReaderInterface
+class CSPPARQUETADAPTERIMPL_EXPORT TypedDialectGenericListReaderInterface : public DialectGenericListReaderInterface
 {
 public:
     using Ptr = std::shared_ptr<TypedDialectGenericListReaderInterface<T>>;

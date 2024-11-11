@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_PENDINGPUSHEVENTS_H
 #define _IN_CSP_ENGINE_PENDINGPUSHEVENTS_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/PushEvent.h>
 #include <unordered_map>
 
@@ -10,7 +11,7 @@ namespace csp
 struct PushGroup;
 class PushInputAdapters;
 
-class PendingPushEvents
+class CSPENGINE_EXPORT PendingPushEvents
 {
 public:
     PendingPushEvents();

@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_PUSHEVENT_H
 #define _IN_CSP_ENGINE_PUSHEVENT_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/CspType.h>
 
 namespace csp

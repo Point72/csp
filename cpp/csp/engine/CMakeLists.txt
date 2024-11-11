@@ -1,3 +1,4 @@
+include(GenerateExportHeader)
 csp_autogen( csp.impl.types.autogen_types autogen_types ENGINE_AUTOGEN_HEADER ENGINE_AUTOGEN_SOURCE )
 
 set(CSP_TYPES_PUBLIC_HEADERS
@@ -12,10 +13,7 @@ set(CSP_TYPES_PUBLIC_HEADERS
 set(CSP_TYPES_SOURCE_FILES
         CspEnum.cpp
         CspType.cpp
-        DialectGenericType.h
-        PartialSwitchCspType.h
         Struct.cpp
-        TypeCast.h
 )
 
 set(ENGINE_PUBLIC_HEADERS
@@ -83,10 +81,19 @@ set(ENGINE_SOURCE_FILES
         ${ENGINE_PUBLIC_HEADERS}
         )
 
-add_library(csp_types STATIC ${CSP_TYPES_SOURCE_FILES})
+add_library(csp_types SHARED ${CSP_TYPES_SOURCE_FILES})
+generate_export_header(csp_types
+        BASE_NAME csptypes
+        EXPORT_MACRO_NAME CSPTYPES_EXPORT
+)
 set_target_properties(csp_types PROPERTIES PUBLIC_HEADER "${CSP_TYPES_PUBLIC_HEADERS}")
+target_link_libraries(csp_types csp_core)
 
-add_library(csp_engine STATIC ${ENGINE_SOURCE_FILES})
+add_library(csp_engine SHARED ${ENGINE_SOURCE_FILES})
+generate_export_header(csp_engine
+        BASE_NAME cspengine
+        EXPORT_MACRO_NAME CSPENGINE_EXPORT
+)
 set_target_properties(csp_engine PROPERTIES PUBLIC_HEADER "${ENGINE_PUBLIC_HEADERS}")
 target_link_libraries(csp_engine csp_core csp_types)
 
@@ -97,3 +104,7 @@ install(TARGETS csp_types csp_engine
         RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
        )
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cspengine_export.h 
+        ${CMAKE_CURRENT_BINARY_DIR}/csptypes_export.h 
+        DESTINATION include/csp/engine)

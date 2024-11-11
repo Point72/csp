@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_PYENGINE_H
 #define _IN_CSP_PYTHON_PYENGINE_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/python/Exception.h>
 #include <csp/engine/RootEngine.h>
@@ -16,7 +17,7 @@ namespace csp::python
 class PyEngine;
 
 //This is the actual python root engine
-class PythonEngine final : public csp::RootEngine
+class CSPIMPL_EXPORT PythonEngine final : public csp::RootEngine
 {
 public:
     PythonEngine( PyEngine * parent, const Dictionary & );

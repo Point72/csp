@@ -1,13 +1,14 @@
 #ifndef _IN_CSP_ENGINE_TIMERINPUTADAPTER_H
 #define _IN_CSP_ENGINE_TIMERINPUTADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/PullInputAdapter.h>
 
 namespace csp
 {
 
 template<typename T>
-class TimerInputAdapter : public PullInputAdapter<T>
+class CSPTYPESIMPL_EXPORT TimerInputAdapter : public PullInputAdapter<T>
 {
 public:
     TimerInputAdapter( Engine * engine, CspTypePtr & type, TimeDelta interval, 

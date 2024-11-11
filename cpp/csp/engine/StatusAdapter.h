@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ADAPTERS_STATUSADAPTER_H
 #define _IN_CSP_ADAPTERS_STATUSADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <string>
 
@@ -29,7 +30,7 @@ struct StatusLevelTraits
 
 using StatusLevel = csp::Enum<StatusLevelTraits>;
 
-class StatusAdapter : public PushInputAdapter
+class CSPENGINE_EXPORT StatusAdapter : public PushInputAdapter
 {
 public:
     StatusAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode, PushGroup * group = nullptr ) : PushInputAdapter( engine, type, pushMode, group )

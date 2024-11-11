@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_PYTHON_PYSTRUCTLIST_H
 #define _IN_CSP_PYTHON_PYSTRUCTLIST_H
 
+#include <csp/core/Platform.h>
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyStruct.h>
 #include <csp/python/VectorWrapper.h>
@@ -11,7 +12,7 @@ namespace csp::python
 {
 
 template<typename StorageT>
-struct PyStructList : public PyObject
+struct CSPTYPESIMPL_EXPORT PyStructList : public PyObject
 {
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
 

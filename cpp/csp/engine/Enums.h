@@ -2,12 +2,13 @@
 #define _IN_CSP_ENGINE_ENUMS_H
 
 #include <csp/core/Enum.h>
+#include <csp/core/Platform.h>
 
 namespace csp
 {
 
 // NOTE this must align with the python side Enum definition ///
-struct PushModeTraits
+struct CSPENGINE_EXPORT PushModeTraits
 {
     enum _enum : unsigned char
     {

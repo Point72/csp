@@ -2,6 +2,7 @@
 #define _IN_CSP_CORE_DICTIONARY_H
 
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/core/System.h>
 #include <csp/core/Time.h>
 #include <csp/engine/DialectGenericType.h>
@@ -22,7 +23,7 @@ using DictionaryPtr = std::shared_ptr<Dictionary>;
 class StructMeta;
 using StructMetaPtr = std::shared_ptr<StructMeta>;
 
-class Dictionary
+class CSPENGINE_EXPORT Dictionary
 {
 public:
     struct Data;

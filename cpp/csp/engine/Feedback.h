@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_FEEDBACK_H
 #define _IN_CSP_ENGINE_FEEDBACK_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/InputAdapter.h>
 #include <csp/engine/OutputAdapter.h>
 
@@ -28,7 +29,7 @@ private:
 };
 
 template<typename T>
-class CSP_PUBLIC FeedbackInputAdapter final : public InputAdapter
+class FeedbackInputAdapter final : public InputAdapter
 {
 public:
     using InputAdapter::InputAdapter;

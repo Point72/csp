@@ -4,6 +4,7 @@
 #include <csp/adapters/parquet/ParquetReader.h>
 #include <csp/adapters/utils/StructAdapterInfo.h>
 #include <csp/core/Generator.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/AdapterManager.h>
 #include <csp/engine/Dictionary.h>
 #include <unordered_map>
@@ -18,7 +19,7 @@ namespace csp::adapters::parquet
 
 
 //Top level AdapterManager object for all parquet adapters in the engine
-class CSP_PUBLIC ParquetInputAdapterManager final : public csp::AdapterManager
+class CSPPARQUETADAPTERIMPL_EXPORT ParquetInputAdapterManager final : public csp::AdapterManager
 {
 public:
     using GeneratorPtr = csp::Generator<std::string, csp::DateTime, csp::DateTime>::Ptr;

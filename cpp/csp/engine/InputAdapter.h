@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_INPUTADAPTER_H
 #define _IN_CSP_ENGINE_INPUTADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/Enums.h>
 #include <csp/engine/RootEngine.h>
@@ -11,7 +12,7 @@ namespace csp
 
 class Consumer;
 
-class InputAdapter : public TimeSeriesProvider, public EngineOwned
+class CSPENGINE_EXPORT InputAdapter : public TimeSeriesProvider, public EngineOwned
 {
 public:
     InputAdapter( Engine * engine, const CspTypePtr & type, PushMode pushMode );

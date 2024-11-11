@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ADAPTER_MANAGER_H
 #define _IN_CSP_ADAPTER_MANAGER_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/InputAdapter.h>
 #include <csp/engine/PushInputAdapter.h>
@@ -16,7 +17,7 @@ class AdapterManager;
 
 class Engine;
 
-class ManagedSimInputAdapter : public InputAdapter
+class CSPENGINE_EXPORT ManagedSimInputAdapter : public InputAdapter
 {
 public:
     ManagedSimInputAdapter( csp::Engine *engine, const CspTypePtr &type, AdapterManager *manager, PushMode pushMode );
@@ -93,7 +94,7 @@ bool ManagedSimInputAdapter::pushNullTick()
     return true;
 }
 
-class CSP_PUBLIC AdapterManager : public EngineOwned
+class CSPENGINE_EXPORT AdapterManager : public EngineOwned
 {
 public:
     AdapterManager( csp::Engine * );

@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_CORE_GENERATOR_H
 #define _IN_CSP_CORE_GENERATOR_H
 
+#include <csp/core/Platform.h>
 #include <memory>
 
 namespace csp

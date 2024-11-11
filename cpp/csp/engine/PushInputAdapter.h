@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_PUSHINPUTADAPTER_H
 #define _IN_CSP_ENGINE_PUSHINPUTADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/CspType.h>
 #include <csp/engine/InputAdapter.h>

@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_ENGINE_H
 
 #include <csp/core/Exception.h>
+#include <csp/core/Platform.h>
 #include <csp/core/Time.h>
 #include <csp/engine/CycleStepTable.h>
 #include <csp/engine/DialectGenericType.h>
@@ -23,7 +24,7 @@ class TimeSeriesProvider;
 class Engine;
 class RootEngine;
 
-struct EngineOwned
+struct CSPENGINE_EXPORT EngineOwned
 {
     //force objects derived from EngineOwned to go through engine createOwnedObject methods
     //little trick here to force all derivations to fail
@@ -34,7 +35,7 @@ struct EngineOwned
     void operator delete( void* ptr )            { ::operator delete(ptr); }
 };
 
-class Engine
+class CSPENGINE_EXPORT Engine
 {
     using AdapterManagers   = std::vector<std::shared_ptr<AdapterManager>>;
     using InputAdapters     = std::vector<std::unique_ptr<InputAdapter>>;

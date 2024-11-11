@@ -4,6 +4,7 @@
 #include <csp/adapters/parquet/ParquetReader.h>
 #include <csp/adapters/utils/StructAdapterInfo.h>
 #include <csp/core/Generator.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/AdapterManager.h>
 #include <csp/engine/Dictionary.h>
 #include <set>
@@ -21,7 +22,7 @@ class ParquetOutputFilenameAdapter;
 class ParquetDictBasketOutputWriter;
 
 //Top level AdapterManager object for all parquet adapters in the engine
-class CSP_PUBLIC ParquetOutputAdapterManager final : public csp::AdapterManager
+class CSPPARQUETADAPTERIMPL_EXPORT ParquetOutputAdapterManager final : public csp::AdapterManager
 {
 public:
     using FileVisitorCallback = std::function<void(const std::string &)>;

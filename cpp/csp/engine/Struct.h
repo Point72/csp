@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_STRUCT_H
 
 #include <csp/core/Hash.h>
+#include <csp/core/Platform.h>
 #include <csp/engine/CspType.h>
 #include <memory>
 #include <string>
@@ -18,7 +19,7 @@ class TypedStructPtr;
 
 using StructPtr = TypedStructPtr<Struct>;
 
-class StructField
+class CSPTYPES_EXPORT StructField
 {
 public:
 
@@ -580,7 +581,7 @@ TypedStructPtr<T> structptr_cast( const TypedStructPtr<U> & r )
     return out;
 }
 
-class StructMeta : public std::enable_shared_from_this<StructMeta>
+class CSPTYPES_EXPORT StructMeta : public std::enable_shared_from_this<StructMeta>
 {
 public:
     using Fields = std::vector<StructFieldPtr>;
@@ -684,7 +685,7 @@ std::shared_ptr<typename StructField::upcast<T>::type> StructMeta::getMetaField(
 
 using StructMetaPtr = std::shared_ptr<StructMeta>;
 
-class Struct
+class CSPTYPES_EXPORT Struct
 {
 public:
 

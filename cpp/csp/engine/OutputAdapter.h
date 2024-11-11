@@ -1,6 +1,7 @@
 #ifndef _IN_CSP_ENGINE_OUTPUTADAPTER_H
 #define _IN_CSP_ENGINE_OUTPUTADAPTER_H
 
+#include <csp/core/Platform.h>
 #include <csp/engine/Consumer.h>
 #include <csp/engine/Engine.h>
 
@@ -9,7 +10,7 @@ namespace csp
 
 class TimeSeriesProvider;
 
-class OutputAdapter : public Consumer, public EngineOwned
+class CSPENGINE_EXPORT OutputAdapter : public Consumer, public EngineOwned
 {
 public:
     OutputAdapter( csp::Engine * engine );

@@ -73,7 +73,7 @@ bool UnknownOnInvalidValue(long) { return false; }
 
 START_PACKED
 template<typename EnumTraits>
-struct Enum : public EnumTraits
+struct CSP_PUBLIC Enum : public EnumTraits // need to export for autogen build
 {
     using EnumV = typename EnumTraits::_enum;
     using Mapping = std::vector<std::string>;

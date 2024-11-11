@@ -21,7 +21,7 @@ const int64_t NANOS_PER_SECOND      = 1000000000;
 const int64_t SECONDS_PER_DAY       = 86400;
 const int64_t NANOS_PER_DAY         = NANOS_PER_SECOND * SECONDS_PER_DAY;
 
-class CSPCORE_EXPORT TimeDelta
+class TimeDelta
 {
 public:
     constexpr TimeDelta() : TimeDelta( TimeDelta::NONE() ) {}
@@ -165,7 +165,7 @@ inline std::ostream & operator <<( std::ostream &os, const TimeDelta & d )
     return os;
 }
 
-class CSPCORE_EXPORT Date
+class Date
 {
 public:
     Date() : Date( NONE() ) {}
@@ -316,7 +316,7 @@ inline std::ostream & operator <<( std::ostream &os, const Date & d )
     return os;
 }
 
-class CSPCORE_EXPORT Time
+class Time
 {
 public:
     Time() : Time( -1 ) {} //NONE
@@ -597,7 +597,7 @@ inline std::ostream & operator <<( std::ostream &os, const DateTime & dt )
 //Helper class to extract day/month/year/etc info from raw timestamp
 //ie DateTimeEx dte( existingDt )
 //dte.day, etc etc
-class CSPCORE_EXPORT DateTimeEx : public DateTime
+class DateTimeEx : public DateTime
 {
 public:
     DateTimeEx( const DateTime & dt );

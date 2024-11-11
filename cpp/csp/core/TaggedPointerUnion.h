@@ -26,7 +26,7 @@ struct IndexOf<T, TypeList<TOther, Ts...> >
 
 
 template<typename... Ts>
-class CSPCORE_EXPORT TaggedPointerUnion
+class TaggedPointerUnion
 {
 public:
     static inline constexpr size_t NUM_TAGS = sizeof...(Ts);

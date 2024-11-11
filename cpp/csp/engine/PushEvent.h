@@ -9,7 +9,7 @@ namespace csp
 
 class PushInputAdapter;
 
-struct CSPENGINE_EXPORT PushEvent
+struct PushEvent
 {
     PushEvent( PushInputAdapter *adapter ) : m_adapter( adapter ), next( nullptr )
     {}
@@ -26,7 +26,7 @@ public:
 };
 
 template<typename T>
-struct CSPENGINE_EXPORT TypedPushEvent : public PushEvent
+struct TypedPushEvent : public PushEvent
 {
     TypedPushEvent( PushInputAdapter *adapter,
                     T &&d ) : PushEvent( adapter ),

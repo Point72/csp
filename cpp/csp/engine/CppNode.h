@@ -13,7 +13,7 @@ namespace csp
 
 //CppNode is used specifically for C++ defined Nodes, and should only be used
 //for definig c++ nodes using the macros defined at the end
-class CSPENGINE_EXPORT CppNode : public csp::Node
+class CppNode : public csp::Node
 {
 public:
     using Shape = std::variant<std::uint64_t,std::vector<std::string>>;

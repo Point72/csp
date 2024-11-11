@@ -12,7 +12,7 @@ template<typename T>
 class FeedbackInputAdapter;
 
 template<typename T>
-class CSPENGINE_EXPORT FeedbackOutputAdapter final : public OutputAdapter
+class FeedbackOutputAdapter final : public OutputAdapter
 {
 public:
     FeedbackOutputAdapter( csp::Engine * engine, 
@@ -29,7 +29,7 @@ private:
 };
 
 template<typename T>
-class CSPENGINE_EXPORT FeedbackInputAdapter final : public InputAdapter
+class FeedbackInputAdapter final : public InputAdapter
 {
 public:
     using InputAdapter::InputAdapter;

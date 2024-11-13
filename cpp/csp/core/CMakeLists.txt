@@ -27,6 +27,7 @@ configure_file(Config.h.in ${CMAKE_CURRENT_BINARY_DIR}/cpp/csp/core/Config.h)
 
 add_library(csp_core STATIC ${CORE_SOURCE_FILES})
 set_target_properties(csp_core PROPERTIES PUBLIC_HEADER "${CORE_PUBLIC_HEADERS}")
+target_compile_definitions(csp_core PRIVATE CSPIMPL_EXPORT_STATIC_DEFINE CSPTYPESIMPL_EXPORT_STATIC_DEFINE)
 
 install(TARGETS csp_core
         PUBLIC_HEADER DESTINATION include/csp/core

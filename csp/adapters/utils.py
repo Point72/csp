@@ -37,3 +37,12 @@ class RawTextMessageMapper(MsgMapper):
 class RawBytesMessageMapper(MsgMapper):
     def __init__(self):
         super().__init__("BYTES_MSG", "RAW_BYTES")
+
+
+def hash_mutable(obj):
+    if isinstance(obj, (list, tuple, set)):
+        return hash(tuple(hash_mutable(x) for x in obj))
+    elif isinstance(obj, dict):
+        return hash(tuple((hash(k), hash_mutable(v)) for k, v in obj.items()))
+    else:
+        return hash(obj)

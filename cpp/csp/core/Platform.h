@@ -14,8 +14,7 @@
 #undef ERROR
 #undef GetMessage
 
-#define CSP_LOCAL
-#define CSP_PUBLIC __declspec(dllexport)
+#define DLL_LOCAL
 
 #ifdef CSPTYPESIMPL_EXPORTS
 #define CSPTYPESIMPL_EXPORT __declspec(dllexport)
@@ -90,11 +89,11 @@ inline uint8_t ffs(uint64_t n)
 }
 
 #else
-#define CSPIMPL_EXPORT      __attribute__ ((visibility ("default")))
-#define CSPTYPESIMPL_EXPORT __attribute__ ((visibility ("default")))
 
-#define CSP_LOCAL  __attribute__ ((visibility ("hidden")))
-#define CSP_PUBLIC __attribute__ ((visibility ("default")))
+#define CSPIMPL_EXPORT
+#define CSPTYPESIMPL_EXPORT
+
+#define DLL_LOCAL __attribute__ ((visibility ("hidden")))
 
 #define START_PACKED
 #define END_PACKED __attribute__((packed))

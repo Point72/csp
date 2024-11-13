@@ -28,7 +28,7 @@ private:
 };
 
 template<typename T>
-class CSP_PUBLIC FeedbackInputAdapter final : public InputAdapter
+class FeedbackInputAdapter final : public InputAdapter
 {
 public:
     using InputAdapter::InputAdapter;

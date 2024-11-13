@@ -51,19 +51,22 @@ public:
 
     void event_cb( RdKafka::Event & event ) override
     {
-        if( event.type() == RdKafka::Event::EVENT_LOG )
+        if( event.severity() < RdKafka::Event::EVENT_SEVERITY_NOTICE )
         {
-            if( event.severity() < RdKafka::Event::EVENT_SEVERITY_NOTICE )
-            {
-                std::string errmsg = "KafkaConsumer: error " + RdKafka::err2str( ( RdKafka::ErrorCode ) event.err() ) + ". Reason: " + event.str();
-                m_adapterManager -> pushStatus( StatusLevel::ERROR, KafkaStatusMessageType::GENERIC_ERROR, errmsg );
-            }
+            std::string errmsg = "KafkaConsumer: error ( " + std::to_string( event.err() ) + "): " + RdKafka::err2str( ( RdKafka::ErrorCode ) event.err() ) + ". Reason: " + event.str();
+            m_adapterManager -> pushStatus( StatusLevel::ERROR, KafkaStatusMessageType::GENERIC_ERROR, errmsg );
         }
-        else if( event.type() == RdKafka::Event::EVENT_ERROR )
+
+        if( event.type() == RdKafka::Event::EVENT_ERROR )
         {
             //We shutdown the app if its a fatal error OR if its an authentication issue which has plagued users multiple times
-            if( event.fatal() || event.err() == RdKafka::ErrorCode::ERR__AUTHENTICATION )
+            //Adding ERR__ALL_BROKERS_DOWN which happens when all brokers are down
+            if( event.fatal() ||
+                event.err() == RdKafka::ErrorCode::ERR__AUTHENTICATION ||
+                event.err() == RdKafka::ErrorCode::ERR__ALL_BROKERS_DOWN )
+            {
                 m_adapterManager -> forceShutdown( RdKafka::err2str( ( RdKafka::ErrorCode ) event.err() ) + event.str() );
+            }
         }
     }
 

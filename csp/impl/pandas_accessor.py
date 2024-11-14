@@ -10,6 +10,7 @@ from csp import ts
 from csp.impl.pandas_ext_type import TsDtype, is_csp_type
 from csp.impl.struct import define_nested_struct
 from csp.impl.wiring.edge import Edge
+from csp.showgraph import show_graph
 
 T = TypeVar("T")
 
@@ -375,12 +376,7 @@ class CspSeriesAccessor(object):
         """Show the graph corresponding to the evaluation of all the edges.
         For large series, this may be very large, so it may be helpful to call .head() first.
         """
-        from PIL import Image
-
-        import csp.showgraph
-
-        buffer = csp.showgraph.generate_graph(self._eval_graph, "png")
-        return Image.open(buffer)
+        return show_graph(self._eval_graph, graph_filename=None)
 
 
 @register_series_accessor("to_csp")
@@ -626,12 +622,7 @@ class CspDataFrameAccessor(object):
         """Show the graph corresponding to the evaluation of all the edges.
         For large series, this may be very large, so it may be helpful to call .head() first.
         """
-        from PIL import Image
-
-        import csp.showgraph
-
-        buffer = csp.showgraph.generate_graph(self._eval_graph, "png")
-        return Image.open(buffer)
+        show_graph(self._eval_graph, graph_filename=None)
 
 
 @register_dataframe_accessor("to_csp")

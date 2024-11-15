@@ -670,9 +670,9 @@ jobs:
           python-version:
             - 3.9
           package:
-            - "sqlalchemy>=2"
             - "sqlalchemy<2"
             - "numpy==1.19.5"
+            - "perspective-python<3"
 
       runs-on: ${{ matrix.os }}
 
@@ -709,11 +709,15 @@ jobs:
 
         - name: Python Test Steps
           run: make test TEST_ARGS="-k TestDBReader"
-          if: ${{ contains( 'sqlalchemy', matrix.package )}}
+          if: ${{ contains( matrix.package, 'sqlalchemy' )}}
 
         - name: Python Test Steps
           run: make test
-          if: ${{ contains( 'numpy', matrix.package )}}
+          if: ${{ contains( matrix.package, 'numpy' )}}
+
+        - name: Python Test Steps
+          run: make test TEST_ARGS="-k Perspective"
+          if: ${{ contains( matrix.package, 'perspective' )}}
 
     ###########################################################################################################
     #.........................................................................................................#

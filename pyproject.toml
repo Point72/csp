@@ -79,6 +79,8 @@ develop = [
     "pillow",
     # adapters
     "httpx>=0.20,<1",  # kafka
+    "perspective-python>=2",  # perspective
+    "ipywidgets",  # perspective
     "polars",  # parquet
     "psutil",  # test_engine/test_history
     "sqlalchemy",  # db
@@ -99,6 +101,7 @@ test = [
     "pytest-cov",
     "pytest-sugar",
     "httpx>=0.20,<1",
+    "perspective-python",
     "polars",
     "psutil",
     "pydantic>=2",

@@ -13,14 +13,10 @@ try:
     import ipywidgets
     import perspective
 
-    if version.parse(perspective.__version__) >= version.parse("3"):
-        _PERSPECTIVE_3 = True
-        from perspective.widget import PerspectiveWidget
-    else:
-        _PERSPECTIVE_3 = False
-        from perspective import PerspectiveWidget
-
     from csp.impl.pandas_perspective import CspPerspectiveMultiTable, CspPerspectiveTable
+    from csp.impl.perspective_common import PerspectiveWidget, is_perspective3
+
+    _PERSPECTIVE_3 = is_perspective3()
 except ImportError:
     raise unittest.SkipTest("skipping perspective tests")
 
@@ -47,10 +43,6 @@ class TestCspPerspectiveTable(unittest.TestCase):
                 "sector": sector,
             }
         )
-
-    def perspective_to_df(self):
-        # Perspective's to_dataframe function
-        pass
 
     def _adjust_psp3(self, df, index_col, time_col):
         if time_col:

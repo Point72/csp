@@ -1,29 +1,24 @@
 import pandas as pd
 import pytz
-from datetime import date, datetime, timedelta
-from packaging import version
+from datetime import datetime, timedelta
 from pandas.compat import set_function_name
 from typing import Optional
 
 import csp
 import csp.impl.pandas_accessor  # To ensure that the csp accessors are registered
 from csp.impl.pandas_ext_type import is_csp_type
+from csp.impl.perspective_common import (
+    PerspectiveWidget,
+    date_to_perspective,
+    datetime_to_perspective,
+    is_perspective3,
+    perspective,
+    perspective_type_map,
+)
 
 _ = csp.impl.pandas_accessor
 
-try:
-    import perspective
-
-    if version.parse(perspective.__version__) >= version.parse("3"):
-        _PERSPECTIVE_3 = True
-        from perspective.widget import PerspectiveWidget
-    else:
-        _PERSPECTIVE_3 = False
-        from perspective import PerspectiveWidget
-except ImportError:
-    raise ImportError(
-        "perspective must be installed to use this module. " "To install, run 'pip install perspective-python'."
-    )
+_PERSPECTIVE_3 = is_perspective3()
 
 
 @csp.node
@@ -43,6 +38,7 @@ def _apply_updates(
         s_buffer = []
         s_has_time_col = False
         s_datetime_cols = set()
+        s_date_cols = set()
 
     with csp.start():
         if throttle > timedelta(0):
@@ -67,26 +63,25 @@ def _apply_updates(
                 if index_col:
                     row[index_col] = idx
                 if s_has_time_col:
-                    if localize or _PERSPECTIVE_3:
+                    if localize:
                         row[time_col] = pytz.utc.localize(csp.now())
                     else:
                         row[time_col] = csp.now()
                     if _PERSPECTIVE_3:
-                        row[time_col] = int(row[time_col].timestamp() * 1000)
+                        row[time_col] = datetime_to_perspective(row[time_col])
             else:
                 row = new_rows[idx]
 
-            if (localize or _PERSPECTIVE_3) and col in s_datetime_cols and value.tzinfo is None:
+            if localize and col in s_datetime_cols and value.tzinfo is None:
                 row[col] = pytz.utc.localize(value)
             else:
                 row[col] = value
 
             if _PERSPECTIVE_3:
                 if col in s_datetime_cols:
-                    row[col] = int(row[col].timestamp() * 1000)
+                    row[col] = datetime_to_perspective(row[col])
                 if col in s_date_cols:
-                    d = row[col]
-                    row[col] = int(datetime(year=d.year, month=d.month, day=d.day, tzinfo=pytz.UTC).timestamp() * 1000)
+                    row[col] = date_to_perspective(row[col])
 
         if static_records:
             for idx, row in new_rows.items():
@@ -181,15 +176,8 @@ class CspPerspectiveTable:
             else:
                 schema[col] = static_schema[col]
         if _PERSPECTIVE_3:
-            perspective_type_map = {
-                str: "string",
-                float: "float",
-                int: "integer",
-                date: "date",
-                datetime: "datetime",
-                bool: "boolean",
-            }
-            schema = {col: perspective_type_map.get(typ, typ) for col, typ in schema.items()}
+            psp_type_map = perspective_type_map()
+            schema = {col: psp_type_map.get(typ, typ) for col, typ in schema.items()}
 
         if self._keep_history:
             if _PERSPECTIVE_3:

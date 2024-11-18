@@ -1,10 +1,16 @@
 import threading
 from datetime import timedelta
-from packaging import version
+from perspective import Table as Table_, View as View_
 from typing import Dict, Optional, Union
 
 import csp
 from csp import ts
+from csp.impl.perspective_common import (
+    date_to_perspective,
+    datetime_to_perspective,
+    is_perspective3,
+    perspective_type_map,
+)
 from csp.impl.wiring.delayed_node import DelayedNodeWrapperDef
 
 try:
@@ -14,19 +20,12 @@ try:
 except ImportError:
     raise ImportError("perspective adapter requires tornado package")
 
-try:
-    from perspective import Server, Table as Table_, View as View_, __version__, set_threadpool_size
 
-    if version.parse(__version__) >= version.parse("3"):
-        _PERSPECTIVE_3 = True
-    elif version.parse(__version__) >= version.parse("0.6.2"):
-        from perspective import PerspectiveManager
-
-        _PERSPECTIVE_3 = False
-    else:
-        raise ImportError("perspective adapter requires 0.6.2 or greater of the perspective-python package")
-except ImportError:
-    raise ImportError("perspective adapter requires 0.6.2 or greater of the perspective-python package")
+_PERSPECTIVE_3 = is_perspective3()
+if _PERSPECTIVE_3:
+    from perspective import Server
+else:
+    from perspective import PerspectiveManager
 
 
 # Run perspective update in a separate tornado loop
@@ -43,12 +42,25 @@ def _apply_updates(table: object, data: {str: ts[object]}, throttle: timedelta):
 
     with csp.state():
         s_buffer = []
+        s_datetime_cols = set()
+        s_date_cols = set()
 
     with csp.start():
         csp.schedule_alarm(alarm, throttle, True)
+        if _PERSPECTIVE_3:
+            s_datetime_cols = set([c for c, t in table.schema().items() if t == "datetime"])
+            s_date_cols = set([c for c, t in table.schema().items() if t == "date"])
 
     if csp.ticked(data):
-        s_buffer.append(dict(data.tickeditems()))
+        row = dict(data.tickeditems())
+        if _PERSPECTIVE_3:
+            for col, value in row.items():
+                if col in s_datetime_cols:
+                    row[col] = datetime_to_perspective(row[col])
+                if col in s_date_cols:
+                    row[col] = date_to_perspective(row[col])
+
+        s_buffer.append(row)
 
     if csp.ticked(alarm):
         if len(s_buffer) > 0:
@@ -66,11 +78,13 @@ def _launch_application(port: int, server: object, stub: ts[object]):
         s_iothread = None
 
     with csp.start():
-        from perspective import PerspectiveTornadoHandler
-
         if _PERSPECTIVE_3:
+            from perspective.handlers.tornado import PerspectiveTornadoHandler
+
             handler_args = {"perspective_server": server, "check_origin": True}
         else:
+            from perspective import PerspectiveTornadoHandler
+
             handler_args = {"manager": server, "check_origin": True}
         s_app = tornado.web.Application(
             [
@@ -205,12 +219,14 @@ class PerspectiveAdapter(DelayedNodeWrapperDef):
         return table
 
     def _instantiate(self):
-        set_threadpool_size(self._threadpool_size)
         if _PERSPECTIVE_3:
             server = Server()
             client = server.new_local_client()
             thread = threading.Thread(target=perspective_thread, kwargs=dict(client=client))
         else:
+            from perspective import set_threadpool_size
+
+            set_threadpool_size(self._threadpool_size)
             manager = PerspectiveManager()
             thread = threading.Thread(target=perspective_thread, kwargs=dict(manager=manager))
         thread.daemon = True
@@ -221,10 +237,12 @@ class PerspectiveAdapter(DelayedNodeWrapperDef):
                 k: v.tstype.typ if not issubclass(v.tstype.typ, csp.Enum) else str for k, v in table.columns.items()
             }
             if _PERSPECTIVE_3:
+                psp_type_map = perspective_type_map()
+                schema = {col: psp_type_map.get(typ, typ) for col, typ in schema.items()}
+                ptable = client.table(schema, name=table_name, limit=table.limit, index=table.index)
+            else:
                 ptable = Table(schema, limit=table.limit, index=table.index)
                 manager.host_table(table_name, ptable)
-            else:
-                ptable = client.table(schema, name=table_name, limit=table.limit, index=table.index)
 
             _apply_updates(ptable, table.columns, self._throttle)
 

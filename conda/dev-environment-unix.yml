@@ -24,7 +24,7 @@ dependencies:
  - librdkafka
  - lz4-c
  - mamba
- - mdformat>=0.7.17,<0.8
+ - mdformat=0.7.17
  - ninja
  - numpy<2
  - pandas

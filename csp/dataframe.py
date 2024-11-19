@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from packaging import version
 from typing import Dict, Optional
 
 import csp.baselib
@@ -12,6 +13,7 @@ class DataFrame:
     def __init__(self, data: Optional[Dict] = None):
         self._data = data or {}
         self._columns = list(self._data.keys())
+        self._psp_client = None
 
     @property
     def columns(self):
@@ -204,10 +206,17 @@ class DataFrame:
         try:
             import perspective
 
+            if version.parse(perspective.__version__) >= version.parse("3"):
+                _PERSPECTIVE_3 = True
+                from perspective.widget import PerspectiveWidget
+            else:
+                _PERSPECTIVE_3 = False
+                from perspective import PerspectiveWidget
+
             global RealtimePerspectiveWidget
             if RealtimePerspectiveWidget is None:
 
-                class RealtimePerspectiveWidget(perspective.PerspectiveWidget):
+                class RealtimePerspectiveWidget(PerspectiveWidget):
                     def __init__(self, engine_runner, *args, **kwargs):
                         super().__init__(*args, **kwargs)
                         self._runner = engine_runner
@@ -222,14 +231,14 @@ class DataFrame:
                         self._runner.join()
 
         except ImportError:
-            raise ImportError("eval_perspective requires perspective-python installed")
+            raise ImportError("to_perspective requires perspective-python installed")
 
         if not realtime:
             df = self.to_pandas(starttime, endtime)
-            return perspective.PerspectiveWidget(df.ffill(), plugin="Y Line", columns=self._columns, group_by="index")
+            return PerspectiveWidget(df.ffill(), plugin="Y Line", columns=self._columns, group_by="index")
 
         @csp.node
-        def apply_updates(table: object, data: {str: csp.ts[object]}, timecol: str, throttle: timedelta):
+        def apply_updates(table: object, data: Dict[str, csp.ts[object]], timecol: str, throttle: timedelta):
             with csp.alarms():
                 alarm = csp.alarm(bool)
             with csp.state():
@@ -240,7 +249,10 @@ class DataFrame:
 
             if csp.ticked(data):
                 s_buffer.append(dict(data.tickeditems()))
-                s_buffer[-1][timecol] = csp.now()
+                if _PERSPECTIVE_3:
+                    s_buffer[-1][timecol] = int(csp.now().timestamp() * 1000)
+                else:
+                    s_buffer[-1][timecol] = csp.now()
 
             if csp.ticked(alarm):
                 if len(s_buffer) > 0:
@@ -252,7 +264,21 @@ class DataFrame:
         timecol = "time"
         schema = {k: v.tstype.typ for k, v in self._data.items()}
         schema[timecol] = datetime
-        table = perspective.Table(schema)
+        if _PERSPECTIVE_3:
+            perspective_type_map = {
+                str: "string",
+                float: "float",
+                int: "integer",
+                date: "date",
+                datetime: "datetime",
+                bool: "boolean",
+            }
+            schema = {col: perspective_type_map[typ] for col, typ in schema.items()}
+            if self._psp_client is None:
+                self._psp_client = perspective.Server().new_local_client()
+            table = self._psp_client.table(schema)
+        else:
+            table = perspective.Table(schema)
         runner = csp.run_on_thread(
             apply_updates,
             table,

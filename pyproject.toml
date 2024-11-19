@@ -67,7 +67,7 @@ develop = [
     # lint
     "codespell>=2.2.6,<2.3",
     "isort>=5,<6",
-    "mdformat>=0.7.17,<0.8",
+    "mdformat==0.7.17",  # >0.7.17 doesnot support python 3.8
     "ruff>=0.3,<0.4",
     # test
     "pytest",
@@ -79,6 +79,8 @@ develop = [
     "pillow",
     # adapters
     "httpx>=0.20,<1",  # kafka
+    "perspective-python>=2",  # perspective
+    "ipywidgets",  # perspective
     "polars",  # parquet
     "psutil",  # test_engine/test_history
     "sqlalchemy",  # db
@@ -99,6 +101,7 @@ test = [
     "pytest-cov",
     "pytest-sugar",
     "httpx>=0.20,<1",
+    "perspective-python",
     "polars",
     "psutil",
     "pydantic>=2",

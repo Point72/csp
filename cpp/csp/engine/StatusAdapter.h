@@ -13,6 +13,7 @@ struct StatusMessage
     std::shared_ptr<Int64StructField> level;
     std::shared_ptr<Int64StructField> statusCode;
     std::shared_ptr<StringStructField> msg;
+    std::shared_ptr<StringStructField> tag;
 };
 
 struct StatusLevelTraits
@@ -45,14 +46,17 @@ public:
         m_statusAccess.level      = meta -> getMetaField<int64_t>( "level", "Status" );
         m_statusAccess.statusCode = meta -> getMetaField<int64_t>( "status_code", "Status" );
         m_statusAccess.msg        = meta -> getMetaField<std::string>( "msg", "Status" );
+        m_statusAccess.tag        = meta -> getMetaField<std::string>( "tag", "Status" );
     }
 
-    void pushStatus( int64_t level, int64_t statusCode, const std::string & msg, PushBatch *batch = nullptr )
+    void pushStatus( int64_t level, int64_t statusCode, const std::string & msg, PushBatch *batch = nullptr, const std::string & tag = "" )
     {
         StructPtr data = m_statusAccess.meta -> create();
         m_statusAccess.level      -> setValue( data.get(), level );
         m_statusAccess.statusCode -> setValue( data.get(), statusCode );
         m_statusAccess.msg        -> setValue( data.get(), msg );
+        if( !tag.empty() )
+            m_statusAccess.tag    -> setValue( data.get(), tag);
 
         pushTick( std::move( data ), batch );
     }

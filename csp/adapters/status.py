@@ -7,6 +7,7 @@ class Status(Struct):
     level: int
     status_code: int
     msg: str
+    tag: str
 
 
 class Level(IntEnum):

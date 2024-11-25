@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, TypeVar, Union
 
 import csp
 from csp import ts
+from csp.adapters.dynamic_adapter_utils import AdapterInfo
 from csp.adapters.status import Status
 from csp.adapters.utils import (
     BytesMessageProtoMapper,
@@ -17,20 +18,20 @@ from csp.adapters.utils import (
     RawBytesMessageMapper,
     RawTextMessageMapper,
 )
+from csp.adapters.websocket_types import ActionType, ConnectionRequest, WebsocketHeaderUpdate, WebsocketStatus
 from csp.impl.wiring import input_adapter_def, output_adapter_def, status_adapter_def
 from csp.impl.wiring.delayed_node import DelayedNodeWrapperDef
 from csp.lib import _websocketadapterimpl
 
-from .dynamic_adapter_utils import AdapterInfo
-from .websocket_types import ActionType, ConnectionRequest, WebsocketHeaderUpdate, WebsocketStatus  # noqa
-
 # InternalConnectionRequest,
 _ = (
+    ActionType,
     BytesMessageProtoMapper,
     DateTimeType,
     JSONTextMessageMapper,
     RawBytesMessageMapper,
     RawTextMessageMapper,
+    WebsocketStatus,
 )
 T = TypeVar("T")
 
@@ -577,7 +578,7 @@ class WebsocketAdapterManager:
 
     def status(self, push_mode=csp.PushMode.NON_COLLAPSING):
         ts_type = Status
-        return status_adapter_def(self, ts_type, push_mode=push_mode)
+        return status_adapter_def(self, ts_type, push_mode)
 
     def _create(self, engine, memo):
         """method needs to return the wrapped c++ adapter manager"""

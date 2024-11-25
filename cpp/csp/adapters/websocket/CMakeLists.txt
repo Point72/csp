@@ -1,7 +1,6 @@
 csp_autogen( csp.adapters.websocket_types websocket_types WEBSOCKET_HEADER WEBSOCKET_SOURCE )
 
 set(WS_CLIENT_HEADER_FILES
-        WebsocketClientTypes.h
         ClientAdapterManager.h
         ClientInputAdapter.h
         ClientOutputAdapter.h
@@ -13,7 +12,6 @@ set(WS_CLIENT_HEADER_FILES
 )
 
 set(WS_CLIENT_SOURCE_FILES
-        WebsocketClientTypes.cpp
         ClientAdapterManager.cpp
         ClientInputAdapter.cpp
         ClientOutputAdapter.cpp

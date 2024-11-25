@@ -44,7 +44,7 @@ public:
         m_statusAccess.meta       = meta;
         m_statusAccess.level      = meta -> getMetaField<int64_t>( "level", "Status" );
         m_statusAccess.statusCode = meta -> getMetaField<int64_t>( "status_code", "Status" );
-        m_statusAccess.msg        = meta -> getMetaField<std::string>( "msg", "Status" );
+        m_statusAccess.msg        = meta -> getMetaField<typename csp::StringStructField::CType>( "msg", "Status" );
     }
 
     void pushStatus( int64_t level, int64_t statusCode, const std::string & msg, PushBatch *batch = nullptr )

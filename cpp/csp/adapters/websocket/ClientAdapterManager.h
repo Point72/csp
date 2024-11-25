@@ -3,7 +3,6 @@
 
 #include <csp/adapters/websocket/WebsocketEndpoint.h>
 #include <csp/adapters/websocket/WebsocketEndpointManager.h>
-#include <csp/adapters/websocket/WebsocketClientTypes.h>
 #include <csp/adapters/websocket/ClientInputAdapter.h>
 #include <csp/adapters/websocket/ClientHeaderUpdateAdapter.h>
 #include <csp/core/Enum.h>

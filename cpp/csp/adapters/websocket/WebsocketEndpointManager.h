@@ -2,7 +2,6 @@
 #define WEBSOCKET_ENDPOINT_MANAGER_H
 
 #include <boost/asio.hpp>
-#include <csp/adapters/websocket/WebsocketClientTypes.h>
 #include <csp/adapters/websocket/WebsocketEndpoint.h>
 #include <csp/adapters/websocket/ClientAdapterManager.h>
 #include <csp/adapters/websocket/ClientInputAdapter.h>
@@ -69,6 +68,25 @@ struct EndpointCallbacks {
     std::function<void(const std::string&, const std::string&)> onSendFail;
     std::function<void(const std::string&, void*, size_t)> onMessage;
 };
+
+struct WebsocketClientStatusTypeTraits
+{
+    enum _enum : unsigned char
+    {
+        ACTIVE = 0,
+        GENERIC_ERROR = 1,
+        CONNECTION_FAILED = 2,
+        CLOSED = 3,
+        MESSAGE_SEND_FAIL = 4,
+
+        NUM_TYPES
+    };
+
+protected:
+    _enum m_value;
+};
+
+using ClientStatusType = Enum<WebsocketClientStatusTypeTraits>;
 
 class WebsocketEndpointManager {
 public:

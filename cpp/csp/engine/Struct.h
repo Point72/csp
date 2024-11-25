@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <iostream>
 
 namespace csp
 {
@@ -668,16 +669,69 @@ private:
 };
 
 template<typename T>
-std::shared_ptr<typename StructField::upcast<T>::type> StructMeta::getMetaField( const char * fieldname, const char * expectedtype )
-{
-    auto field_ = field( fieldname );
-    if( !field_ )
-        CSP_THROW( TypeError, "Struct type " << name() << " missing required field " << fieldname << " for " << expectedtype );
+std::shared_ptr<typename StructField::upcast<T>::type> StructMeta::getMetaField(const char* fieldname, const char* expectedtype) {
+    std::cout << "\n=== getMetaField Debug ===\n";
+    std::cout << "1. Looking for field: " << fieldname << "\n";
+    
+    auto field_ = field(fieldname);
+    if(!field_) {
+        std::cout << "2. Field not found!\n";
+        CSP_THROW(TypeError, "Struct type " << name() << " missing required field " << fieldname);
+    }
+    
+    std::cout << "2. Field found\n";
+    std::cout << "3. Field name from object: " << field_->fieldname() << "\n";
+    std::cout << "4. Field type from CspType: " << field_->type()->type() << "\n";
+    std::cout << "5. Expected type: " << CspType::Type::fromCType<T>::type << "\n";
+    
+    // Memory layout & pointer checks
+    const StructField* field_ptr = field_.get();
+    std::cout << "6. Field ptr value: " << field_ptr << "\n";
+    std::cout << "7. Field use count: " << field_.use_count() << "\n";
+    
+    // Detailed field information
+    if(field_ptr) {
+        std::cout << "8. Field metadata:\n";
+        std::cout << "   - Field offset: " << field_ptr->offset() << "\n";
+        std::cout << "   - Field size: " << field_ptr->size() << "\n";
+        std::cout << "   - Field alignment: " << field_ptr->alignment() << "\n";
+        std::cout << "   - Field mask offset: " << field_ptr->maskOffset() << "\n";
+        std::cout << "   - Field mask bit: " << static_cast<int>(field_ptr->maskBit()) << "\n";
+        
+        // Type verification
+        std::cout << "9. Type checks:\n";
+        std::cout << "   - Original type: " << typeid(field_).name() << "\n";
+        std::cout << "   - Target type: " << typeid(typename StructField::upcast<T>::type).name() << "\n";
+        std::cout << "   - Is native: " << field_ptr->isNative() << "\n";
+        
+        // Test various casts
+    std::cout << "10. Detailed cast tests:\n";
+    std::cout << "   Base classes:\n";
+    std::cout << "   - As StructField*: " << (dynamic_cast<const StructField*>(field_ptr) != nullptr) << "\n";
+    std::cout << "   - As NonNativeStructField*: " << (dynamic_cast<const NonNativeStructField*>(field_ptr) != nullptr) << "\n";
+    std::cout << "   Non-native implementations:\n";
+    std::cout << "   - As StringStructField*: " << (dynamic_cast<const StringStructField*>(field_ptr) != nullptr) << "\n";
+    std::cout << "   - As DialectGenericStructField*: " << (dynamic_cast<const DialectGenericStructField*>(field_ptr) != nullptr) << "\n";
+    std::cout << "   - As ArrayStructField<std::string>*: " << (dynamic_cast<const ArrayStructField<std::vector<std::string>>*>(field_ptr) != nullptr) << "\n";
+    std::cout << "   Native field test:\n";
+    std::cout << "   - As NativeStructField<int64_t>*: " << (dynamic_cast<const NativeStructField<int64_t>*>(field_ptr) != nullptr) << "\n";
+}
 
-    std::shared_ptr<typename StructField::upcast<T>::type> typedfield = std::dynamic_pointer_cast<typename StructField::upcast<T>::type>( field_ );
-    if( !typedfield )
-        CSP_THROW( TypeError, expectedtype << " - provided struct type " << name() << " expected type " << CspType::Type::fromCType<T>::type << " for field " << fieldname
-                                           << " but got type " << field_ -> type() -> type() << " for " << expectedtype );
+    using TargetType = typename StructField::upcast<T>::type;
+    auto typedfield = std::dynamic_pointer_cast<TargetType>(field_);
+    std::cout << "11. Final dynamic_cast result: " << (typedfield ? "success" : "failure") << "\n";
+
+    if(!typedfield) {
+        std::cout << "12. FAILED CAST DETAILS:\n";
+        std::cout << "    - Source type: " << typeid(StructField).name() << "\n";
+        std::cout << "    - Target type: " << typeid(TargetType).name() << "\n";
+        
+        CSP_THROW(TypeError, expectedtype << " - provided struct type " << name() 
+                 << " expected type " << CspType::Type::fromCType<T>::type 
+                 << " for field " << fieldname
+                 << " but got type " << field_->type()->type() 
+                 << " for " << expectedtype);
+    }
 
     return typedfield;
 }
@@ -773,11 +827,11 @@ private:
     friend class StructMeta;
 
     //Note these members are not included on size(), they're stored before "this" ptr ( see operator new / delete )
-    struct HiddenData
-    {
-        size_t             refcount;
-        std::shared_ptr<const StructMeta> meta;
-        void             * dialectPtr;
+    struct alignas(8) HiddenData {
+        alignas(8) size_t refcount;            // 8 bytes at 0x0
+        alignas(8) std::shared_ptr<const StructMeta> meta;  // 16 bytes at 0x8
+        alignas(8) void* dialectPtr;           // 8 bytes at 0x18
+        // Total: 32 bytes
     };
 
     const HiddenData * hidden() const
@@ -785,10 +839,19 @@ private:
         return const_cast<Struct *>( this ) -> hidden();
     }
 
-    HiddenData * hidden()
-    {
-        return reinterpret_cast<HiddenData *>( reinterpret_cast<uint8_t *>( this ) - sizeof( HiddenData ) );
+    static constexpr size_t HIDDEN_OFFSET = 32;  // sizeof(HiddenData) aligned to 8 bytes
+    
+    HiddenData* hidden() {
+        std::byte* base = reinterpret_cast<std::byte*>(this);
+        // Force alignment to match shared_ptr requirements
+        static_assert(alignof(HiddenData) >= alignof(std::shared_ptr<void>), 
+                     "HiddenData must be aligned for shared_ptr");
+        return reinterpret_cast<HiddenData*>(base - HIDDEN_OFFSET);
     }
+    // HiddenData * hidden()
+    // {
+    //     return reinterpret_cast<HiddenData *>( reinterpret_cast<uint8_t *>( this ) - sizeof( HiddenData ) );
+    // }
 
     //actual data is allocated past this point
 };

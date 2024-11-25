@@ -1,5 +1,16 @@
 #include <csp/adapters/websocket/WebsocketEndpointManager.h>
 
+namespace csp {
+
+INIT_CSP_ENUM( adapters::websocket::ClientStatusType,
+               "ACTIVE",
+               "GENERIC_ERROR",
+               "CONNECTION_FAILED",
+               "CLOSED",
+               "MESSAGE_SEND_FAIL",
+);
+
+}
 namespace csp::adapters::websocket {
 
 WebsocketEndpointManager::WebsocketEndpointManager( ClientAdapterManager* mgr, const Dictionary & properties, Engine* engine ) 
@@ -96,7 +107,8 @@ void WebsocketEndpointManager::shutdownEndpoint(const std::string& endpoint_id) 
         m_endpoints.erase(endpoint_it);
     std::stringstream ss;
     ss << "No more connections for endpoint={" << endpoint_id << "} Shutting down...";
-    m_mgr -> pushStatus(StatusLevel::INFO,  ClientStatusType::CLOSED, ss.str());
+    std::string msg = ss.str();
+    m_mgr -> pushStatus(StatusLevel::INFO,  ClientStatusType::CLOSED, msg);
 }
 
 void WebsocketEndpointManager::setupEndpoint(const std::string& endpoint_id, 
@@ -135,9 +147,10 @@ void WebsocketEndpointManager::setupEndpoint(const std::string& endpoint_id,
         // should only happen if persist is False
         if ( !payload.empty() )
             endpoint -> send(payload);
-        
-        m_mgr -> pushStatus(StatusLevel::INFO, ClientStatusType::ACTIVE, 
-                    "Connected successfully for endpoint={" + endpoint_id +"}");
+        std::stringstream ss;
+        ss << "Connected successfully for endpoint={" << endpoint_id << "}";
+        std::string msg = ss.str();
+        m_mgr -> pushStatus(StatusLevel::INFO, ClientStatusType::ACTIVE, msg);
         // We remove the caller id, if it was the only one, then we shut down the endpoint
         if( !persist )
             removeEndpointForCallerId(endpoint_id, is_consumer, validated_id);
@@ -170,8 +183,9 @@ void WebsocketEndpointManager::setupEndpoint(const std::string& endpoint_id,
     stored_endpoint -> setOnSendFail(
         [ this, endpoint_id ]( const std::string& s ) {
             std::stringstream ss;
-            ss << "Error: " << s << " for " << endpoint_id;
-            m_mgr -> pushStatus( StatusLevel::ERROR, ClientStatusType::MESSAGE_SEND_FAIL, ss.str() );
+            ss << "Error: " << s << " for endpoint={" << endpoint_id << "}";
+            std::string msg = ss.str();
+            m_mgr -> pushStatus( StatusLevel::ERROR, ClientStatusType::MESSAGE_SEND_FAIL, msg );
         }
     );
     stored_endpoint -> run();
@@ -214,10 +228,11 @@ void WebsocketEndpointManager::handleEndpointFailure(const std::string& endpoint
     
     std::stringstream ss;
     ss << "Connection Failure for endpoint={" << endpoint_id << "} Due to: " << reason;
+    std::string msg = ss.str();
     if ( status_type == ClientStatusType::CLOSED || status_type == ClientStatusType::ACTIVE )
-        m_mgr -> pushStatus(StatusLevel::INFO, status_type, ss.str());
+        m_mgr -> pushStatus(StatusLevel::INFO, status_type, msg);
     else{
-       m_mgr -> pushStatus(StatusLevel::ERROR, status_type, ss.str());
+       m_mgr -> pushStatus(StatusLevel::ERROR, status_type, msg);
     }
 };
 

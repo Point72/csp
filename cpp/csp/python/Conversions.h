@@ -667,6 +667,30 @@ inline Dictionary fromPython( PyObject * o )
 }
 
 template<>
+inline std::vector<Dictionary> fromPython(PyObject* o)
+{
+    if (!PyList_Check(o))
+        CSP_THROW(TypeError, "List of dictionaries conversion expected type list got " << Py_TYPE(o)->tp_name);
+
+    Py_ssize_t size = PyList_GET_SIZE(o);
+    std::vector<Dictionary> out;
+    out.reserve(size);
+
+    for (Py_ssize_t i = 0; i < size; ++i)
+    {
+        PyObject* item = PyList_GET_ITEM(o, i);
+        
+        // Skip None values like in Dictionary conversion
+        if (item == Py_None)
+            continue;
+            
+        out.emplace_back(fromPython<Dictionary>(item));
+    }
+
+    return out;
+}
+
+template<>
 inline std::vector<Dictionary::Data> fromPython( PyObject * o )
 {
     if( !PyList_Check( o ) )

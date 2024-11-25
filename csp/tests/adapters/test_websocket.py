@@ -30,6 +30,9 @@ if os.environ.get("CSP_TEST_WEBSOCKET"):
             # Carve-out to allow inspecting the headers
             if msg == "header1":
                 msg = self.request.headers.get(msg, "")
+            elif not isinstance(msg, str) and msg.decode("utf-8") == "header1":
+                # Need this for bytes
+                msg = self.request.headers.get("header1", "")
             return self.write_message(msg)
 
     @contextmanager
@@ -98,11 +101,12 @@ class TestWebsocket:
         msgs = csp.run(g, starttime=datetime.now(pytz.UTC), realtime=True)
         assert msgs["recv"][0][1] == "Hello, World!"
 
-    def test_headers(self):
+    @pytest.mark.parametrize("binary", [False, True])
+    def test_headers(self, binary):
         @csp.graph
         def g(dynamic: bool):
             if dynamic:
-                ws = WebsocketAdapterManager(dynamic=True)
+                ws = WebsocketAdapterManager(dynamic=True, binary=binary)
                 # Connect with header
                 conn_request1 = csp.const(
                     [

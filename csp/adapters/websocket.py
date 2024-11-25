@@ -423,6 +423,7 @@ class WebsocketAdapterManager:
         dynamic: bool = False,
         connection_request: Optional[ConnectionRequest] = None,
         num_threads: int = 1,
+        binary: bool = False,
     ):
         """
         uri: str
@@ -436,9 +437,11 @@ class WebsocketAdapterManager:
         num_threads: int = 1
             Determines number of threads to allocate for running the websocket endpoints.
             Defaults to 1 to avoid thread switching
+        binary: bool = False
+            Whether to send/receive text or binary data
         """
 
-        self._properties = dict(dynamic=dynamic, num_threads=num_threads)
+        self._properties = dict(dynamic=dynamic, num_threads=num_threads, binary=binary)
         # Enumerating for clarity
         if connection_request is not None and uri is not None:
             raise ValueError("'connection_request' cannot be set along with 'uri'")
@@ -485,6 +488,7 @@ class WebsocketAdapterManager:
             on_connect_payload=conn_request.on_connect_payload,
             uri=uri,
             dynamic=self._dynamic,
+            binary=self._properties.get("binary", False),
         )
         return res
 

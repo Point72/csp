@@ -232,6 +232,8 @@ public:
                                     self->m_on_fail(ec.message());
                                     return;
                                 }
+                                if( self->m_properties->get<bool>("binary") )
+                                    self->m_ws.binary( true );
                                 self->m_on_open();
                                 self->m_ws.async_read(
                                     self->m_buffer,
@@ -339,6 +341,8 @@ public:
                                             self->m_on_fail(ec.message());
                                             return;
                                         }
+                                        if( self->m_properties->get<bool>("binary") )
+                                            self->m_ws.binary( true );
                                         self->m_on_open();
                                         self->m_ws.async_read(
                                             self->m_buffer,

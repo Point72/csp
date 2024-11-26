@@ -1,26 +1,23 @@
 import os
 import pytz
 import threading
+import tornado.ioloop
+import tornado.web
+import tornado.websocket
 import unittest
 from datetime import datetime, timedelta
 from typing import List
 
 import csp
 from csp import ts
-
-if os.environ.get("CSP_TEST_WEBSOCKET"):
-    import tornado.ioloop
-    import tornado.web
-    import tornado.websocket
-
-    from csp.adapters.websocket import JSONTextMessageMapper, RawTextMessageMapper, Status, WebsocketAdapterManager
-
-    class EchoWebsocketHandler(tornado.websocket.WebSocketHandler):
-        def on_message(self, msg):
-            return self.write_message(msg)
+from csp.adapters.websocket import JSONTextMessageMapper, RawTextMessageMapper, Status, WebsocketAdapterManager
 
 
-@unittest.skipIf(not os.environ.get("CSP_TEST_WEBSOCKET"), "Skipping websocket adapter tests")
+class EchoWebsocketHandler(tornado.websocket.WebSocketHandler):
+    def on_message(self, msg):
+        return self.write_message(msg)
+
+
 class TestWebsocket(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

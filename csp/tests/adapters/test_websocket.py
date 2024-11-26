@@ -1,31 +1,32 @@
 import os
 import pytz
 import threading
+import tornado.ioloop
+import tornado.web
+import tornado.websocket
 import unittest
 from datetime import datetime, timedelta
+from tornado.testing import bind_unused_port
 from typing import List
 
 import csp
 from csp import ts
-
-if os.environ.get("CSP_TEST_WEBSOCKET"):
-    import tornado.ioloop
-    import tornado.web
-    import tornado.websocket
-
-    from csp.adapters.websocket import JSONTextMessageMapper, RawTextMessageMapper, Status, WebsocketAdapterManager
-
-    class EchoWebsocketHandler(tornado.websocket.WebSocketHandler):
-        def on_message(self, msg):
-            return self.write_message(msg)
+from csp.adapters.websocket import JSONTextMessageMapper, RawTextMessageMapper, Status, WebsocketAdapterManager
 
 
-@unittest.skipIf(not os.environ.get("CSP_TEST_WEBSOCKET"), "Skipping websocket adapter tests")
+class EchoWebsocketHandler(tornado.websocket.WebSocketHandler):
+    def on_message(self, msg):
+        return self.write_message(msg)
+
+
 class TestWebsocket(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = tornado.web.Application([(r"/", EchoWebsocketHandler)])
-        cls.app.listen(8000)
+        sock, port = bind_unused_port()
+        sock.close()
+        cls.port = port
+        cls.app.listen(port)
         cls.io_loop = tornado.ioloop.IOLoop.current()
         cls.io_thread = threading.Thread(target=cls.io_loop.start)
         cls.io_thread.start()
@@ -44,7 +45,7 @@ class TestWebsocket(unittest.TestCase):
 
         @csp.graph
         def g():
-            ws = WebsocketAdapterManager("ws://localhost:8000/")
+            ws = WebsocketAdapterManager(f"ws://localhost:{self.port}/")
             status = ws.status()
             ws.send(send_msg_on_open(status))
             recv = ws.subscribe(str, RawTextMessageMapper())
@@ -67,7 +68,7 @@ class TestWebsocket(unittest.TestCase):
 
         @csp.graph
         def g():
-            ws = WebsocketAdapterManager("ws://localhost:8000/")
+            ws = WebsocketAdapterManager(f"ws://localhost:{self.port}/")
             status = ws.status()
             ws.send(send_msg_on_open(status))
             recv = ws.subscribe(MsgStruct, JSONTextMessageMapper())
@@ -106,7 +107,7 @@ class TestWebsocket(unittest.TestCase):
 
         @csp.graph
         def g(n: int):
-            ws = WebsocketAdapterManager("ws://localhost:8000/")
+            ws = WebsocketAdapterManager(f"ws://localhost:{self.port}/")
             status = ws.status()
             ws.send(csp.flatten([send_msg_on_open(status, i) for i in range(n)]))
             recv = ws.subscribe(str, RawTextMessageMapper())
@@ -145,7 +146,7 @@ class TestWebsocket(unittest.TestCase):
 
         @csp.graph
         def g():
-            ws = WebsocketAdapterManager("ws://localhost:8000/")
+            ws = WebsocketAdapterManager(f"ws://localhost:{self.port}/")
             status = ws.status()
             ws.send(send_msg_on_open(status))
             recv = ws.subscribe(MsgStruct, JSONTextMessageMapper(), push_mode=csp.PushMode.BURST)

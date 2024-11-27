@@ -6,6 +6,7 @@ import tornado.web
 import tornado.websocket
 import unittest
 from datetime import datetime, timedelta
+from tornado.testing import bind_unused_port
 from typing import List
 
 import csp
@@ -22,7 +23,10 @@ class TestWebsocket(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = tornado.web.Application([(r"/", EchoWebsocketHandler)])
-        cls.app.listen(8000)
+        sock, port = bind_unused_port()
+        sock.close()
+        cls.port = port
+        cls.app.listen(port)
         cls.io_loop = tornado.ioloop.IOLoop.current()
         cls.io_thread = threading.Thread(target=cls.io_loop.start)
         cls.io_thread.start()
@@ -41,7 +45,7 @@ class TestWebsocket(unittest.TestCase):
 
         @csp.graph
         def g():
-            ws = WebsocketAdapterManager("ws://localhost:8000/")
+            ws = WebsocketAdapterManager(f"ws://localhost:{self.port}/")
             status = ws.status()
             ws.send(send_msg_on_open(status))
             recv = ws.subscribe(str, RawTextMessageMapper())
@@ -64,7 +68,7 @@ class TestWebsocket(unittest.TestCase):
 
         @csp.graph
         def g():
-            ws = WebsocketAdapterManager("ws://localhost:8000/")
+            ws = WebsocketAdapterManager(f"ws://localhost:{self.port}/")
             status = ws.status()
             ws.send(send_msg_on_open(status))
             recv = ws.subscribe(MsgStruct, JSONTextMessageMapper())
@@ -103,7 +107,7 @@ class TestWebsocket(unittest.TestCase):
 
         @csp.graph
         def g(n: int):
-            ws = WebsocketAdapterManager("ws://localhost:8000/")
+            ws = WebsocketAdapterManager(f"ws://localhost:{self.port}/")
             status = ws.status()
             ws.send(csp.flatten([send_msg_on_open(status, i) for i in range(n)]))
             recv = ws.subscribe(str, RawTextMessageMapper())
@@ -142,7 +146,7 @@ class TestWebsocket(unittest.TestCase):
 
         @csp.graph
         def g():
-            ws = WebsocketAdapterManager("ws://localhost:8000/")
+            ws = WebsocketAdapterManager(f"ws://localhost:{self.port}/")
             status = ws.status()
             ws.send(send_msg_on_open(status))
             recv = ws.subscribe(MsgStruct, JSONTextMessageMapper(), push_mode=csp.PushMode.BURST)

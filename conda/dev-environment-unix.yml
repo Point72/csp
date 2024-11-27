@@ -57,3 +57,8 @@ dependencies:
  - unzip
  - wheel
  - zip
+ - clang=16.0.6
+ - libcxx=18.1.8
+ - llvm-openmp=18.1.8
+ - libprotobuf=4.25.3
+ - libabseil=20240116.2

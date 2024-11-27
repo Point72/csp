@@ -667,12 +667,13 @@ jobs:
         matrix:
           os:
             - ubuntu-20.04
+            - macos-14
           python-version:
             - 3.9
           package:
             - "sqlalchemy<2"
             - "numpy==1.22.4"  # Min supported version of pandas 2.2
-            - "perspective-python<3"
+            - "perspective-python>3"
 
       runs-on: ${{ matrix.os }}
 

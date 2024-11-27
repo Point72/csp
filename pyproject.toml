@@ -79,7 +79,7 @@ develop = [
     "pillow",
     # adapters
     "httpx>=0.20,<1",  # kafka
-    "perspective-python>=2",  # perspective
+    "perspective-python<3",    # For macOS 12 and earlier
     "ipywidgets",  # perspective
     "polars",  # parquet
     "psutil",  # test_engine/test_history
@@ -101,7 +101,7 @@ test = [
     "pytest-cov",
     "pytest-sugar",
     "httpx>=0.20,<1",
-    "perspective-python",
+    "perspective-python<3", # For macOS 12 and earlier
     "polars",
     "psutil",
     "pydantic>=2",

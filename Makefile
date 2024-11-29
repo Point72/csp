@@ -24,7 +24,7 @@ build-debug:  ## build the library ( DEBUG ) - May need a make clean when switch
 	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
 
 build-conda:  ## build the library in Conda
-	CSP_USE_CCACHE=0 python setup.py build build_ext --csp-no-vcpkg --inplace
+	python setup.py build build_ext --csp-no-vcpkg --inplace
 
 install:  ## install library
 	python -m pip install .
@@ -83,7 +83,7 @@ checks: check
 
 TEST_ARGS :=
 test-py: ## Clean and Make unit tests
-	python -m pytest -vv -s csp/tests --junitxml=junit.xml $(TEST_ARGS)
+	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
 
 test-cpp: ## Make C++ unit tests
 ifneq ($(OS),Windows_NT)

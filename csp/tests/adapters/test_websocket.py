@@ -58,7 +58,6 @@ def create_tornado_server(port: int = None):
     def run_io_loop():
         nonlocal io_loop, app
         io_loop = tornado.ioloop.IOLoop()
-        io_loop.make_current()
         app = tornado.web.Application([(r"/", EchoWebsocketHandler)])
         try:
             app.listen(port)
@@ -301,9 +300,9 @@ class TestWebsocket:
                     )
                 ]
             )
-            val = csp.curve(int, [(timedelta(milliseconds=50), 0), (timedelta(milliseconds=500), 1)])
+            val = csp.curve(int, [(timedelta(milliseconds=100), 0), (timedelta(milliseconds=500), 1)])
             hello = csp.apply(val, lambda x: f"hi world{x}", str)
-            delayed_conn_req = csp.delay(conn_request, delay=timedelta(milliseconds=100))
+            delayed_conn_req = csp.delay(conn_request, delay=timedelta(milliseconds=300))
 
             # We connect immediately and send out the hello message
             ws.send(hello, connection_request=conn_request)
@@ -328,12 +327,6 @@ class TestWebsocket:
 
     @pytest.mark.parametrize("reconnect_immeditately", [False, True])
     def test_dynamic_disconnect_connect_pruned_subscribe(self, reconnect_immeditately):
-        @csp.node
-        def prevent_prune(objs: ts[str]):
-            if csp.ticked(objs):
-                # Does nothing but makes sure it's not pruned
-                ...
-
         @csp.graph
         def g():
             ws = WebsocketAdapterManager(dynamic=True)
@@ -354,7 +347,7 @@ class TestWebsocket:
                         disconnect_reqs,
                     ),
                     (
-                        timedelta(milliseconds=350),
+                        timedelta(milliseconds=700),
                         [
                             ConnectionRequest(
                                 uri=f"ws://localhost:{self.port}/",
@@ -365,7 +358,7 @@ class TestWebsocket:
                 ],
             )
             const_conn_request = csp.const([ConnectionRequest(uri=f"ws://localhost:{self.port}/")])
-            val = csp.curve(int, [(timedelta(milliseconds=100, microseconds=1), 0), (timedelta(milliseconds=500), 1)])
+            val = csp.curve(int, [(timedelta(milliseconds=300, microseconds=1), 0), (timedelta(milliseconds=900), 1)])
             hello = csp.apply(val, lambda x: f"hi world{x}", str)
 
             # We connect immediately and send out the hello message
@@ -382,7 +375,7 @@ class TestWebsocket:
             recv4 = ws.subscribe(
                 str,
                 RawTextMessageMapper(),
-                connection_request=csp.const([no_persist_conn], delay=timedelta(milliseconds=250)),
+                connection_request=csp.const([no_persist_conn], delay=timedelta(milliseconds=500)),
             )
 
             csp.add_graph_output("recv", recv)
@@ -391,7 +384,7 @@ class TestWebsocket:
             end = csp.filter(csp.count(recv3) == 3, recv3)
             csp.stop_engine(end)
 
-        msgs = csp.run(g, starttime=datetime.now(pytz.UTC), endtime=timedelta(seconds=1), realtime=True)
+        msgs = csp.run(g, starttime=datetime.now(pytz.UTC), endtime=timedelta(seconds=2), realtime=True)
         # Did not persist, so did not receive any messages
         assert len(msgs["recv4"]) == 0
         # Only the second message is received, since we disonnect before the first one is sent
@@ -429,9 +422,9 @@ class TestWebsocket:
                     )
                 ]
             )
-            val = csp.curve(int, [(timedelta(milliseconds=50), 0), (timedelta(milliseconds=500), 1)])
+            val = csp.curve(int, [(timedelta(milliseconds=100), 0), (timedelta(milliseconds=600), 1)])
             hello = csp.apply(val, lambda x: f"hi world{x}", str)
-            delayed_conn_req = csp.delay(conn_request, delay=timedelta(milliseconds=100))
+            delayed_conn_req = csp.delay(conn_request, delay=timedelta(milliseconds=400))
 
             # We connect immediately and send out the hello message
             ws.send(hello, connection_request=conn_request)

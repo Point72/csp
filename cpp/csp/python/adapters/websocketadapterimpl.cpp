@@ -8,7 +8,6 @@
 #include <csp/python/PyInputAdapterWrapper.h>
 #include <csp/python/PyOutputAdapterWrapper.h>
 
-#include <iostream>
 using namespace csp::adapters::websocket;
 
 namespace csp::python
@@ -63,9 +62,7 @@ static OutputAdapter * create_websocket_header_update_adapter( csp::AdapterManag
 
 static OutputAdapter * create_websocket_connection_request_adapter( csp::AdapterManager * manager, PyEngine * pyengine, PyObject * args )
 {
-    // std::cout << "hereeeee33ee" << "\n";
     PyObject * pyProperties;
-    // PyObject * type;
     auto * websocketManager = dynamic_cast<ClientAdapterManager*>( manager );
     if( !websocketManager )
         CSP_THROW( TypeError, "Expected WebsocketClientAdapterManager" );
@@ -73,20 +70,7 @@ static OutputAdapter * create_websocket_connection_request_adapter( csp::Adapter
     if( !PyArg_ParseTuple( args, "O!",
                            &PyDict_Type, &pyProperties ) )
         CSP_THROW( PythonPassthrough, "" );
-    // std::cout << "hereeeee334444ee" << "\n";
     return websocketManager -> getConnectionRequestAdapter( fromPython<Dictionary>( pyProperties ) );
-
-
-    // TODO
-    // Here I think we should have a websocket connection manager
-    // that will handle the connections and endpoint management
-    // It will create the connection request output adapter
-    // That output adapter, when it ticks, with a list of python Dictionary
-    // will then use the boost beast 'post' function to schedule, on the
-    // io context, a callback to process that dict (on the websocket connection manager!!!) and handle the endpoint manipulation appropriately
-
-    // that websocket connection manager will run the thread with the io context
-    // being run. Move it away from clientAdapterManager
 }
 
 REGISTER_ADAPTER_MANAGER( _websocket_adapter_manager, create_websocket_adapter_manager );

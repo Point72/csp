@@ -6,7 +6,7 @@ import pytz
 import typing
 import unittest
 from datetime import date, datetime, time, timedelta
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Literal, Optional, Set, Tuple, Union
 from typing_extensions import Annotated
 
 import csp
@@ -2959,6 +2959,41 @@ class TestCspStruct(unittest.TestCase):
             },
         )
         self.assertEqual(StructWithAnnotations.metadata(typed=False), {"b": float, "d": dict, "s": str})
+
+    def test_literal(self):
+        simple_class0 = SimpleClass(0)
+        simple_class1 = SimpleClass(1)
+
+        class StructWithLiteral(csp.Struct):
+            s: Literal["foo", "bar"]
+            f: Literal[0, 1.0]
+            o: Literal["foo", 0]
+            c: Literal[simple_class0, simple_class1]
+
+        self.assertEqual(
+            StructWithLiteral.metadata(typed=True),
+            {
+                "s": Literal["foo", "bar"],
+                "f": Literal[0, 1.0],
+                "o": Literal["foo", 0],
+                "c": Literal[simple_class0, simple_class1],
+            },
+        )
+        self.assertEqual(StructWithLiteral.metadata(typed=False), {"s": str, "f": float, "o": object, "c": SimpleClass})
+
+    def test_union(self):
+        class StructWithUnion(csp.Struct):
+            o1: Union[int, float]
+            o2: Optional[str]
+
+        self.assertEqual(
+            StructWithUnion.metadata(typed=True),
+            {
+                "o1": Union[int, float],
+                "o2": Optional[str],
+            },
+        )
+        self.assertEqual(StructWithUnion.metadata(typed=False), {"o1": object, "o2": object})
 
 
 if __name__ == "__main__":

@@ -79,7 +79,8 @@ develop = [
     "pillow",
     # adapters
     "httpx>=0.20,<1",  # kafka
-    "perspective-python<3",    # For macOS 12 and earlier
+    "perspective-python; sys_platform != 'darwin'",
+    "perspective-python<3; sys_platform == 'darwin'",  # For macOS (as not all wheels are built)
     "ipywidgets",  # perspective
     "polars",  # parquet
     "psutil",  # test_engine/test_history

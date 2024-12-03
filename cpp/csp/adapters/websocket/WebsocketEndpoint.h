@@ -379,8 +379,8 @@ public:
     void setOnClose(void_cb on_close);
     void setOnSendFail(string_cb on_send_fail);
     void updateHeaders(Dictionary properties);
+    void updateHeaders(const std::string& properties);
     std::shared_ptr<Dictionary> getProperties();
-    // Dictionary& getProperties();
     void run();
     void stop( bool stop_ioc = true);
     void send(const std::string& s);

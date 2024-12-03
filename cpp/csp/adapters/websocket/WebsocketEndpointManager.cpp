@@ -241,12 +241,8 @@ void WebsocketEndpointManager::handleConnectionRequest(const Dictionary & proper
     // This should only get called from the thread running
     // m_ioc. This allows us to avoid locks on internal data
     // structures
-    // std::cout << " HEY YA\n";
     auto endpoint_id = properties.get<std::string>("uri");
-    // std::cout << endpoint_id;
     autogen::ActionType action = autogen::ActionType::create( properties.get<std::string>("action") );
-    // std::cout << action.asString() << "\n";
-    // // Change headers if needed here!
     switch(action.enum_value()) {
         case autogen::ActionType::enum_::CONNECT: {
             auto persistent = properties.get<bool>("persistent");
@@ -289,10 +285,9 @@ void WebsocketEndpointManager::handleConnectionRequest(const Dictionary & proper
                     m_endpoints[endpoint_id]->send(payload);
                 // Conscious decision to let non-persisten connection
                 // results to update the header
-                auto headers = *properties.get<DictionaryPtr>("headers");
+                auto headers = properties.get<std::string>("headers");
                 m_endpoints[endpoint_id]->updateHeaders(std::move(headers));
             }
-            // }
             break;
         }
         

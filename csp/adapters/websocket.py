@@ -18,7 +18,13 @@ from csp.adapters.utils import (
     RawBytesMessageMapper,
     RawTextMessageMapper,
 )
-from csp.adapters.websocket_types import ActionType, ConnectionRequest, WebsocketHeaderUpdate, WebsocketStatus
+from csp.adapters.websocket_types import (
+    ActionType,
+    ConnectionRequest,
+    InternalConnectionRequest,
+    WebsocketHeaderUpdate,
+    WebsocketStatus,
+)
 from csp.impl.wiring import input_adapter_def, output_adapter_def, status_adapter_def
 from csp.impl.wiring.delayed_node import DelayedNodeWrapperDef
 from csp.lib import _websocketadapterimpl
@@ -396,18 +402,6 @@ class WebsocketTableAdapter(DelayedNodeWrapperDef):
         _launch_application(self._port, manager, csp.const("stub"))
 
 
-# Maybe, we can have the Adapter manager have all the connections
-# If we get a new connection request, we include that adapter for the
-# subscriptions. When we pop it, we remove it.
-# Then, each edge will effectively be independent.
-# Maybe. have each websocket push to a shared queue, then from there we
-# pass it along to all edges ("input adapters") that are subscribed to it
-
-# Ok, maybe, let's keep it at just 1 subscribe and send call.
-# However, we can subscribe to the send and subscribe calls separately.
-# We just have to keep track of the Endpoints we have, and
-
-
 class WebsocketAdapterManager:
     """
     Can subscribe dynamically via ts[List[ConnectionRequest]]
@@ -453,7 +447,7 @@ class WebsocketAdapterManager:
                 connection_request = ConnectionRequest(
                     uri=uri, reconnect_interval=reconnect_interval, headers=headers or {}
                 )
-            self._properties.update(self._get_properties(connection_request))
+            self._properties.update(self._get_properties(connection_request).to_dict())
 
         # This is a counter that will be used to identify every function call
         # We keep track of the subscribes and sends separately
@@ -467,7 +461,7 @@ class WebsocketAdapterManager:
     def _dynamic(self):
         return self._properties.get("dynamic", False)
 
-    def _get_properties(self, conn_request: ConnectionRequest) -> dict:
+    def _get_properties(self, conn_request: ConnectionRequest) -> InternalConnectionRequest:
         uri = conn_request.uri
         reconnect_interval = conn_request.reconnect_interval
 
@@ -476,14 +470,14 @@ class WebsocketAdapterManager:
         if resp.hostname is None:
             raise ValueError(f"Failed to parse host from URI: {uri}")
 
-        res = dict(
+        res = InternalConnectionRequest(
             host=resp.hostname,
             # if no port is explicitly present in the uri, the resp.port is None
             port=_sanitize_port(uri, resp.port),
             route=resp.path or "/",  # resource shouldn't be empty string
             use_ssl=uri.startswith("wss"),
             reconnect_interval=reconnect_interval,
-            headers=conn_request.headers,
+            headers=rapidjson.dumps(conn_request.headers) if conn_request.headers else "",
             persistent=conn_request.persistent,
             action=conn_request.action.name,
             on_connect_payload=conn_request.on_connect_payload,
@@ -537,7 +531,9 @@ class WebsocketAdapterManager:
         adapter_props = AdapterInfo(caller_id=caller_id, is_subscribe=True).model_dump()
         connection_request = csp.null_ts(List[ConnectionRequest]) if connection_request is None else connection_request
         request_dict = csp.apply(
-            connection_request, lambda conn_reqs: [self._get_properties(conn_req) for conn_req in conn_reqs], list
+            connection_request,
+            lambda conn_reqs: [self._get_properties(conn_req) for conn_req in conn_reqs],
+            List[InternalConnectionRequest],
         )
         # Output adapter to handle connection requests
         _websocket_connection_request_adapter_def(self, request_dict, adapter_props)
@@ -566,7 +562,9 @@ class WebsocketAdapterManager:
         adapter_props = AdapterInfo(caller_id=caller_id, is_subscribe=False).model_dump()
         connection_request = csp.null_ts(List[ConnectionRequest]) if connection_request is None else connection_request
         request_dict = csp.apply(
-            connection_request, lambda conn_reqs: [self._get_properties(conn_req) for conn_req in conn_reqs], list
+            connection_request,
+            lambda conn_reqs: [self._get_properties(conn_req) for conn_req in conn_reqs],
+            List[InternalConnectionRequest],
         )
         _websocket_connection_request_adapter_def(self, request_dict, adapter_props)
         return _websocket_output_adapter_def(self, x, adapter_props)
@@ -614,6 +612,6 @@ _websocket_connection_request_adapter_def = output_adapter_def(
     "websocket_connection_request_adapter",
     _websocketadapterimpl._websocket_connection_request_adapter,
     WebsocketAdapterManager,
-    input=ts[list],  # needed, List[dict] didn't work on c++ level
+    input=ts[List[InternalConnectionRequest]],  # needed, List[dict] didn't work on c++ level
     properties=dict,
 )

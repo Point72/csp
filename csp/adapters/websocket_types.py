@@ -34,3 +34,25 @@ class ConnectionRequest(Struct):
     reconnect_interval: timedelta = timedelta(seconds=2)
     on_connect_payload: str = ""  # message to send on connect
     headers: Dict[str, str] = {}
+
+
+# Only used internally
+class InternalConnectionRequest(Struct):
+    host: str  # Hostname parsed from the URI
+    port: str  # Port number for the connection (parsed and sanitized from URI)
+    route: str  # Resource path from URI, defaults to "/" if empty
+    uri: str  # Complete original URI string
+
+    # Connection behavior
+    use_ssl: bool  # Whether to use secure WebSocket (wss://)
+    reconnect_interval: timedelta  # Time to wait between reconnection attempts
+    persistent: bool  # Whether to maintain a persistent connection
+
+    # Headers and payloads
+    headers: str  # HTTP headers for the connection as json string
+    on_connect_payload: str  # Message to send when connection is established
+
+    # Connection metadata
+    action: str  # Connection action type (Connect, Disconnect, Ping, etc)
+    dynamic: bool  # Whether the connection is dynamic
+    binary: bool  # Whether to use binary mode for the connection

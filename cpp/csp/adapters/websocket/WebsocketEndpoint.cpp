@@ -1,4 +1,5 @@
 #include <csp/adapters/websocket/WebsocketEndpoint.h>
+#include <rapidjson/document.h>
 
 namespace csp::adapters::websocket {
 using namespace csp;
@@ -6,9 +7,16 @@ using namespace csp;
 WebsocketEndpoint::WebsocketEndpoint(
     net::io_context& ioc,
     Dictionary properties 
-) : m_properties(std::make_shared<Dictionary>(std::move(properties))),
+) : m_properties( std::make_shared<Dictionary>( std::move( properties ) ) ),
     m_ioc(ioc)
-{ };
+{
+    std::string headerProps = m_properties->get<std::string>("headers");
+    // Create new empty headers dictionary
+    auto headers = std::make_shared<Dictionary>();
+    m_properties->update("headers", headers);
+    // Update with any existing header properties
+    updateHeaders(headerProps);
+}
 void WebsocketEndpoint::setOnOpen(void_cb on_open)
 { m_on_open = std::move(on_open); }
 void WebsocketEndpoint::setOnFail(string_cb on_fail)
@@ -73,6 +81,24 @@ void WebsocketEndpoint::updateHeaders(csp::Dictionary properties){
         std::string key = it.key();
         auto value = it.value<std::string>();
         headers->update(key, std::move(value));
+    }
+}
+
+void WebsocketEndpoint::updateHeaders(const std::string& properties) {
+    if( properties.empty() )
+        return;
+    DictionaryPtr headers = m_properties->get<DictionaryPtr>("headers");
+    rapidjson::Document doc;
+    doc.Parse(properties.c_str());
+    if (doc.IsObject()) {
+        // Windows builds complained with range loop
+        for (auto it = doc.MemberBegin(); it != doc.MemberEnd(); ++it) {
+            if (it->value.IsString()) {
+                std::string key = it->name.GetString();
+                std::string value = it->value.GetString();
+                headers->update(key, std::move(value));
+            }
+        }
     }
 }
 

@@ -1,6 +1,4 @@
 #include <csp/adapters/websocket/ClientConnectionRequestAdapter.h>
-#include <csp/python/Conversions.h>
-#include <Python.h>
 
 namespace csp::adapters::websocket {
 
@@ -31,15 +29,35 @@ void ClientConnectionRequestAdapter::executeImpl()
     if (unlikely(m_isPruned))
         return;
 
-    auto raw_val = input()->lastValueTyped<PyObject*>();
-    auto val = python::fromPython<std::vector<Dictionary>>(raw_val);
+    std::vector<Dictionary> properties_list;
+    for (auto& request : input()->lastValueTyped<std::vector<InternalConnectionRequest::Ptr>>()) {
+        if (!request->allFieldsSet())
+            CSP_THROW(TypeError, "All fields must be set in InternalConnectionRequest");
+            
+        Dictionary dict;
+        dict.update("host", request->host());
+        dict.update("port", request->port());
+        dict.update("route", request->route());
+        dict.update("uri", request->uri());
+        dict.update("use_ssl", request->use_ssl());
+        dict.update("reconnect_interval", request->reconnect_interval());
+        dict.update("persistent", request->persistent());
+        
+        dict.update("headers", request -> headers() );
+        dict.update("on_connect_payload", request->on_connect_payload());
+        dict.update("action", request->action());
+        dict.update("dynamic", request->dynamic());
+        dict.update("binary", request->binary());
+        
+        properties_list.push_back(std::move(dict));
+    }
 
     // We intentionally post here, we want the thread running
     // the strand to handle the connection request. We want to keep
     // all updates to internal data structures at graph run-time
     // to that thread.
-    boost::asio::post(m_strand, [this, val=std::move(val)]() {
-        for(const auto& conn_req: val) {
+    boost::asio::post(m_strand, [this, properties_list=std::move(properties_list)]() {
+        for(const auto& conn_req: properties_list) {
             m_websocketManager->handleConnectionRequest(conn_req, m_callerId, m_isSubscribe);
         }
     });

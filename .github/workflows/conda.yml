@@ -34,7 +34,7 @@ jobs:
           os:
             - ubuntu-24.04
             - macos-14
-            - macos-12
+            - macos-13
             - windows-2019
       runs-on: ${{ matrix.os }}
       steps:

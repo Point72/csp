@@ -11,7 +11,7 @@
     <tbody>
         <!-- Basic -->
         <tr>
-            <td rowspan=4><a href="./01_basics/">Basics</a></td>
+            <td rowspan=5><a href="./01_basics/">Basics</a></td>
             <td><a href="./01_basics/e1_basic.py">Basic Graph</a></td>
             <td>Basic sum of constant integers</td>
         </tr>

@@ -73,12 +73,28 @@ class ContainerTypeNormalizer:
     def normalized_type_to_actual_python_type(cls, typ, level=0):
         if isinstance(typ, typing_extensions._AnnotatedAlias):
             typ = CspTypingUtils.get_origin(typ)
+
         if CspTypingUtils.is_generic_container(typ):
-            if CspTypingUtils.get_origin(typ) is FastList and level == 0:
+            origin = CspTypingUtils.get_origin(typ)
+            if origin is FastList and level == 0:
                 return [cls.normalized_type_to_actual_python_type(typ.__args__[0], level + 1), True]
-            if CspTypingUtils.get_origin(typ) is typing.List and level == 0:
+            if origin is typing.List and level == 0:
                 return [cls.normalized_type_to_actual_python_type(typ.__args__[0], level + 1)]
+            if origin in (typing.Literal, typing_extensions.Literal):  # Not the same in python 3.8/3.9
+                # Import here to prevent circular import
+                from csp.impl.types.instantiation_type_resolver import UpcastRegistry
+
+                args = typing.get_args(typ)
+                typ = type(args[0])
+                for arg in args[1:]:
+                    typ = UpcastRegistry.instance().resolve_type(typ, type(arg), raise_on_error=False)
+                if typ:
+                    return typ
+                else:
+                    return object
             return cls._NORMALIZED_TYPE_MAPPING.get(CspTypingUtils.get_origin(typ), typ)
+        elif CspTypingUtils.is_union_type(typ):
+            return object
         else:
             return typ
 

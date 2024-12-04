@@ -34,7 +34,7 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 # Lists need to be normalized too as potentially we need to add a boolean flag to use FastList
                 if v == FastList:
                     raise TypeError(f"{v} annotation is not supported without args")
-                if CspTypingUtils.is_generic_container(v):
+                if CspTypingUtils.is_generic_container(v) or CspTypingUtils.is_union_type(v):
                     actual_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(v)
                     if CspTypingUtils.is_generic_container(actual_type):
                         raise TypeError(f"{v} annotation is not supported as a struct field [{actual_type}]")

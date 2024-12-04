@@ -166,13 +166,7 @@ class Signature:
         if USE_PYDANTIC:
             return self._parse_inputs_pydantic(forced_tvars, *args, allow_none_ts=allow_none_ts, **kwargs)
 
-        from csp.utils.object_factory_registry import Injected
-
         flat_args = self.flatten_args(*args, **kwargs)
-
-        for i, arg in enumerate(flat_args):
-            if isinstance(arg, Injected):
-                flat_args[i] = arg.value
 
         type_resolver = InputInstanceTypeResolver(
             function_name=self._name,
@@ -214,8 +208,6 @@ class Signature:
         return tuple(type_resolver.ts_inputs), tuple(type_resolver.scalar_inputs), type_resolver.tvars
 
     def _parse_inputs_pydantic(self, forced_tvars, *args, allow_none_ts=False, **kwargs):
-        from csp.utils.object_factory_registry import Injected
-
         new_kwargs = {}
         for k, v in kwargs.items():
             new_kwargs[f"{INPUT_PREFIX}{k}"] = v
@@ -226,10 +218,6 @@ class Signature:
                 raise TypeError('%s got multiple value for argument "%s"' % (self._name, inp.name))
 
             new_kwargs[f"{INPUT_PREFIX}{inp.name}"] = arg
-
-        for name, arg in new_kwargs.items():
-            if isinstance(arg, Injected):
-                new_kwargs[name] = arg.value
 
         context = TVarValidationContext(forced_tvars=forced_tvars, allow_none_ts=allow_none_ts)
         try:

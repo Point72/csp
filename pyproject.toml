@@ -86,6 +86,7 @@ develop = [
     "sqlalchemy",  # db
     "threadpoolctl",  # test_random
     "tornado",  # profiler, perspective, websocket
+    "python-rapidjson", # websocket
     # type checking
     "pydantic>=2",
 ]

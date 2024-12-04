@@ -204,6 +204,11 @@ else()
             -Wno-maybe-uninitialized \
             ")
         endif()
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 17)
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-assume-unique-vtables")
+            endif()
+        endif()
     endif()
 endif()
 

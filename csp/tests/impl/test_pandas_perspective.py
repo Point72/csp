@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+import sys
 import unittest
 from datetime import date, datetime, timedelta
 from packaging import version
@@ -220,7 +221,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
                     "index": pd.StringDtype(),
                     "timestamp": np.dtype("datetime64[ns]"),
                     "s_str": pd.StringDtype(),
-                    "s_int": pd.Int64Dtype(),
+                    "s_int": pd.Int64Dtype() if sys.platform != "win32" else pd.Int32Dtype(),
                     "s_float": floatDtype,
                     "s_bool": pd.BooleanDtype(),
                     "s_date": np.dtype("datetime64[ns]"),

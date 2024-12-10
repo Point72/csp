@@ -176,7 +176,7 @@ void WebsocketEndpointManager::setupEndpoint(const std::string& endpoint_id,
                 std::vector<uint8_t> data_copy(static_cast<uint8_t*>(data), 
                                     static_cast<uint8_t*>(data) + len);
                 auto tup = std::tuple<std::string, void*>{endpoint_id, data_copy.data()};
-                m_inputAdapters[consumer_id] -> processMessage( std::move(tup), len, &batch );
+                m_inputAdapters[consumer_id] -> processMessage( endpoint_id, data_copy.data(), len, &batch );
             }
         }
     });

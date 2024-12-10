@@ -20,8 +20,7 @@ public:
         bool dynamic
     );
 
-    void processMessage( void* c, size_t t, PushBatch* batch );
-    void processMessage( std::tuple<std::string, void*> data, size_t t, PushBatch* batch );
+    void processMessage( const std::string& source, void * c, size_t t, PushBatch* batch );
 
 private:
     adapters::utils::MessageStructConverterPtr m_converter;

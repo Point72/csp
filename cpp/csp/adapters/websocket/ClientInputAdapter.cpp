@@ -32,25 +32,8 @@ ClientInputAdapter::ClientInputAdapter(
         m_converter = adapters::utils::MessageStructConverterCache::instance().create( type, properties );
 };
 
-void ClientInputAdapter::processMessage( void* c, size_t t, PushBatch* batch ) 
+void ClientInputAdapter::processMessage( const std::string& source, void * c, size_t t, PushBatch* batch ) 
 {
-
-    if( dataType() -> type() == CspType::Type::STRUCT )
-    {
-        auto tick = m_converter -> asStruct( c, t );
-        pushTick( std::move(tick), batch );
-    } else if ( dataType() -> type() == CspType::Type::STRING )
-    {
-        pushTick( std::string((char const*)c, t), batch );
-    }
-
-}
-
-void ClientInputAdapter::processMessage( std::tuple<std::string, void*> data, size_t t, PushBatch* batch ) 
-{
-    // Extract the source string and data pointer from tuple
-    std::string source = std::get<0>(data);
-    void* c = std::get<1>(data);
     if ( m_dynamic ){
         auto& actual_type = static_cast<const CspStructType &>( *dataType() );
         auto& nested_type = actual_type.meta()-> field( "msg" ) -> type();

@@ -8,7 +8,7 @@ import tornado.websocket
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from tornado.testing import bind_unused_port
-from typing import List, Optional, Type
+from typing import List
 
 import csp
 from csp import ts

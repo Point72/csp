@@ -1,5 +1,12 @@
 name: Build Status
 
+env:
+  # Run full CI Monday and Thursday at 3:25am EST (08:25 UTC)
+  # Note: do not run scheduled jobs on the hour exactly, per:
+  # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule
+  # GitHub Actions schedules can sometimes delay by up to 15 minutes due to platform load
+  FULL_CI_SCHEDULE: '25 8 * * 1,4'
+
 on:
   push:
     branches:
@@ -26,6 +33,8 @@ on:
         required: false
         type: boolean
         default: false
+  schedule:
+    - cron: '25 8 * * 1,4'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -60,7 +69,7 @@ jobs:
 
       outputs:
         COMMIT_MESSAGE: ${{ steps.setup.outputs.COMMIT_MSG }}
-        FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN }}
+        FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN || steps.setupschedule.outputs.FULL_RUN }}
 
       steps:
         - name: Checkout
@@ -109,6 +118,17 @@ jobs:
           env:
             FULL_RUN: ${{ github.event.inputs.ci-full }}
           if: ${{ github.event_name == 'workflow_dispatch' }}
+        
+        - name: Display and Setup Build Args (Schedule)
+          id: setupschedule
+          run: |
+            echo "Commit Message: $COMMIT_MSG"
+            echo "Full Run: $FULL_RUN"
+            echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
+            echo "FULL_RUN=$FULL_RUN" >> $GITHUB_OUTPUT
+          env:
+            FULL_RUN: ${{ github.event.schedule == env.FULL_CI_SCHEDULE }}
+          if: ${{ github.event_name == 'schedule' }}
 
     ########################################################
     #......................................................#
@@ -174,7 +194,7 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
-            - macos-12 # https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
+            - macos-13 # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2019 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2019-Readme.md
           python-version:
@@ -267,7 +287,7 @@ jobs:
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-12
+              os: macos-13
 
             - is-full-run: false
               os: macos-14
@@ -323,7 +343,7 @@ jobs:
             CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: x86_64
             CIBW_BUILD_VERBOSITY: 3
-          if: ${{ matrix.os == 'macos-12' }}
+          if: ${{ matrix.os == 'macos-13' }}
 
         - name: Python Build Steps (Macos arm)
           run: make dist-py-cibw
@@ -439,7 +459,7 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04
-            - macos-12
+            - macos-13
             - macos-14
             - windows-2019
           python-version:
@@ -479,7 +499,7 @@ jobs:
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-12
+              os: macos-13
 
             - is-full-run: false
               os: macos-14

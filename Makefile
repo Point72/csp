@@ -203,10 +203,8 @@ dependencies-fedora:  ## install dependencies for linux
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
 
-## TODO remove pin on cmake below once we identify why 3.31.2 is failing OR cmake releases a new version which installs properly
 dependencies-win:  ## install dependencies via windows
-	choco install cmake --version=3.31.1
-	choco install curl winflexbison ninja unzip zip --no-progress -y
+	choco install cmake curl winflexbison ninja unzip zip --no-progress -y
 
 ############################################################################################
 # Thanks to Francoise at marmelab.com for this

@@ -2,19 +2,27 @@
 
 namespace csp::adapters::websocket {
 
+class WebsocketEndpointManager;
+
 ClientHeaderUpdateOutputAdapter::ClientHeaderUpdateOutputAdapter(
     Engine * engine,
-    Dictionary& properties
-) : OutputAdapter( engine ), m_properties( properties )
+    WebsocketEndpointManager * mgr,
+    boost::asio::strand<boost::asio::io_context::executor_type>& strand
+) : OutputAdapter( engine ), m_mgr( mgr ), m_strand( strand )
 { };
 
 void ClientHeaderUpdateOutputAdapter::executeImpl()
 {
-    DictionaryPtr headers = m_properties.get<DictionaryPtr>("headers");
-    for( auto& update : input() -> lastValueTyped<std::vector<WebsocketHeaderUpdate::Ptr>>() )
-    { 
-        if( update -> key_isSet() && update -> value_isSet() ) headers->update( update->key(), update->value() ); 
+    Dictionary headers;
+    for (auto& update : input()->lastValueTyped<std::vector<WebsocketHeaderUpdate::Ptr>>()) {
+        if (update->key_isSet() && update->value_isSet()) {
+            headers.update(update->key(), update->value());
+        }
     }
+    boost::asio::post(m_strand, [this, headers=std::move(headers)]() {
+        auto endpoint = m_mgr -> getNonDynamicEndpoint();
+        endpoint -> updateHeaders(std::move(headers));
+    });
 };
 
 }

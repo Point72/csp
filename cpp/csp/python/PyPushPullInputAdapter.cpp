@@ -61,8 +61,9 @@ class TypedPyPushPullInputAdapter : public PyPushPullInputAdapter
 {
 public:
     TypedPyPushPullInputAdapter( Engine * engine, AdapterManager * manager, PyObjectPtr pyadapter, PyObject * pyType,
-                                 PushMode pushMode, PushGroup * pushGroup ):
-        PyPushPullInputAdapter( engine, manager, pyadapter, pyType, pushMode, pushGroup )
+                                 PushMode pushMode, PyObjectPtr pyPushGroup, PushGroup * pushGroup ):
+        PyPushPullInputAdapter( engine, manager, pyadapter, pyType, pushMode, pushGroup ),
+        m_pyPushGroup( pyPushGroup )
     {
     }
 
@@ -80,6 +81,9 @@ public:
                        << pyTypeToString( m_pyType.ptr() ) << "\" got type \"" << Py_TYPE( value ) -> tp_name << "\"" );
         }
     }
+
+private:
+    PyObjectPtr m_pyPushGroup;
 };
 
 struct PyPushPullInputAdapter_PyObject
@@ -208,7 +212,7 @@ static InputAdapter * pypushpullinputadapter_creator( csp::AdapterManager * mana
                   [&]( auto tag )
                   {
                       pyAdapter -> adapter = pyengine -> engine() -> createOwnedObject<TypedPyPushPullInputAdapter<typename decltype(tag)::type>>( 
-                          manager, PyObjectPtr::own( ( PyObject * ) pyAdapter ), pyType, pushMode, pushGroup );
+                          manager, PyObjectPtr::own( ( PyObject * ) pyAdapter ), pyType, pushMode, PyObjectPtr::incref( pyPushGroup ), pushGroup );
                   } );
     
     return pyAdapter -> adapter;

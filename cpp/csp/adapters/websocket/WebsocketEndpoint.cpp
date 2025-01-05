@@ -21,7 +21,7 @@ void WebsocketEndpoint::setOnSendFail(string_cb on_send_fail)
 void WebsocketEndpoint::run()
 {
 
-    m_ioc.reset();
+    m_ioc.restart();
     if(m_properties.get<bool>("use_ssl")) {
         ssl::context ctx{ssl::context::sslv23};
         ctx.set_verify_mode(ssl::context::verify_peer );

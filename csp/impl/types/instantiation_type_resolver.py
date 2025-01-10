@@ -34,7 +34,7 @@ class UpcastRegistry(object):
             if CspTypingUtils.is_generic_container(expected_type):
                 expected_type_base = CspTypingUtils.get_orig_base(expected_type)
                 if expected_type_base is new_type:
-                    return expected_type  # If new_type is Generic and expected type is Generic[T], return Generic
+                    return expected_type_base  # If new_type is Generic and expected type is Generic[T], return Generic
                 if CspTypingUtils.is_generic_container(new_type):
                     expected_origin = CspTypingUtils.get_origin(expected_type)
                     new_type_origin = CspTypingUtils.get_origin(new_type)
@@ -389,8 +389,14 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
         if inp_def_type is typing.Callable or (
             hasattr(inp_def_type, "__origin__") and CspTypingUtils.get_origin(inp_def_type) is collections.abc.Callable
         ):
-            return callable(arg)  # TODO: Actually check the input types
-        if UpcastRegistry.instance().resolve_type(inp_def_type, type(arg), raise_on_error=False) is inp_def_type:
+            return callable(arg)
+        resolved_type = UpcastRegistry.instance().resolve_type(inp_def_type, type(arg), raise_on_error=False)
+        if resolved_type is inp_def_type:
+            return True
+        elif (
+            CspTypingUtils.is_generic_container(inp_def_type)
+            and CspTypingUtils.get_orig_base(inp_def_type) is resolved_type
+        ):
             return True
         if CspTypingUtils.is_union_type(inp_def_type):
             types = inp_def_type.__args__

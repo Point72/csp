@@ -45,7 +45,7 @@ WebsocketEndpointManager::~WebsocketEndpointManager()
 }
 
 void WebsocketEndpointManager::start(DateTime starttime, DateTime endtime) {
-    m_ioc.reset();
+    m_ioc.restart();
     if( !m_dynamic ){
         boost::asio::post(m_strand, [this]() {
             // We subscribe for both the subscribe and send calls

@@ -57,3 +57,4 @@ dependencies:
  - unzip
  - wheel
  - zip
+ - zlib

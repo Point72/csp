@@ -40,7 +40,10 @@ class CspTypingUtils37:
     # is typ a standard generic container
     @classmethod
     def is_generic_container(cls, typ):
-        return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union
+        # isinstance(typing.Callable, typing._GenericAlias) passses in python 3.8, we don't want that
+        return (
+            isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union and typ is not typing.Callable
+        )
 
     @classmethod
     def is_union_type(cls, typ):
@@ -76,6 +79,10 @@ if sys.version_info >= (3, 9):
     class CspTypingUtils39(CspTypingUtils37):
         # To support PEP 585
         _GENERIC_ALIASES = (typing._GenericAlias, typing.GenericAlias)
+
+        @classmethod
+        def is_generic_container(cls, typ):
+            return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union
 
     CspTypingUtils = CspTypingUtils39
 

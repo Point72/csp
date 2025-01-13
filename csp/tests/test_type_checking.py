@@ -5,6 +5,7 @@ import re
 import typing
 import unittest
 from datetime import datetime, time, timedelta
+from typing import Callable, Dict, List, Optional, Union
 
 import csp
 import csp.impl.types.instantiation_type_resolver as type_resolver
@@ -621,6 +622,46 @@ class TestTypeChecking(unittest.TestCase):
 
         csp.run(main, starttime=datetime.utcnow(), endtime=timedelta())
 
+    def test_typed_to_untyped_container_wrong(self):
+        @csp.graph
+        def g1(d: csp.ts[dict]):
+            pass
+
+        @csp.graph
+        def g2(d: csp.ts[set]):
+            pass
+
+        @csp.graph
+        def g3(d: csp.ts[list]):
+            pass
+
+        def main():
+            # This should fail - wrong key type in Dict
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for csp.const.*Input should be a valid integer \\[type=int_type"
+            else:
+                msg = "In function csp\\.const: Expected ~T for argument 'value', got .* \\(dict\\)\\(T=typing\\.Dict\\[int, int\\]\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                g1(d=csp.const.using(T=typing.Dict[int, int])({"a": 10}))
+
+            # This should fail - wrong element type in Set
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for csp.const.*Input should be a valid integer \\[type=int_type"
+            else:
+                msg = "In function csp\\.const: Expected ~T for argument 'value', got .* \\(set\\)\\(T=typing\\.Set\\[int\\]\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                g2(d=csp.const.using(T=typing.Set[int])(set(["z"])))
+
+            # This should fail - wrong element type in List
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for csp.const.*Input should be a valid integer \\[type=int_type"
+            else:
+                msg = "In function csp\\.const: Expected ~T for argument 'value', got .* \\(list\\)\\(T=typing\\.List\\[int\\]\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                g3(d=csp.const.using(T=typing.List[int])(["d"]))
+
+        csp.run(main, starttime=datetime.utcnow(), endtime=timedelta())
+
     def test_time_tzinfo(self):
         import pytz
 
@@ -669,6 +710,211 @@ class TestTypeChecking(unittest.TestCase):
         self.assertEqual(res["x"][0][1], [])
         self.assertEqual(res["y"][0][1], set())
         self.assertEqual(res["z"][0][1], {})
+
+    def test_callable_type_checking(self):
+        @csp.node
+        def node_callable_typed(x: ts[int], my_data: Callable[[int], int]) -> ts[int]:
+            if csp.ticked(x):
+                if my_data:
+                    return my_data(x) if callable(my_data) else 12
+
+        @csp.node
+        def node_callable_untyped(x: ts[int], my_data: Callable) -> ts[int]:
+            if csp.ticked(x):
+                if my_data:
+                    return my_data(x) if callable(my_data) else 12
+
+        def graph():
+            # These should work
+            node_callable_untyped(csp.const(10), lambda x: 2 * x)
+            node_callable_typed(csp.const(10), lambda x: x + 1)
+
+            # We intentionally allow setting None to be allowed
+            node_callable_typed(csp.const(10), None)
+            node_callable_untyped(csp.const(10), None)
+
+            # Here the Callable's type hints don't match the signature
+            # but we allow anyways, both with the pydantic version and without
+            node_callable_typed(csp.const(10), lambda x, y: "a")
+            node_callable_untyped(csp.const(10), lambda x, y: "a")
+
+            # This should fail - passing non-callable
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for node_callable_untyped.*my_data.*Input should be callable \\[type=callable_type"
+            else:
+                msg = "In function node_callable_untyped: Expected typing\\.Callable for argument 'my_data', got 11 \\(int\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                node_callable_untyped(csp.const(10), 11)
+
+        csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_optional_type_checking(self):
+        for use_dict in [True, False]:
+            if use_dict:
+
+                @csp.node
+                def node_optional_list_typed(x: ts[int], my_data: Optional[Dict[int, int]] = None) -> ts[int]:
+                    if csp.ticked(x):
+                        return my_data[0] if my_data else x
+
+                @csp.node
+                def node_optional_list_untyped(x: ts[int], my_data: Optional[dict] = None) -> ts[int]:
+                    if csp.ticked(x):
+                        return my_data[0] if my_data else x
+            else:
+
+                @csp.node
+                def node_optional_list_typed(x: ts[int], my_data: Optional[List[int]] = None) -> ts[int]:
+                    if csp.ticked(x):
+                        return my_data[0] if my_data else x
+
+                @csp.node
+                def node_optional_list_untyped(x: ts[int], my_data: Optional[list] = None) -> ts[int]:
+                    if csp.ticked(x):
+                        return my_data[0] if my_data else x
+
+            def graph():
+                # Optional[list] tests - these should work
+                node_optional_list_untyped(csp.const(10), {} if use_dict else [])
+                node_optional_list_untyped(csp.const(10), None)
+                node_optional_list_untyped(csp.const(10), {9: 10} if use_dict else [9])
+
+                # Optional[List[int]] tests
+                node_optional_list_typed(csp.const(10), None)
+                node_optional_list_typed(csp.const(10), {} if use_dict else [])
+                node_optional_list_typed(csp.const(10), {9: 10} if use_dict else [9])
+
+                # Here the List/Dict type hints don't match the signature
+                # But, for backwards compatibility (as this was the behavior with Optional in version 0.0.5)
+                # The pydantic version of the checks, however, catches this.
+                if USE_PYDANTIC:
+                    msg = "(?s).*validation error.* for node_optional_list_typed.*my_data.*Input should be a valid integer.*type=int_parsing"
+                    with self.assertRaisesRegex(TypeError, msg):
+                        node_optional_list_typed(csp.const(10), {"a": "b"} if use_dict else ["a"])
+                else:
+                    node_optional_list_typed(csp.const(10), {"a": "b"} if use_dict else ["a"])
+
+                # This should fail - type mismatch
+                if USE_PYDANTIC:
+                    msg = "(?s)1 validation error for node_optional_list_typed.*my_data"
+                else:
+                    msg = "In function node_optional_list_typed: Expected typing\\.(?:Optional\\[typing|Union\\[typing)\\..*"
+                with self.assertRaisesRegex(TypeError, msg):
+                    node_optional_list_typed(csp.const(10), [] if use_dict else {})
+
+            csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_optional_callable_type_checking(self):
+        @csp.node
+        def node_optional_callable_typed(x: ts[int], my_data: Optional[Callable[[int], int]] = None) -> ts[int]:
+            if csp.ticked(x):
+                return my_data(x) if my_data else x
+
+        @csp.node
+        def node_optional_callable_untyped(x: ts[int], my_data: Optional[Callable] = None) -> ts[int]:
+            if csp.ticked(x):
+                return my_data(x) if my_data else x
+
+        def graph():
+            # These should work for both typed and untyped
+            node_optional_callable_typed(csp.const(10), None)
+            node_optional_callable_untyped(csp.const(10), None)
+
+            # These should also work - valid callables
+            node_optional_callable_typed(csp.const(10), lambda x: x + 1)
+            node_optional_callable_untyped(csp.const(10), lambda x: 2 * x)
+
+            # Here the Callable's type hints don't match the signature
+            # but we allow anyways, both with the pydantic version and without
+            node_optional_callable_typed(csp.const(10), lambda x, y: "a")
+            node_optional_callable_untyped(csp.const(10), lambda x, y: "a")
+
+        # This should fail - passing non-callable to typed version
+        if USE_PYDANTIC:
+            msg = "(?s)1 validation error for node_optional_callable_typed.*my_data.*Input should be callable \\[type=callable_type"
+        else:
+            msg = "In function node_optional_callable_typed: Expected typing\\.(?:Optional\\[typing\\.Callable\\[\\[int\\], int\\]\\]|Union\\[typing\\.Callable\\[\\[int\\], int\\], NoneType\\]) for argument 'my_data', got 12 \\(int\\)"
+        with self.assertRaisesRegex(TypeError, msg):
+            node_optional_callable_typed(csp.const(10), 12)
+
+            # This should fail - passing non-callable to typed version
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for node_optional_callable_typed.*my_data.*Input should be callable \\[type=callable_type"
+            else:
+                msg = "In function node_optional_callable_typed: Expected typing\\.(?:Optional\\[typing\\.Callable\\[\\[int\\], int\\]\\]|Union\\[typing\\.Callable\\[\\[int\\], int\\], NoneType\\]) for argument 'my_data', got 12 \\(int\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                node_optional_callable_typed(csp.const(10), 12)
+
+        csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_union_type_checking(self):
+        @csp.node
+        def node_union_typed(x: ts[int], my_data: Union[int, str]) -> ts[int]:
+            if csp.ticked(x):
+                return x + int(my_data) if isinstance(my_data, str) else x + my_data
+
+        def graph():
+            # These should work - valid int inputs
+            node_union_typed(csp.const(10), 5)
+
+            # These should also work - valid str inputs
+            node_union_typed(csp.const(10), "123")
+
+            # These should fail - passing float when expecting Union[int, str]
+            if USE_PYDANTIC:
+                msg = "(?s)2 validation errors for node_union_typed.*my_data\\.int.*Input should be a valid integer, got a number with a fractional part.*my_data\\.str.*Input should be a valid string"
+            else:
+                msg = "In function node_union_typed: Expected typing\\.Union\\[int, str\\] for argument 'my_data', got 12\\.5 \\(float\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                node_union_typed(csp.const(10), 12.5)
+
+        csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_union_list_type_checking(self):
+        @csp.node
+        def node_union_typed(x: ts[int], my_data: Union[List[str], int] = None) -> ts[int]:
+            if csp.ticked(x):
+                if isinstance(my_data, list):
+                    return x + len(my_data)
+                return x + my_data
+
+        @csp.node
+        def node_union_untyped(x: ts[int], my_data: Union[list, int] = None) -> ts[int]:
+            if csp.ticked(x):
+                if isinstance(my_data, list):
+                    return x + len(my_data)
+                return x + my_data
+
+        def graph():
+            # These should work - valid int inputs
+            node_union_typed(csp.const(10), 5)
+            node_union_untyped(csp.const(10), 42)
+
+            # These should work - valid list inputs
+            node_union_typed(csp.const(10), ["hello", "world"])
+            node_union_untyped(csp.const(10), ["hello", "world"])
+
+            # This should fail - passing float when expecting Union[List[str], int]
+            if USE_PYDANTIC:
+                msg = "(?s)2 validation errors for node_union_typed.*my_data\\.list.*Input should be a valid list.*my_data\\.int.*Input should be a valid integer, got a number with a fractional part"
+            else:
+                msg = "In function node_union_typed: Expected typing\\.Union\\[typing\\.List\\[str\\], int\\] for argument 'my_data', got 12\\.5 \\(float\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                node_union_typed(csp.const(10), 12.5)
+
+            # This should fail - passing list with wrong element type
+            if USE_PYDANTIC:
+                msg = "(?s)3 validation errors for node_union_typed.*my_data\\.list\\[str\\]\\.0.*Input should be a valid string.*my_data\\.list\\[str\\]\\.1.*Input should be a valid string.*my_data\\.int.*Input should be a valid integer"
+                with self.assertRaisesRegex(TypeError, msg):
+                    node_union_typed(csp.const(10), [1, 2])  # List of ints instead of strings
+            else:
+                # We choose to intentionally not enforce the types provided
+                # to maintain previous flexibility when not using pydantic type validation
+                node_union_typed(csp.const(10), [1, 2])
+
+            node_union_untyped(csp.const(10), [1, 2])
+
+        csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
 
 
 if __name__ == "__main__":

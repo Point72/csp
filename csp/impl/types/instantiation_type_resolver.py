@@ -398,8 +398,6 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
             and CspTypingUtils.get_orig_base(inp_def_type) is resolved_type
         ):
             return True
-        # if UpcastRegistry.instance().resolve_type(inp_def_type, type(arg), raise_on_error=False) is inp_def_type:
-        #     return True
         if CspTypingUtils.is_union_type(inp_def_type):
             types = inp_def_type.__args__
             for t in types:

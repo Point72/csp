@@ -3303,7 +3303,6 @@ class TestCspStruct(unittest.TestCase):
     def test_struct_with_annotated_validation(self):
         """Test CSP Struct with Annotated fields and validators"""
         from pydantic import BeforeValidator, WrapValidator
-        from typing import Annotated
 
         # Simple validator that modifies the value
         def value_validator(v: Any) -> int:
@@ -3536,11 +3535,7 @@ class TestCspStruct(unittest.TestCase):
         # Test serialization and deserialization preserves specific types
         json_data = result.to_json()
         restored = TypeAdapter(DataPoint).validate_json(json_data)
-
-        self.assertIsInstance(restored.metric, BaseMetric)
-        self.assertIsInstance(restored.history[0], TemperatureMetric)
-        self.assertIsInstance(restored.history[1], PressureMetric)
-        self.assertIsInstance(restored.history[2], BaseMetric)
+        self.assertEqual(restored, result)
 
 
 if __name__ == "__main__":

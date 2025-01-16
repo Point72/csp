@@ -68,7 +68,10 @@ class StructMeta(_csptypesimpl.PyStructMeta):
         dct["__metadata__"] = metadata
         dct["__defaults__"] = defaults
 
-        return super().__new__(cls, name, bases, dct)
+        res = super().__new__(cls, name, bases, dct)
+        # This is how we make sure we construct the pydantic schema from the new class
+        res.__get_pydantic_core_schema__ = classmethod(res._get_pydantic_core_schema)
+        return res
 
     def layout(self, num_cols=8):
         layout = super()._layout()
@@ -80,6 +83,39 @@ class StructMeta(_csptypesimpl.PyStructMeta):
 
         out += layout[idx : idx + num_cols]
         return out
+
+    @staticmethod
+    def _get_pydantic_core_schema(cls, _source_type, handler):
+        """Tell Pydantic how to validate this Struct class."""
+        from pydantic_core import core_schema
+
+        fields = {}
+
+        for field_name, field_type in cls.__full_metadata_typed__.items():
+            field_schema = handler.generate_schema(field_type)
+
+            if field_name in cls.__defaults__:
+                field_schema = core_schema.with_default_schema(
+                    schema=field_schema, default=cls.__defaults__[field_name]
+                )
+
+            fields[field_name] = core_schema.model_field(schema=field_schema)
+
+        # Create model fields schema
+        fields_schema = core_schema.model_fields_schema(fields=fields, model_name=cls.__name__)
+
+        def create_instance(validated_data):
+            data_dict = validated_data[0] if isinstance(validated_data, tuple) else validated_data
+            return cls(**data_dict)
+
+        return core_schema.no_info_after_validator_function(
+            function=create_instance,
+            schema=fields_schema,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                function=lambda x: x.to_dict(),  # Use the built-in to_dict method
+                return_schema=core_schema.dict_schema(),
+            ),
+        )
 
 
 class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):

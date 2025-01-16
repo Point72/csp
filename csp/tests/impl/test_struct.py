@@ -6,7 +6,8 @@ import pytz
 import typing
 import unittest
 from datetime import date, datetime, time, timedelta
-from typing import Dict, List, Literal, Optional, Set, Tuple, Union
+from pydantic import TypeAdapter, ValidationError
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
 from typing_extensions import Annotated
 
 import csp
@@ -2994,6 +2995,310 @@ class TestCspStruct(unittest.TestCase):
             },
         )
         self.assertEqual(StructWithUnion.metadata(typed=False), {"o1": object, "o2": object})
+
+    def test_pydantic_validation(self):
+        """Test Pydantic validation integration with CSP Structs"""
+
+        # 1. Test basic validation
+        class SimpleStruct(csp.Struct):
+            value: int
+            name: str = "default"
+            scores: List[float]
+
+        # Valid data
+        valid_data = {"value": 11, "name": "ya", "scores": [1.1, 2.2, 3.3]}
+        result = TypeAdapter(SimpleStruct).validate_python(valid_data)
+        self.assertIsInstance(result, SimpleStruct)
+        self.assertEqual(result.value, 11)
+        self.assertEqual(result.name, "ya")
+        self.assertEqual(result.scores, [1.1, 2.2, 3.3])
+
+        # Test type coercion
+        coercion_data = {
+            "value": "42",  # string should convert to int
+            "scores": ["1.1", 2, "3.3"],  # mixed types should convert to float
+        }
+        result = TypeAdapter(SimpleStruct).validate_python(coercion_data)
+        self.assertEqual(result.value, 42)
+        self.assertEqual(result.scores, [1.1, 2.0, 3.3])
+
+        # 2. Test nested validation
+        class NestedStruct(csp.Struct):
+            simple: SimpleStruct
+            tags: List[str]
+
+        nested_data = {"simple": {"value": 11, "name": "ya", "scores": [1.1, 2.2, 3.3]}, "tags": ["test1", "test2"]}
+        result = TypeAdapter(NestedStruct).validate_python(nested_data)
+        self.assertIsInstance(result, NestedStruct)
+        self.assertIsInstance(result.simple, SimpleStruct)
+        self.assertEqual(result.simple.value, 11)
+        self.assertEqual(result.tags, ["test1", "test2"])
+
+        # 3. Test validation errors
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(SimpleStruct).validate_python({"value": "not an integer", "scores": [1.1, 2.2, "invalid"]})
+        self.assertIn("Input should be a valid integer", str(exc_info.exception))
+
+        # 4. Test with complex types
+        class ComplexStruct(csp.Struct):
+            dates: List[datetime]
+            nested: Optional[SimpleStruct] = None
+            mapping: Dict[str, float]
+
+        complex_data = {
+            "dates": ["2023-01-01", "2023-01-02"],  # strings should convert to datetime
+            "mapping": {"a": "1.1", "b": 2.2},  # mixed types should convert to float
+        }
+        result = TypeAdapter(ComplexStruct).validate_python(complex_data)
+        self.assertIsInstance(result.dates[0], datetime)
+        self.assertEqual(result.mapping, {"a": 1.1, "b": 2.2})
+
+        # 5. Test with enums
+        class MyEnum(csp.Enum):
+            A = 1
+            B = 2
+
+        class EnumStruct(csp.Struct):
+            enum_field: MyEnum
+            enum_list: List[MyEnum]
+
+        enum_data = {"enum_field": "A", "enum_list": ["A", "B", "A"]}
+        result = TypeAdapter(EnumStruct).validate_python(enum_data)
+        self.assertEqual(result.enum_field, MyEnum.A)
+        self.assertEqual(result.enum_list, [MyEnum.A, MyEnum.B, MyEnum.A])
+
+    def test_pydantic_validation_complex(self):
+        """Test Pydantic validation with complex nested types and serialization"""
+
+        # Define our enum types
+        class StatusEnum(csp.Enum):
+            ACTIVE = 1
+            PENDING = 2
+            CLOSED = 3
+
+        class PriorityEnum(csp.Enum):
+            HIGH = 3
+            MEDIUM = 2
+            LOW = 1
+
+        # Define our nested structs
+        class MetadataStruct(csp.Struct):
+            created_at: datetime
+            tags: Set[str]
+            priority: PriorityEnum
+
+        class TaskStruct(csp.Struct):
+            title: str
+            metadata: MetadataStruct
+            subtasks: Optional[List[Dict[str, Any]]] = None
+
+        # Complex struct with nested generics and enum keys
+        class ProjectStruct(csp.Struct):
+            name: str
+            task_statuses: Dict[StatusEnum, List[TaskStruct]]
+            priority_mapping: Dict[PriorityEnum, MetadataStruct]
+            optional_tasks: Optional[List[TaskStruct]] = None
+
+        # Test data
+        task_data = {
+            "title": "Main Task",
+            "metadata": {
+                "created_at": "2023-01-01T12:00:00",
+                "tags": ["important", "urgent"],
+                "priority": 3,  # HIGH
+            },
+            "subtasks": [{"name": "subtask1", "done": True}, {"name": "subtask2", "done": False}],
+        }
+
+        project_data = {
+            "name": "Test Project",
+            "task_statuses": {
+                1: [task_data, task_data],  # ACTIVE
+                2: [],  # PENDING
+                3: [task_data],  # CLOSED
+            },
+            "priority_mapping": {
+                3: {  # HIGH
+                    "created_at": "2023-01-01T12:00:00",
+                    "tags": ["critical"],
+                    "priority": 3,
+                },
+                2: {  # MEDIUM
+                    "created_at": "2023-01-02T12:00:00",
+                    "tags": ["normal"],
+                    "priority": 2,
+                },
+            },
+        }
+
+        # 1. Test validation
+        result = TypeAdapter(ProjectStruct).validate_python(project_data)
+
+        # Verify the structure
+        self.assertIsInstance(result, ProjectStruct)
+        self.assertEqual(result.name, "Test Project")
+
+        # Verify enum keys were properly converted
+        self.assertIn(StatusEnum.ACTIVE, result.task_statuses)
+        self.assertIn(PriorityEnum.HIGH, result.priority_mapping)
+
+        # Verify nested structures
+        active_tasks = result.task_statuses[StatusEnum.ACTIVE]
+        self.assertEqual(len(active_tasks), 2)
+        self.assertIsInstance(active_tasks[0], TaskStruct)
+        self.assertIsInstance(active_tasks[0].metadata, MetadataStruct)
+
+        # Verify nested enum values
+        self.assertEqual(active_tasks[0].metadata.priority, PriorityEnum.HIGH)
+
+        # 2. Test serialization and deserialization
+        # First, serialize to JSON
+        json_data = result.to_json(lambda x: list(x))  # need this for Set, csp complains
+
+        # Then deserialize back
+        restored = TypeAdapter(ProjectStruct).validate_json(json_data)
+
+        # Verify the restored object matches the original
+        self.assertEqual(restored.name, result.name)
+        self.assertEqual(len(restored.task_statuses[StatusEnum.ACTIVE]), len(result.task_statuses[StatusEnum.ACTIVE]))
+
+        # Verify nested structures were properly restored
+        restored_task = restored.task_statuses[StatusEnum.ACTIVE][0]
+        original_task = result.task_statuses[StatusEnum.ACTIVE][0]
+
+        self.assertEqual(restored_task.title, original_task.title)
+        self.assertEqual(restored_task.metadata.tags, original_task.metadata.tags)
+        self.assertEqual(restored_task.metadata.priority, original_task.metadata.priority)
+
+        # 3. Test validation errors with invalid enum values
+        invalid_data = project_data.copy()
+        invalid_data["task_statuses"][99] = []  # Invalid enum value
+
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(ProjectStruct).validate_python(invalid_data)
+
+        # 4. Test validation errors with invalid nested types
+        invalid_task_data = project_data.copy()
+        invalid_task_data["task_statuses"][1][0]["metadata"]["priority"] = 99  # Invalid priority
+
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(ProjectStruct).validate_python(invalid_task_data)
+
+    def test_pydantic_models_with_csp_structs(self):
+        """Test Pydantic BaseModels containing CSP Structs as attributes"""
+        from pydantic import BaseModel
+
+        # Define some CSP Structs
+        class LocationStruct(csp.Struct):
+            latitude: float
+            longitude: float
+            name: str = "unknown"
+
+        class MetricsStruct(csp.Struct):
+            value: int
+            timestamp: datetime
+            tags: List[str]
+
+        # Define Pydantic models that use these structs
+        class SensorReading(BaseModel):
+            id: str
+            location: LocationStruct
+            metrics: List[MetricsStruct]
+            backup_locations: Dict[str, LocationStruct] = {}
+
+        # Test data
+        sensor_data = {
+            "id": "sensor-123",
+            "location": {"latitude": 40.7128, "longitude": -74.0060, "name": "New York"},
+            "metrics": [
+                {"value": 42, "timestamp": "2023-01-01T12:00:00", "tags": ["temperature", "indoor"]},
+                {"value": 25, "timestamp": "2023-01-01T12:01:00", "tags": ["humidity", "indoor"]},
+            ],
+            "backup_locations": {"backup1": {"latitude": 34.0522, "longitude": -118.2437, "name": "Los Angeles"}},
+        }
+
+        # 1. Test validation
+        result = SensorReading.model_validate(sensor_data)
+
+        # Verify the structure
+        self.assertIsInstance(result, SensorReading)
+        self.assertIsInstance(result.location, LocationStruct)
+        self.assertEqual(len(result.metrics), 2)
+        self.assertIsInstance(result.metrics[0], MetricsStruct)
+
+        # Verify values
+        self.assertEqual(result.id, "sensor-123")
+        self.assertEqual(result.location.name, "New York")
+        self.assertEqual(result.metrics[0].value, 42)
+        self.assertEqual(result.backup_locations["backup1"].name, "Los Angeles")
+
+        # 2. Test serialization and deserialization
+        # To JSON
+        json_str = result.model_dump_json()
+
+        # Back from JSON
+        restored = SensorReading.model_validate_json(json_str)
+
+        # Verify everything was preserved
+        self.assertEqual(restored.id, result.id)
+        self.assertEqual(restored.location.latitude, result.location.latitude)
+        self.assertEqual(restored.metrics[0].value, result.metrics[0].value)
+        self.assertEqual(restored.backup_locations["backup1"].name, result.backup_locations["backup1"].name)
+
+        # 3. Test validation errors
+        # Invalid location data
+        invalid_data = sensor_data.copy()
+        invalid_data["location"]["latitude"] = "not a float"
+
+        with self.assertRaises(ValidationError) as exc_info:
+            SensorReading.model_validate(invalid_data)
+        self.assertIn("Input should be a valid number", str(exc_info.exception))
+
+        # Invalid metrics data
+        invalid_data = sensor_data.copy()
+        invalid_data["metrics"][0]["value"] = "not an int"
+
+        with self.assertRaises(ValidationError) as exc_info:
+            SensorReading.model_validate(invalid_data)
+        self.assertIn("Input should be a valid integer", str(exc_info.exception))
+
+        # 4. Test nested model with multiple struct types
+        class ComplexModel(BaseModel):
+            name: str
+            primary_location: LocationStruct
+            secondary_locations: List[LocationStruct]
+            metrics_by_location: Dict[str, List[MetricsStruct]]
+
+        complex_data = {
+            "name": "Complex Sensor",
+            "primary_location": {"latitude": 40.7128, "longitude": -74.0060, "name": "New York"},
+            "secondary_locations": [
+                {"latitude": 34.0522, "longitude": -118.2437, "name": "Los Angeles"},
+                {"latitude": 41.8781, "longitude": -87.6298, "name": "Chicago"},
+            ],
+            "metrics_by_location": {
+                "New York": [{"value": 42, "timestamp": "2023-01-01T12:00:00", "tags": ["temperature"]}],
+                "Los Angeles": [{"value": 75, "timestamp": "2023-01-01T12:00:00", "tags": ["temperature"]}],
+            },
+        }
+
+        # Test validation of complex model
+        result = ComplexModel.model_validate(complex_data)
+
+        # Verify structure and values
+        self.assertIsInstance(result.primary_location, LocationStruct)
+        self.assertEqual(len(result.secondary_locations), 2)
+        self.assertEqual(len(result.metrics_by_location["New York"]), 1)
+        self.assertEqual(result.metrics_by_location["New York"][0].value, 42)
+
+        # Test serialization of complex model
+        json_str = result.model_dump_json()
+        restored = ComplexModel.model_validate_json(json_str)
+
+        self.assertEqual(restored.primary_location.name, result.primary_location.name)
+        self.assertEqual(
+            len(restored.metrics_by_location["Los Angeles"]), len(result.metrics_by_location["Los Angeles"])
+        )
 
 
 if __name__ == "__main__":

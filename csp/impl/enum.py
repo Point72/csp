@@ -64,6 +64,49 @@ class Enum(_csptypesimpl.PyCspEnum, metaclass=EnumMeta):
     def __str__(self):
         return f"{type(self).__name__}.{self.name}"
 
+    @classmethod
+    def validate(cls, v) -> "Enum":
+        if isinstance(v, cls):
+            return v
+        elif isinstance(v, str):
+            return cls[v]
+        elif isinstance(v, int):
+            return cls(v)
+        raise ValueError(f"Cannot convert value to enum: {v}")
+
+    @staticmethod
+    def _serialize(value: "Enum") -> str:
+        return value.name
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, _core_schema, handler):
+        from pydantic_core import core_schema
+
+        field_schema = handler(core_schema.str_schema())
+        field_schema.update(
+            type="string",
+            title=cls.__name__,
+            description=cls.__doc__ or "An enumeration of {}".format(cls.__name__),
+            enum=list(cls.__members__.keys()),
+        )
+        return field_schema
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        source_type,
+        handler,
+    ):
+        from pydantic_core import core_schema
+
+        return core_schema.no_info_before_validator_function(
+            cls.validate,
+            core_schema.any_schema(),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                cls._serialize, info_arg=False, return_schema=core_schema.str_schema(), when_used="json"
+            ),
+        )
+
 
 def DynamicEnum(name: str, values: typing.Union[dict, list], start=0, module_name=None):
     """create a csp.Enum type dynamically

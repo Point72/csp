@@ -3468,6 +3468,80 @@ class TestCspStruct(unittest.TestCase):
         self.assertIsInstance(restored.history[0], MetricStruct)
         self.assertIsInstance(restored.history[1], EventStruct)
 
+    def test_struct_union_with_inheritance(self):
+        """Test Union with inherited Struct types to ensure proper type resolution"""
+
+        class BaseMetric(csp.Struct):
+            name: str
+            value: float
+
+        class TemperatureMetric(BaseMetric):
+            unit: str = "celsius"
+            precision: int = 2
+
+        class PressureMetric(BaseMetric):
+            unit: str = "pascal"
+            altitude: float
+
+        class DataPoint(csp.Struct):
+            id: str
+            # Union should resolve to most specific type
+            metric: Union[BaseMetric, TemperatureMetric, PressureMetric]
+            # List of metrics to test multiple instances
+            history: List[Union[BaseMetric, TemperatureMetric, PressureMetric]] = []
+
+        # Test with TemperatureMetric data
+        temp_data = {
+            "id": "temp-1",
+            "metric": {
+                "name": "temperature",
+                "value": 25.5,
+                "precision": 1,  # specific to TemperatureMetric
+            },
+        }
+        result = TypeAdapter(DataPoint).validate_python(temp_data)
+        self.assertIsInstance(result.metric, TemperatureMetric)  # Should be TemperatureMetric, not BaseMetric
+        self.assertEqual(result.metric.unit, "celsius")
+        self.assertEqual(result.metric.precision, 1)
+
+        # Test with PressureMetric data
+        pressure_data = {"id": "pressure-1", "metric": {"name": "pressure", "value": 101.325, "altitude": 0.0}}
+        result = TypeAdapter(DataPoint).validate_python(pressure_data)
+        self.assertIsInstance(result.metric, PressureMetric)  # Should be PressureMetric, not BaseMetric
+        self.assertEqual(result.metric.unit, "pascal")
+        self.assertEqual(result.metric.altitude, 0.0)
+
+        # Test with mixed list of metrics
+        mixed_data = {
+            "id": "mixed-1",
+            "metric": {
+                "name": "current",
+                "value": 100.0,  # just base metric
+            },
+            "history": [
+                {"name": "temp", "value": 25.5, "precision": 1},
+                {"name": "pressure", "value": 101.325, "altitude": 0.0},
+                {
+                    "name": "simple",
+                    "value": 42.0,  # base metric
+                },
+            ],
+        }
+        result = TypeAdapter(DataPoint).validate_python(mixed_data)
+        self.assertIsInstance(result.metric, BaseMetric)  # Should be base metric
+        self.assertIsInstance(result.history[0], TemperatureMetric)  # Should be temperature
+        self.assertIsInstance(result.history[1], PressureMetric)  # Should be pressure
+        self.assertIsInstance(result.history[2], BaseMetric)  # Should be base
+
+        # Test serialization and deserialization preserves specific types
+        json_data = result.to_json()
+        restored = TypeAdapter(DataPoint).validate_json(json_data)
+
+        self.assertIsInstance(restored.metric, BaseMetric)
+        self.assertIsInstance(restored.history[0], TemperatureMetric)
+        self.assertIsInstance(restored.history[1], PressureMetric)
+        self.assertIsInstance(restored.history[2], BaseMetric)
+
 
 if __name__ == "__main__":
     unittest.main()

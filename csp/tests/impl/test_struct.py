@@ -3300,6 +3300,174 @@ class TestCspStruct(unittest.TestCase):
             len(restored.metrics_by_location["Los Angeles"]), len(result.metrics_by_location["Los Angeles"])
         )
 
+    def test_struct_with_annotated_validation(self):
+        """Test CSP Struct with Annotated fields and validators"""
+        from pydantic import BeforeValidator, WrapValidator
+        from typing import Annotated
+
+        # Simple validator that modifies the value
+        def value_validator(v: Any) -> int:
+            if isinstance(v, str):
+                return int(v) * 2
+            return v
+
+        # Wrap validator that can modify the whole struct
+        def struct_validator(val, handler) -> Any:
+            if isinstance(val, dict) and "description" not in val:
+                # Expand simple dict to full structure
+                val["description"] = "auto_generated"
+            return handler(val)
+
+        # Define our nested structs
+        class InnerStruct(csp.Struct):
+            value: Annotated[int, BeforeValidator(value_validator)]
+            description: str = "default"
+            z: int
+
+        class OuterStruct(csp.Struct):
+            name: str
+            inner: Annotated[InnerStruct, WrapValidator(struct_validator)]
+
+        # Test simple value validation
+        inner = TypeAdapter(InnerStruct).validate_python({"value": "21"})
+        self.assertEqual(inner.value, 42)  # "21" -> 21 -> 42
+        self.assertEqual(inner.description, "default")
+        self.assertFalse(hasattr(inner, "z"))
+
+        # Test simple value validation
+        inner = TypeAdapter(InnerStruct).validate_python({"value": "21", "z": 17})
+        self.assertEqual(inner.value, 42)  # "21" -> 21 -> 42
+        self.assertEqual(inner.description, "default")
+        self.assertEqual(inner.z, 17)
+
+        # Test struct validation with expansion
+        outer = TypeAdapter(OuterStruct).validate_python({"name": "test", "inner": {"value": 10, "z": 12}})
+        self.assertEqual(outer.inner.value, 10)  # not a string so not doubled
+        self.assertEqual(outer.inner.description, "auto_generated")
+        self.assertEqual(outer.inner.z, 12)
+
+        # Test normal full structure still works
+        outer = TypeAdapter(OuterStruct).validate_python(
+            {"name": "test", "inner": {"value": "5", "description": "custom"}}
+        )
+        self.assertEqual(outer.inner.value, 10)
+        self.assertEqual(outer.inner.description, "custom")
+        self.assertFalse(hasattr(outer.inner, "z"))  # make sure z is not set
+
+    def test_struct_with_union(self):
+        """Test CSP Struct with Union fields"""
+        from typing import List, Union
+
+        class MetricStruct(csp.Struct):
+            # Union of different numeric types
+            value: Union[int, float]
+            # Union with None (equivalent to Optional)
+            name: Optional[str] = None
+            # More complex union with list
+            tags: Union[str, List[str]] = "default"
+
+        # Test with different value types
+        metric1 = TypeAdapter(MetricStruct).validate_python(
+            {
+                "value": 42,  # int
+            }
+        )
+        self.assertEqual(metric1.value, 42)
+        self.assertIsNone(metric1.name)
+        self.assertEqual(metric1.tags, "default")
+
+        metric2 = TypeAdapter(MetricStruct).validate_python(
+            {
+                "value": 42.5,  # float
+                "name": "test",
+                "tags": ["tag1", "tag2"],
+            }
+        )
+        self.assertEqual(metric2.value, 42.5)
+        self.assertEqual(metric2.name, "test")
+        self.assertEqual(metric2.tags, ["tag1", "tag2"])
+
+        # Test with string that should convert to float
+        metric3 = TypeAdapter(MetricStruct).validate_python(
+            {
+                "value": "42.5",  # should convert to float
+                "tags": "single_tag",  # single string tag
+            }
+        )
+        self.assertEqual(metric3.value, 42.5)
+        self.assertEqual(metric3.tags, "single_tag")
+
+        # Test validation error with invalid type
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(MetricStruct).validate_python(
+                {
+                    "value": "not a number",
+                }
+            )
+        self.assertIn("Input should be a valid number", str(exc_info.exception))
+
+        # Test with string that should convert to float
+        metric3 = TypeAdapter(MetricStruct).validate_python(
+            {
+                "tags": "single_tag"  # single string tag
+            }
+        )
+        self.assertFalse(hasattr(metric3, "value"))
+        self.assertEqual(metric3.tags, "single_tag")
+
+    def test_struct_with_nested_union(self):
+        """Test CSP Struct with Union of different Struct types"""
+
+        class MetricStruct(csp.Struct):
+            value: float
+            unit: str
+
+        class EventStruct(csp.Struct):
+            name: str
+            timestamp: datetime
+
+        class DataPoint(csp.Struct):
+            id: str
+            # Union of different Struct types
+            data: Union[MetricStruct, EventStruct]
+            # Optional nested struct
+            metadata: Union[MetricStruct, None] = None
+            # List of union of structs
+            history: List[Union[MetricStruct, EventStruct]] = []
+
+        # Test with MetricStruct
+        metric_data = {"id": "metric-1", "data": {"value": 42.5, "unit": "celsius"}}
+        result = TypeAdapter(DataPoint).validate_python(metric_data)
+        self.assertIsInstance(result.data, MetricStruct)
+        self.assertEqual(result.data.value, 42.5)
+        self.assertEqual(result.data.unit, "celsius")
+
+        # Test with EventStruct
+        event_data = {
+            "id": "event-1",
+            "data": {"name": "system_start", "timestamp": "2023-01-01T12:00:00"},
+            "history": [
+                {"value": 10.0, "unit": "meters"},
+                {"name": "previous_event", "timestamp": "2023-01-01T11:00:00"},
+            ],
+        }
+        result = TypeAdapter(DataPoint).validate_python(event_data)
+        self.assertIsInstance(result.data, EventStruct)
+        self.assertEqual(result.data.name, "system_start")
+        self.assertIsInstance(result.history[0], MetricStruct)
+        self.assertIsInstance(result.history[1], EventStruct)
+
+        # Test serialization and deserialization
+        result = TypeAdapter(DataPoint).validate_python(event_data)
+        json_data = result.to_json()
+        restored = TypeAdapter(DataPoint).validate_json(json_data)
+
+        self.assertIsInstance(restored.data, EventStruct)
+        self.assertEqual(restored.data.name, result.data.name)
+        self.assertEqual(len(restored.history), len(result.history))
+        self.assertIsInstance(restored.history[0], MetricStruct)
+        self.assertIsInstance(restored.history[1], EventStruct)
+
 
 if __name__ == "__main__":
     unittest.main()

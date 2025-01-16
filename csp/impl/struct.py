@@ -99,10 +99,16 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                     schema=field_schema, default=cls.__defaults__[field_name]
                 )
 
-            fields[field_name] = core_schema.model_field(schema=field_schema)
+            fields[field_name] = core_schema.typed_dict_field(
+                schema=field_schema,
+                required=False,  # Make all fields optional
+            )
 
-        # Create model fields schema
-        fields_schema = core_schema.model_fields_schema(fields=fields, model_name=cls.__name__)
+        # Use typed_dict_schema instead of model_fields_schema
+        fields_schema = core_schema.typed_dict_schema(
+            fields=fields,
+            total=False,  # Allow missing fields
+        )
 
         def create_instance(validated_data):
             data_dict = validated_data[0] if isinstance(validated_data, tuple) else validated_data

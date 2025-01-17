@@ -65,7 +65,7 @@ class Enum(_csptypesimpl.PyCspEnum, metaclass=EnumMeta):
         return f"{type(self).__name__}.{self.name}"
 
     @classmethod
-    def validate(cls, v) -> "Enum":
+    def _validate(cls, v) -> "Enum":
         if isinstance(v, cls):
             return v
         elif isinstance(v, str):
@@ -100,7 +100,7 @@ class Enum(_csptypesimpl.PyCspEnum, metaclass=EnumMeta):
         from pydantic_core import core_schema
 
         return core_schema.no_info_before_validator_function(
-            cls.validate,
+            cls._validate,
             core_schema.any_schema(),
             serialization=core_schema.plain_serializer_function_ser_schema(
                 cls._serialize, info_arg=False, return_schema=core_schema.str_schema(), when_used="json"

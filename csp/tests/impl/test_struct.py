@@ -3013,6 +3013,12 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(result.name, "ya")
         self.assertEqual(result.scores, [1.1, 2.2, 3.3])
 
+        # Test that we can validate existing structs
+        existing = SimpleStruct(value=1, scores=[1])
+        new = TypeAdapter(SimpleStruct).validate_python(existing)
+        self.assertTrue(existing is new)  # we do not revalidate
+        self.assertEqual(existing.value, 1)
+
         # Test type coercion
         coercion_data = {
             "value": "42",  # string should convert to int
@@ -3066,6 +3072,17 @@ class TestCspStruct(unittest.TestCase):
         result = TypeAdapter(EnumStruct).validate_python(enum_data)
         self.assertEqual(result.enum_field, MyEnum.A)
         self.assertEqual(result.enum_list, [MyEnum.A, MyEnum.B, MyEnum.A])
+
+        # 6. test with arbitrary class
+        class DummyBlankClass: ...
+
+        class StructWithDummy(csp.Struct):
+            x: int
+            y: DummyBlankClass
+
+        val = DummyBlankClass()
+        new_struct = TypeAdapter(StructWithDummy).validate_python(dict(x=12, y=val))
+        self.assertTrue(new_struct.y is val)
 
     def test_pydantic_validation_complex(self):
         """Test Pydantic validation with complex nested types and serialization"""
@@ -3304,11 +3321,14 @@ class TestCspStruct(unittest.TestCase):
         """Test CSP Struct with Annotated fields and validators"""
         from pydantic import BeforeValidator, WrapValidator
 
-        # Simple validator that modifies the value
+        # Simple validator that modifies the value and enforces value > 0
         def value_validator(v: Any) -> int:
             if isinstance(v, str):
-                return int(v) * 2
-            return v
+                v = int(v)
+            v = int(v)
+            if v <= 0:
+                raise ValueError("value must be positive")
+            return v * 2
 
         # Wrap validator that can modify the whole struct
         def struct_validator(val, handler) -> Any:
@@ -3333,6 +3353,20 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(inner.description, "default")
         self.assertFalse(hasattr(inner, "z"))
 
+        # test existing instance
+        inner_new = TypeAdapter(InnerStruct).validate_python(inner)
+        self.assertTrue(inner is inner_new)
+        # No revalidation
+        self.assertEqual(inner_new.value, 42)
+
+        # Test validation with invalid value in existing instance
+        inner.value = -5  # Set invalid value
+        # No revalidation, no error
+        self.assertTrue(inner is TypeAdapter(InnerStruct).validate_python(inner))
+        with self.assertRaises(ValidationError) as cm:
+            TypeAdapter(InnerStruct).validate_python(inner.to_dict())
+        self.assertIn("value must be positive", str(cm.exception))
+
         # Test simple value validation
         inner = TypeAdapter(InnerStruct).validate_python({"value": "21", "z": 17})
         self.assertEqual(inner.value, 42)  # "21" -> 21 -> 42
@@ -3341,7 +3375,7 @@ class TestCspStruct(unittest.TestCase):
 
         # Test struct validation with expansion
         outer = TypeAdapter(OuterStruct).validate_python({"name": "test", "inner": {"value": 10, "z": 12}})
-        self.assertEqual(outer.inner.value, 10)  # not a string so not doubled
+        self.assertEqual(outer.inner.value, 20)  # 10 -> 20 (doubled)
         self.assertEqual(outer.inner.description, "auto_generated")
         self.assertEqual(outer.inner.z, 12)
 
@@ -3349,7 +3383,7 @@ class TestCspStruct(unittest.TestCase):
         outer = TypeAdapter(OuterStruct).validate_python(
             {"name": "test", "inner": {"value": "5", "description": "custom"}}
         )
-        self.assertEqual(outer.inner.value, 10)
+        self.assertEqual(outer.inner.value, 10)  # "5" -> 5 -> 10 (doubled)
         self.assertEqual(outer.inner.description, "custom")
         self.assertFalse(hasattr(outer.inner, "z"))  # make sure z is not set
 

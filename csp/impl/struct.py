@@ -87,12 +87,16 @@ class StructMeta(_csptypesimpl.PyStructMeta):
     @staticmethod
     def _get_pydantic_core_schema(cls, _source_type, handler):
         """Tell Pydantic how to validate this Struct class."""
+        from pydantic import PydanticSchemaGenerationError
         from pydantic_core import core_schema
 
         fields = {}
 
         for field_name, field_type in cls.__full_metadata_typed__.items():
-            field_schema = handler.generate_schema(field_type)
+            try:
+                field_schema = handler.generate_schema(field_type)
+            except PydanticSchemaGenerationError:  # for classes we dont have a schema for
+                field_schema = core_schema.is_instance_schema(field_type)
 
             if field_name in cls.__defaults__:
                 field_schema = core_schema.with_default_schema(
@@ -104,19 +108,32 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 required=False,  # Make all fields optional
             )
 
-        # Use typed_dict_schema instead of model_fields_schema
+        # Schema for dictionary inputs
         fields_schema = core_schema.typed_dict_schema(
             fields=fields,
             total=False,  # Allow missing fields
         )
+        # Schema for direct class instances
+        instance_schema = core_schema.is_instance_schema(cls)
+        # Use union schema to handle both cases
+        schema = core_schema.union_schema(
+            [
+                instance_schema,
+                fields_schema,
+            ]
+        )
 
         def create_instance(validated_data):
+            # We choose to not revalidate, this is the default behavior in pydantic
+            if isinstance(validated_data, cls):
+                return validated_data
+
             data_dict = validated_data[0] if isinstance(validated_data, tuple) else validated_data
             return cls(**data_dict)
 
         return core_schema.no_info_after_validator_function(
             function=create_instance,
-            schema=fields_schema,
+            schema=schema,
             serialization=core_schema.plain_serializer_function_ser_schema(
                 function=lambda x: x.to_dict(),  # Use the built-in to_dict method
                 return_schema=core_schema.dict_schema(),

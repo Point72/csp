@@ -75,7 +75,7 @@ class Enum(_csptypesimpl.PyCspEnum, metaclass=EnumMeta):
         raise ValueError(f"Cannot convert value to enum: {v}")
 
     @staticmethod
-    def _serialize(value: "Enum") -> str:
+    def _serialize(value: typing.Union[str, "Enum"]) -> str:
         return value.name
 
     @classmethod

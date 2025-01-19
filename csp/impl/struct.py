@@ -86,7 +86,7 @@ class StructMeta(_csptypesimpl.PyStructMeta):
 
     @staticmethod
     def _get_pydantic_core_schema(cls, _source_type, handler):
-        """Tell Pydantic how to validate this Struct class."""
+        """Tell Pydantic how to validate and serialize this Struct class."""
         from pydantic import PydanticSchemaGenerationError
         from pydantic_core import core_schema
 
@@ -131,12 +131,16 @@ class StructMeta(_csptypesimpl.PyStructMeta):
             data_dict = validated_data[0] if isinstance(validated_data, tuple) else validated_data
             return cls(**data_dict)
 
+        def serializer(val, handler):
+            # We don't use 'to_dict' since that works recursively
+            new_val = {k: getattr(val, k) for k in val.__full_metadata_typed__ if hasattr(val, k)}
+            return handler(new_val)
+
         return core_schema.no_info_after_validator_function(
             function=create_instance,
             schema=schema,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                function=lambda x: x.to_dict(),  # Use the built-in to_dict method
-                return_schema=core_schema.dict_schema(),
+            serialization=core_schema.wrap_serializer_function_ser_schema(
+                function=serializer, schema=fields_schema, when_used="always"
             ),
         )
 

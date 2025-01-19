@@ -1,6 +1,10 @@
 import _pickle
+import json
+import pytest
 import unittest
 from datetime import datetime, timedelta
+from pydantic import BaseModel, ConfigDict, RootModel
+from typing import Dict, List
 
 import csp
 from csp import ts
@@ -34,6 +38,22 @@ class MyEnum2(csp.Enum):
 
 
 MyDEnum = csp.DynamicEnum("MyDEnum", ["A", "B", "C"])
+
+
+class MyEnum3(csp.Enum):
+    FIELD1 = csp.Enum.auto()
+    FIELD2 = csp.Enum.auto()
+
+
+class MyModel(BaseModel):
+    enum: MyEnum3
+    enum_default: MyEnum3 = MyEnum3.FIELD1
+
+
+class MyDictModel(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
+    enum_dict: Dict[MyEnum3, int] = None
 
 
 class TestCspEnum(unittest.TestCase):
@@ -151,6 +171,73 @@ class TestCspEnum(unittest.TestCase):
                 GREEN = 2
 
         self.assertEqual("Cannot extend csp.Enum 'A': inheriting from an Enum is prohibited", str(cm.exception))
+
+    def test_pydantic_validation(self):
+        assert MyModel(enum="FIELD2").enum == MyEnum3.FIELD2
+        assert MyModel(enum=0).enum == MyEnum3.FIELD1
+        assert MyModel(enum=MyEnum3.FIELD1).enum == MyEnum3.FIELD1
+        with pytest.raises(ValueError):
+            MyModel(enum=3.14)
+
+    def test_pydantic_dict(self):
+        assert dict(MyModel(enum=MyEnum3.FIELD2)) == {"enum": MyEnum3.FIELD2, "enum_default": MyEnum3.FIELD1}
+        assert MyModel(enum=MyEnum3.FIELD2).model_dump(mode="python") == {
+            "enum": MyEnum3.FIELD2,
+            "enum_default": MyEnum3.FIELD1,
+        }
+        assert MyModel(enum=MyEnum3.FIELD2).model_dump(mode="json") == {"enum": "FIELD2", "enum_default": "FIELD1"}
+
+    def test_pydantic_serialization(self):
+        assert "enum" in MyModel.model_fields
+        assert "enum_default" in MyModel.model_fields
+        tm = MyModel(enum=MyEnum3.FIELD2)
+        assert json.loads(tm.model_dump_json()) == json.loads('{"enum": "FIELD2", "enum_default": "FIELD1"}')
+
+    def test_enum_as_dict_key_json_serialization(self):
+        class DictWrapper(RootModel[Dict[MyEnum3, int]]):
+            model_config = ConfigDict(use_enum_values=True)
+
+            def __getitem__(self, item):
+                return self.root[item]
+
+        class MyDictWrapperModel(BaseModel):
+            model_config = ConfigDict(use_enum_values=True)
+
+            enum_dict: DictWrapper
+
+        dict_model = MyDictModel(enum_dict={MyEnum3.FIELD1: 8, MyEnum3.FIELD2: 19})
+        assert dict_model.enum_dict[MyEnum3.FIELD1] == 8
+        assert dict_model.enum_dict[MyEnum3.FIELD2] == 19
+
+        assert json.loads(dict_model.model_dump_json()) == json.loads('{"enum_dict":{"FIELD1":8,"FIELD2":19}}')
+
+        dict_wrapper_model = MyDictWrapperModel(enum_dict=DictWrapper({MyEnum3.FIELD1: 8, MyEnum3.FIELD2: 19}))
+
+        assert dict_wrapper_model.enum_dict[MyEnum3.FIELD1] == 8
+        assert dict_wrapper_model.enum_dict[MyEnum3.FIELD2] == 19
+        assert json.loads(dict_wrapper_model.model_dump_json()) == json.loads('{"enum_dict":{"FIELD1":8,"FIELD2":19}}')
+
+    def test_json_schema_csp(self):
+        assert MyModel.model_json_schema() == {
+            "properties": {
+                "enum": {
+                    "description": "An enumeration of MyEnum3",
+                    "enum": ["FIELD1", "FIELD2"],
+                    "title": "MyEnum3",
+                    "type": "string",
+                },
+                "enum_default": {
+                    "default": "FIELD1",
+                    "description": "An enumeration of MyEnum3",
+                    "enum": ["FIELD1", "FIELD2"],
+                    "title": "MyEnum3",
+                    "type": "string",
+                },
+            },
+            "required": ["enum"],
+            "title": "MyModel",
+            "type": "object",
+        }
 
 
 if __name__ == "__main__":

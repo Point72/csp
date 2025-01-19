@@ -3567,9 +3567,166 @@ class TestCspStruct(unittest.TestCase):
         self.assertIsInstance(result.history[2], BaseMetric)  # Should be base
 
         # Test serialization and deserialization preserves specific types
-        json_data = result.to_json()
-        restored = TypeAdapter(DataPoint).validate_json(json_data)
+        json_data_csp = result.to_json()
+        json_data_pydantic = TypeAdapter(DataPoint).dump_json(result).decode()
+        self.assertEqual(json.loads(json_data_csp), json.loads(json_data_pydantic))
+        restored = TypeAdapter(DataPoint).validate_json(json_data_csp)
         self.assertEqual(restored, result)
+
+    def test_pydantic_custom_serialization(self):
+        """Test that CustomStruct correctly serializes integers with comma formatting"""
+        from pydantic.functional_serializers import PlainSerializer
+
+        # Define the custom integer type with fancy formatting
+        FancyInt = Annotated[int, PlainSerializer(lambda x: f"{x:,}", return_type=str, when_used="always")]
+
+        # Simple struct with just the FancyInt
+        class CustomStruct(csp.Struct):
+            value: FancyInt
+
+        # Test different integer values
+        test_cases = [
+            (1234, "1,234"),
+            (1000000, "1,000,000"),
+            (42, "42"),
+        ]
+
+        for input_value, expected_output in test_cases:
+            # Create and serialize the struct
+            s = CustomStruct(value=input_value)
+            serialized = json.loads(TypeAdapter(CustomStruct).dump_json(s))
+
+            # Verify the serialization
+            self.assertEqual(
+                serialized["value"],
+                expected_output,
+            )
+
+    def test_pydantic_serialization_with_enums(self):
+        """Test serialization behavior with enums using both native and Pydantic approaches"""
+
+        class Color(csp.Enum):
+            RED = 1
+            GREEN = 2
+            BLUE = 3
+
+        class Shape(csp.Enum):
+            CIRCLE = 1
+            SQUARE = 2
+            TRIANGLE = 3
+
+        class DrawingStruct(csp.Struct):
+            color: Color
+            shape: Shape
+            colors: List[Color]
+            shapes: Dict[str, Shape]
+
+        drawing = DrawingStruct(
+            color=Color.RED,
+            shape=Shape.CIRCLE,
+            colors=[Color.RED, Color.GREEN, Color.BLUE],
+            shapes={"a": Shape.SQUARE, "b": Shape.TRIANGLE},
+        )
+
+        # Test native serialization
+        native_json = json.loads(drawing.to_json())
+        self.assertEqual(native_json["color"], "RED")
+        self.assertEqual(native_json["shape"], "CIRCLE")
+        self.assertEqual(native_json["colors"], ["RED", "GREEN", "BLUE"])
+        self.assertEqual(native_json["shapes"], {"a": "SQUARE", "b": "TRIANGLE"})
+
+        # Test Pydantic serialization
+        pydantic_json = json.loads(TypeAdapter(DrawingStruct).dump_json(drawing))
+        self.assertEqual(pydantic_json, native_json)  # Should be identical for enums
+
+        # Test round-trip through both methods
+        native_restored = DrawingStruct.from_dict(json.loads(drawing.to_json()))
+        pydantic_restored = TypeAdapter(DrawingStruct).validate_json(TypeAdapter(DrawingStruct).dump_json(drawing))
+
+        self.assertEqual(native_restored, drawing)
+        self.assertEqual(pydantic_restored, drawing)
+
+    def test_pydantic_serialization_vs_native(self):
+        """Test that Pydantic serialization matches CSP native serialization for basic types"""
+        from pydantic.functional_serializers import PlainSerializer
+
+        class MyEnum(csp.Enum):
+            OPTION1 = csp.Enum.auto()
+            OPTION2 = csp.Enum.auto()
+
+        # Define custom datetime serialization
+        # This is so that pydantic serializes datetime with the same precision as csp natively does
+        SimpleDatetime = Annotated[
+            datetime,
+            PlainSerializer(lambda dt: dt.strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"), return_type=str, when_used="json"),
+        ]
+
+        class SimpleStruct(csp.Struct):
+            i: int = 123
+            f: float = 3.14
+            s: str = "test"
+            b: bool = True
+            # dt: datetime = datetime(2023, 1, 1)
+            dt: SimpleDatetime = datetime(2023, 1, 1)
+            l: List[int] = [1, 2, 3]
+            d: Dict[str, float] = {"a": 1.1, "b": 2.2}
+            e: MyEnum
+
+        # Test with default values
+        s1 = SimpleStruct()
+        json_native = s1.to_json()
+        json_pydantic = TypeAdapter(SimpleStruct).dump_json(s1).decode()
+        self.assertEqual(json.loads(json_native), json.loads(json_pydantic))
+        python_native = s1.to_dict()
+        python_pydantic = TypeAdapter(SimpleStruct).dump_python(s1)
+        self.assertEqual(python_native, python_pydantic)
+        # unset variables with no default do not get encoded
+        self.assertTrue("e" not in python_native)
+        self.assertTrue("e" not in python_pydantic)
+
+        # Test with custom values
+        s2 = SimpleStruct(
+            i=456,
+            f=2.718,
+            s="custom",
+            b=False,
+            dt=datetime(2024, 1, 1, tzinfo=pytz.UTC),
+            l=[4, 5, 6],
+            d={"x": 9.9, "y": 8.8},
+            e=MyEnum.OPTION2,
+        )
+        python_native = s2.to_dict()
+        python_pydantic = TypeAdapter(SimpleStruct).dump_python(s2)
+        # NOTE: csp, when running 'to_dict'
+        # converts csp Enums to str
+        # The pydantic version maintains them as csp Enums, which is arguably more correct
+        enum_as_str = python_native.pop("e")
+        enum_as_enum = python_pydantic.pop("e")
+        self.assertEqual(python_native, python_pydantic)
+        self.assertEqual(enum_as_enum.name, enum_as_str)
+
+        json_native = s2.to_json()
+        json_pydantic = TypeAdapter(SimpleStruct).dump_json(s2).decode()
+        self.assertEqual(json.loads(json_native), json.loads(json_pydantic))
+
+        # Test with nested structs
+        class NestedStruct(csp.Struct):
+            name: str
+            simple: SimpleStruct
+            simples: List[SimpleStruct]
+
+        nested = NestedStruct(name="test", simple=s1, simples=[s1, s2])
+
+        python_native = nested.to_dict()
+        python_pydantic = TypeAdapter(NestedStruct).dump_python(nested)
+        enum_as_str = python_native["simples"][1].pop("e")
+        enum_as_enum = python_pydantic["simples"][1].pop("e")
+        self.assertEqual(python_native, python_pydantic)
+        self.assertEqual(enum_as_enum.name, enum_as_str)
+
+        json_native = nested.to_json()
+        json_pydantic = TypeAdapter(NestedStruct).dump_json(nested).decode()
+        self.assertEqual(json.loads(json_native), json.loads(json_pydantic))
 
 
 if __name__ == "__main__":

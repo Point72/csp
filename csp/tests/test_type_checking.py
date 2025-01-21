@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, Optional, Union
 import csp
 import csp.impl.types.instantiation_type_resolver as type_resolver
 from csp import ts
+from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring.runtime import build_graph
 
 USE_PYDANTIC = os.environ.get("CSP_PYDANTIC")
@@ -915,6 +916,26 @@ class TestTypeChecking(unittest.TestCase):
             node_union_untyped(csp.const(10), [1, 2])
 
         csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_is_callable(self):
+        """Test CspTypingUtils.is_callable with various input types"""
+        # Test cases as (input, expected_result) pairs
+        test_cases = [
+            # Direct Callable types
+            (Callable, True),
+            (Callable[[int, str], bool], True),
+            (Callable[..., None], True),
+            (Callable[[int], str], True),
+            # optional Callable is not Callable
+            (Optional[Callable], False),
+            # Typing module types
+            (List[int], False),
+            (Dict[str, int], False),
+            (typing.Set[str], False),
+        ]
+        for input_type, expected in test_cases:
+            result = CspTypingUtils.is_callable(input_type)
+            self.assertEqual(result, expected)
 
 
 if __name__ == "__main__":

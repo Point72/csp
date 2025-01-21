@@ -386,9 +386,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
     def _is_scalar_value_matching_spec(self, inp_def_type, arg):
         if inp_def_type is typing.Any:
             return True
-        if inp_def_type is typing.Callable or (
-            hasattr(inp_def_type, "__origin__") and CspTypingUtils.get_origin(inp_def_type) is collections.abc.Callable
-        ):
+        if CspTypingUtils.is_callable(inp_def_type):
             return callable(arg)
         resolved_type = UpcastRegistry.instance().resolve_type(inp_def_type, type(arg), raise_on_error=False)
         if resolved_type is inp_def_type:

@@ -1,4 +1,5 @@
 # utils for dealing with typing types
+import collections
 import numpy
 import sys
 import types
@@ -28,6 +29,15 @@ class CspTypingUtils37:
     def get_origin(cls, typ):
         raw_origin = typ.__origin__
         return cls._ORIGIN_COMPAT_MAP.get(raw_origin, raw_origin)
+
+    @classmethod
+    def is_callable(cls, typ):
+        # Checks if a type annotation refers to a callable
+        if typ is typing.Callable:
+            return True
+        if not hasattr(typ, "__origin__"):
+            return False
+        return CspTypingUtils.get_origin(typ) is collections.abc.Callable
 
     @classmethod
     def is_numpy_array_type(cls, typ):

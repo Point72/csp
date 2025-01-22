@@ -13,6 +13,7 @@ from typing_extensions import Annotated
 import csp
 from csp.impl.struct import define_nested_struct, define_struct, defineNestedStruct, defineStruct
 from csp.impl.types.typing_utils import FastList
+from csp.typing import Numpy1DArray
 
 
 class MyEnum(csp.Enum):
@@ -3013,6 +3014,13 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(result.name, "ya")
         self.assertEqual(result.scores, [1.1, 2.2, 3.3])
 
+        invalid_data = valid_data.copy()
+        invalid_data["missing"] = False
+        result_extra_attr = TypeAdapter(SimpleStruct).validate_python(
+            invalid_data
+        )  # this passes since we drop extra fields
+        self.assertEqual(result, result_extra_attr)
+
         # Test that we can validate existing structs
         existing = SimpleStruct(value=1, scores=[1])
         new = TypeAdapter(SimpleStruct).validate_python(existing)
@@ -3727,6 +3735,22 @@ class TestCspStruct(unittest.TestCase):
         json_native = nested.to_json()
         json_pydantic = TypeAdapter(NestedStruct).dump_json(nested).decode()
         self.assertEqual(json.loads(json_native), json.loads(json_pydantic))
+
+    def test_pydantic_np_arr(self):
+        class NPStruct(csp.Struct):
+            arr: Numpy1DArray[float] = np.array([])
+
+        val = NPStruct(arr=np.array([1, 2]))
+        json_val = TypeAdapter(NPStruct).dump_json(val)
+        # We serialize as a list
+        self.assertEqual(json.loads(json_val), dict(arr=[1, 2]))
+        revived_val = TypeAdapter(NPStruct).validate_json(json_val)
+        np.all(val.arr == revived_val)
+
+        NPStruct(arr=np.array([1, 3, "ab"]))  # No error, even though the types are wrong
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(NPStruct).validate_python(dict(arr=[1, 3, "ab"]))
+        self.assertIn("could not convert string to float", str(exc_info.exception))
 
 
 if __name__ == "__main__":

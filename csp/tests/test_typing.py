@@ -12,8 +12,8 @@ class TestNNumpy1DArray(TestCase):
         ta.validate_python(np.array([1.0, 2.0], dtype=np.float64))
         self.assertRaises(Exception, ta.validate_python, np.array([[1.0]]))
         self.assertRaises(Exception, ta.validate_python, np.array(["foo"]))
-        self.assertRaises(Exception, ta.validate_python, np.array([1, 2]))
-        self.assertRaises(Exception, ta.validate_python, np.array([1.0, 2.0], dtype=np.float32))
+        ta.validate_python(np.array([1, 2]))  # gets coerced to correct type
+        ta.validate_python(np.array([1.0, 2.0], dtype=np.float32))  # gets coerced to correct type
 
     def test_NumpyNDArray(self):
         ta = TypeAdapter(NumpyNDArray[float])
@@ -22,5 +22,5 @@ class TestNNumpy1DArray(TestCase):
         ta.validate_python(np.array([[1.0, 2.0]]))
         ta.validate_python(np.array([[1.0, 2.0]], dtype=np.float64))
         self.assertRaises(Exception, ta.validate_python, np.array(["foo"]))
-        self.assertRaises(Exception, ta.validate_python, np.array([1, 2]))
-        self.assertRaises(Exception, ta.validate_python, np.array([1.0, 2.0], dtype=np.float32))
+        ta.validate_python(np.array([1, 2]))  # gets coerced to correct type
+        ta.validate_python(np.array([1.0, 2.0], dtype=np.float32))  # gets coerced to correct type

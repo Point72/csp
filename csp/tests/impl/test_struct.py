@@ -7,6 +7,7 @@ import typing
 import unittest
 from datetime import date, datetime, time, timedelta
 from pydantic import TypeAdapter, ValidationError
+from pydantic_core import PydanticSerializationError
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
 from typing_extensions import Annotated
 
@@ -3079,16 +3080,65 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(result.enum_field, MyEnum.A)
         self.assertEqual(result.enum_list, [MyEnum.A, MyEnum.B, MyEnum.A])
 
-        # 6. test with arbitrary class
+    def test_non_serializable_pydantic(self):
         class DummyBlankClass: ...
 
         class StructWithDummy(csp.Struct):
             x: int
             y: DummyBlankClass
+            z: List[DummyBlankClass]
+            z1: Dict[DummyBlankClass, DummyBlankClass]
+            z2: Optional[Dict[DummyBlankClass, int]]
+            z3: List[List[DummyBlankClass]]
+            z4: Optional[List[List[DummyBlankClass]]]
 
         val = DummyBlankClass()
-        new_struct = TypeAdapter(StructWithDummy).validate_python(dict(x=12, y=val))
+        struct_as_dict = dict(x=12, y=val, z=[val], z1={val: val}, z2=None)
+        new_struct = TypeAdapter(StructWithDummy).validate_python(struct_as_dict)
         self.assertTrue(new_struct.y is val)
+        self.assertTrue(new_struct.z[0] is val)
+        self.assertTrue(new_struct.z1[val] is val)
+        self.assertTrue(new_struct.z2 is None)
+        self.assertEqual(TypeAdapter(StructWithDummy).dump_python(new_struct), struct_as_dict)
+
+        for original_z2 in [None, {val: 12}]:
+            z3_val = set([tuple([val, val])])
+            struct_as_dict = dict(
+                x=12,
+                y=val,
+                z=set([val]),  # type is off
+                z1={val: val},
+                z2=original_z2,
+                z3=z3_val,
+                z4=z3_val,
+            )
+            new_struct = TypeAdapter(StructWithDummy).validate_python(struct_as_dict)
+            self.assertTrue(new_struct.y is val)
+            self.assertTrue(new_struct.z[0] is val)
+            self.assertTrue(new_struct.z1[val] is val)
+            self.assertTrue(new_struct.z2 is original_z2)
+            self.assertTrue(new_struct.z3[0][0] is val)
+            self.assertTrue(new_struct.z3[0][1] is val)
+            self.assertEqual(new_struct.z4, z3_val)  # we don't actually validate
+
+            new_struct_as_dict = TypeAdapter(StructWithDummy).dump_python(new_struct)
+            self.assertEqual(new_struct_as_dict.pop("z"), [val])  # turned into a list!
+            self.assertEqual(struct_as_dict.pop("z"), set([val]))  # remains a set
+
+            # turned into a list of tuples! Note that the inner type is wrong, we do not error since we
+            # pass an 'any_schema'. We maintain csp's behavior by passing the raw result to csp.
+            self.assertEqual(new_struct_as_dict.pop("z3"), [tuple([val, val])])
+            self.assertEqual(new_struct_as_dict.pop("z4"), z3_val)
+            csp_struct = StructWithDummy(**struct_as_dict)
+            self.assertEqual(csp_struct.z3, [tuple([val, val])])
+            self.assertEqual(csp_struct.z4, z3_val)
+
+            self.assertEqual(struct_as_dict.pop("z3"), z3_val)  # remains a set
+            self.assertEqual(struct_as_dict.pop("z4"), z3_val)  # remains a set
+            self.assertEqual(new_struct_as_dict, struct_as_dict)
+
+            with self.assertRaises(PydanticSerializationError):
+                TypeAdapter(StructWithDummy).dump_json(new_struct)
 
     def test_pydantic_validation_complex(self):
         """Test Pydantic validation with complex nested types and serialization"""

@@ -96,8 +96,13 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 continue  # we skip fields with underscore, like pydantic does
             try:
                 field_schema = handler.generate_schema(field_type)
-            except PydanticSchemaGenerationError:  # for classes we dont have a schema for
-                field_schema = core_schema.is_instance_schema(field_type)
+            except PydanticSchemaGenerationError:
+                # This logic allows for handling generic types with types we cant get a schema for, only 1 layer deep, same as csp
+                item_tp = typing.Any if typing.get_origin(field_type) is None else typing.get_args(field_type)[0]
+                try:
+                    field_schema = handler.generate_schema(item_tp)
+                except PydanticSchemaGenerationError:
+                    field_schema = core_schema.any_schema()  # give up finally
 
             if field_name in cls.__defaults__:
                 field_schema = core_schema.with_default_schema(

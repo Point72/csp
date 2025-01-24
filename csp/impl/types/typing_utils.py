@@ -1,4 +1,5 @@
 # utils for dealing with typing types
+import collections
 import numpy
 import sys
 import types
@@ -30,6 +31,15 @@ class CspTypingUtils37:
         return cls._ORIGIN_COMPAT_MAP.get(raw_origin, raw_origin)
 
     @classmethod
+    def is_callable(cls, typ):
+        # Checks if a type annotation refers to a callable
+        if typ is typing.Callable:
+            return True
+        if not hasattr(typ, "__origin__"):
+            return False
+        return CspTypingUtils.get_origin(typ) is collections.abc.Callable
+
+    @classmethod
     def is_numpy_array_type(cls, typ):
         return CspTypingUtils.is_generic_container(typ) and CspTypingUtils.get_orig_base(typ) is numpy.ndarray
 
@@ -40,7 +50,10 @@ class CspTypingUtils37:
     # is typ a standard generic container
     @classmethod
     def is_generic_container(cls, typ):
-        return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union
+        # isinstance(typing.Callable, typing._GenericAlias) passses in python 3.8, we don't want that
+        return (
+            isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union and typ is not typing.Callable
+        )
 
     @classmethod
     def is_union_type(cls, typ):
@@ -76,6 +89,10 @@ if sys.version_info >= (3, 9):
     class CspTypingUtils39(CspTypingUtils37):
         # To support PEP 585
         _GENERIC_ALIASES = (typing._GenericAlias, typing.GenericAlias)
+
+        @classmethod
+        def is_generic_container(cls, typ):
+            return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union
 
     CspTypingUtils = CspTypingUtils39
 

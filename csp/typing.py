@@ -40,8 +40,9 @@ class NumpyNDArray(Generic[T], numpy.ndarray):
                 raise ValueError(f"dtype of array must be a subdtype of {source_args[0]}")
             return v
 
-        return core_schema.no_info_plain_validator_function(
+        return core_schema.no_info_before_validator_function(
             _validate,
+            core_schema.any_schema(),
             serialization=core_schema.wrap_serializer_function_ser_schema(
                 lambda val, handler: handler(val if val is None else val.tolist()),
                 info_arg=False,
@@ -71,8 +72,9 @@ class Numpy1DArray(NumpyNDArray[T]):
                 raise ValueError("array must be one dimensional")
             return v
 
-        return core_schema.no_info_plain_validator_function(
+        return core_schema.no_info_before_validator_function(
             _validate,
+            core_schema.any_schema(),
             serialization=core_schema.wrap_serializer_function_ser_schema(
                 lambda val, handler: handler(val if val is None else val.tolist()),
                 info_arg=False,

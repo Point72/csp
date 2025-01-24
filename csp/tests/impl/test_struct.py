@@ -3016,10 +3016,8 @@ class TestCspStruct(unittest.TestCase):
 
         invalid_data = valid_data.copy()
         invalid_data["missing"] = False
-        result_extra_attr = TypeAdapter(SimpleStruct).validate_python(
-            invalid_data
-        )  # this passes since we drop extra fields
-        self.assertEqual(result, result_extra_attr)
+        with self.assertRaises(ValidationError):
+            TypeAdapter(SimpleStruct).validate_python(invalid_data)  # extra fields throw an error
 
         # Test that we can validate existing structs
         existing = SimpleStruct(value=1, scores=[1])
@@ -3732,6 +3730,10 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(python_native, python_pydantic)
         self.assertEqual(enum_as_enum.name, enum_as_str)
 
+        self.assertEqual(
+            nested, TypeAdapter(NestedStruct).validate_python(TypeAdapter(NestedStruct).dump_python(nested))
+        )
+
         json_native = nested.to_json()
         json_pydantic = TypeAdapter(NestedStruct).dump_json(nested).decode()
         self.assertEqual(json.loads(json_native), json.loads(json_pydantic))
@@ -3751,6 +3753,104 @@ class TestCspStruct(unittest.TestCase):
         with self.assertRaises(ValidationError) as exc_info:
             TypeAdapter(NPStruct).validate_python(dict(arr=[1, 3, "ab"]))
         self.assertIn("could not convert string to float", str(exc_info.exception))
+        # We should be able to generate the json_schema
+        TypeAdapter(NPStruct).json_schema()
+
+    def test_struct_with_private_fields(self):
+        """Test CSP Struct with private (_) fields to ensure they're validated but excluded from serialization"""
+
+        class BaseMetric(csp.Struct):
+            _base_id: str
+            value: float
+
+        class MetricMetadata(BaseMetric):
+            _internal_id: str
+            public_tag: str
+            _inherited: bool = True
+
+        class MetricStruct(csp.Struct):
+            value: float
+            _confidence: float
+            metadata: MetricMetadata
+
+        class EventStruct(csp.Struct):
+            name: str
+            timestamp: datetime
+            _source: str = "system"
+
+        class DataPoint(csp.Struct):
+            id: str
+            data: Union[MetricStruct, EventStruct]
+            _last_updated: datetime
+
+        # Test validation with private fields
+        metric_data = {
+            "id": "metric-1",
+            "_last_updated": datetime(2023, 1, 1, 12, 0),  # not validated
+            "data": {
+                "value": 42.5,
+                "_confidence": 0.95,
+                "metadata": {
+                    "_base_id": "base123",
+                    "value": 99.9,
+                    "_internal_id": "internal123",
+                    "public_tag": "temperature",
+                    "_inherited": False,
+                },
+            },
+        }
+
+        result = TypeAdapter(DataPoint).validate_python(metric_data)
+
+        # Verify private fields are properly set including inherited ones
+        self.assertEqual(result._last_updated, datetime(2023, 1, 1, 12, 0))
+        self.assertEqual(result.data._confidence, 0.95)
+        self.assertEqual(result.data.metadata._base_id, "base123")
+        self.assertEqual(result.data.metadata._internal_id, "internal123")
+        self.assertEqual(result.data.metadata._inherited, False)
+        self.assertEqual(result.data.metadata.value, 99.9)
+
+        # Test serialization - private fields should be excluded, including inherited ones
+        serialized = TypeAdapter(DataPoint).dump_python(result)
+        self.assertNotIn("_last_updated", serialized)
+        self.assertNotIn("_confidence", serialized["data"])
+        self.assertNotIn("_base_id", serialized["data"]["metadata"])
+        self.assertNotIn("_internal_id", serialized["data"]["metadata"])
+        self.assertNotIn("_inherited", serialized["data"]["metadata"])
+        self.assertEqual(serialized["data"]["metadata"]["value"], 99.9)
+
+        # Verify JSON serialization also excludes private fields
+        json_data = json.loads(TypeAdapter(DataPoint).dump_json(result))
+        self.assertNotIn("_last_updated", json_data)
+        self.assertNotIn("_confidence", json_data["data"])
+        self.assertNotIn("_base_id", json_data["data"]["metadata"])
+        self.assertNotIn("_internal_id", json_data["data"]["metadata"])
+        self.assertNotIn("_inherited", json_data["data"]["metadata"])
+        self.assertEqual(json_data["data"]["metadata"]["value"], 99.9)
+
+        # Test that public fields are still included
+        self.assertEqual(json_data["data"]["metadata"]["public_tag"], "temperature")
+
+        # Test with event data
+        event_data = {
+            "id": "event-1",
+            "_last_updated": datetime(2023, 1, 1, 12, 0),  # not validated
+            "data": {
+                "name": "system_start",
+                "timestamp": "2023-01-01T12:00:00",  # validated
+                "_source": "automated_test",
+            },
+        }
+
+        result = TypeAdapter(DataPoint).validate_python(event_data)
+
+        # Verify private fields are set but excluded from serialization
+        self.assertEqual(result._last_updated, datetime(2023, 1, 1, 12, 0))
+        self.assertEqual(result.data._source, "automated_test")
+
+        json_data = json.loads(TypeAdapter(DataPoint).dump_json(result))
+        self.assertNotIn("_last_updated", json_data)
+        self.assertNotIn("_source", json_data["data"])
 
 
 if __name__ == "__main__":

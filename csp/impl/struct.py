@@ -91,8 +91,9 @@ class StructMeta(_csptypesimpl.PyStructMeta):
         from pydantic_core import core_schema
 
         fields = {}
-
         for field_name, field_type in cls.__full_metadata_typed__.items():
+            if field_name.startswith("_"):
+                continue  # we skip fields with underscore, like pydantic does
             try:
                 field_schema = handler.generate_schema(field_type)
             except PydanticSchemaGenerationError:  # for classes we dont have a schema for
@@ -102,43 +103,37 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 field_schema = core_schema.with_default_schema(
                     schema=field_schema, default=cls.__defaults__[field_name]
                 )
-
             fields[field_name] = core_schema.typed_dict_field(
                 schema=field_schema,
                 required=False,  # Make all fields optional
             )
-
         # Schema for dictionary inputs
         fields_schema = core_schema.typed_dict_schema(
             fields=fields,
             total=False,  # Allow missing fields
-        )
-        # Schema for direct class instances
-        instance_schema = core_schema.is_instance_schema(cls)
-        # Use union schema to handle both cases
-        schema = core_schema.union_schema(
-            [
-                instance_schema,
-                fields_schema,
-            ]
+            extra_behavior="allow",  # let csp catch extra attributes, allows underscore fields to pass through
         )
 
-        def create_instance(validated_data):
+        def create_instance(raw_data, validator):
             # We choose to not revalidate, this is the default behavior in pydantic
-            if isinstance(validated_data, cls):
-                return validated_data
-
-            data_dict = validated_data[0] if isinstance(validated_data, tuple) else validated_data
-            return cls(**data_dict)
+            if isinstance(raw_data, cls):
+                return raw_data
+            try:
+                return cls(**validator(raw_data))
+            except AttributeError as e:
+                #  Pydantic can't use AttributeError to check other classes, like in Union annotations
+                raise ValueError(str(e)) from None
 
         def serializer(val, handler):
-            # We don't use 'to_dict' since that works recursively
-            new_val = {k: getattr(val, k) for k in val.__full_metadata_typed__ if hasattr(val, k)}
+            # We don't use 'to_dict' since that works recursively, we ignore underscore leading fields
+            new_val = {
+                k: getattr(val, k) for k in val.__full_metadata_typed__ if not k.startswith("_") and hasattr(val, k)
+            }
             return handler(new_val)
 
-        return core_schema.no_info_after_validator_function(
+        return core_schema.no_info_wrap_validator_function(
             function=create_instance,
-            schema=schema,
+            schema=fields_schema,
             serialization=core_schema.wrap_serializer_function_ser_schema(
                 function=serializer, schema=fields_schema, when_used="always"
             ),

@@ -113,11 +113,6 @@ void KafkaConsumer::addSubscriber( const std::string & topic, const std::string 
 
 void KafkaConsumer::start( DateTime starttime )
 {
-    if( !m_consumer )
-    {
-        CSP_THROW( RuntimeException, "Consumer is null" );
-    }
-
     //RebalanceCb is only used / available if we requested a start_offset
     if( m_rebalanceCb )
     {

@@ -160,7 +160,7 @@ void KafkaAdapterManager::fetchMetadata() {
     if ( m_producer ) {
         err = m_producer -> metadata(
             true,  // get all topics
-            nullptr,  // Topic pointer to specific topic
+            nullptr,  // Topic pointer to specific topic (null since we getting them all)
             &metadata,  // pointer to hold metadata. It must be released by calling delete
             m_brokerConnectTimeoutMs  // timeout before failing 
         );
@@ -189,8 +189,8 @@ void KafkaAdapterManager::fetchMetadata() {
 }
 
 
+// This also serves as a validation check for the broker
 void KafkaAdapterManager::validateTopic(const std::string& topic){
-    // This also serves as a validation check for the broker
     if (m_validated_topics.find(topic) != m_validated_topics.end()) {
         return;
     }
@@ -199,10 +199,10 @@ void KafkaAdapterManager::validateTopic(const std::string& topic){
     }
     const std::vector<const RdKafka::TopicMetadata*>*  topics_vec = m_metadata->topics();
     auto it = std::find_if(
-        topics_vec->begin(),
-        topics_vec->end(),
+        topics_vec -> begin(),
+        topics_vec -> end(),
         [&topic](const RdKafka::TopicMetadata* mt) { 
-            return mt->topic() == topic; 
+            return mt -> topic() == topic; 
         }
     );
     

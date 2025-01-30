@@ -56,6 +56,7 @@ class KafkaAdapterManager:
         rd_kafka_conf_options=None,
         debug: bool = False,
         poll_timeout: timedelta = timedelta(seconds=1),
+        broker_connect_timeout: timedelta = timedelta(seconds=5),
     ):
         """
         :param broker - broker URL
@@ -100,6 +101,7 @@ class KafkaAdapterManager:
             "rd_kafka_conf_properties": conf_properties,
             "rd_kafka_consumer_conf_properties": consumer_properties,
             "rd_kafka_producer_conf_properties": producer_properties,
+            "broker_connect_timeout": broker_connect_timeout,
         }
 
         if auth:

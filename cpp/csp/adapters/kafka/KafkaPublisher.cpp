@@ -63,10 +63,14 @@ PushInputAdapter * KafkaPublisher::getStatusAdapter()
 void KafkaPublisher::start( std::shared_ptr<RdKafka::Producer> producer )
 {
     m_producer = producer;
-
-    std::unique_ptr<RdKafka::Conf> tconf( RdKafka::Conf::create( RdKafka::Conf::CONF_TOPIC ) );
-
     std::string errstr;
+    m_adapterMgr.validateTopic( m_topic ); // make sure we can access topic
+    // Create topic
+    std::unique_ptr<RdKafka::Conf> tconf(RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC));
+    m_kafkaTopic = std::shared_ptr<RdKafka::Topic>(
+        RdKafka::Topic::create(m_producer.get(), m_topic, tconf.get(), errstr)
+    );
+
     m_kafkaTopic = std::shared_ptr<RdKafka::Topic>( RdKafka::Topic::create( m_producer.get(), m_topic, tconf.get(), errstr ) );
     if( !m_kafkaTopic )
         CSP_THROW( RuntimeException, "Failed to create RdKafka::Topic for producer on topic " << m_topic << ":" << errstr );

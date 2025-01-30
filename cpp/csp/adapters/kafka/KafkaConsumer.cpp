@@ -29,12 +29,8 @@ public:
                 for( auto * partition : partitions )
                     numPartitions[ partition -> topic() ] += 1;
 
-                for( auto & entry : numPartitions ){
+                for( auto & entry : numPartitions )
                     m_consumer.setNumPartitions( entry.first, entry.second );
-                    // Flag wildcard subscribers as complete immediately after getting partition info
-                    if(auto* wildcard = m_consumer.getWildcardSubscriber(entry.first))
-                        wildcard->flagReplayComplete();
-                }
 
                 if( !m_startTime.isNone() )
                 {
@@ -93,15 +89,15 @@ KafkaConsumer::KafkaConsumer( KafkaAdapterManager * mgr, const Dictionary & prop
 KafkaConsumer::~KafkaConsumer()
 {
     // in case destructor is called before stop()
-    stop();
-}
-
-KafkaSubscriber* KafkaConsumer::getWildcardSubscriber(const std::string& topic)
-{
-    auto it = m_topics.find(topic);
-    if(it != m_topics.end())
-        return it->second.wildcardSubscriber;
-    return nullptr;
+    try 
+    {
+        if( m_running )
+            stop();
+    }
+    catch( const Exception & err )
+    {
+        m_mgr -> rootEngine() -> shutdown( std::current_exception() );
+    }
 }
 
 void KafkaConsumer::addSubscriber( const std::string & topic, const std::string & key, KafkaSubscriber * subscriber )
@@ -117,6 +113,11 @@ void KafkaConsumer::addSubscriber( const std::string & topic, const std::string 
 
 void KafkaConsumer::start( DateTime starttime )
 {
+    if( !m_consumer )
+    {
+        CSP_THROW( RuntimeException, "Consumer is null" );
+    }
+
     //RebalanceCb is only used / available if we requested a start_offset
     if( m_rebalanceCb )
     {
@@ -151,8 +152,15 @@ void KafkaConsumer::start( DateTime starttime )
         forceReplayCompleted();
 
     std::vector<std::string> topics;
-    for( auto & entry : m_topics )
-        topics.emplace_back( entry.first );
+    for (const auto& [topic, topic_data] : m_topics)
+    {
+        topics.emplace_back( topic );
+        // wildcard subscription has no guarantee of being in order 
+        // we flag replay complete as soon as we identify it.
+        if( topic_data.wildcardSubscriber )
+            topic_data.wildcardSubscriber -> flagReplayComplete();
+        m_mgr->validateTopic(topic);
+    }
 
     RdKafka::ErrorCode err = m_consumer -> subscribe( topics );
     if( err )
@@ -184,21 +192,8 @@ void KafkaConsumer::setNumPartitions( const std::string & topic, size_t num )
 
 void KafkaConsumer::forceReplayCompleted()
 {
-    for( auto & entry : m_topics )
-    {
-        auto & topicData = entry.second;
-        if( !topicData.flaggedReplayComplete )
-        {
-            for( auto & subscriberEntry : topicData.subscribers )
-            {
-                for( auto * subscriber : subscriberEntry.second )
-                    subscriber -> flagReplayComplete();
-            }
-            // Also handle wildcard subscriber if present
-            if(topicData.wildcardSubscriber)
-                topicData.wildcardSubscriber->flagReplayComplete();
-            topicData.flaggedReplayComplete = true;
-        }
+    for( auto & entry : m_topics ){
+        entry.second.markReplayComplete();
     }
 }
 

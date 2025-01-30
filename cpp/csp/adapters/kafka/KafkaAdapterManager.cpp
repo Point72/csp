@@ -80,6 +80,7 @@ KafkaAdapterManager::KafkaAdapterManager( csp::Engine * engine, const Dictionary
 {
     m_maxThreads = properties.get<uint64_t>( "max_threads" );
     m_pollTimeoutMs = properties.get<TimeDelta>( "poll_timeout" ).asMilliseconds();
+    m_brokerConnectTimeoutMs = properties.get<TimeDelta>( "broker_connect_timeout" ).asMilliseconds();
 
     m_eventCb = std::make_unique<EventCb>( this );
     m_producerCb = std::make_unique<DeliveryReportCb>( this );
@@ -149,6 +150,72 @@ void KafkaAdapterManager::forceConsumerReplayComplete()
 {
     for( auto & consumer : m_consumerVector )
         consumer -> forceReplayCompleted();
+}
+
+void KafkaAdapterManager::fetchMetadata() {
+    RdKafka::Metadata* metadata = nullptr;
+    RdKafka::ErrorCode err;
+    
+    // Try with producer first if we have one
+    if ( m_producer ) {
+        err = m_producer -> metadata(
+            true,  // get all topics
+            nullptr,  // Topic pointer to specific topic
+            &metadata,  // pointer to hold metadata. It must be released by calling delete
+            m_brokerConnectTimeoutMs  // timeout before failing 
+        );
+    } 
+
+    // Otherwise try with first consumer
+    else if (!m_consumerVector.empty()) {
+        err = m_consumerVector[0].get()->getMetadata(
+            true,
+            nullptr,
+            &metadata,
+            m_brokerConnectTimeoutMs
+        );
+    } else {
+        CSP_THROW(RuntimeException, "No producer or consumer available to fetch metadata");
+    }
+
+    if (err != RdKafka::ERR_NO_ERROR) {
+        if (metadata) {
+            delete metadata;
+        }
+        CSP_THROW(RuntimeException, "Failed to get metadata: " << RdKafka::err2str(err));
+    }
+
+    m_metadata.reset(metadata);
+}
+
+
+void KafkaAdapterManager::validateTopic(const std::string& topic){
+    // This also serves as a validation check for the broker
+    if (m_validated_topics.find(topic) != m_validated_topics.end()) {
+        return;
+    }
+    if (!m_metadata) {
+        fetchMetadata();
+    }
+    const std::vector<const RdKafka::TopicMetadata*>*  topics_vec = m_metadata->topics();
+    auto it = std::find_if(
+        topics_vec->begin(),
+        topics_vec->end(),
+        [&topic](const RdKafka::TopicMetadata* mt) { 
+            return mt->topic() == topic; 
+        }
+    );
+    
+    if (it == topics_vec->end())
+        CSP_THROW(RuntimeException, "Topic does not exist: " << topic);
+    
+    const RdKafka::TopicMetadata* topic_metadata = *it;
+    if (topic_metadata->err() != RdKafka::ERR_NO_ERROR) {
+        std::stringstream err_msg;
+        err_msg << "Topic error for " << topic << ": " << RdKafka::err2str(topic_metadata->err());
+        CSP_THROW(RuntimeException, err_msg.str());
+    }
+    m_validated_topics.insert(topic);
 }
 
 void KafkaAdapterManager::start( DateTime starttime, DateTime endtime )

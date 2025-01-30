@@ -18,6 +18,7 @@ class Conf;
 class DeliveryReportCb;
 class EventCb;
 class Producer;
+class Metadata;
 }
 
 namespace csp::adapters::kafka
@@ -72,14 +73,18 @@ public:
     const Dictionary::Value & startOffsetProperty() const { return m_startOffsetProperty; }
 
     int pollTimeoutMs() const { return m_pollTimeoutMs; }
+    int brokerConnectTimeoutMs() const { return m_brokerConnectTimeoutMs; }
 
     void forceShutdown( const std::string & err );
+
+    void validateTopic(const std::string& topic);
 
 private:
 
     using TopicKeyPair = std::pair<std::string, std::string>;
 
     void setConfProperties( RdKafka::Conf * conf, const Dictionary & properties );
+    void fetchMetadata();
     void pollProducers();
     void forceConsumerReplayComplete();
 
@@ -102,6 +107,7 @@ private:
     Subscribers                                m_subscribers;
 
     int                                        m_pollTimeoutMs;
+    int                                        m_brokerConnectTimeoutMs;
     size_t                                     m_maxThreads;
     size_t                                     m_consumerIdx;
 
@@ -114,6 +120,8 @@ private:
     std::unique_ptr<RdKafka::Conf>             m_consumerConf;
     std::unique_ptr<RdKafka::Conf>             m_producerConf;
     Dictionary::Value                          m_startOffsetProperty;
+    std::unique_ptr<RdKafka::Metadata>         m_metadata;
+    std::unordered_set<std::string>            m_validated_topics;
 };
 
 }

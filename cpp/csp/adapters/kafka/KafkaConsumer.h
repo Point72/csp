@@ -28,6 +28,7 @@ public:
     void setNumPartitions( const std::string & topic, size_t num );
 
     void forceReplayCompleted();
+    KafkaSubscriber* getWildcardSubscriber(const std::string& topic);
 
 private:
     //should align with python side enum

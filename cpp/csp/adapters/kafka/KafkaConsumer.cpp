@@ -29,8 +29,12 @@ public:
                 for( auto * partition : partitions )
                     numPartitions[ partition -> topic() ] += 1;
 
-                for( auto & entry : numPartitions )
+                for( auto & entry : numPartitions ){
                     m_consumer.setNumPartitions( entry.first, entry.second );
+                    // Flag wildcard subscribers as complete immediately after getting partition info
+                    if(auto* wildcard = m_consumer.getWildcardSubscriber(entry.first))
+                        wildcard->flagReplayComplete();
+                }
 
                 if( !m_startTime.isNone() )
                 {
@@ -92,6 +96,14 @@ KafkaConsumer::~KafkaConsumer()
     stop();
 }
 
+KafkaSubscriber* KafkaConsumer::getWildcardSubscriber(const std::string& topic)
+{
+    auto it = m_topics.find(topic);
+    if(it != m_topics.end())
+        return it->second.wildcardSubscriber;
+    return nullptr;
+}
+
 void KafkaConsumer::addSubscriber( const std::string & topic, const std::string & key, KafkaSubscriber * subscriber )
 {
     if( key.empty() )
@@ -101,11 +113,6 @@ void KafkaConsumer::addSubscriber( const std::string & topic, const std::string 
     }
     else
         m_topics[topic].subscribers[key].emplace_back( subscriber );
-    //This is a bit convoluted, but basically if we dont have rebalanceCB set, that means we are in "groupid" mode
-    //which doesnt support seeking.  We force the adapters into a live mode, because groupid mode leads to deadlocks
-    //on adapters that dont received any data since we dont have partition information available to declare them done ( we dont even connect to them all )
-    if( !m_rebalanceCb )
-        subscriber -> flagReplayComplete();
 }
 
 void KafkaConsumer::start( DateTime starttime )
@@ -137,6 +144,9 @@ void KafkaConsumer::start( DateTime starttime )
         else
             CSP_THROW( TypeError, "Expected enum, datetime or timedelta for startOffset" );
     }
+    //This is a bit convoluted, but basically if we dont have rebalanceCB set, that means we are in "groupid" mode
+    //which doesnt support seeking.  We force the adapters into a live mode, because groupid mode leads to deadlocks
+    //on adapters that dont received any data since we dont have partition information available to declare them done ( we dont even connect to them all )
     else
         forceReplayCompleted();
 
@@ -184,6 +194,9 @@ void KafkaConsumer::forceReplayCompleted()
                 for( auto * subscriber : subscriberEntry.second )
                     subscriber -> flagReplayComplete();
             }
+            // Also handle wildcard subscriber if present
+            if(topicData.wildcardSubscriber)
+                topicData.wildcardSubscriber->flagReplayComplete();
             topicData.flaggedReplayComplete = true;
         }
     }

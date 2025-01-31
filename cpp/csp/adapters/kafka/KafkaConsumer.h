@@ -29,15 +29,6 @@ public:
 
     void forceReplayCompleted();
 
-    RdKafka::ErrorCode getMetadata(
-        bool all_topics,
-        const RdKafka::Topic* only_rkt,
-        RdKafka::Metadata** metadatap,
-        int timeout_ms) const 
-    {
-        return m_consumer->metadata(all_topics, only_rkt, metadatap, timeout_ms);
-    }
-
 private:
     //should align with python side enum
     enum class KafkaStartOffset

@@ -56,7 +56,6 @@ class KafkaAdapterManager:
         rd_kafka_conf_options=None,
         debug: bool = False,
         poll_timeout: timedelta = timedelta(seconds=1),
-        broker_connect_timeout: timedelta = timedelta(seconds=5),
     ):
         """
         :param broker - broker URL
@@ -101,7 +100,6 @@ class KafkaAdapterManager:
             "rd_kafka_conf_properties": conf_properties,
             "rd_kafka_consumer_conf_properties": consumer_properties,
             "rd_kafka_producer_conf_properties": producer_properties,
-            "broker_connect_timeout": broker_connect_timeout,
         }
 
         if auth:
@@ -177,6 +175,10 @@ class KafkaAdapterManager:
         properties["meta_field_map"] = meta_field_map
         properties["adjust_out_of_order_time"] = adjust_out_of_order_time
         if extract_timestamp_from_field is not None:
+            if meta_field_map.get("timestamp") == extract_timestamp_from_field:
+                raise ValueError(
+                    f"Field '{extract_timestamp_from_field}' cannot be used for both timestamp extraction and meta field mapping"
+                )
             properties["extract_timestamp_from_field"] = extract_timestamp_from_field
 
         return _kafka_input_adapter_def(self, ts_type, properties, push_mode)

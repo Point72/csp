@@ -76,11 +76,11 @@ private:
 
 KafkaAdapterManager::KafkaAdapterManager( csp::Engine * engine, const Dictionary & properties ) : AdapterManager( engine ),
                                                                                                   m_consumerIdx( 0 ),
-                                                                                                  m_producerPollThreadActive( false )
+                                                                                                  m_producerPollThreadActive( false ),
+                                                                                                  m_unrecoverableError( false )
 {
     m_maxThreads = properties.get<uint64_t>( "max_threads" );
     m_pollTimeoutMs = properties.get<TimeDelta>( "poll_timeout" ).asMilliseconds();
-    m_brokerConnectTimeoutMs = properties.get<TimeDelta>( "broker_connect_timeout" ).asMilliseconds();
 
     m_eventCb = std::make_unique<EventCb>( this );
     m_producerCb = std::make_unique<DeliveryReportCb>( this );
@@ -135,6 +135,7 @@ void KafkaAdapterManager::setConfProperties( RdKafka::Conf * conf, const Diction
 
 void KafkaAdapterManager::forceShutdown( const std::string & err )
 {
+    m_unrecoverableError = true;  // So we can alert the producer to stop trying to flush
     forceConsumerReplayComplete();
     try
     {
@@ -150,72 +151,6 @@ void KafkaAdapterManager::forceConsumerReplayComplete()
 {
     for( auto & consumer : m_consumerVector )
         consumer -> forceReplayCompleted();
-}
-
-void KafkaAdapterManager::fetchMetadata() {
-    RdKafka::Metadata* metadata = nullptr;
-    RdKafka::ErrorCode err;
-    
-    // Try with producer first if we have one
-    if ( m_producer ) {
-        err = m_producer -> metadata(
-            true,  // get all topics
-            nullptr,  // Topic pointer to specific topic (null since we getting them all)
-            &metadata,  // pointer to hold metadata. It must be released by calling delete
-            m_brokerConnectTimeoutMs  // timeout before failing 
-        );
-    } 
-
-    // Otherwise try with first consumer
-    else if (!m_consumerVector.empty()) {
-        err = m_consumerVector[0].get()->getMetadata(
-            true,
-            nullptr,
-            &metadata,
-            m_brokerConnectTimeoutMs
-        );
-    } else {
-        CSP_THROW(RuntimeException, "No producer or consumer available to fetch metadata");
-    }
-
-    if (err != RdKafka::ERR_NO_ERROR) {
-        if (metadata) {
-            delete metadata;
-        }
-        CSP_THROW(RuntimeException, "Failed to get metadata: " << RdKafka::err2str(err));
-    }
-
-    m_metadata.reset(metadata);
-}
-
-
-// This also serves as a validation check for the broker
-void KafkaAdapterManager::validateTopic(const std::string& topic){
-    if (m_validated_topics.find(topic) != m_validated_topics.end()) {
-        return;
-    }
-    if (!m_metadata) {
-        fetchMetadata();
-    }
-    const std::vector<const RdKafka::TopicMetadata*>*  topics_vec = m_metadata->topics();
-    auto it = std::find_if(
-        topics_vec -> begin(),
-        topics_vec -> end(),
-        [&topic](const RdKafka::TopicMetadata* mt) { 
-            return mt -> topic() == topic; 
-        }
-    );
-    
-    if (it == topics_vec->end())
-        CSP_THROW(RuntimeException, "Topic does not exist: " << topic);
-    
-    const RdKafka::TopicMetadata* topic_metadata = *it;
-    if (topic_metadata->err() != RdKafka::ERR_NO_ERROR) {
-        std::stringstream err_msg;
-        err_msg << "Topic error for " << topic << ": " << RdKafka::err2str(topic_metadata->err());
-        CSP_THROW(RuntimeException, err_msg.str());
-    }
-    m_validated_topics.insert(topic);
 }
 
 void KafkaAdapterManager::start( DateTime starttime, DateTime endtime )
@@ -288,18 +223,18 @@ void KafkaAdapterManager::pollProducers()
 {
     while( m_producerPollThreadActive )
     {
-        m_producer -> poll( 1000 );
+        m_producer -> poll( m_pollTimeoutMs );
     }
 
     try
     {
         while( true )
         {
-            auto rc = m_producer -> flush( 10000 );
-            if( !rc )
+            auto rc = m_producer -> flush( 5000 );
+            if( !rc || m_unrecoverableError )
                 break;
 
-            if( rc && rc != RdKafka::ERR__TIMED_OUT )
+            if( rc != RdKafka::ERR__TIMED_OUT )
                 CSP_THROW( RuntimeException, "KafkaProducer failed to flush pending msgs on shutdown: " << RdKafka::err2str( rc ) );
         }
     }

@@ -41,8 +41,7 @@ KafkaAdapterManager(
     sasl_kerberos_service_name='kafka',
     rd_kafka_conf_options=None,
     debug: bool = False,
-    poll_timeout: timedelta = timedelta(seconds=1),
-    broker_connect_timeout: timedelta = timedelta(seconds=5)
+    poll_timeout: timedelta = timedelta(seconds=1)
 ):
 ```
 

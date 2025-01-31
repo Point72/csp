@@ -89,15 +89,7 @@ KafkaConsumer::KafkaConsumer( KafkaAdapterManager * mgr, const Dictionary & prop
 KafkaConsumer::~KafkaConsumer()
 {
     // in case destructor is called before stop()
-    try 
-    {
-        if( m_running )
-            stop();
-    }
-    catch( const Exception & err )
-    {
-        m_mgr -> rootEngine() -> shutdown( std::current_exception() );
-    }
+    stop();
 }
 
 void KafkaConsumer::addSubscriber( const std::string & topic, const std::string & key, KafkaSubscriber * subscriber )
@@ -154,7 +146,6 @@ void KafkaConsumer::start( DateTime starttime )
         // we flag replay complete as soon as we identify it.
         if( topic_data.wildcardSubscriber )
             topic_data.wildcardSubscriber -> flagReplayComplete();
-        m_mgr->validateTopic(topic);
     }
 
     RdKafka::ErrorCode err = m_consumer -> subscribe( topics );
@@ -187,9 +178,8 @@ void KafkaConsumer::setNumPartitions( const std::string & topic, size_t num )
 
 void KafkaConsumer::forceReplayCompleted()
 {
-    for( auto & entry : m_topics ){
+    for( auto & entry : m_topics )
         entry.second.markReplayComplete();
-    }
 }
 
 void KafkaConsumer::poll()
@@ -275,16 +265,9 @@ void KafkaConsumer::poll()
                         }
                     }
 
+                    //we need to flag end in case the topic doesnt have any incoming data, we cant stall the engine on the pull side of the adapter
                     if( allDone )
-                    {
-                        //we need to flag end in case the topic doesnt have any incoming data, we cant stall the engine on the pull side of the adapter
-                        for( auto & subscriberEntry : topicData.subscribers )
-                        {
-                            for( auto * subscriber : subscriberEntry.second )
-                                subscriber -> flagReplayComplete();
-                        }
-                        topicData.flaggedReplayComplete = true;
-                    }
+                        topicData.markReplayComplete();
                 }
             }
             else
@@ -292,16 +275,7 @@ void KafkaConsumer::poll()
                 //In most cases we should not get here, if we do then something is wrong
                 //safest bet is to release the pull adapter so it doesnt stall the engine and
                 //we can let the error msg through
-                if( !topicData.flaggedReplayComplete )
-                {
-                    //flag inputs as done so they dont hold up the engine
-                    for( auto & subscriberEntry : topicData.subscribers )
-                    {
-                        for( auto * subscriber : subscriberEntry.second )
-                            subscriber -> flagReplayComplete();
-                    }
-                    topicData.flaggedReplayComplete = true;
-                }
+                topicData.markReplayComplete();
 
                 std::string errmsg = "KafkaConsumer: Message error on topic \"" + msg -> topic_name() + "\". errcode: " + RdKafka::err2str( msg -> err() ) + " error: " + msg -> errstr();
                 m_mgr -> pushStatus( StatusLevel::ERROR, KafkaStatusMessageType::MSG_RECV_ERROR, errmsg );

@@ -38,7 +38,7 @@
             <td>Add a feedback edge between nodes in a graph</td>
         </tr>
         <tr>
-            <td><a href="./e02_intermediate/2_stats.py">Statistics Nodes</a></td>
+            <td><a href="./02_intermediate/e2_stats.py">Statistics Nodes</a></td>
             <td>Use the CSP statistics library on simulated trading data</td>
         </tr>
         <tr>

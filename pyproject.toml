@@ -67,7 +67,7 @@ develop = [
     # lint
     "codespell>=2.2.6,<2.3",
     "isort>=5,<6",
-    "mdformat==0.7.17",  # >0.7.17 doesnot support python 3.8
+    "mdformat==0.7.22",  # >0.7.17 doesnot support python 3.8
     "ruff>=0.3,<0.4",
     # test
     "pytest",

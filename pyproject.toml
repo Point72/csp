@@ -3,7 +3,7 @@ requires = [
     "cmake",
     "deprecated",  # Because used in csp.impl.struct, which is used in autogen
     "oldest-supported-numpy",
-    "pyarrow>=7,<19",
+    "pyarrow>=7,<20",
     "ruamel.yaml",
     "scikit-build",
     "setuptools>=69,<74",
@@ -26,7 +26,7 @@ dependencies = [
     "packaging",
     "pandas",
     "psutil",
-    "pyarrow>=7,<19",
+    "pyarrow>=7,<20",
     "pytz",
     "ruamel.yaml",
     "sqlalchemy",

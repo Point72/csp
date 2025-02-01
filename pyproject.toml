@@ -6,7 +6,7 @@ requires = [
     "pyarrow>=7,<19",
     "ruamel.yaml",
     "scikit-build",
-    "setuptools>=69,<74",
+    "setuptools>=69,<76",
     "typing-extensions",
 ]
 build-backend="setuptools.build_meta"

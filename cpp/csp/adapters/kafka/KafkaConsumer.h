@@ -47,16 +47,19 @@ private:
         std::vector<bool>  partitionLive;
         bool               flaggedReplayComplete = false;
 
-        void markReplayComplete() {
-            if ( !flaggedReplayComplete ) {
+        void markReplayComplete()
+        {
+            if( !flaggedReplayComplete )
+            {
                 // Flag all regular subscribers
-                for( auto& subscriberEntry : subscribers ) {
+                for( auto& subscriberEntry : subscribers )
+                {
                     for( auto* subscriber : subscriberEntry.second )
                         subscriber -> flagReplayComplete();
                 }
                 
                 // Handle wildcard subscriber if present
-                if ( wildcardSubscriber )
+                if( wildcardSubscriber )
                     wildcardSubscriber -> flagReplayComplete();
                 
                 flaggedReplayComplete = true;

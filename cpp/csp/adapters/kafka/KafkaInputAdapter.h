@@ -19,12 +19,31 @@ public:
     void processMessage( RdKafka::Message* message, bool live, csp::PushBatch* batch );
 
 private:
+    inline bool shouldPushLive(bool pushLive, const DateTime& msgTime) {
+        // This function encapsulates the logic for determining if a message should be pushed live
+        // For backwards compatibility, if adjustOutOfOrderTime is
+        // False, and the msgTime is before the engine start time, we push live
+        return pushLive || flaggedLive() || msgTime.isNone() || 
+               (msgTime < rootEngine()->startTime() && !adjustOutOfOrderTime());
+    }
+
+    inline bool shouldProcessMessage(bool pushLive, const DateTime& msgTime) {
+        // This function encapsulates the logic for determining if a message should be processed
+        // live always goes through, otherwise, we filter out
+        // messages before engine starttime when not m_includeMsgBeforeStartTime
+        return pushLive || m_includeMsgBeforeStartTime || 
+               msgTime >= rootEngine()->startTime();
+    }
+
     utils::MessageStructConverterPtr m_converter;
     StructFieldPtr m_partitionField;
     StructFieldPtr m_offsetField;
     StructFieldPtr m_liveField;
     StructFieldPtr m_timestampField;
     StructFieldPtr m_keyField;
+    StructFieldPtr m_extractTimestampField;
+
+    bool m_includeMsgBeforeStartTime;
 };
 
 }

@@ -99,8 +99,7 @@ KafkaAdapterManager.subscribe(
   field_map: typing.Union[dict,str] = None,
   meta_field_map: dict = None,
   push_mode: csp.PushMode = csp.PushMode.LAST_VALUE,
-  adjust_out_of_order_time: bool = False,
-  extract_timestamp_from_field: str = None
+  adjust_out_of_order_time: bool = False
 ):
 ```
 
@@ -119,7 +118,6 @@ KafkaAdapterManager.subscribe(
 - **`push_mode`**: `csp.PushMode` (LAST_VALUE, NON_COLLAPSING, BURST)
 - **`adjust_out_of_order_time`**: in some cases it has been seen that kafka can produce out of order messages, even for the same key.
   This allows the adapter to be more laz and allow it through by forcing time to max(time, prev time)
-- **`extract_timestamp_from_field`**: Allow overriding the time we push the tick into the engine based on this field on the struct. This only works if `group_id` is not set.
 
 Similarly, you can publish on topics using the following method:
 

@@ -138,28 +138,7 @@ class KafkaAdapterManager:
         meta_field_map: dict = None,
         push_mode: csp.PushMode = csp.PushMode.LAST_VALUE,
         adjust_out_of_order_time: bool = False,
-        extract_timestamp_from_field: str = None,
     ):
-        """
-        Subscribe to a Kafka topic and map incoming messages to CSP timeseries.
-
-        :param ts_type: The timeseries type to map the data to. Can be a csp.Struct or basic timeseries type
-        :param msg_mapper: MsgMapper object to manage mapping message protocol to struct
-        :param topic: Topic to subscribe to
-        :param key: Key to subscribe to. If None, subscribes to all messages on the topic.
-                    Note: In this "wildcard" mode, all messages will be marked as "live"
-        :param field_map: Dictionary of {message_field: struct_field} mapping or string for single field mapping
-        :param meta_field_map: Dictionary mapping kafka metadata to struct fields. Supported fields:
-                    - "partition": Kafka partition number
-                    - "offset": Message offset
-                    - "live": Whether message is live or replay
-                    - "timestamp": Kafka message timestamp
-                    - "key": Message key
-        :param push_mode: Mode for handling incoming messages (LAST_VALUE, NON_COLLAPSING, BURST)
-        :param adjust_out_of_order_time: Allow out-of-order messages by forcing time to max(time, prev_time)
-        :param extract_timestamp_from_field: Override engine tick time using this struct field.
-                    Only works without group_id.
-        """
         field_map = field_map or {}
         meta_field_map = meta_field_map or {}
         if isinstance(field_map, str):
@@ -174,12 +153,6 @@ class KafkaAdapterManager:
         properties["field_map"] = field_map
         properties["meta_field_map"] = meta_field_map
         properties["adjust_out_of_order_time"] = adjust_out_of_order_time
-        if extract_timestamp_from_field is not None:
-            if meta_field_map.get("timestamp") == extract_timestamp_from_field:
-                raise ValueError(
-                    f"Field '{extract_timestamp_from_field}' cannot be used for both timestamp extraction and meta field mapping"
-                )
-            properties["extract_timestamp_from_field"] = extract_timestamp_from_field
 
         return _kafka_input_adapter_def(self, ts_type, properties, push_mode)
 

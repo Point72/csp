@@ -25,7 +25,6 @@ private:
     StructFieldPtr m_liveField;
     StructFieldPtr m_timestampField;
     StructFieldPtr m_keyField;
-    StructFieldPtr m_extractTimestampField;
 };
 
 }

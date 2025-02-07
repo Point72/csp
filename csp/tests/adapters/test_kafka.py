@@ -427,23 +427,3 @@ class TestKafka:
         # With bug this would deadlock
         with pytest.raises(RuntimeError):
             csp.run(graph_pub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
-
-    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
-    def test_meta_field_map_extract_timestamp_from_field(self, kafkaadapterkwargs):
-        class SubData(csp.Struct):
-            msg: str
-            dt: datetime
-
-        kafkaadapter1 = KafkaAdapterManager(**kafkaadapterkwargs)
-
-        def graph_sub():
-            return kafkaadapter1.subscribe(
-                ts_type=SubData,
-                msg_mapper=RawTextMessageMapper(),
-                meta_field_map={"timestamp": "dt"},
-                topic="foobar",
-                extract_timestamp_from_field="dt",
-            )
-
-        with pytest.raises(ValueError):
-            csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)

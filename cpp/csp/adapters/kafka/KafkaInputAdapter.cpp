@@ -69,13 +69,6 @@ KafkaInputAdapter::KafkaInputAdapter( Engine *engine, CspTypePtr &type,
             if( m_keyField -> type() -> type() != CspType::Type::STRING )
                 CSP_THROW( ValueError, "field " << keyFieldName << " must be of type string on struct type " << structType.meta() -> name() );
         }
-        if( properties.exists( "extract_timestamp_from_field" ) )
-        {
-            std::string timestampFieldName = properties.get<std::string>("extract_timestamp_from_field");
-            m_extractTimestampField = structType.meta() -> field( timestampFieldName );
-            if( m_extractTimestampField -> type() -> type() != CspType::Type::DATETIME )
-                CSP_THROW( ValueError, "field " << timestampFieldName << " must be of type datetime on struct type " << structType.meta() -> name() );
-        }
     }
 
     m_converter = utils::MessageStructConverterCache::instance().create( type, properties );
@@ -87,7 +80,18 @@ void KafkaInputAdapter::processMessage( RdKafka::Message* message, bool live, cs
     DateTime msgTime;
     auto ts = message -> timestamp();
     if( ts.type != RdKafka::MessageTimestamp::MSG_TIMESTAMP_NOT_AVAILABLE )
+    {
         msgTime = DateTime::fromMilliseconds( ts.timestamp );
+
+        //If user requested kafka data earlier than engine start, we will force it as live so it makes it into the engine
+        if( msgTime < rootEngine() -> startTime() )
+            pushLive = true;
+    }
+    else
+    {
+        //if we cant extract time from the msg we cant push sim, so make force it live/realtime
+        pushLive = true;
+    }
 
     if( type() -> type() == CspType::Type::STRUCT )
     {
@@ -107,18 +111,11 @@ void KafkaInputAdapter::processMessage( RdKafka::Message* message, bool live, cs
 
         if( m_keyField )
             m_keyField -> setValue( tick.get(), *message -> key() );
-        
-        if( m_extractTimestampField )
-            msgTime = m_extractTimestampField->value<DateTime>(tick.get());
 
-        // Check engine start time after all possible msgTime modifications
-        pushLive = pushLive || msgTime.isNone() || msgTime < rootEngine()->startTime();
-        pushTick(pushLive, msgTime, std::move(tick), batch);
+        pushTick( pushLive, msgTime, std::move( tick ), batch );
     }
     else if( type() -> type() == CspType::Type::STRING )
     {
-        //If user requested kafka data earlier than engine start, we will force it as live so it makes it into the engine
-        pushLive = pushLive || msgTime.isNone() || msgTime < rootEngine()->startTime();
         pushTick( pushLive, msgTime, std::string( ( const char * ) message -> payload(), message -> len() ) );
     }
 }

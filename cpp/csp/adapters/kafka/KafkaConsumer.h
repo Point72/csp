@@ -46,6 +46,25 @@ private:
         KafkaSubscriber *  wildcardSubscriber = nullptr;
         std::vector<bool>  partitionLive;
         bool               flaggedReplayComplete = false;
+
+        void markReplayComplete()
+        {
+            if( !flaggedReplayComplete )
+            {
+                // Flag all regular subscribers
+                for( auto& subscriberEntry : subscribers )
+                {
+                    for( auto* subscriber : subscriberEntry.second )
+                        subscriber -> flagReplayComplete();
+                }
+                
+                // Handle wildcard subscriber if present
+                if( wildcardSubscriber )
+                    wildcardSubscriber -> flagReplayComplete();
+                
+                flaggedReplayComplete = true;
+            }
+        }
     };
 
     std::unordered_map<std::string,TopicData> m_topics;

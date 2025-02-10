@@ -40,3 +40,8 @@ def get_include_path():
 
 def get_lib_path():
     return os.path.join(os.path.dirname(__file__), "lib")
+
+
+if os.environ.get("CSP_PRINT_FULL_EXCEPTION_STACK", "0").lower() in ("1", "on", "true"):
+    # Print full stack trace if CSP_PRINT_FULL_EXCEPTION_STACK is set in the environment
+    set_print_full_exception_stack(True)

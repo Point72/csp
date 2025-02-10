@@ -19,7 +19,8 @@ public:
     void processMessage( RdKafka::Message* message, bool live, csp::PushBatch* batch );
 
 private:
-    inline bool shouldPushLive(bool pushLive, const DateTime& msgTime) {
+    inline bool shouldPushLive( bool pushLive, const DateTime& msgTime )
+    {
         // This function encapsulates the logic for determining if a message should be pushed live
         // For backwards compatibility, if adjustOutOfOrderTime is
         // False, and the msgTime is before the engine start time, we push live
@@ -27,7 +28,8 @@ private:
                (msgTime < rootEngine()->startTime() && !adjustOutOfOrderTime());
     }
 
-    inline bool shouldProcessMessage(bool pushLive, const DateTime& msgTime) {
+    inline bool shouldProcessMessage( bool pushLive, const DateTime& msgTime )
+    {
         // This function encapsulates the logic for determining if a message should be processed
         // live always goes through, otherwise, we filter out
         // messages before engine starttime when not m_includeMsgBeforeStartTime

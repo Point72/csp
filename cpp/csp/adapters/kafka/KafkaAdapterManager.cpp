@@ -76,7 +76,8 @@ private:
 
 KafkaAdapterManager::KafkaAdapterManager( csp::Engine * engine, const Dictionary & properties ) : AdapterManager( engine ),
                                                                                                   m_consumerIdx( 0 ),
-                                                                                                  m_producerPollThreadActive( false )
+                                                                                                  m_producerPollThreadActive( false ),
+                                                                                                  m_unrecoverableError( false )
 {
     m_maxThreads = properties.get<uint64_t>( "max_threads" );
     m_pollTimeoutMs = properties.get<TimeDelta>( "poll_timeout" ).asMilliseconds();
@@ -134,6 +135,7 @@ void KafkaAdapterManager::setConfProperties( RdKafka::Conf * conf, const Diction
 
 void KafkaAdapterManager::forceShutdown( const std::string & err )
 {
+    m_unrecoverableError = true;  // So we can alert the producer to stop trying to flush
     forceConsumerReplayComplete();
     try
     {
@@ -221,18 +223,18 @@ void KafkaAdapterManager::pollProducers()
 {
     while( m_producerPollThreadActive )
     {
-        m_producer -> poll( 1000 );
+        m_producer -> poll( m_pollTimeoutMs );
     }
 
     try
     {
         while( true )
         {
-            auto rc = m_producer -> flush( 10000 );
-            if( !rc )
+            auto rc = m_producer -> flush( 5000 );
+            if( !rc || m_unrecoverableError )
                 break;
 
-            if( rc && rc != RdKafka::ERR__TIMED_OUT )
+            if( rc != RdKafka::ERR__TIMED_OUT )
                 CSP_THROW( RuntimeException, "KafkaProducer failed to flush pending msgs on shutdown: " << RdKafka::err2str( rc ) );
         }
     }

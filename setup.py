@@ -113,6 +113,15 @@ if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
 if platform.system() == "Darwin":
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = os.environ.get("OSX_DEPLOYMENT_TARGET", "10.15")
     cmake_args.append(f'-DCMAKE_OSX_DEPLOYMENT_TARGET={os.environ.get("OSX_DEPLOYMENT_TARGET", "10.15")}')
+    if CSP_USE_VCPKG:
+        try:
+            brew_prefix = subprocess.check_output(['brew', '--prefix', 'autoconf-archive']).strip().decode('utf-8')
+            aclocal_path = os.path.join(brew_prefix, 'share', 'aclocal')
+            # Set the ACLOCAL_PATH environment variable, this is required to build cyprus-sasl
+            os.environ['ACLOCAL_PATH'] = f"{aclocal_path}:{os.environ.get('ACLOCAL_PATH', '')}"
+        except subprocess.CalledProcessError as e:
+            print("Error obtaining Homebrew prefix for autoconf-archive:", e)
+            aclocal_path = None
 
 if which("ccache") and os.environ.get("CSP_USE_CCACHE", "") != "0":
     cmake_args.append("-DCSP_USE_CCACHE=On")

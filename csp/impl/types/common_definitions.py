@@ -289,6 +289,18 @@ class PushMode(IntEnum):
     BURST = 3
 
 
+class ReplayMode(IntEnum):
+    """PushPull adapters can take a replay_mode option to specify how to replay data
+    EARLIEST   will replay all available data (Note that data with timestamps before engine start will be forced to playback at starttime )
+    LATEST     only run from latest data ( effectively, no replay )
+    START_TIME playback all data from engine starttime
+    """
+
+    EARLIEST = 1
+    LATEST = 2
+    START_TIME = 3
+
+
 class DuplicatePolicy(IntEnum):
     """An 'enum' that specifies the policy for handling the last value in functions like value_at."""
 

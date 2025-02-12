@@ -82,10 +82,6 @@ void KafkaInputAdapter::processMessage( RdKafka::Message* message, bool live, cs
     if( ts.type != RdKafka::MessageTimestamp::MSG_TIMESTAMP_NOT_AVAILABLE )
     {
         msgTime = DateTime::fromMilliseconds( ts.timestamp );
-
-        //If user requested kafka data earlier than engine start, we will force it as live so it makes it into the engine
-        if( msgTime < rootEngine() -> startTime() )
-            pushLive = true;
     }
     else
     {

@@ -9,4 +9,13 @@ INIT_CSP_ENUM( PushMode,
            "NON_COLLAPSING",
            "BURST" 
     );
+
+
+INIT_CSP_ENUM( ReplayMode, 
+           "UNKNOWN",
+           "EARLIEST",
+           "LATEST",
+           "START_TIME" 
+    );
+
 }

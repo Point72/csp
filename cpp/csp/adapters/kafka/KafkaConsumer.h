@@ -30,13 +30,6 @@ public:
     void forceReplayCompleted();
 
 private:
-    //should align with python side enum
-    enum class KafkaStartOffset
-    {
-        EARLIEST   = 1,
-        LATEST     = 2,
-        START_TIME = 3,
-    };
 
     struct TopicData
     {

@@ -7,10 +7,12 @@ from csp.impl.__cspimpl import _cspimpl
 from csp.impl.mem_cache import csp_memoized_graph_object
 from csp.impl.outputadapter import OutputAdapter  # noqa: F401
 from csp.impl.types import tstype
-from csp.impl.types.common_definitions import ArgKind, InputDef, OutputDef, PushMode
+from csp.impl.types.common_definitions import ArgKind, InputDef, OutputDef, PushMode, ReplayMode
 from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
 from csp.impl.types.tstype import ts
 from csp.impl.wiring.signature import Signature
+
+_ = ReplayMode
 
 
 # Every AdapterDefMeta instance represents an input or output adapter *definition* type

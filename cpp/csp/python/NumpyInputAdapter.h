@@ -29,18 +29,18 @@ public:
         m_descr = nullptr;
     }
 
-    NumpyCurveAccessor( PyArrayObject * arr ) 
+    NumpyCurveAccessor( PyArrayObject * arr )
     {
         m_nd = PyArray_NDIM( arr );
         if( m_nd < 2 )
             CSP_THROW( csp::TypeError, "NumpyCurveAccessor is inefficient for a 1-D Numpy array: use PyArray_GETPTR1 to access indexed values" );
-        
+
         // Preprocess strides and dimensions
         npy_intp* strides = PyArray_STRIDES( arr );
         npy_intp* dims = PyArray_DIMS( arr );
         m_outerStride = strides[0];
         m_outerDim = dims[0];
-        m_innerStrides = strides + 1; 
+        m_innerStrides = strides + 1;
         m_innerDims = dims + 1;
 
         m_arr = arr;
@@ -58,7 +58,7 @@ public:
     {
         if( index >= m_outerDim )
             CSP_THROW( csp::TypeError, "Requested data index out of range in NumpyCurveAccessor" );
-        
+
         // Create a view to the (n-1) dimensional array with (n-1) potentially unnatural strides
         /*
         A note on reference counting for the subarray: NewFromDescr will *steal* a reference to the type descr,
@@ -87,7 +87,7 @@ public:
 private:
     char* m_data;
     int m_nd;
-    
+
     npy_intp m_outerStride;
     npy_intp m_outerDim;
     npy_intp* m_innerStrides;
@@ -103,7 +103,7 @@ class NumpyInputAdapter : public PullInputAdapter<T>
     using PyArrayObjectPtr = PyPtr<PyArrayObject>;
 
 public:
-    NumpyInputAdapter( Engine * engine, CspTypePtr & type, PyArrayObject * datetimes, 
+    NumpyInputAdapter( Engine * engine, CspTypePtr & type, PyArrayObject * datetimes,
                        PyArrayObject * values ) : PullInputAdapter<T>( engine, type, PushMode::LAST_VALUE ),
                                                   m_datetimes( PyArrayObjectPtr::incref( datetimes ) ),
                                                   m_values( PyArrayObjectPtr::incref( values ) ),
@@ -113,7 +113,7 @@ public:
         PyArray_Descr* vals_descr = PyArray_DESCR(m_values.ptr());
 
         m_size = static_cast<int>(PyArray_SIZE( datetimes ));
-        m_elem_size = vals_descr -> elsize;
+        m_elem_size = PyDataType_ELSIZE(vals_descr);
         m_val_type = vals_descr -> type;
 
         char out_type = m_val_type;
@@ -123,7 +123,7 @@ public:
             m_valueAccessor = std::make_unique<NumpyCurveAccessor>( m_values.ptr() );
         }
         validateNumpyTypeVsCspType( type, out_type );
-        
+
 
         auto dt_type = dts_descr -> type;
         if( dt_type != NPY_DATETIMELTR && dt_type != NPY_OBJECTLTR )
@@ -166,7 +166,7 @@ public:
 
             ++m_index;
         }
- 
+
         PullInputAdapter<T>::start( start, end );
     }
 

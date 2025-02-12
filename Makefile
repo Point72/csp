@@ -149,7 +149,7 @@ dist-py-wheel:
 	python setup.py bdist_wheel $(EXTRA_ARGS)
 
 dist-py-cibw:
-	python -m cibuildwheel --output-dir dist $(EXTRA_ARGS)
+	python -m cibuildwheel --output-dir dist $(EXTRA_ARGS) || cat /project/vcpkg/buildtrees/cyrus-sasl/autoconf-x64-linux-err.log
 
 dist-check:
 	python -m twine check --strict dist/*

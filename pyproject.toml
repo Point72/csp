@@ -164,7 +164,12 @@ rpm --import https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux &&
 dnf config-manager --set-enabled powertools &&
 dnf install epel-release -y &&
 make dependencies-fedora
-./vcpkg/vcpkg install || cat vcpkg/buildtrees/cyrus-sasl/autoconf-x64-linux-err.log
+git clone https://github.com/Microsoft/vcpkg.git
+git -C vcpkg submodule update --init --recursive
+git -C vcpkg pull
+cd vcpkg
+./bootstrap-vcpkg.sh
+./vcpkg install || cat buildtrees/cyrus-sasl/autoconf-x64-linux-err.log
 """
 environment = {CSP_MANYLINUX="ON"}
 repair-wheel-command = "auditwheel -v show {wheel} && LD_LIBRARY_PATH=/project/csp/lib auditwheel -v repair -w {dest_dir} {wheel}"

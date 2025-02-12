@@ -111,12 +111,16 @@ void KafkaConsumer::start( DateTime starttime )
         auto & startOffsetProperty = m_mgr -> startOffsetProperty();
         if( std::holds_alternative<int64_t>( startOffsetProperty ) )
         {
-            KafkaStartOffset sOffset = ( KafkaStartOffset ) std::get<int64_t>( startOffsetProperty );
-            switch( sOffset )
+            ReplayMode replayMode = ( ReplayMode ) std::get<int64_t>( startOffsetProperty );
+            switch( replayMode )
             {
-                case KafkaStartOffset::EARLIEST:   m_rebalanceCb -> setStartOffset( RdKafka::Topic::OFFSET_BEGINNING ); break;
-                case KafkaStartOffset::LATEST:     m_rebalanceCb -> setStartOffset( RdKafka::Topic::OFFSET_END );       break;
-                case KafkaStartOffset::START_TIME: m_rebalanceCb -> setStartTime( starttime ); break;
+                case ReplayMode::EARLIEST:   m_rebalanceCb -> setStartOffset( RdKafka::Topic::OFFSET_BEGINNING ); break;
+                case ReplayMode::LATEST:     m_rebalanceCb -> setStartOffset( RdKafka::Topic::OFFSET_END );       break;
+                case ReplayMode::START_TIME: m_rebalanceCb -> setStartTime( starttime ); break;
+
+                case ReplayMode::NUM_TYPES:                    
+                case ReplayMode::UNKNOWN:
+                    CSP_THROW( ValueError, "start_offset is unset" );
             }
         }
         else if( std::holds_alternative<DateTime>( startOffsetProperty ) )

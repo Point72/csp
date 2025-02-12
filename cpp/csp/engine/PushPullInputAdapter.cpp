@@ -81,8 +81,17 @@ PushPullInputAdapter::PullDataEvent * PushPullInputAdapter::nextPullEvent()
     auto * event = m_poppedPullEvents.front();
     m_poppedPullEvents.pop();
 
-    if( m_adjustOutOfOrderTime && event )
-        event -> time = std::max( event -> time, rootEngine() -> now() );
+    if( event )
+    {
+        //Always force time before start to start.  There are two possibilities:
+        //- User asked to replay from EARLIEST, so they should get all ticks replayed and we cant replay before starttime
+        //- User asked to replay from STARTTIME in which case, if the adapter is written correctly, we shouldnt get ticks before starttime
+        if( unlikely( event -> time < rootEngine() -> startTime() ) )
+            event -> time = rootEngine() -> startTime();
+        
+        if( m_adjustOutOfOrderTime )
+            event -> time = std::max( event -> time, rootEngine() -> now() );
+    }
 
     return event;    
 }

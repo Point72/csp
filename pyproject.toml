@@ -169,7 +169,7 @@ git -C vcpkg submodule update --init --recursive
 git -C vcpkg pull
 cd vcpkg
 ./bootstrap-vcpkg.sh
-./vcpkg install || cat buildtrees/cyrus-sasl/src/rus-sasl-2-ded79ef720.clean/configure 
+./vcpkg install || cat buildtrees/cyrus-sasl/autoconf-x64-linux-err.log 
 """
 environment = {CSP_MANYLINUX="ON"}
 repair-wheel-command = "auditwheel -v show {wheel} && LD_LIBRARY_PATH=/project/csp/lib auditwheel -v repair -w {dest_dir} {wheel}"

@@ -1,8 +1,6 @@
-import collections.abc
 import sys
 import types
 import typing
-import typing_extensions
 from pydantic import GetCoreSchemaHandler, ValidationInfo, ValidatorFunctionWrapHandler
 from pydantic_core import CoreSchema, core_schema
 from typing import Any, ForwardRef, Generic, Optional, Type, TypeVar, Union, get_args, get_origin
@@ -10,24 +8,6 @@ from typing import Any, ForwardRef, Generic, Optional, Type, TypeVar, Union, get
 from csp.impl.types.common_definitions import OutputBasket, OutputBasketContainer
 from csp.impl.types.tstype import SnapKeyType, SnapType, isTsDynamicBasket
 from csp.impl.types.typing_utils import TsTypeValidator
-
-# Required for py38 compatibility
-# In python 3.8, get_origin(List[float]) returns list, but you can't call list[float] to retrieve the annotation
-# Furthermore, Annotated is part of typing_Extensions and get_origin(Annotated[str, ...]) returns str rather than Annotated
-_IS_PY38 = sys.version_info < (3, 9)
-# For a more complete list, see https://github.com/alexmojaki/eval_type_backport/blob/main/eval_type_backport/eval_type_backport.py
-_PY38_ORIGIN_MAP = {
-    tuple: typing.Tuple,
-    list: typing.List,
-    dict: typing.Dict,
-    set: typing.Set,
-    frozenset: typing.FrozenSet,
-    collections.abc.Callable: typing.Callable,
-    collections.abc.Iterable: typing.Iterable,
-    collections.abc.Mapping: typing.Mapping,
-    collections.abc.MutableMapping: typing.MutableMapping,
-    collections.abc.Sequence: typing.Sequence,
-}
 
 _K = TypeVar("T", covariant=True)
 _T = TypeVar("T", covariant=True)
@@ -140,11 +120,6 @@ def adjust_annotations(
 
     forced_tvars = forced_tvars or {}
     origin = get_origin(annotation)
-    if _IS_PY38:
-        if isinstance(annotation, typing_extensions._AnnotatedAlias):
-            return annotation
-        else:
-            origin = _PY38_ORIGIN_MAP.get(origin, origin)
     args = get_args(annotation)
     if isinstance(annotation, str):
         annotation = TypeVar(annotation)

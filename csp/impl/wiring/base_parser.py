@@ -1,7 +1,6 @@
 import ast
 import copy
 import inspect
-import sys
 import textwrap
 import typing
 from abc import ABCMeta, abstractmethod
@@ -354,7 +353,7 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         if args.vararg or args.kwarg:
             raise CspParseError("*args and **kwargs arguments are not supported in csp nodes")
 
-        if (sys.version_info.major > 3 or sys.version_info.minor >= 8) and args.posonlyargs:
+        if args.posonlyargs:
             raise CspParseError("position only arguments are not supported in csp nodes")
 
         inputs = []
@@ -419,10 +418,7 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
 
     @classmethod
     def _create_ast_module(cls, body):
-        if sys.version_info.major > 3 or sys.version_info.minor >= 8:
-            return ast.Module(body, [])
-        else:
-            return ast.Module(body)
+        return ast.Module(body, [])
 
     def _compile_function(self, newfuncdef):
         modast = self._create_ast_module([newfuncdef])

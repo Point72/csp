@@ -107,16 +107,15 @@ class TestParsing(unittest.TestCase):
                 __outputs__(ts[int])
                 pass
 
-        if sys.version_info.major > 3 or sys.version_info.minor >= 8:
-            with self.assertRaisesRegex(CspParseError, "position only arguments are not supported in csp nodes"):
+        with self.assertRaisesRegex(CspParseError, "position only arguments are not supported in csp nodes"):
 
-                @csp.node
-                def posonly_sample(
-                    posonlyargs,
-                    /,
-                ):
-                    __outputs__(ts[int])
-                    pass
+            @csp.node
+            def posonly_sample(
+                posonlyargs,
+                /,
+            ):
+                __outputs__(ts[int])
+                pass
 
         with self.assertRaisesRegex(CspParseError, "csp.node and csp.graph args must be type annotated"):
 

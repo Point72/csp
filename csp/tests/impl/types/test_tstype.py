@@ -44,11 +44,10 @@ class TestTsTypeValidation(TestCase):
     def test_list(self):
         ta = TypeAdapter(TsType[List[float]])
         ta.validate_python(csp.null_ts(List[float]))
-        if sys.version_info >= (3, 9):
-            ta.validate_python(csp.null_ts(list[float]))
-            ta.validate_python(csp.null_ts(list[np.float64]))
-            ta.validate_python(csp.null_ts(list[int]))
-            self.assertRaises(Exception, ta.validate_python, csp.null_ts(list[str]))
+        ta.validate_python(csp.null_ts(list[float]))
+        ta.validate_python(csp.null_ts(list[np.float64]))
+        ta.validate_python(csp.null_ts(list[int]))
+        self.assertRaises(Exception, ta.validate_python, csp.null_ts(list[str]))
 
         ta = TypeAdapter(TsType[list])
         ta.validate_python(csp.null_ts(list))
@@ -58,8 +57,7 @@ class TestTsTypeValidation(TestCase):
     def test_nested(self):
         ta = TypeAdapter(TsType[Dict[str, List[float]]])
         ta.validate_python(csp.null_ts(Dict[str, List[float]]))
-        if sys.version_info >= (3, 9):
-            ta.validate_python(csp.null_ts(dict[str, list[float]]))
+        ta.validate_python(csp.null_ts(dict[str, list[float]]))
         ta.validate_python(csp.null_ts(Dict[str, List[np.float64]]))
         ta.validate_python(csp.null_ts(Dict[str, List[int]]))
         self.assertRaises(Exception, ta.validate_python, csp.null_ts(Dict[int, List[float]]))

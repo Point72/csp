@@ -123,7 +123,7 @@ if platform.system() == "Darwin":
             print("Error obtaining Homebrew prefix for autoconf-archive:", e)
             aclocal_path = None
 elif platform.system() != "Windows":
-    os.environ["PATH"] = f"/usr/bin:{os.environ['PATH']}"
+    os.environ["ACLOCAL_PATH"] = f"/usr/share/aclocal:{os.environ.get('ACLOCAL_PATH', '')}"
 
 if which("ccache") and os.environ.get("CSP_USE_CCACHE", "") != "0":
     cmake_args.append("-DCSP_USE_CCACHE=On")

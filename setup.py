@@ -124,7 +124,7 @@ if platform.system() == "Darwin":
             aclocal_path = None
 elif platform.system() != "Windows":
     os.environ["PATH"] = f"/usr/bin:{os.environ['PATH']}"
-    
+
 if which("ccache") and os.environ.get("CSP_USE_CCACHE", "") != "0":
     cmake_args.append("-DCSP_USE_CCACHE=On")
 

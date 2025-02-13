@@ -198,7 +198,7 @@ dependencies-debian:  ## install dependencies for linux
 	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip zip
 
 dependencies-fedora:  ## install dependencies for linux
-	yum install -y pkgconf autoconf autoconf-archive automake bison ccache cmake curl flex libtool openssl-devel perl-IPC-Cmd pkg-config tar unzip zip
+	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip zip
 
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install

@@ -80,7 +80,7 @@ class ContainerTypeNormalizer:
                 return [cls.normalized_type_to_actual_python_type(typ.__args__[0], level + 1), True]
             if origin is typing.List and level == 0:
                 return [cls.normalized_type_to_actual_python_type(typ.__args__[0], level + 1)]
-            if origin in (typing.Literal, typing_extensions.Literal):  # Not the same in python 3.8/3.9
+            if origin is typing.Literal:
                 # Import here to prevent circular import
                 from csp.impl.types.instantiation_type_resolver import UpcastRegistry
 

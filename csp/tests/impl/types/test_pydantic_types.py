@@ -47,9 +47,8 @@ class TestAdjustAnnotations(TestCase):
         self.assertAnnotationsEqual(adjust_annotations(List["T"]), List[CspTypeVar[T]])
         self.assertAnnotationsEqual(adjust_annotations(List[T]), List[CspTypeVar[T]])
         self.assertAnnotationsEqual(adjust_annotations(List[List["T"]]), List[List[CspTypeVar[T]]])
-        if sys.version_info >= (3, 9):
-            self.assertAnnotationsEqual(adjust_annotations(list["T"]), list[CspTypeVar[T]])
-            self.assertAnnotationsEqual(adjust_annotations(list[T]), list[CspTypeVar[T]])
+        self.assertAnnotationsEqual(adjust_annotations(list["T"]), list[CspTypeVar[T]])
+        self.assertAnnotationsEqual(adjust_annotations(list[T]), list[CspTypeVar[T]])
 
         self.assertAnnotationsEqual(adjust_annotations(Dict["K", "T"]), Dict[CspTypeVar[K], CspTypeVar[T]])
         self.assertAnnotationsEqual(adjust_annotations(Dict[K, T]), Dict[CspTypeVar[K], CspTypeVar[T]])
@@ -63,9 +62,8 @@ class TestAdjustAnnotations(TestCase):
         self.assertAnnotationsEqual(adjust_annotations(ts[List["T"]]), ts[List[CspTypeVarType[T]]])
         self.assertAnnotationsEqual(adjust_annotations(ts[List[T]]), ts[List[CspTypeVarType[T]]])
         self.assertAnnotationsEqual(adjust_annotations(ts[List[List["T"]]]), ts[List[List[CspTypeVarType[T]]]])
-        if sys.version_info >= (3, 9):
-            self.assertAnnotationsEqual(adjust_annotations(ts[list["T"]]), ts[list[CspTypeVarType[T]]])
-            self.assertAnnotationsEqual(adjust_annotations(ts[list[T]]), ts[list[CspTypeVarType[T]]])
+        self.assertAnnotationsEqual(adjust_annotations(ts[list["T"]]), ts[list[CspTypeVarType[T]]])
+        self.assertAnnotationsEqual(adjust_annotations(ts[list[T]]), ts[list[CspTypeVarType[T]]])
 
         self.assertAnnotationsEqual(
             adjust_annotations(ts[Dict["K", "T"]]), ts[Dict[CspTypeVarType[K], CspTypeVarType[T]]]

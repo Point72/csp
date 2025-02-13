@@ -1,7 +1,6 @@
 import ast
 import copy
 import inspect
-import sys
 import textwrap
 from warnings import warn
 
@@ -738,21 +737,15 @@ class NodeParser(BaseParser):
     def _create_ast_args(
         cls, posonlyargs=[], args=[], kwonlyargs=[], defaults=[], vararg=None, kwarg=None, kw_defaults=[]
     ):
-        # position only args are introducing in 3.8
-        if sys.version_info.major > 3 or sys.version_info.minor >= 8:
-            return ast.arguments(
-                posonlyargs=posonlyargs,
-                args=args,
-                kwonlyargs=kwonlyargs,
-                defaults=defaults,
-                vararg=vararg,
-                kwarg=kwarg,
-                kw_defaults=kw_defaults,
-            )
-        else:
-            return ast.arguments(
-                args=args, kwonlyargs=kwonlyargs, defaults=defaults, vararg=vararg, kwarg=kwarg, kw_defaults=kw_defaults
-            )
+        return ast.arguments(
+            posonlyargs=posonlyargs,
+            args=args,
+            kwonlyargs=kwonlyargs,
+            defaults=defaults,
+            vararg=vararg,
+            kwarg=kwarg,
+            kw_defaults=kw_defaults,
+        )
 
     def _is_ts_args_removed_from_signature(self):
         return True

@@ -327,7 +327,9 @@ jobs:
         ########
         # Linux
         - name: Python Wheel Steps (Linux - cibuildwheel)
-          run: make dist-py-cibw
+          run: |
+            export PATH=/usr/bin:$PATH
+            make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
             CIBW_ENVIRONMENT_LINUX: CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"

@@ -236,9 +236,6 @@ jobs:
           with:
             version: '${{ matrix.python-version }}'
 
-        - name: Set up dependencies
-          uses: ./.github/actions/setup-dependencies
-          
         - name: Set up Caches
           uses: ./.github/actions/setup-caches
 
@@ -246,7 +243,21 @@ jobs:
           run: make requirements
           
         - name: Install requirements
-          run: make dependencies-fedora
+          run: |
+            sudo apt-get install -y \
+            autoconf \
+            autoconf-archive \
+            automake \
+            bison \
+            cmake \
+            curl \
+            flex \
+            libtool \
+            ninja-build \
+            pkg-config \
+            tar \
+            unzip \
+            zip
 
         - uses: actions/download-artifact@v4
           with:

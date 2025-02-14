@@ -243,21 +243,7 @@ jobs:
           run: make requirements
           
         - name: Install requirements
-          run: |
-            sudo apt-get install -y \
-            autoconf \
-            autoconf-archive \
-            automake \
-            bison \
-            cmake \
-            curl \
-            flex \
-            libtool \
-            ninja-build \
-            pkg-config \
-            tar \
-            unzip \
-            zip
+          run: sudo dependencies-debian 
 
         - uses: actions/download-artifact@v4
           with:
@@ -272,7 +258,6 @@ jobs:
             CCACHE_DIR: /home/runner/work/csp/csp/.ccache
             VCPKG_DEFAULT_BINARY_CACHE: /home/runner/vcpkg_cache
             VCPKG_DOWNLOADS: /home/runner/vcpkg_download_cache
-            ACLOCAL_PATH: /usr/share/aclocal
 
         - name: Run tests against from-scratch sdist build
           run: make test

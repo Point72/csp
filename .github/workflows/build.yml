@@ -236,14 +236,15 @@ jobs:
           with:
             version: '${{ matrix.python-version }}'
 
-        - name: Set up dependencies
-          uses: ./.github/actions/setup-dependencies
-          
         - name: Set up Caches
           uses: ./.github/actions/setup-caches
 
         - name: Install python dependencies
           run: make requirements
+          
+        - name: Install requirements
+          shell: bash
+          run: make dependencies-debian
 
         - uses: actions/download-artifact@v4
           with:

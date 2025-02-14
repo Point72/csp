@@ -164,7 +164,6 @@ rpm --import https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux &&
 dnf config-manager --set-enabled powertools &&
 dnf install epel-release -y &&
 make dependencies-fedora
-export ACLOCAL_PATH="/usr/share/aclocal:$(printenv ACLOCAL_PATH)"
 """
 environment = {CSP_MANYLINUX="ON"}
 repair-wheel-command = "auditwheel -v show {wheel} && LD_LIBRARY_PATH=/project/csp/lib auditwheel -v repair -w {dest_dir} {wheel}"

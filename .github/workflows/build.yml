@@ -243,7 +243,7 @@ jobs:
           run: make requirements
           
         - name: Install requirements
-          run: sudo dependencies-debian 
+          run: sudo make dependencies-debian 
 
         - uses: actions/download-artifact@v4
           with:

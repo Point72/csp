@@ -21,11 +21,7 @@ public:
 private:
     inline bool shouldPushLive( bool pushLive, const DateTime& msgTime )
     {
-        // This function encapsulates the logic for determining if a message should be pushed live
-        // For backwards compatibility, if adjustOutOfOrderTime is
-        // False, and the msgTime is before the engine start time, we push live
-        return pushLive || flaggedLive() || msgTime.isNone() || 
-               (msgTime < rootEngine()->startTime() && !adjustOutOfOrderTime());
+        return pushLive || flaggedLive() || msgTime.isNone();
     }
 
     inline bool shouldProcessMessage( bool pushLive, const DateTime& msgTime )

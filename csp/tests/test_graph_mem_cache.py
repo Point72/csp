@@ -65,18 +65,6 @@ class TestGraphMemCache(unittest.TestCase):
             self.assertIsInstance(o6[0], dict)
 
             tuples = [(1, 2, 3), (1, 2, 3), (3, 2, 1)]
-            lists = [list(t) for t in tuples]
-            if sys.version_info.major == 3 and sys.version_info.minor < 7:
-                # tuple identity changed in 3.7
-                self.assertIsNot(tuples[0], tuples[1])
-                self.assertIsNot(lists[0], lists[1])
-                self.assertIs(wrap_in_tuple(tuples[0]), wrap_in_tuple(tuples[1]))
-                self.assertIs(wrap_in_tuple(lists[0]), wrap_in_tuple(lists[1]))
-                self.assertIsNot(wrap_in_tuple(lists[0]), wrap_in_tuple(tuples[0]))
-                self.assertIsNot(wrap_in_tuple(tuples[0]), wrap_in_tuple(tuples[2]))
-                self.assertIsNot(wrap_in_tuple(lists[0]), wrap_in_tuple(lists[2]))
-                self.assertIsNot(wrap_in_tuple(lists[0]), wrap_in_tuple(set(lists[0])))
-                self.assertIsNot(wrap_in_tuple(tuples[0]), wrap_in_tuple(set(tuples[0])))
 
             complex_key = {"a": 1, "b": tuples, "c": [o1, o2, o3, o4, o5, o6], "d": "lists"}
             complex_key_copy = copy.copy(complex_key)

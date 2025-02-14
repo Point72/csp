@@ -16,7 +16,7 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.0.7"
+version = "0.0.8"
 requires-python = ">=3.8"
 
 dependencies = [
@@ -120,7 +120,7 @@ slack = [
 ]
 
 [tool.bumpversion]
-current_version = "0.0.7"
+current_version = "0.0.8"
 commit = false
 tag = false
 commit_args = "-s"
@@ -171,7 +171,10 @@ skip = "*i686 musllinux*"
 manylinux-x86_64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
-before-all ="make dependencies-mac"
+before-all ="""
+make dependencies-mac
+export ACLOCAL_PATH="$(brew --prefix autoconf-archive)/share/aclocal:$(printenv ACLOCAL_PATH)"
+"""
 archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
 
 [tool.cibuildwheel.windows]

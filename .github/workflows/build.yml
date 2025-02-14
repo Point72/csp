@@ -198,13 +198,11 @@ jobs:
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2019 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2019-Readme.md
           python-version:
-            - "3.8"
             - "3.9"
             - "3.10"
             - "3.11"
             - "3.12"
           cibuildwheel:
-            - "cp38"
             - "cp39"
             - "cp310"
             - "cp311"
@@ -217,16 +215,6 @@ jobs:
             ############################
             # Skip when cibuildwheel != python version
             # to avoid duplication
-            - python-version: "3.8"
-              cibuildwheel: "cp39"
-            - python-version: "3.8"
-              cibuildwheel: "cp310"
-            - python-version: "3.8"
-              cibuildwheel: "cp311"
-            - python-version: "3.8"
-              cibuildwheel: "cp312"
-            - python-version: "3.9"
-              cibuildwheel: "cp38"
             - python-version: "3.9"
               cibuildwheel: "cp310"
             - python-version: "3.9"
@@ -234,23 +222,17 @@ jobs:
             - python-version: "3.9"
               cibuildwheel: "cp312"
             - python-version: "3.10"
-              cibuildwheel: "cp38"
-            - python-version: "3.10"
               cibuildwheel: "cp39"
             - python-version: "3.10"
               cibuildwheel: "cp311"
             - python-version: "3.10"
               cibuildwheel: "cp312"
             - python-version: "3.11"
-              cibuildwheel: "cp38"
-            - python-version: "3.11"
               cibuildwheel: "cp39"
             - python-version: "3.11"
               cibuildwheel: "cp310"
             - python-version: "3.11"
               cibuildwheel: "cp312"
-            - python-version: "3.12"
-              cibuildwheel: "cp38"
             - python-version: "3.12"
               cibuildwheel: "cp39"
             - python-version: "3.12"
@@ -264,15 +246,9 @@ jobs:
             ##############################################
             # mac arm builds support py3.10+
             - os: macos-14
-              python-version: "3.8"
-            - os: macos-14
               python-version: "3.9"
 
             # Avoid extra resources for windows build
-            - is-full-run: false
-              os: windows-2019
-              python-version: "3.8"
-
             - is-full-run: false
               os: windows-2019
               python-version: "3.9"
@@ -288,10 +264,6 @@ jobs:
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-13
-
-            - is-full-run: false
-              os: macos-14
-              python-version: "3.8"
 
             - is-full-run: false
               os: macos-14
@@ -330,7 +302,7 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
-            CIBW_ENVIRONMENT_LINUX: CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ENVIRONMENT_LINUX: ACLOCAL_PATH="/usr/share/aclocal" CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
             CIBW_BUILD_VERBOSITY: 3
           if: ${{ runner.os == 'Linux' }}
 
@@ -463,7 +435,6 @@ jobs:
             - macos-14
             - windows-2019
           python-version:
-            - 3.8
             - 3.9
             - "3.10"
             - 3.11
@@ -476,15 +447,9 @@ jobs:
             ##############################################
             # mac arm builds support py3.10+
             - os: macos-14
-              python-version: "3.8"
-            - os: macos-14
               python-version: "3.9"
 
             # Avoid extra resources for windows build
-            - is-full-run: false
-              os: windows-2019
-              python-version: "3.8"
-
             - is-full-run: false
               os: windows-2019
               python-version: "3.9"
@@ -500,10 +465,6 @@ jobs:
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-13
-
-            - is-full-run: false
-              os: macos-14
-              python-version: "3.8"
 
             - is-full-run: false
               os: macos-14
@@ -636,6 +597,9 @@ jobs:
 
         - name: Install python dependencies
           run: make requirements
+          
+        - name: Install requirements
+          run: sudo make dependencies-debian 
 
         - uses: actions/download-artifact@v4
           with:

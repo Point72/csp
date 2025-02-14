@@ -15,10 +15,14 @@ class FastList(typing.List, typing.Generic[T]):  # Need to inherit from Generic[
         raise NotImplementedError("Can not init FastList class")
 
 
-class CspTypingUtils37:
+class CspTypingUtils39:
     _ORIGIN_COMPAT_MAP = {list: typing.List, set: typing.Set, dict: typing.Dict, tuple: typing.Tuple}
     _ARRAY_ORIGINS = (csp.typing.Numpy1DArray, csp.typing.NumpyNDArray)
-    _GENERIC_ALIASES = (typing._GenericAlias,)
+    _GENERIC_ALIASES = (typing._GenericAlias, typing.GenericAlias)
+
+    @classmethod
+    def is_generic_container(cls, typ):
+        return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union
 
     @classmethod
     def is_type_spec(cls, val):
@@ -47,14 +51,6 @@ class CspTypingUtils37:
     def is_numpy_nd_array_type(cls, typ):
         return cls.is_numpy_array_type(typ) and cls.get_origin(typ) is csp.typing.NumpyNDArray
 
-    # is typ a standard generic container
-    @classmethod
-    def is_generic_container(cls, typ):
-        # isinstance(typing.Callable, typing._GenericAlias) passses in python 3.8, we don't want that
-        return (
-            isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union and typ is not typing.Callable
-        )
-
     @classmethod
     def is_union_type(cls, typ):
         return isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union
@@ -82,19 +78,8 @@ class CspTypingUtils37:
             return str(typ)
 
 
-CspTypingUtils = CspTypingUtils37
+CspTypingUtils = CspTypingUtils39
 
-if sys.version_info >= (3, 9):
-
-    class CspTypingUtils39(CspTypingUtils37):
-        # To support PEP 585
-        _GENERIC_ALIASES = (typing._GenericAlias, typing.GenericAlias)
-
-        @classmethod
-        def is_generic_container(cls, typ):
-            return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union
-
-    CspTypingUtils = CspTypingUtils39
 
 if sys.version_info >= (3, 10):
 
@@ -136,7 +121,6 @@ class TsTypeValidator:
         from csp.impl.types.tstype import TsType
 
         self._source_type = source_type
-        # Use CspTypingUtils for 3.8 compatibility, to map list -> typing.List, so one can call List[float]
         self._source_origin = typing.get_origin(source_type)
         self._source_is_union = CspTypingUtils.is_union_type(source_type)
         self._source_args = typing.get_args(source_type)
@@ -226,11 +210,7 @@ class TsTypeValidator:
                 source_validator.validate(value_arg, info)
                 for value_arg, source_validator in zip(value_args, self._source_args_validators)
             )
-            if sys.version_info >= (3, 9):
-                return self._source_origin[new_args]
-            else:
-                # Because python 3.8 will return "list" for get_origin(List[float]), but you can't call list[(float,)]
-                return CspTypingUtils._ORIGIN_COMPAT_MAP.get(self._source_origin, self._source_origin)[new_args]
+            return self._source_origin[new_args]
 
         raise ValueError(f"{self._error_message(value_type)}.")
 

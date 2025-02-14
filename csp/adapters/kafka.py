@@ -17,7 +17,7 @@ from csp.adapters.utils import (
     RawTextMessageMapper,
     hash_mutable,
 )
-from csp.impl.wiring import input_adapter_def, output_adapter_def, status_adapter_def
+from csp.impl.wiring import ReplayMode, input_adapter_def, output_adapter_def, status_adapter_def
 from csp.lib import _kafkaadapterimpl
 
 _ = BytesMessageProtoMapper, DateTimeType, JSONTextMessageMapper, RawBytesMessageMapper, RawTextMessageMapper
@@ -32,10 +32,8 @@ class KafkaStatusMessageType(IntEnum):
     GENERIC_ERROR = 4
 
 
-class KafkaStartOffset(csp.Enum):
-    EARLIEST = 1  # Replay all of history
-    LATEST = 2  # Start from new msgs
-    START_TIME = 3  # Start from csp run starttime
+# Backward compatible
+KafkaStartOffset = ReplayMode
 
 
 class KafkaAdapterManager:

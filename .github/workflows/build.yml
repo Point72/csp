@@ -244,6 +244,9 @@ jobs:
 
         - name: Install python dependencies
           run: make requirements
+          
+        - name: Install requirements
+          run: make dependencies-fedora
 
         - uses: actions/download-artifact@v4
           with:

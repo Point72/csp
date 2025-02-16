@@ -38,9 +38,11 @@ def build_graph(f, *args, starttime=None, endtime=None, realtime=False, **kwargs
     ), "Start time and end time should either both be specified or none of them should be specified when building a graph"
     if starttime:
         starttime, endtime = _normalize_run_times(starttime, endtime, realtime)
-    with ExceptionContext(), GraphRunInfo(starttime=starttime, endtime=endtime, realtime=realtime), Context(
-        start_time=starttime, end_time=endtime
-    ) as c:
+    with (
+        ExceptionContext(),
+        GraphRunInfo(starttime=starttime, endtime=endtime, realtime=realtime),
+        Context(start_time=starttime, end_time=endtime) as c,
+    ):
         # Setup the profiler if within a profiling context
         if Profiler.instance() is not None and not Profiler.instance().initialized:
             Profiler.instance().init_profiler()

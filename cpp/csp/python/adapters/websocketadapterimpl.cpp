@@ -45,7 +45,11 @@ static OutputAdapter * create_websocket_output_adapter( csp::AdapterManager * ma
     auto * websocketManager = dynamic_cast<ClientAdapterManager*>( manager );
     if( !websocketManager )
         CSP_THROW( TypeError, "Expected WebsocketClientAdapterManager" );
-    return websocketManager -> getOutputAdapter();
+    PyObject * pyProperties;
+    if( !PyArg_ParseTuple( args, "O!",
+                           &PyDict_Type, &pyProperties ) )
+        CSP_THROW( PythonPassthrough, "" );
+    return websocketManager -> getOutputAdapter(fromPython<Dictionary>( pyProperties ));
 }
 
 static OutputAdapter * create_websocket_header_update_adapter( csp::AdapterManager * manager, PyEngine * pyengine, PyObject * args )
@@ -56,10 +60,25 @@ static OutputAdapter * create_websocket_header_update_adapter( csp::AdapterManag
     return websocketManager -> getHeaderUpdateAdapter();
 }
 
+static OutputAdapter * create_websocket_connection_request_adapter( csp::AdapterManager * manager, PyEngine * pyengine, PyObject * args )
+{
+    PyObject * pyProperties;
+    auto * websocketManager = dynamic_cast<ClientAdapterManager*>( manager );
+    if( !websocketManager )
+        CSP_THROW( TypeError, "Expected WebsocketClientAdapterManager" );
+
+    if( !PyArg_ParseTuple( args, "O!",
+                           &PyDict_Type, &pyProperties ) )
+        CSP_THROW( PythonPassthrough, "" );
+    return websocketManager -> getConnectionRequestAdapter( fromPython<Dictionary>( pyProperties ) );
+}
+
 REGISTER_ADAPTER_MANAGER( _websocket_adapter_manager, create_websocket_adapter_manager );
 REGISTER_INPUT_ADAPTER(   _websocket_input_adapter,   create_websocket_input_adapter );
 REGISTER_OUTPUT_ADAPTER(  _websocket_output_adapter,  create_websocket_output_adapter );
 REGISTER_OUTPUT_ADAPTER(  _websocket_header_update_adapter,  create_websocket_header_update_adapter);
+REGISTER_OUTPUT_ADAPTER(  _websocket_connection_request_adapter,  create_websocket_connection_request_adapter);
+
 
 static PyModuleDef _websocketadapterimpl_module = {
         PyModuleDef_HEAD_INIT,

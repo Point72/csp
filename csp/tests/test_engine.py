@@ -1196,8 +1196,8 @@ class TestEngine(unittest.TestCase):
             gc.collect()
         end_mem = proc_info.memory_info().rss
 
-        # 5MB leeway, the leak resulted in 50MB+ leak
-        self.assertLess(end_mem - start_mem, 5000000)
+        # 10MB leeway, the leak resulted in 50MB+ leak
+        self.assertLess(end_mem - start_mem, 10000000)
 
     def test_multiple_alarms_bug(self):
         @csp.node

@@ -21,7 +21,7 @@ from csp.impl.wiring.delayed_node import DelayedNodeWrapperDef
 from csp.impl.wiring.runtime import build_graph
 from csp.lib import _csptestlibimpl
 
-USE_PYDANTIC = os.environ.get("CSP_PYDANTIC")
+USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
 
 @csp.graph

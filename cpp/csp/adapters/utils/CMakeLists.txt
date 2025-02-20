@@ -21,31 +21,20 @@ set(ADAPTER_UTILS_FILES
         RawBytesMessageStructConverter.cpp
         )
 
+if(WIN32)
+    set(CSP_LIB_TYPE STATIC)
+else()
+    set(CSP_LIB_TYPE SHARED)
+endif()
 
-add_library(csp_adapter_utils STATIC ${ADAPTER_UTILS_FILES})
-set_target_properties(csp_adapter_utils PROPERTIES PUBLIC_HEADER "${ADAPTER_UTILS_PUBLIC_HEADERS}")
+add_library(csp_adapter_utils ${CSP_LIB_TYPE} ${ADAPTER_UTILS_FILES})
+set_target_properties(csp_adapter_utils PROPERTIES PUBLIC_HEADER "${ADAPTER_UTILS_PUBLIC_HEADERS}" PREFIX lib)
 
 find_package(Protobuf REQUIRED)
 target_link_libraries(csp_adapter_utils PRIVATE protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite)
 
-if(NOT WIN32)
-    add_library(csp_adapter_utils_shared SHARED ${ADAPTER_UTILS_FILES})
-    set_target_properties(csp_adapter_utils_shared PROPERTIES PUBLIC_HEADER "${ADAPTER_UTILS_PUBLIC_HEADERS}"  PREFIX lib)
-
-    find_package(Protobuf REQUIRED)
-    target_link_libraries(csp_adapter_utils_shared PRIVATE protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite)
-
-    install(TARGETS csp_adapter_utils csp_adapter_utils_shared
-            PUBLIC_HEADER DESTINATION include/csp/adapters/utils
-            RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
-            LIBRARY DESTINATION lib/
-    )
-else ()
-    install(TARGETS csp_adapter_utils
-            PUBLIC_HEADER DESTINATION include/csp/adapters/utils
-            RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
-            LIBRARY DESTINATION lib/
-    )
-endif()
-
-
+install(TARGETS csp_adapter_utils
+        PUBLIC_HEADER DESTINATION include/csp/adapters/utils
+        RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
+        LIBRARY DESTINATION lib/
+)

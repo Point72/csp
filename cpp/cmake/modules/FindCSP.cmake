@@ -89,8 +89,13 @@ if(CSP_IN_SOURCE_BUILD)
   set(CSP_STATS_LIBRARY "${CSP_LIBS_DIR}/_cspstatsimpl.so")
   set(CSP_STATS_STATIC_LIBRARY "${CSP_LIBS_DIR}/libstatsimpl_static.a")
   set(CSP_NPSTATS_LIBRARY "${CSP_LIBS_DIR}/_cspnpstatsimpl.so")
-  set(CSP_ADAPTER_UTILS_STATIC_LIBRARY "${CSP_LIBS_DIR}/libcsp_adapter_utils_static.a")
-  set(CSP_ADAPTER_UTILS_LIBRARY "${CSP_LIBS_DIR}/libcsp_adapter_utils_shared.so")
+  find_library(CSP_ADAPTER_UTILS_LIBRARY
+          NAMES
+          csp_adapter_utils_static
+          csp_adapter_utils
+          PATHS ${CSP_LIBS_DIR}
+          NO_DEFAULT_PATH
+  )
   set(CSP_KAFKAADAPTER_LIBRARY "${CSP_LIBS_DIR}/_kafkaadapterimpl.so")
   set(CSP_KAFKAADAPTER_STATIC_LIBRARY "${CSP_LIBS_DIR}/libcsp_kafka_adapter_static.a")
   set(CSP_PARQUETADAPTER_LIBRARY "${CSP_LIBS_DIR}/_parquetadapterimpl.so")
@@ -124,8 +129,13 @@ else()
 
   find_library(CSP_NPSTATS_LIBRARY NAMES _cspnpstatsimpl.so PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)
 
-  find_library(CSP_ADAPTER_UTILS_STATIC_LIBRARY NAMES libcsp_adapter_utils_static.a PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)
-  find_library(CSP_ADAPTER_UTILS_LIBRARY NAMES libcsp_adapter_utils_shared.so PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)
+  find_library(CSP_ADAPTER_UTILS_LIBRARY
+          NAMES
+          csp_adapter_utils_static
+          csp_adapter_utils
+          PATHS "${__csp_lib_path}"
+          NO_DEFAULT_PATH
+  )
 
   find_library(CSP_KAFKAADAPTER_LIBRARY NAMES _kafkaadapterimpl.so PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)
   find_library(CSP_KAFKAADAPTER_STATIC_LIBRARY NAMES libcsp_kafka_adapter_static.a PATHS "${__csp_lib_path}" NO_DEFAULT_PATH)

@@ -100,7 +100,7 @@ KafkaAdapterManager.subscribe(
   meta_field_map: dict = None,
   push_mode: csp.PushMode = csp.PushMode.LAST_VALUE,
   adjust_out_of_order_time: bool = False,
-  extract_timestamp_from_field: str = None,
+  tick_timestamp_from_field: str = None,
   include_msg_before_start_time: bool = True,
 ):
 ```
@@ -119,9 +119,9 @@ KafkaAdapterManager.subscribe(
   - **`"key"`**: key of the message
 - **`push_mode`**: `csp.PushMode` (LAST_VALUE, NON_COLLAPSING, BURST)
 - **`adjust_out_of_order_time`**: in some cases it has been seen that kafka can produce out of order messages, even for the same key.
-  This allows the adapter to be more laz and allow it through by forcing time to max(time, prev time)
-- **`extract_timestamp_from_field`**: Allow overriding the time we push the tick into the engine based on this field on the struct. This only works if `group_id` is not set.
-- **`include_msg_before_start_time`**: Include messages from Kafka with times (either the time from Kafka or from the message as specified with `extract_timestamp_from_field`) before the engine start time. This is separate from the `start_offset` specified on the manager level, since that determines where to start reading from Kafka, and is not aware of custom timestamps.
+  This allows the adapter to be more laz and allow it through by forcing time to max(time, prev time). Only applicable during sim replay
+- **`tick_timestamp_from_field`**: Allow overriding the time we push the tick into the engine based on this field on the struct. Only applicable during sim replay
+- **`include_msg_before_start_time`**: Include messages from Kafka with times (either the time from Kafka or from the message as specified with `tick_timestamp_from_field`) before the engine start time. This is separate from the `start_offset` specified on the manager level, since that determines where to start reading from Kafka, and is not aware of custom timestamps.
 
 Similarly, you can publish on topics using the following method:
 

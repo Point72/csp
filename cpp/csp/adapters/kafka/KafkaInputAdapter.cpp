@@ -70,11 +70,13 @@ KafkaInputAdapter::KafkaInputAdapter( Engine *engine, CspTypePtr &type,
             if( m_keyField -> type() -> type() != CspType::Type::STRING )
                 CSP_THROW( ValueError, "field " << keyFieldName << " must be of type string on struct type " << structType.meta() -> name() );
         }
-        if( properties.exists( "extract_timestamp_from_field" ) )
+        if( properties.exists( "tick_timestamp_from_field" ) )
         {
-            std::string timestampFieldName = properties.get<std::string>("extract_timestamp_from_field");
-            m_extractTimestampField = structType.meta() -> field( timestampFieldName );
-            if( m_extractTimestampField -> type() -> type() != CspType::Type::DATETIME )
+            std::string timestampFieldName = properties.get<std::string>("tick_timestamp_from_field");
+            m_tickTimestampField = structType.meta() -> field( timestampFieldName );
+            if( !m_tickTimestampField )
+                CSP_THROW( ValueError, "field " << timestampFieldName << " is not a valid field on struct type " << structType.meta() -> name() );
+            if( m_tickTimestampField -> type() -> type() != CspType::Type::DATETIME )
                 CSP_THROW( ValueError, "field " << timestampFieldName << " must be of type datetime on struct type " << structType.meta() -> name() );
         }
     }
@@ -108,8 +110,8 @@ void KafkaInputAdapter::processMessage( RdKafka::Message* message, bool live, cs
         if( m_keyField )
             m_keyField -> setValue( tick.get(), *message -> key() );
         
-        if( m_extractTimestampField )
-            msgTime = m_extractTimestampField->value<DateTime>(tick.get());
+        if( m_tickTimestampField )
+            msgTime = m_tickTimestampField->value<DateTime>(tick.get());
 
         bool pushLive = shouldPushLive(live, msgTime);
         if( shouldProcessMessage( pushLive, msgTime ) )

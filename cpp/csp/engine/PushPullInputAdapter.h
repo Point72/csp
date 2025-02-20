@@ -33,7 +33,6 @@ protected:
     virtual PullDataEvent * nextPullEvent();
 
     bool flaggedLive() const { return m_notifiedEndOfPull; }
-    bool adjustOutOfOrderTime() const { return m_adjustOutOfOrderTime; }
 
 private:
     template<typename T>

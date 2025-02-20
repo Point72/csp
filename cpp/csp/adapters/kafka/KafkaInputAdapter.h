@@ -19,12 +19,12 @@ public:
     void processMessage( RdKafka::Message* message, bool live, csp::PushBatch* batch );
 
 private:
-    inline bool shouldPushLive( bool pushLive, const DateTime& msgTime )
+    inline bool shouldPushLive( bool pushLive, DateTime msgTime )
     {
         return pushLive || flaggedLive() || msgTime.isNone();
     }
 
-    inline bool shouldProcessMessage( bool pushLive, const DateTime& msgTime )
+    inline bool shouldProcessMessage( bool pushLive, DateTime msgTime )
     {
         // This function encapsulates the logic for determining if a message should be processed
         // live always goes through, otherwise, we filter out
@@ -39,7 +39,7 @@ private:
     StructFieldPtr m_liveField;
     StructFieldPtr m_timestampField;
     StructFieldPtr m_keyField;
-    StructFieldPtr m_extractTimestampField;
+    StructFieldPtr m_tickTimestampField;
 
     bool m_includeMsgBeforeStartTime;
 };

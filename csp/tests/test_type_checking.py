@@ -13,7 +13,7 @@ from csp import ts
 from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring.runtime import build_graph
 
-USE_PYDANTIC = os.environ.get("CSP_PYDANTIC")
+USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
 
 class TestTypeChecking(unittest.TestCase):

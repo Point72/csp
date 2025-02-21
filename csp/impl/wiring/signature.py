@@ -12,7 +12,7 @@ from csp.impl.wiring.edge import Edge
 from csp.impl.wiring.outputs import OutputsContainer
 from csp.impl.wiring.special_output_names import UNNAMED_OUTPUT_NAME
 
-USE_PYDANTIC: bool = os.environ.get("CSP_PYDANTIC")
+USE_PYDANTIC: bool = os.environ.get("CSP_PYDANTIC", True)
 
 if USE_PYDANTIC:
     from pydantic import (

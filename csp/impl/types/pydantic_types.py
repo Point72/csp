@@ -129,6 +129,11 @@ def adjust_annotations(
                 annotation.typ, top_level=False, in_ts=False, make_optional=False, forced_tvars=forced_tvars
             )
         )
+    elif isinstance(annotation, list):  # Handle list, i.e. in Callable[[Annotation], Any]
+        return [
+            adjust_annotations(a, top_level=False, in_ts=in_ts, make_optional=False, forced_tvars=forced_tvars)
+            for a in annotation
+        ]
 
     if type(annotation) is ForwardRef:
         if in_ts:

@@ -1,5 +1,6 @@
 import sys
-from typing import Dict, Generic, List, Optional, Type, TypeVar, Union, get_args, get_origin
+from inspect import isclass
+from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union, get_args, get_origin
 from unittest import TestCase
 
 import csp
@@ -24,7 +25,16 @@ class TestAdjustAnnotations(TestCase):
         if origin1 is None:
             if isinstance(annotation1, TypeVar) and isinstance(annotation2, TypeVar):
                 self.assertEqual(annotation1.__name__, annotation2.__name__)
-            elif issubclass(annotation1, OutputBasket) and issubclass(annotation2, OutputBasket):
+            elif isinstance(annotation1, list) and isinstance(annotation2, list):
+                self.assertEqual(len(annotation1), len(annotation2))
+                for item1, item2 in zip(annotation1, annotation2):
+                    self.assertAnnotationsEqual(item1, item2)
+            elif (
+                isclass(annotation1)
+                and issubclass(annotation1, OutputBasket)
+                and isclass(annotation2)
+                and issubclass(annotation2, OutputBasket)
+            ):
                 self.assertAnnotationsEqual(annotation1.typ, annotation2.typ)
             else:
                 self.assertEqual(annotation1, annotation2)
@@ -56,6 +66,12 @@ class TestAdjustAnnotations(TestCase):
         self.assertAnnotationsEqual(adjust_annotations(MyGeneric["T"]), MyGeneric[CspTypeVar[T]])
         self.assertAnnotationsEqual(adjust_annotations(MyGeneric[T]), MyGeneric[CspTypeVar[T]])
 
+    def test_tvar_callable(self):
+        self.assertAnnotationsEqual(adjust_annotations(Callable[["T"], Any]), Callable[[CspTypeVar[T]], Any])
+        self.assertAnnotationsEqual(
+            adjust_annotations(Callable[["K", "K"], "T"]), Callable[[CspTypeVar[K], CspTypeVar[K]], CspTypeVar[T]]
+        )
+
     def test_tvar_ts_of_container(self):
         self.assertAnnotationsEqual(adjust_annotations(ts["T"]), ts[CspTypeVarType[T]])
         self.assertAnnotationsEqual(adjust_annotations(ts["~T"]), ts[CspTypeVarType[TypeVar("~T")]])
@@ -75,6 +91,15 @@ class TestAdjustAnnotations(TestCase):
         )
         self.assertAnnotationsEqual(
             adjust_annotations(ts[Union[K, T]]), ts[Union[CspTypeVarType[K], CspTypeVarType[T]]]
+        )
+
+    def test_tvar_ts_of_callable(self):
+        self.assertAnnotationsEqual(
+            adjust_annotations(ts[Callable[["T"], Any]]), ts[Callable[[CspTypeVarType[T]], Any]]
+        )
+        self.assertAnnotationsEqual(
+            adjust_annotations(ts[Callable[["K", "K"], "T"]]),
+            ts[Callable[[CspTypeVarType[K], CspTypeVarType[K]], CspTypeVarType[T]]],
         )
 
     def test_tvar_container_of_ts(self):

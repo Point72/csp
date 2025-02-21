@@ -21,13 +21,7 @@ set(ADAPTER_UTILS_FILES
         RawBytesMessageStructConverter.cpp
         )
 
-if(WIN32)
-    set(CSP_LIB_TYPE STATIC)
-else()
-    set(CSP_LIB_TYPE SHARED)
-endif()
-
-add_library(csp_adapter_utils ${CSP_LIB_TYPE} ${ADAPTER_UTILS_FILES})
+add_library(csp_adapter_utils SHARED ${ADAPTER_UTILS_FILES})
 set_target_properties(csp_adapter_utils PROPERTIES PUBLIC_HEADER "${ADAPTER_UTILS_PUBLIC_HEADERS}" PREFIX lib)
 
 find_package(Protobuf REQUIRED)

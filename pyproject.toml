@@ -17,10 +17,9 @@ authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
 version = "0.0.8"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 
 dependencies = [
-    "backports.zoneinfo; python_version<'3.9'",
     "deprecated",
     "numpy<2",
     "packaging",
@@ -38,7 +37,6 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -149,7 +147,7 @@ replace = 'project(csp VERSION "{new_version}")'
 ignore = []
 
 [tool.cibuildwheel]
-build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
+build = "cp39-* cp310-* cp311-* cp312-*"
 test-command = "echo 'TODO'"
 test-requires = [
     "pytest",

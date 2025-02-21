@@ -10,7 +10,7 @@
 [![PyPI](https://img.shields.io/pypi/v/csp.svg?style=flat)](https://pypi.python.org/pypi/csp)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](https://github.com/Point72/csp/LICENSE)
 [![Build Status](https://github.com/Point72/csp/actions/workflows/build.yml/badge.svg)](https://github.com/Point72/csp/actions/workflows/build.yml)
-[![Python Versions](https://img.shields.io/badge/python-3.8_%7C_3.9_%7C_3.10_%7C_3.11_%7C_3.12-blue)](https://github.com/Point72/csp/blob/main/pyproject.toml)
+[![Python Versions](https://img.shields.io/badge/python-3.9_%7C_3.10_%7C_3.11_%7C_3.12-blue)](https://github.com/Point72/csp/blob/main/pyproject.toml)
 
 <br/>
 

@@ -19,8 +19,6 @@ public:
 
     csp::StructPtr asStruct( void * bytes, size_t size ) final;
 
-    MsgProtocol protocol() const override { return MsgProtocol::JSON; }
-
     static MessageStructConverter * create( const CspTypePtr & type, const Dictionary & properties )
     {
         return new JSONMessageStructConverter( type, properties );

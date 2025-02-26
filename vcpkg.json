@@ -2,7 +2,6 @@
   "name": "main",
   "version-string": "latest",
   "dependencies": [
-    "abseil",
     "arrow",
     "boost-beast",
     "boost-multi-index",
@@ -34,7 +33,6 @@
     "lz4",
     "openssl",
     "parquet",
-    "protobuf",
     "rapidjson",
     "thrift",
     "utf8proc"

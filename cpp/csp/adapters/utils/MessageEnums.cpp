@@ -11,11 +11,4 @@ INIT_CSP_ENUM( csp::adapters::utils::DateTimeWireType,
                "UINT64_SECONDS"
 );
 
-INIT_CSP_ENUM( csp::adapters::utils::MsgProtocol,
-               "UNKNOWN",
-               "JSON",
-               "PROTOBUF",
-               "RAW_BYTES"
-);
-
 }

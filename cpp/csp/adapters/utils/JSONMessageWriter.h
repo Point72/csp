@@ -38,7 +38,7 @@ public:
             csp::CspType::Type::STRING
     >;
 
-    JSONMessageWriter( const Dictionary & properties ) : MessageWriter( MsgProtocol::JSON )
+    JSONMessageWriter( const Dictionary & properties )
     {
         m_doc.SetObject();
         m_datetimeWireType = utils::DateTimeWireType( properties.get<std::string>( "datetime_type" ) );

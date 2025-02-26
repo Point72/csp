@@ -14,7 +14,7 @@
 namespace csp::autogen
 {
 
-class CSP_PUBLIC WebsocketStatus : public csp::CspEnum
+class WebsocketStatus : public csp::CspEnum
 {
 public:
     // Raw value quick access
@@ -54,7 +54,7 @@ private:
     static std::shared_ptr<csp::CspEnumMeta> s_meta;
 };
 
-class CSP_PUBLIC WebsocketHeaderUpdate : public csp::Struct
+class WebsocketHeaderUpdate : public csp::Struct
 {
 public:
 

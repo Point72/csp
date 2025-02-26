@@ -6,6 +6,7 @@
 #include <csp/engine/AdapterManager.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/PushInputAdapter.h>
+#include <atomic>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -47,7 +48,7 @@ protected:
 using KafkaStatusMessageType = csp::Enum<KafkaStatusMessageTypeTraits>;
 
 //Top level AdapterManager object for all kafka adapters in the engine
-class CSP_PUBLIC KafkaAdapterManager final : public csp::AdapterManager
+class KafkaAdapterManager final : public csp::AdapterManager
 {
 public:
     KafkaAdapterManager( csp::Engine * engine, const Dictionary & properties );
@@ -109,7 +110,8 @@ private:
     std::shared_ptr<RdKafka::Producer>         m_producer;
     std::unique_ptr<RdKafka::DeliveryReportCb> m_producerCb;
     std::unique_ptr<std::thread>               m_producerPollThread;
-    volatile bool                              m_producerPollThreadActive;
+    std::atomic<bool>                          m_producerPollThreadActive;
+    std::atomic<bool>                          m_unrecoverableError;
 
     std::unique_ptr<RdKafka::Conf>             m_consumerConf;
     std::unique_ptr<RdKafka::Conf>             m_producerConf;

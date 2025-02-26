@@ -1,6 +1,5 @@
 #include <csp/adapters/utils/MessageStructConverter.h>
 #include <csp/adapters/utils/JSONMessageStructConverter.h>
-#include <csp/adapters/utils/ProtobufMessageStructConverter.h>
 #include <csp/adapters/utils/RawBytesMessageStructConverter.h>
 
 namespace csp::adapters::utils
@@ -14,14 +13,13 @@ MessageStructConverter::MessageStructConverter( const CspTypePtr & type, const D
 
 MessageStructConverterCache::MessageStructConverterCache()
 {
-    registerConverter( MsgProtocol::RAW_BYTES, &RawBytesMessageStructConverter::create );
-    registerConverter( MsgProtocol::JSON,      &JSONMessageStructConverter::create );
-    registerConverter( MsgProtocol::PROTOBUF,  &ProtobufMessageStructConverter::create );
+    registerConverter( "RAW_BYTES", &RawBytesMessageStructConverter::create );
+    registerConverter( "JSON",      &JSONMessageStructConverter::create );
 }
 
-bool MessageStructConverterCache::registerConverter( MsgProtocol protocol, Creator creator )
+bool MessageStructConverterCache::registerConverter( std::string protocol, Creator creator )
 {
-    if( m_creators[ protocol ] )
+    if( m_creators.find( protocol ) != m_creators.end() )
         CSP_THROW( RuntimeException, "Attempted to register creator for MessageStructConverter type " << protocol << " more than once" );
 
     m_creators[ protocol ] = creator;
@@ -42,12 +40,12 @@ MessageStructConverterPtr MessageStructConverterCache::create( const CspTypePtr 
     if( !rv.second )
         return rv.first -> second;
 
-    auto protocol = MsgProtocol( properties.get<std::string>( "protocol" ) );
-    auto creator = m_creators[ protocol ];
-    if( !creator )
+    auto protocol = properties.get<std::string>( "protocol" );
+    auto creatorIt = m_creators.find( protocol );
+    if( creatorIt == m_creators.end() )
         CSP_THROW( ValueError, "MessageStructConverter for type " << protocol << " is not defined" );
 
-    auto result = std::shared_ptr<MessageStructConverter>( creator( type, properties ) );
+    auto result = std::shared_ptr<MessageStructConverter>( creatorIt -> second( type, properties ) );
     rv.first -> second = result;
     return rv.first -> second;
 }

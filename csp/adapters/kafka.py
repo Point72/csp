@@ -1,3 +1,5 @@
+import copy
+import typing
 from datetime import datetime, timedelta
 from enum import IntEnum
 from typing import TypeVar, Union
@@ -13,8 +15,9 @@ from csp.adapters.utils import (
     MsgMapper,
     RawBytesMessageMapper,
     RawTextMessageMapper,
+    hash_mutable,
 )
-from csp.impl.wiring import input_adapter_def, output_adapter_def, status_adapter_def
+from csp.impl.wiring import ReplayMode, input_adapter_def, output_adapter_def, status_adapter_def
 from csp.lib import _kafkaadapterimpl
 
 _ = BytesMessageProtoMapper, DateTimeType, JSONTextMessageMapper, RawBytesMessageMapper, RawTextMessageMapper
@@ -29,10 +32,8 @@ class KafkaStatusMessageType(IntEnum):
     GENERIC_ERROR = 4
 
 
-class KafkaStartOffset(csp.Enum):
-    EARLIEST = 1  # Replay all of history
-    LATEST = 2  # Start from new msgs
-    START_TIME = 3  # Start from csp run starttime
+# Backward compatible
+KafkaStartOffset = ReplayMode
 
 
 class KafkaAdapterManager:
@@ -84,13 +85,12 @@ class KafkaAdapterManager:
         }
 
         if group_id is None:
-            # If user didnt request a group_id we dont commit to allow multiple consumers to get the same stream of data
-            consumer_properties["group.id"] = group_id_prefix + str(uuid4())
             consumer_properties["enable.auto.commit"] = "false"
             consumer_properties["auto.commit.interval.ms"] = "0"
         else:
             consumer_properties["auto.offset.reset"] = "earliest"
 
+        self._group_id_prefix = group_id_prefix
         self._properties = {
             "start_offset": start_offset.value if isinstance(start_offset, KafkaStartOffset) else start_offset,
             "max_threads": max_threads,
@@ -111,8 +111,8 @@ class KafkaAdapterManager:
                 }
             )
 
+        rd_kafka_conf_options = rd_kafka_conf_options.copy() if rd_kafka_conf_options else {}
         if debug:
-            rd_kafka_conf_options = rd_kafka_conf_options.copy() if rd_kafka_conf_options else {}
             rd_kafka_conf_options["debug"] = "all"
             # Force start_offset to none so we dont block on pull adapter and let status msgs through
             self._properties["start_offset"] = None
@@ -136,7 +136,29 @@ class KafkaAdapterManager:
         meta_field_map: dict = None,
         push_mode: csp.PushMode = csp.PushMode.LAST_VALUE,
         adjust_out_of_order_time: bool = False,
+        tick_timestamp_from_field: str = None,
+        include_msg_before_start_time: bool = True,
     ):
+        """
+        Subscribe to a Kafka topic and map incoming messages to CSP timeseries.
+
+        :param ts_type: The timeseries type to map the data to. Can be a csp.Struct or basic timeseries type
+        :param msg_mapper: MsgMapper object to manage mapping message protocol to struct
+        :param topic: Topic to subscribe to
+        :param key: Key to subscribe to. If None, subscribes to all messages on the topic.
+                    Note: In this "wildcard" mode, all messages will be marked as "live"
+        :param field_map: Dictionary of {message_field: struct_field} mapping or string for single field mapping
+        :param meta_field_map: Dictionary mapping kafka metadata to struct fields. Supported fields:
+                    - "partition": Kafka partition number
+                    - "offset": Message offset
+                    - "live": Whether message is live or replay
+                    - "timestamp": Kafka message timestamp
+                    - "key": Message key
+        :param push_mode: Mode for handling incoming messages (LAST_VALUE, NON_COLLAPSING, BURST)
+        :param adjust_out_of_order_time: Allow out-of-order messages by forcing time to max(time, prev_time), only applies during sim replay.
+        :param tick_timestamp_from_field: Override engine tick time using this struct field. Only applies during sim replay
+        :param include_msg_before_start_time: Include messages from Kafka with times (either the time from Kafka or from the message as specified with `tick_timestamp_from_field`) before the engine start time.
+        """
         field_map = field_map or {}
         meta_field_map = meta_field_map or {}
         if isinstance(field_map, str):
@@ -151,10 +173,32 @@ class KafkaAdapterManager:
         properties["field_map"] = field_map
         properties["meta_field_map"] = meta_field_map
         properties["adjust_out_of_order_time"] = adjust_out_of_order_time
+        properties["include_msg_before_start_time"] = include_msg_before_start_time
+        if tick_timestamp_from_field is not None:
+            if meta_field_map.get("timestamp") == tick_timestamp_from_field:
+                raise ValueError(
+                    f"Field '{tick_timestamp_from_field}' cannot be used for both timestamp extraction and meta field mapping"
+                )
+            properties["tick_timestamp_from_field"] = tick_timestamp_from_field
 
         return _kafka_input_adapter_def(self, ts_type, properties, push_mode)
 
-    def publish(self, msg_mapper: MsgMapper, topic: str, key: str, x: ts["T"], field_map: Union[dict, str] = None):
+    def publish(
+        self,
+        msg_mapper: MsgMapper,
+        topic: str,
+        key: typing.Union[str, typing.List],
+        x: ts["T"],
+        field_map: typing.Union[dict, str] = None,
+    ):
+        """
+        :param msg_mapper - MsgMapper object to manage mapping struct to message protocol
+        :param topic - topic to publish to
+        :param key   - a string field of the struct type being published that will be used as the dynamic key to publish to.
+                       key can also be a list of fields to reach into a nested struct field to be used as the key
+        :param x     - timeseries of a Struct type to publish out
+        :param field_map - option fieldmap from struct fieldname -> published field name
+        """
         if isinstance(field_map, str):
             field_map = {"": field_map}
 
@@ -177,9 +221,25 @@ class KafkaAdapterManager:
         ts_type = Status
         return status_adapter_def(self, ts_type, push_mode)
 
+    def __hash__(self):
+        return hash((self._group_id_prefix, hash_mutable(self._properties)))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, KafkaAdapterManager)
+            and self._group_id_prefix == other._group_id_prefix
+            and self._properties == other._properties
+        )
+
     def _create(self, engine, memo):
         """method needs to return the wrapped c++ adapter manager"""
-        return _kafkaadapterimpl._kafka_adapter_manager(engine, self._properties)
+        # If user didnt request a group_id we dont commit to allow multiple consumers to get the same stream of data
+        # We defer generation of unique group id to this point after properties can be sanely memoized
+        properties = self._properties
+        if properties["rd_kafka_consumer_conf_properties"]["group.id"] is None:
+            properties = copy.deepcopy(properties)
+            properties["rd_kafka_consumer_conf_properties"]["group.id"] = self._group_id_prefix + str(uuid4())
+        return _kafkaadapterimpl._kafka_adapter_manager(engine, properties)
 
 
 _kafka_input_adapter_def = input_adapter_def(

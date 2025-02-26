@@ -93,7 +93,7 @@ bool ManagedSimInputAdapter::pushNullTick()
     return true;
 }
 
-class CSP_PUBLIC AdapterManager : public EngineOwned
+class AdapterManager : public EngineOwned
 {
 public:
     AdapterManager( csp::Engine * );

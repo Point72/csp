@@ -67,10 +67,8 @@ class MessageWriter
 public:
     using FieldEntry = OutputDataMapper::FieldEntry;
 
-    MessageWriter( MsgProtocol protocol ) : m_protocol( protocol ) {}
+    MessageWriter() {}
     virtual ~MessageWriter();
-
-    MsgProtocol protocol() const { return m_protocol; }
 
     //returns the finalized message as bytes
     virtual std::pair<const void *,size_t> finalize() = 0;
@@ -83,7 +81,6 @@ public:
 
 private:
     virtual void processTickImpl( const OutputDataMapper & dataMapper, const TimeSeriesProvider * sourcets ) = 0;
-    MsgProtocol m_protocol;
 };
 
 using MessageWriterPtr=std::shared_ptr<MessageWriter>;

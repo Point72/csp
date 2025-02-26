@@ -26,9 +26,6 @@ build-debug:  ## build the library ( DEBUG ) - May need a make clean when switch
 build-conda:  ## build the library in Conda
 	python setup.py build build_ext --csp-no-vcpkg --inplace
 
-build-conda-debug:  ## build the library ( DEBUG ) - in Conda
-	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --csp-no-vcpkg --inplace
-
 install:  ## install library
 	python -m pip install .
 
@@ -127,16 +124,16 @@ dockerdown:  ## spin up docker compose services for adapter testing
 .PHONY: show-version patch minor major
 
 show-version:
-	@ bump2version --dry-run --allow-dirty pyproject.toml --list | grep current | awk -F= '{print $$2}'
+	@ bump-my-version show current_version
 
 patch:
-	bump2version patch
+	bump-my-version bump patch
 
 minor:
-	bump2version minor
+	bump-my-version bump minor
 
 major:
-	bump2version major
+	bump-my-version bump major
 
 ########
 # DIST #
@@ -194,14 +191,14 @@ endif
 .PHONY: dependencies-mac dependencies-debian dependencies-fedora dependencies-vcpkg dependencies-win
 
 dependencies-mac:  ## install dependencies for mac
-	HOMEBREW_NO_AUTO_UPDATE=1 brew install bison cmake flex make ninja
+	HOMEBREW_NO_AUTO_UPDATE=1 brew install autoconf autoconf-archive automake bison cmake flex libtool make ninja pkg-config
 	brew unlink bison flex && brew link --force bison flex
 
 dependencies-debian:  ## install dependencies for linux
-	apt-get install -y automake bison cmake curl flex ninja-build tar unzip zip
+	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip zip
 
 dependencies-fedora:  ## install dependencies for linux
-	yum install -y automake bison ccache cmake curl flex perl-IPC-Cmd tar unzip zip
+	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip zip
 
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install

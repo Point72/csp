@@ -14,20 +14,11 @@ KafkaPublisher::KafkaPublisher( KafkaAdapterManager * mgr, const Dictionary & pr
                                                                                                                 m_topic( std::move( topic ) )
 
 {
-    utils::MsgProtocol protocol = utils::MsgProtocol( properties.get<std::string>( "protocol" ) );
-    switch( protocol )
-    {
-        case utils::MsgProtocol::JSON:
-            m_msgWriter = std::make_shared<utils::JSONMessageWriter>( properties );
-            break;
-
-        case utils::MsgProtocol::RAW_BYTES:
-            break;
-
-        default:
-            CSP_THROW( NotImplemented, "msg protocol " << protocol << " not currently supported for kafka output adapters" );
-            break;
-    }
+    auto protocol = properties.get<std::string>( "protocol" );
+    if( protocol == "JSON" )
+        m_msgWriter = std::make_shared<utils::JSONMessageWriter>( properties );
+    else if( protocol != "RAW_BYTES" )
+        CSP_THROW( NotImplemented, "msg protocol " << protocol << " not currently supported for kafka output adapters" );
 }
 
 KafkaPublisher::~KafkaPublisher()

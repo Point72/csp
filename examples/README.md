@@ -11,7 +11,7 @@
     <tbody>
         <!-- Basic -->
         <tr>
-            <td rowspan=4><a href="./01_basics/">Basics</a></td>
+            <td rowspan=5><a href="./01_basics/">Basics</a></td>
             <td><a href="./01_basics/e1_basic.py">Basic Graph</a></td>
             <td>Basic sum of constant integers</td>
         </tr>
@@ -27,6 +27,10 @@
             <td><a href="./01_basics/e4_trade_pnl.py">Complete Example (Trading)</a></td>
             <td>Volume weighted average price (VWAP) and profit and loss (PnL)</td>
         </tr>
+        <tr>
+            <td><a href="./01_basics/e5_retail_cart.py">Complete Example (Retail)</a></td>
+            <td>Maintain a shopping cart with time-based discounts for customers</td>
+        </tr>
         <!-- Intermediate -->
         <tr>
             <td rowspan=4><a href="./02_intermediate/">Intermediate</a></td>
@@ -34,7 +38,7 @@
             <td>Add a feedback edge between nodes in a graph</td>
         </tr>
         <tr>
-            <td><a href="./e02_intermediate/2_stats.py">Statistics Nodes</a></td>
+            <td><a href="./02_intermediate/e2_stats.py">Statistics Nodes</a></td>
             <td>Use the CSP statistics library on simulated trading data</td>
         </tr>
         <tr>

@@ -1,5 +1,12 @@
 name: Build Status
 
+env:
+  # Run full CI Monday and Thursday at 3:25am EST (08:25 UTC)
+  # Note: do not run scheduled jobs on the hour exactly, per:
+  # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule
+  # GitHub Actions schedules can sometimes delay by up to 15 minutes due to platform load
+  FULL_CI_SCHEDULE: '25 8 * * 1,4'
+
 on:
   push:
     branches:
@@ -26,6 +33,8 @@ on:
         required: false
         type: boolean
         default: false
+  schedule:
+    - cron: '25 8 * * 1,4'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -56,11 +65,11 @@ jobs:
     # github.event.head_commit.message otherwise on pull
     # requests)
     initialize:
-      runs-on: ubuntu-22.04
+      runs-on: ubuntu-24.04
 
       outputs:
         COMMIT_MESSAGE: ${{ steps.setup.outputs.COMMIT_MSG }}
-        FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN }}
+        FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN || steps.setupschedule.outputs.FULL_RUN }}
 
       steps:
         - name: Checkout
@@ -109,6 +118,17 @@ jobs:
           env:
             FULL_RUN: ${{ github.event.inputs.ci-full }}
           if: ${{ github.event_name == 'workflow_dispatch' }}
+        
+        - name: Display and Setup Build Args (Schedule)
+          id: setupschedule
+          run: |
+            echo "Commit Message: $COMMIT_MSG"
+            echo "Full Run: $FULL_RUN"
+            echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
+            echo "FULL_RUN=$FULL_RUN" >> $GITHUB_OUTPUT
+          env:
+            FULL_RUN: ${{ github.event.schedule == env.FULL_CI_SCHEDULE }}
+          if: ${{ github.event_name == 'schedule' }}
 
     ########################################################
     #......................................................#
@@ -130,7 +150,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
+            - ubuntu-24.04
           python-version:
             - 3.9
 
@@ -173,18 +193,16 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md
-            - macos-12 # https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
+            - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
+            - macos-13 # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2019 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2019-Readme.md
           python-version:
-            - "3.8"
             - "3.9"
             - "3.10"
             - "3.11"
             - "3.12"
           cibuildwheel:
-            - "cp38"
             - "cp39"
             - "cp310"
             - "cp311"
@@ -197,16 +215,6 @@ jobs:
             ############################
             # Skip when cibuildwheel != python version
             # to avoid duplication
-            - python-version: "3.8"
-              cibuildwheel: "cp39"
-            - python-version: "3.8"
-              cibuildwheel: "cp310"
-            - python-version: "3.8"
-              cibuildwheel: "cp311"
-            - python-version: "3.8"
-              cibuildwheel: "cp312"
-            - python-version: "3.9"
-              cibuildwheel: "cp38"
             - python-version: "3.9"
               cibuildwheel: "cp310"
             - python-version: "3.9"
@@ -214,23 +222,17 @@ jobs:
             - python-version: "3.9"
               cibuildwheel: "cp312"
             - python-version: "3.10"
-              cibuildwheel: "cp38"
-            - python-version: "3.10"
               cibuildwheel: "cp39"
             - python-version: "3.10"
               cibuildwheel: "cp311"
             - python-version: "3.10"
               cibuildwheel: "cp312"
             - python-version: "3.11"
-              cibuildwheel: "cp38"
-            - python-version: "3.11"
               cibuildwheel: "cp39"
             - python-version: "3.11"
               cibuildwheel: "cp310"
             - python-version: "3.11"
               cibuildwheel: "cp312"
-            - python-version: "3.12"
-              cibuildwheel: "cp38"
             - python-version: "3.12"
               cibuildwheel: "cp39"
             - python-version: "3.12"
@@ -244,15 +246,9 @@ jobs:
             ##############################################
             # mac arm builds support py3.10+
             - os: macos-14
-              python-version: "3.8"
-            - os: macos-14
               python-version: "3.9"
 
             # Avoid extra resources for windows build
-            - is-full-run: false
-              os: windows-2019
-              python-version: "3.8"
-
             - is-full-run: false
               os: windows-2019
               python-version: "3.9"
@@ -267,11 +263,7 @@ jobs:
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-12
-
-            - is-full-run: false
-              os: macos-14
-              python-version: "3.8"
+              os: macos-13
 
             - is-full-run: false
               os: macos-14
@@ -310,7 +302,7 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
-            CIBW_ENVIRONMENT_LINUX: CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ENVIRONMENT_LINUX: ACLOCAL_PATH="/usr/share/aclocal" CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
             CIBW_BUILD_VERBOSITY: 3
           if: ${{ runner.os == 'Linux' }}
 
@@ -323,7 +315,7 @@ jobs:
             CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: x86_64
             CIBW_BUILD_VERBOSITY: 3
-          if: ${{ matrix.os == 'macos-12' }}
+          if: ${{ matrix.os == 'macos-13' }}
 
         - name: Python Build Steps (Macos arm)
           run: make dist-py-cibw
@@ -385,7 +377,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
+            - ubuntu-24.04
           python-version:
             - 3.9
 
@@ -438,12 +430,11 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
-            - macos-12
+            - ubuntu-24.04
+            - macos-13
             - macos-14
             - windows-2019
           python-version:
-            - 3.8
             - 3.9
             - "3.10"
             - 3.11
@@ -456,15 +447,9 @@ jobs:
             ##############################################
             # mac arm builds support py3.10+
             - os: macos-14
-              python-version: "3.8"
-            - os: macos-14
               python-version: "3.9"
 
             # Avoid extra resources for windows build
-            - is-full-run: false
-              os: windows-2019
-              python-version: "3.8"
-
             - is-full-run: false
               os: windows-2019
               python-version: "3.9"
@@ -479,11 +464,7 @@ jobs:
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-12
-
-            - is-full-run: false
-              os: macos-14
-              python-version: "3.8"
+              os: macos-13
 
             - is-full-run: false
               os: macos-14
@@ -592,7 +573,7 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
+            - ubuntu-24.04
           python-version:
             - 3.9
 
@@ -616,6 +597,9 @@ jobs:
 
         - name: Install python dependencies
           run: make requirements
+          
+        - name: Install requirements
+          run: sudo make dependencies-debian 
 
         - uses: actions/download-artifact@v4
           with:
@@ -670,9 +654,9 @@ jobs:
           python-version:
             - 3.9
           package:
-            - "sqlalchemy>=2"
             - "sqlalchemy<2"
-            - "numpy==1.19.5"
+            - "numpy==1.22.4"  # Min supported version of pandas 2.2
+            - "perspective-python<3"
 
       runs-on: ${{ matrix.os }}
 
@@ -709,11 +693,15 @@ jobs:
 
         - name: Python Test Steps
           run: make test TEST_ARGS="-k TestDBReader"
-          if: ${{ contains( 'sqlalchemy', matrix.package )}}
+          if: ${{ contains( matrix.package, 'sqlalchemy' )}}
 
         - name: Python Test Steps
           run: make test
-          if: ${{ contains( 'numpy', matrix.package )}}
+          if: ${{ contains( matrix.package, 'numpy' )}}
+
+        - name: Python Test Steps
+          run: make test TEST_ARGS="-k Perspective"
+          if: ${{ contains( matrix.package, 'perspective' )}}
 
     ###########################################################################################################
     #.........................................................................................................#
@@ -765,7 +753,7 @@ jobs:
         - test_dependencies
 
       if: startsWith(github.ref, 'refs/tags/v')
-      runs-on: ubuntu-22.04
+      runs-on: ubuntu-24.04
 
       steps:
         - name: Download wheels and sdist

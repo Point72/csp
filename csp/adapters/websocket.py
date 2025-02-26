@@ -442,7 +442,7 @@ class WebsocketAdapterManager:
         properties["field_map"] = field_map
         properties["meta_field_map"] = meta_field_map
 
-        return _websocket_input_adapter_def(self, ts_type, properties, push_mode)
+        return _websocket_input_adapter_def(self, ts_type, properties, push_mode=push_mode)
 
     def send(self, x: ts["T"]):
         return _websocket_output_adapter_def(self, x)
@@ -452,7 +452,7 @@ class WebsocketAdapterManager:
 
     def status(self, push_mode=csp.PushMode.NON_COLLAPSING):
         ts_type = Status
-        return status_adapter_def(self, ts_type, push_mode)
+        return status_adapter_def(self, ts_type, push_mode=push_mode)
 
     def _create(self, engine, memo):
         """method needs to return the wrapped c++ adapter manager"""

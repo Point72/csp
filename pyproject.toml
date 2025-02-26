@@ -3,10 +3,11 @@ requires = [
     "cmake",
     "deprecated",  # Because used in csp.impl.struct, which is used in autogen
     "oldest-supported-numpy",
-    "pyarrow>=7.0.0",
+    "pyarrow>=7,<19",
     "ruamel.yaml",
     "scikit-build",
-    "setuptools>=69",
+    "setuptools>=69,<74",
+    "typing-extensions",
 ]
 build-backend="setuptools.build_meta"
 
@@ -15,20 +16,20 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.0.5"
-requires-python = ">=3.8"
+version = "0.0.9"
+requires-python = ">=3.9"
 
 dependencies = [
-    "backports.zoneinfo; python_version<'3.9'",
     "deprecated",
     "numpy<2",
     "packaging",
     "pandas",
     "psutil",
-    "pyarrow>=7.0.0",
+    "pyarrow>=7,<19",
     "pytz",
     "ruamel.yaml",
     "sqlalchemy",
+    "typing-extensions",
 ]
 
 classifiers = [
@@ -36,7 +37,6 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -56,7 +56,7 @@ Tracker = "https://github.com/point72/csp/issues"
 [project.optional-dependencies]
 develop = [
     # build/dist
-    "bump2version>=1.0.0",
+    "bump-my-version",
     "build",
     "ruamel.yaml",
     "scikit-build",
@@ -65,7 +65,7 @@ develop = [
     # lint
     "codespell>=2.2.6,<2.3",
     "isort>=5,<6",
-    "mdformat>=0.7.17,<0.8",
+    "mdformat==0.7.17",  # >0.7.17 doesnot support python 3.8
     "ruff>=0.3,<0.4",
     # test
     "pytest",
@@ -77,12 +77,16 @@ develop = [
     "pillow",
     # adapters
     "httpx>=0.20,<1",  # kafka
+    "perspective-python>=2",  # perspective
+    "ipywidgets",  # perspective
     "polars",  # parquet
     "psutil",  # test_engine/test_history
-    "slack-sdk>=3",  # slack
     "sqlalchemy",  # db
     "threadpoolctl",  # test_random
     "tornado",  # profiler, perspective, websocket
+    "python-rapidjson", # websocket
+    # type checking
+    "pydantic>=2",
 ]
 showgraph = [
     "graphviz",
@@ -96,8 +100,10 @@ test = [
     "pytest-cov",
     "pytest-sugar",
     "httpx>=0.20,<1",
+    "perspective-python",
     "polars",
     "psutil",
+    "pydantic>=2",
     "requests",
     "slack-sdk>=3",
     "sqlalchemy",
@@ -108,14 +114,40 @@ symphony = [
     "csp-adapter-symphony",
 ]
 slack = [
-    "slack-sdk>=3",
+    "csp-adapter-slack",
 ]
+
+[tool.bumpversion]
+current_version = "0.0.9"
+commit = false
+tag = false
+commit_args = "-s"
+
+[[tool.bumpversion.files]]
+filename = "csp/__init__.py"
+search = '__version__ = "{current_version}"'
+replace = '__version__ = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "setup.py"
+search = 'version="{current_version}"'
+replace = 'version="{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "CMakeLists.txt"
+search = 'project(csp VERSION "{current_version}")'
+replace = 'project(csp VERSION "{new_version}")'
 
 [tool.check-manifest]
 ignore = []
 
 [tool.cibuildwheel]
-build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
+build = "cp39-* cp310-* cp311-* cp312-*"
 test-command = "echo 'TODO'"
 test-requires = [
     "pytest",
@@ -137,7 +169,10 @@ skip = "*i686 musllinux*"
 manylinux-x86_64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
-before-all ="make dependencies-mac"
+before-all ="""
+make dependencies-mac
+export ACLOCAL_PATH="$(brew --prefix autoconf-archive)/share/aclocal:$(printenv ACLOCAL_PATH)"
+"""
 archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
 
 [tool.cibuildwheel.windows]

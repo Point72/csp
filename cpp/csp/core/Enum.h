@@ -110,8 +110,8 @@ struct Enum : public EnumTraits
         iterator( int v ) : m_v( v ) {}
 
         Enum operator*() { return Enum( ( EnumV ) m_v ); }
-        bool operator==(const iterator &rhs) { return m_v == rhs.m_v; }
-        bool operator!=(const iterator &rhs) { return !(*this == rhs); }
+        bool operator==(const iterator &rhs) const { return m_v == rhs.m_v; }
+        bool operator!=(const iterator &rhs) const { return !(*this == rhs); }
 
         iterator &operator++() {
             ++m_v;

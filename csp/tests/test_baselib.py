@@ -680,7 +680,7 @@ class TestBaselib(unittest.TestCase):
             demux = csp.DelayedDemultiplex(csp.const(MyStruct()), csp.const("test"))
             demux.demultiplex(123)
 
-        with self.assertRaisesRegex(TypeError, "Conflicting type resolution for K when calling to _demultiplex"):
+        with self.assertRaisesRegex(TypeError, "Conflicting type resolution for K"):
             csp.run(my_graph2, starttime=datetime.utcnow())
 
     def test_delayed_collect(self):
@@ -1128,9 +1128,11 @@ class TestBaselib(unittest.TestCase):
             csp.log(logging.CRITICAL, "z", z, logging.getLogger("logger3"))
             csp.add_graph_output("x", x)
 
-        with self.assertLogs("logger1", level="CRITICAL") as cm1, self.assertLogs(
-            "logger2", level="CRITICAL"
-        ) as cm2, self.assertLogs("logger3", level="CRITICAL") as cm3:
+        with (
+            self.assertLogs("logger1", level="CRITICAL") as cm1,
+            self.assertLogs("logger2", level="CRITICAL") as cm2,
+            self.assertLogs("logger3", level="CRITICAL") as cm3,
+        ):
             csp.run(graph, starttime=st, endtime=timedelta(seconds=60))
 
         exp_out_log1 = [

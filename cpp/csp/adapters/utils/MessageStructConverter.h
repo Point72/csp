@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 
 namespace csp::adapters::utils
 {
@@ -20,8 +21,6 @@ public:
     virtual ~MessageStructConverter() {}
     
     virtual csp::StructPtr asStruct( void * bytes, size_t size ) = 0;
-
-    virtual MsgProtocol protocol() const = 0;
 
     StructMetaPtr structMeta() { return m_structMeta; }
 
@@ -51,15 +50,15 @@ public:
 
     using Creator = std::function<MessageStructConverter*( const CspTypePtr &, const Dictionary & )>;
 
-    bool registerConverter( MsgProtocol protocol, Creator creator );
+    bool registerConverter( std::string protocol, Creator creator );
 
 private:
     using CacheKey = std::pair<const CspType*,Dictionary>;
     using Cache = std::unordered_map<CacheKey,MessageStructConverterPtr,csp::hash::hash_pair>;
 
-    std::mutex m_cacheMutex;
-    Cache      m_cache;
-    Creator    m_creators[ MsgProtocol::NUM_TYPES ];
+    std::unordered_map<std::string,Creator> m_creators;
+    std::mutex                              m_cacheMutex;
+    Cache                                   m_cache;
 };
 
 }

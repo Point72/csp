@@ -18,6 +18,9 @@ on:
       - README.md
       - "docs/**"
   workflow_dispatch:
+  schedule:
+    # Run conda CI on Monday and Thursday at 1:25am EST (06:25 UTC)
+    - cron: '25 6 * * 1,4'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -32,9 +35,9 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
+            - ubuntu-24.04
             - macos-14
-            - macos-12
+            - macos-13
             - windows-2019
       runs-on: ${{ matrix.os }}
       steps:

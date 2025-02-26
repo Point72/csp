@@ -101,11 +101,6 @@ void KafkaConsumer::addSubscriber( const std::string & topic, const std::string 
     }
     else
         m_topics[topic].subscribers[key].emplace_back( subscriber );
-    //This is a bit convoluted, but basically if we dont have rebalanceCB set, that means we are in "groupid" mode
-    //which doesnt support seeking.  We force the adapters into a live mode, because groupid mode leads to deadlocks
-    //on adapters that dont received any data since we dont have partition information available to declare them done ( we dont even connect to them all )
-    if( !m_rebalanceCb )
-        subscriber -> flagReplayComplete();
 }
 
 void KafkaConsumer::start( DateTime starttime )
@@ -116,12 +111,16 @@ void KafkaConsumer::start( DateTime starttime )
         auto & startOffsetProperty = m_mgr -> startOffsetProperty();
         if( std::holds_alternative<int64_t>( startOffsetProperty ) )
         {
-            KafkaStartOffset sOffset = ( KafkaStartOffset ) std::get<int64_t>( startOffsetProperty );
-            switch( sOffset )
+            ReplayMode replayMode = ( ReplayMode ) std::get<int64_t>( startOffsetProperty );
+            switch( replayMode )
             {
-                case KafkaStartOffset::EARLIEST:   m_rebalanceCb -> setStartOffset( RdKafka::Topic::OFFSET_BEGINNING ); break;
-                case KafkaStartOffset::LATEST:     m_rebalanceCb -> setStartOffset( RdKafka::Topic::OFFSET_END );       break;
-                case KafkaStartOffset::START_TIME: m_rebalanceCb -> setStartTime( starttime ); break;
+                case ReplayMode::EARLIEST:   m_rebalanceCb -> setStartOffset( RdKafka::Topic::OFFSET_BEGINNING ); break;
+                case ReplayMode::LATEST:     m_rebalanceCb -> setStartOffset( RdKafka::Topic::OFFSET_END );       break;
+                case ReplayMode::START_TIME: m_rebalanceCb -> setStartTime( starttime ); break;
+
+                case ReplayMode::NUM_TYPES:                    
+                case ReplayMode::UNKNOWN:
+                    CSP_THROW( ValueError, "start_offset is unset" );
             }
         }
         else if( std::holds_alternative<DateTime>( startOffsetProperty ) )
@@ -137,12 +136,21 @@ void KafkaConsumer::start( DateTime starttime )
         else
             CSP_THROW( TypeError, "Expected enum, datetime or timedelta for startOffset" );
     }
+    //This is a bit convoluted, but basically if we dont have rebalanceCB set, that means we are in "groupid" mode
+    //which doesnt support seeking.  We force the adapters into a live mode, because groupid mode leads to deadlocks
+    //on adapters that dont received any data since we dont have partition information available to declare them done ( we dont even connect to them all )
     else
         forceReplayCompleted();
 
     std::vector<std::string> topics;
-    for( auto & entry : m_topics )
-        topics.emplace_back( entry.first );
+    for (const auto& [topic, topic_data] : m_topics)
+    {
+        topics.emplace_back( topic );
+        // wildcard subscription has no guarantee of being in order 
+        // we flag replay complete as soon as we identify it.
+        if( topic_data.wildcardSubscriber )
+            topic_data.wildcardSubscriber -> flagReplayComplete();
+    }
 
     RdKafka::ErrorCode err = m_consumer -> subscribe( topics );
     if( err )
@@ -175,18 +183,7 @@ void KafkaConsumer::setNumPartitions( const std::string & topic, size_t num )
 void KafkaConsumer::forceReplayCompleted()
 {
     for( auto & entry : m_topics )
-    {
-        auto & topicData = entry.second;
-        if( !topicData.flaggedReplayComplete )
-        {
-            for( auto & subscriberEntry : topicData.subscribers )
-            {
-                for( auto * subscriber : subscriberEntry.second )
-                    subscriber -> flagReplayComplete();
-            }
-            topicData.flaggedReplayComplete = true;
-        }
-    }
+        entry.second.markReplayComplete();
 }
 
 void KafkaConsumer::poll()
@@ -272,16 +269,9 @@ void KafkaConsumer::poll()
                         }
                     }
 
+                    //we need to flag end in case the topic doesnt have any incoming data, we cant stall the engine on the pull side of the adapter
                     if( allDone )
-                    {
-                        //we need to flag end in case the topic doesnt have any incoming data, we cant stall the engine on the pull side of the adapter
-                        for( auto & subscriberEntry : topicData.subscribers )
-                        {
-                            for( auto * subscriber : subscriberEntry.second )
-                                subscriber -> flagReplayComplete();
-                        }
-                        topicData.flaggedReplayComplete = true;
-                    }
+                        topicData.markReplayComplete();
                 }
             }
             else
@@ -289,16 +279,7 @@ void KafkaConsumer::poll()
                 //In most cases we should not get here, if we do then something is wrong
                 //safest bet is to release the pull adapter so it doesnt stall the engine and
                 //we can let the error msg through
-                if( !topicData.flaggedReplayComplete )
-                {
-                    //flag inputs as done so they dont hold up the engine
-                    for( auto & subscriberEntry : topicData.subscribers )
-                    {
-                        for( auto * subscriber : subscriberEntry.second )
-                            subscriber -> flagReplayComplete();
-                    }
-                    topicData.flaggedReplayComplete = true;
-                }
+                topicData.markReplayComplete();
 
                 std::string errmsg = "KafkaConsumer: Message error on topic \"" + msg -> topic_name() + "\". errcode: " + RdKafka::err2str( msg -> err() ) + " error: " + msg -> errstr();
                 m_mgr -> pushStatus( StatusLevel::ERROR, KafkaStatusMessageType::MSG_RECV_ERROR, errmsg );

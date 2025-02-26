@@ -5,8 +5,7 @@ channels:
 dependencies:
  - bison
  - brotli
- - build
- - bump2version>=1
+ - bump-my-version
  - cmake
  - codespell>=2.2.6,<2.3
  - compilers
@@ -15,7 +14,6 @@ dependencies:
  - exprtk
  - flex
  - graphviz
- - python-graphviz
  - gtest
  - httpx>=0.20,<1
  - isort>=5,<6
@@ -25,32 +23,37 @@ dependencies:
  - librdkafka
  - lz4-c
  - mamba
- - mdformat>=0.7.17,<0.8
+ - mdformat=0.7.17
  - ninja
  - numpy<2
  - pandas
  - pillow
  - polars
  - psutil
- - pyarrow=16
- - pytz
+ - pyarrow>=7,<19
+ - pydantic>=2
  - pytest
  - pytest-asyncio
  - pytest-cov
  - pytest-sugar
  - python<3.13
+ - python-build
+ - python-graphviz
  - python-rapidjson
+ - pytz
  - rapidjson
  - requests
  - ruamel.yaml
  - ruff>=0.3,<0.4
  - scikit-build
- - slack-sdk
+ - setuptools>=69,<74
  - sqlalchemy
  - tar
  - threadpoolctl
  - tornado
  - twine
+ - typing-extensions
  - unzip
  - wheel
  - zip
+ - zlib

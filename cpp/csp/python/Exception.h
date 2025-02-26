@@ -8,7 +8,7 @@
 namespace csp::python
 {
 
-class CSP_PUBLIC PythonPassthrough : public csp::Exception
+class PythonPassthrough : public csp::Exception
 {
 public:
     PythonPassthrough( const char * exType, const std::string &r, const char * file,

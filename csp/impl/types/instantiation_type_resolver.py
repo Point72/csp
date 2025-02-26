@@ -34,7 +34,7 @@ class UpcastRegistry(object):
             if CspTypingUtils.is_generic_container(expected_type):
                 expected_type_base = CspTypingUtils.get_orig_base(expected_type)
                 if expected_type_base is new_type:
-                    return expected_type
+                    return expected_type_base  # If new_type is Generic and expected type is Generic[T], return Generic
                 if CspTypingUtils.is_generic_container(new_type):
                     expected_origin = CspTypingUtils.get_origin(expected_type)
                     new_type_origin = CspTypingUtils.get_origin(new_type)
@@ -99,14 +99,7 @@ class ContainerTypeVarResolutionError(TypeError):
 class TypeMismatchError(TypeError):
     @classmethod
     def pretty_typename(cls, typ):
-        if CspTypingUtils.is_generic_container(typ):
-            return str(typ)
-        elif CspTypingUtils.is_forward_ref(typ):
-            return cls.pretty_typename(typ.__forward_arg__)
-        elif isinstance(typ, type):
-            return typ.__name__
-        else:
-            return str(typ)
+        return CspTypingUtils.pretty_typename(typ)
 
     @classmethod
     def get_tvar_info_str(cls, tvar_info):
@@ -393,7 +386,15 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
     def _is_scalar_value_matching_spec(self, inp_def_type, arg):
         if inp_def_type is typing.Any:
             return True
-        if UpcastRegistry.instance().resolve_type(inp_def_type, type(arg), raise_on_error=False) is inp_def_type:
+        if CspTypingUtils.is_callable(inp_def_type):
+            return callable(arg)
+        resolved_type = UpcastRegistry.instance().resolve_type(inp_def_type, type(arg), raise_on_error=False)
+        if resolved_type is inp_def_type:
+            return True
+        elif (
+            CspTypingUtils.is_generic_container(inp_def_type)
+            and CspTypingUtils.get_orig_base(inp_def_type) is resolved_type
+        ):
             return True
         if CspTypingUtils.is_union_type(inp_def_type):
             types = inp_def_type.__args__

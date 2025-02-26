@@ -1,13 +1,19 @@
 import numpy as np
+import os
 import pickle
+import re
 import typing
 import unittest
 from datetime import datetime, time, timedelta
+from typing import Callable, Dict, List, Optional, Union
 
 import csp
 import csp.impl.types.instantiation_type_resolver as type_resolver
 from csp import ts
+from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring.runtime import build_graph
+
+USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
 
 class TestTypeChecking(unittest.TestCase):
@@ -37,12 +43,22 @@ class TestTypeChecking(unittest.TestCase):
 
             typed_scalar(i, "xyz")
 
-            with self.assertRaisesRegex(TypeError, "Expected ts\\[int\\] for argument 'x', got ts\\[str\\]"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts.*" + re.escape(
+                    "cannot validate ts[str] as ts[int]: <class 'str'> is not a subclass of <class 'int'>"
+                )
+            else:
+                msg = "Expected ts\\[int\\] for argument 'x', got ts\\[str\\]"
+            with self.assertRaisesRegex(TypeError, msg):
                 s = csp.const("xyz")
                 ## THIS SHOULD RAISE, passing ts[str] but typed takes ts[int]
                 typed_ts(s)
 
-            with self.assertRaisesRegex(TypeError, "Expected str for argument 'y', got 123 \\(int\\)"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_scalar.*y.*Input should be a valid string"
+            else:
+                msg = "Expected str for argument 'y', got 123 \\(int\\)"
+            with self.assertRaisesRegex(TypeError, msg):
                 ## THIS SHOULD RAISE, passing int instead of str
                 typed_scalar(i, 123)
 
@@ -188,28 +204,38 @@ class TestTypeChecking(unittest.TestCase):
             # OK, resolved to Dummy
             typed_scalar_two_args(TestTypeChecking.Dummy2, d)
 
-            with self.assertRaisesRegex(
-                TypeError,
-                "Conflicting type resolution for V when calling to typed_scalar : "
-                + r".*<class 'int'>, <class '.*test_type_checking.TestTypeChecking.Dummy'>.*",
-            ):
+            with self.assertRaisesRegex(TypeError, "Conflicting type resolution for V.*"):
                 typed_scalar(int, i, TestTypeChecking.Dummy())
 
             with self.assertRaisesRegex(
                 TypeError,
-                "Conflicting type resolution for T when calling to typed_scalar_two_args : "
-                + r"\(<class '.*test_type_checking.TestTypeChecking.Dummy'>, <class 'int'>\)",
+                "Conflicting type resolution for T.*",
             ):
                 typed_scalar_two_args(TestTypeChecking.Dummy, i)
 
-            with self.assertRaisesRegex(TypeError, "Expected ts\\[int\\] for argument 'x', got ts\\[str\\]"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts_int.*" + re.escape(
+                    "cannot validate ts[str] as ts[int]: <class 'str'> is not a subclass of <class 'int'>"
+                )
+            else:
+                msg = "Expected ts\\[int\\] for argument 'x', got ts\\[str\\]"
+            with self.assertRaisesRegex(TypeError, msg):
                 s = csp.const("xyz")
                 typed_ts_int(s)
 
-            with self.assertRaisesRegex(TypeError, "Expected str for argument 'y', got 123 \\(int\\)"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for str_typed_scalar.*Input should be a valid string"
+            else:
+                msg = "Expected str for argument 'y', got 123 \\(int\\)"
+            with self.assertRaisesRegex(TypeError, msg):
                 ## THIS SHOULD RAISE, passing int instead of str
                 str_typed_scalar(i, 123)
-            with self.assertRaisesRegex(TypeError, r"Expected ~V for argument 't', got .*Dummy.*\(V=int\)"):
+
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_scalar.*Input should be a valid integer"
+            else:
+                msg = r"Expected ~V for argument 't', got .*Dummy.*\(V=int\)"
+            with self.assertRaisesRegex(TypeError, msg):
                 typed_scalar.using(V=int)(TestTypeChecking.Dummy, i, object())
 
         csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
@@ -286,23 +312,35 @@ class TestTypeChecking(unittest.TestCase):
                     },
                 )
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.Dict\[int, int\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_dict_int_int2.*Input should be a valid integer"
+            else:
+                msg = r"Expected typing.Dict\[int, int\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a float value instead of expected ints
-                typed_dict_int_int2({1: 2, 3: 4.0})
+                typed_dict_int_int2({1: 2, 3: 4.1})
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.Dict\[float, float\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_dict_float_float.*Input should be a valid number"
+            else:
+                msg = r"Expected typing.Dict\[float, float\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_dict_float_float({1.0: TestTypeChecking.Dummy()})
 
-            with self.assertRaisesRegex(
-                TypeError, "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
-            ):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts_and_scalar_generic.*Conflicting type resolution for T"
+            else:
+                msg = "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_ts_and_scalar_generic(d_i_i, {1: 2.0}, TestTypeChecking.Dummy())
 
-            with self.assertRaisesRegex(
-                TypeError, "Conflicting type resolution for T1 when calling to deep_nested_generic_resolution : " ".*"
-            ):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for deep_nested_generic_resolution.*Conflicting type resolution for T1"
+            else:
+                msg = r"Conflicting type resolution for T1 when calling to deep_nested_generic_resolution : " ".*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Here for inernal sets we pass Dummy and Dummy3 - they result in conflicting type resolution for T1
                 deep_nested_generic_resolution(
                     TestTypeChecking.Dummy,
@@ -358,16 +396,27 @@ class TestTypeChecking(unittest.TestCase):
             typed_ts_and_scalar(l_i, [1, 2, 3])
             typed_ts_and_scalar_generic(l_i, [1, 2, 3], 1)
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.List\[int\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_list_int.*x.*Input should be a valid integer"
+            else:
+                msg = r"Expected typing.List\[int\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a float value instead of expected ints
-                typed_list_int([1, 2, 3.0])
+                typed_list_int([1, 2, 3.1])
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.List\[float\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_list_float.*Input should be a valid number"
+            else:
+                msg = r"Expected typing.List\[float\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_list_float([TestTypeChecking.Dummy()])
-            with self.assertRaisesRegex(
-                TypeError, "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
-            ):
+
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts_and_scalar_generic.*Conflicting type resolution for T"
+            else:
+                msg = "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_ts_and_scalar_generic(l_i, [1, 2], TestTypeChecking.Dummy())
 
@@ -410,16 +459,27 @@ class TestTypeChecking(unittest.TestCase):
             typed_ts_and_scalar(l_i, {1, 2, 3})
             typed_ts_and_scalar_generic(l_i, {1, 2, 3}, 1)
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.Set\[int\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_set_int.*Input should be a valid integer"
+            else:
+                msg = r"Expected typing.Set\[int\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a float value instead of expected ints
-                typed_set_int({1, 2, 3.0})
+                typed_set_int({1, 2, 3.1})
 
-            with self.assertRaisesRegex(TypeError, r"Expected typing.Set\[float\] for argument 'x', got .*"):
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_set_float.*Input should be a valid number"
+            else:
+                msg = r"Expected typing.Set\[float\] for argument 'x', got .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_set_float({TestTypeChecking.Dummy()})
-            with self.assertRaisesRegex(
-                TypeError, "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
-            ):
+
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for typed_ts_and_scalar_generic.*Conflicting type resolution for T"
+            else:
+                msg = "Conflicting type resolution for T when calling to typed_ts_and_scalar_generic .*"
+            with self.assertRaisesRegex(TypeError, msg):
                 # Passing a Dummy value instead of expected float
                 typed_ts_and_scalar_generic(l_i, {1, 2}, TestTypeChecking.Dummy())
 
@@ -563,6 +623,46 @@ class TestTypeChecking(unittest.TestCase):
 
         csp.run(main, starttime=datetime.utcnow(), endtime=timedelta())
 
+    def test_typed_to_untyped_container_wrong(self):
+        @csp.graph
+        def g1(d: csp.ts[dict]):
+            pass
+
+        @csp.graph
+        def g2(d: csp.ts[set]):
+            pass
+
+        @csp.graph
+        def g3(d: csp.ts[list]):
+            pass
+
+        def main():
+            # This should fail - wrong key type in Dict
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for csp.const.*Input should be a valid integer \\[type=int_type"
+            else:
+                msg = "In function csp\\.const: Expected ~T for argument 'value', got .* \\(dict\\)\\(T=typing\\.Dict\\[int, int\\]\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                g1(d=csp.const.using(T=typing.Dict[int, int])({"a": 10}))
+
+            # This should fail - wrong element type in Set
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for csp.const.*Input should be a valid integer \\[type=int_type"
+            else:
+                msg = "In function csp\\.const: Expected ~T for argument 'value', got .* \\(set\\)\\(T=typing\\.Set\\[int\\]\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                g2(d=csp.const.using(T=typing.Set[int])(set(["z"])))
+
+            # This should fail - wrong element type in List
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for csp.const.*Input should be a valid integer \\[type=int_type"
+            else:
+                msg = "In function csp\\.const: Expected ~T for argument 'value', got .* \\(list\\)\\(T=typing\\.List\\[int\\]\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                g3(d=csp.const.using(T=typing.List[int])(["d"]))
+
+        csp.run(main, starttime=datetime.utcnow(), endtime=timedelta())
+
     def test_time_tzinfo(self):
         import pytz
 
@@ -611,6 +711,231 @@ class TestTypeChecking(unittest.TestCase):
         self.assertEqual(res["x"][0][1], [])
         self.assertEqual(res["y"][0][1], set())
         self.assertEqual(res["z"][0][1], {})
+
+    def test_callable_type_checking(self):
+        @csp.node
+        def node_callable_typed(x: ts[int], my_data: Callable[[int], int]) -> ts[int]:
+            if csp.ticked(x):
+                if my_data:
+                    return my_data(x) if callable(my_data) else 12
+
+        @csp.node
+        def node_callable_untyped(x: ts[int], my_data: Callable) -> ts[int]:
+            if csp.ticked(x):
+                if my_data:
+                    return my_data(x) if callable(my_data) else 12
+
+        def graph():
+            # These should work
+            node_callable_untyped(csp.const(10), lambda x: 2 * x)
+            node_callable_typed(csp.const(10), lambda x: x + 1)
+
+            # We intentionally allow setting None to be allowed
+            node_callable_typed(csp.const(10), None)
+            node_callable_untyped(csp.const(10), None)
+
+            # Here the Callable's type hints don't match the signature
+            # but we allow anyways, both with the pydantic version and without
+            node_callable_typed(csp.const(10), lambda x, y: "a")
+            node_callable_untyped(csp.const(10), lambda x, y: "a")
+
+            # This should fail - passing non-callable
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for node_callable_untyped.*my_data.*Input should be callable \\[type=callable_type"
+            else:
+                msg = "In function node_callable_untyped: Expected typing\\.Callable for argument 'my_data', got 11 \\(int\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                node_callable_untyped(csp.const(10), 11)
+
+        csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_optional_type_checking(self):
+        for use_dict in [True, False]:
+            if use_dict:
+
+                @csp.node
+                def node_optional_list_typed(x: ts[int], my_data: Optional[Dict[int, int]] = None) -> ts[int]:
+                    if csp.ticked(x):
+                        return my_data[0] if my_data else x
+
+                @csp.node
+                def node_optional_list_untyped(x: ts[int], my_data: Optional[dict] = None) -> ts[int]:
+                    if csp.ticked(x):
+                        return my_data[0] if my_data else x
+            else:
+
+                @csp.node
+                def node_optional_list_typed(x: ts[int], my_data: Optional[List[int]] = None) -> ts[int]:
+                    if csp.ticked(x):
+                        return my_data[0] if my_data else x
+
+                @csp.node
+                def node_optional_list_untyped(x: ts[int], my_data: Optional[list] = None) -> ts[int]:
+                    if csp.ticked(x):
+                        return my_data[0] if my_data else x
+
+            def graph():
+                # Optional[list] tests - these should work
+                node_optional_list_untyped(csp.const(10), {} if use_dict else [])
+                node_optional_list_untyped(csp.const(10), None)
+                node_optional_list_untyped(csp.const(10), {9: 10} if use_dict else [9])
+
+                # Optional[List[int]] tests
+                node_optional_list_typed(csp.const(10), None)
+                node_optional_list_typed(csp.const(10), {} if use_dict else [])
+                node_optional_list_typed(csp.const(10), {9: 10} if use_dict else [9])
+
+                # Here the List/Dict type hints don't match the signature
+                # But, for backwards compatibility (as this was the behavior with Optional in version 0.0.5)
+                # The pydantic version of the checks, however, catches this.
+                if USE_PYDANTIC:
+                    msg = "(?s).*validation error.* for node_optional_list_typed.*my_data.*Input should be a valid integer.*type=int_parsing"
+                    with self.assertRaisesRegex(TypeError, msg):
+                        node_optional_list_typed(csp.const(10), {"a": "b"} if use_dict else ["a"])
+                else:
+                    node_optional_list_typed(csp.const(10), {"a": "b"} if use_dict else ["a"])
+
+                # This should fail - type mismatch
+                if USE_PYDANTIC:
+                    msg = "(?s)1 validation error for node_optional_list_typed.*my_data"
+                else:
+                    msg = "In function node_optional_list_typed: Expected typing\\.(?:Optional\\[typing|Union\\[typing)\\..*"
+                with self.assertRaisesRegex(TypeError, msg):
+                    node_optional_list_typed(csp.const(10), [] if use_dict else {})
+
+            csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_optional_callable_type_checking(self):
+        @csp.node
+        def node_optional_callable_typed(x: ts[int], my_data: Optional[Callable[[int], int]] = None) -> ts[int]:
+            if csp.ticked(x):
+                return my_data(x) if my_data else x
+
+        @csp.node
+        def node_optional_callable_untyped(x: ts[int], my_data: Optional[Callable] = None) -> ts[int]:
+            if csp.ticked(x):
+                return my_data(x) if my_data else x
+
+        def graph():
+            # These should work for both typed and untyped
+            node_optional_callable_typed(csp.const(10), None)
+            node_optional_callable_untyped(csp.const(10), None)
+
+            # These should also work - valid callables
+            node_optional_callable_typed(csp.const(10), lambda x: x + 1)
+            node_optional_callable_untyped(csp.const(10), lambda x: 2 * x)
+
+            # Here the Callable's type hints don't match the signature
+            # but we allow anyways, both with the pydantic version and without
+            node_optional_callable_typed(csp.const(10), lambda x, y: "a")
+            node_optional_callable_untyped(csp.const(10), lambda x, y: "a")
+
+        # This should fail - passing non-callable to typed version
+        if USE_PYDANTIC:
+            msg = "(?s)1 validation error for node_optional_callable_typed.*my_data.*Input should be callable \\[type=callable_type"
+        else:
+            msg = "In function node_optional_callable_typed: Expected typing\\.(?:Optional\\[typing\\.Callable\\[\\[int\\], int\\]\\]|Union\\[typing\\.Callable\\[\\[int\\], int\\], NoneType\\]) for argument 'my_data', got 12 \\(int\\)"
+        with self.assertRaisesRegex(TypeError, msg):
+            node_optional_callable_typed(csp.const(10), 12)
+
+            # This should fail - passing non-callable to typed version
+            if USE_PYDANTIC:
+                msg = "(?s)1 validation error for node_optional_callable_typed.*my_data.*Input should be callable \\[type=callable_type"
+            else:
+                msg = "In function node_optional_callable_typed: Expected typing\\.(?:Optional\\[typing\\.Callable\\[\\[int\\], int\\]\\]|Union\\[typing\\.Callable\\[\\[int\\], int\\], NoneType\\]) for argument 'my_data', got 12 \\(int\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                node_optional_callable_typed(csp.const(10), 12)
+
+        csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_union_type_checking(self):
+        @csp.node
+        def node_union_typed(x: ts[int], my_data: Union[int, str]) -> ts[int]:
+            if csp.ticked(x):
+                return x + int(my_data) if isinstance(my_data, str) else x + my_data
+
+        def graph():
+            # These should work - valid int inputs
+            node_union_typed(csp.const(10), 5)
+
+            # These should also work - valid str inputs
+            node_union_typed(csp.const(10), "123")
+
+            # These should fail - passing float when expecting Union[int, str]
+            if USE_PYDANTIC:
+                msg = "(?s)2 validation errors for node_union_typed.*my_data\\.int.*Input should be a valid integer, got a number with a fractional part.*my_data\\.str.*Input should be a valid string"
+            else:
+                msg = "In function node_union_typed: Expected typing\\.Union\\[int, str\\] for argument 'my_data', got 12\\.5 \\(float\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                node_union_typed(csp.const(10), 12.5)
+
+        csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_union_list_type_checking(self):
+        @csp.node
+        def node_union_typed(x: ts[int], my_data: Union[List[str], int] = None) -> ts[int]:
+            if csp.ticked(x):
+                if isinstance(my_data, list):
+                    return x + len(my_data)
+                return x + my_data
+
+        @csp.node
+        def node_union_untyped(x: ts[int], my_data: Union[list, int] = None) -> ts[int]:
+            if csp.ticked(x):
+                if isinstance(my_data, list):
+                    return x + len(my_data)
+                return x + my_data
+
+        def graph():
+            # These should work - valid int inputs
+            node_union_typed(csp.const(10), 5)
+            node_union_untyped(csp.const(10), 42)
+
+            # These should work - valid list inputs
+            node_union_typed(csp.const(10), ["hello", "world"])
+            node_union_untyped(csp.const(10), ["hello", "world"])
+
+            # This should fail - passing float when expecting Union[List[str], int]
+            if USE_PYDANTIC:
+                msg = "(?s)2 validation errors for node_union_typed.*my_data\\.list.*Input should be a valid list.*my_data\\.int.*Input should be a valid integer, got a number with a fractional part"
+            else:
+                msg = "In function node_union_typed: Expected typing\\.Union\\[typing\\.List\\[str\\], int\\] for argument 'my_data', got 12\\.5 \\(float\\)"
+            with self.assertRaisesRegex(TypeError, msg):
+                node_union_typed(csp.const(10), 12.5)
+
+            # This should fail - passing list with wrong element type
+            if USE_PYDANTIC:
+                msg = "(?s)3 validation errors for node_union_typed.*my_data\\.list\\[str\\]\\.0.*Input should be a valid string.*my_data\\.list\\[str\\]\\.1.*Input should be a valid string.*my_data\\.int.*Input should be a valid integer"
+                with self.assertRaisesRegex(TypeError, msg):
+                    node_union_typed(csp.const(10), [1, 2])  # List of ints instead of strings
+            else:
+                # We choose to intentionally not enforce the types provided
+                # to maintain previous flexibility when not using pydantic type validation
+                node_union_typed(csp.const(10), [1, 2])
+
+            node_union_untyped(csp.const(10), [1, 2])
+
+        csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_is_callable(self):
+        """Test CspTypingUtils.is_callable with various input types"""
+        # Test cases as (input, expected_result) pairs
+        test_cases = [
+            # Direct Callable types
+            (Callable, True),
+            (Callable[[int, str], bool], True),
+            (Callable[..., None], True),
+            (Callable[[int], str], True),
+            # optional Callable is not Callable
+            (Optional[Callable], False),
+            # Typing module types
+            (List[int], False),
+            (Dict[str, int], False),
+            (typing.Set[str], False),
+        ]
+        for input_type, expected in test_cases:
+            result = CspTypingUtils.is_callable(input_type)
+            self.assertEqual(result, expected)
 
 
 if __name__ == "__main__":

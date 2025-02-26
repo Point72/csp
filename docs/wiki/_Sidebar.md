@@ -11,8 +11,9 @@ Notes for editors:
 **Get Started (Tutorials)**
 
 - [Installation](Installation)
-- [First steps](First-Steps)
+- [First Steps](First-Steps)
 - [More with CSP](More-with-CSP)
+- [Build a Basic App](More-with-CSP)
 - [IO with Adapters](IO-with-Adapters)
 
 **Concepts**
@@ -28,7 +29,6 @@ Notes for editors:
 **How-to guides**
 
 - [Use Statistical Nodes](Use-Statistical-Nodes)
-- Use Adapters (coming soon)
 - [Create Dynamic Baskets](Create-Dynamic-Baskets)
 - Write Adapters:
   - [Write Historical Input Adapters](Write-Historical-Input-Adapters)

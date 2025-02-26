@@ -51,19 +51,22 @@ public:
 
     void event_cb( RdKafka::Event & event ) override
     {
-        if( event.type() == RdKafka::Event::EVENT_LOG )
+        if( event.severity() < RdKafka::Event::EVENT_SEVERITY_NOTICE )
         {
-            if( event.severity() < RdKafka::Event::EVENT_SEVERITY_NOTICE )
-            {
-                std::string errmsg = "KafkaConsumer: error " + RdKafka::err2str( ( RdKafka::ErrorCode ) event.err() ) + ". Reason: " + event.str();
-                m_adapterManager -> pushStatus( StatusLevel::ERROR, KafkaStatusMessageType::GENERIC_ERROR, errmsg );
-            }
+            std::string errmsg = "KafkaConsumer: error ( " + std::to_string( event.err() ) + "): " + RdKafka::err2str( ( RdKafka::ErrorCode ) event.err() ) + ". Reason: " + event.str();
+            m_adapterManager -> pushStatus( StatusLevel::ERROR, KafkaStatusMessageType::GENERIC_ERROR, errmsg );
         }
-        else if( event.type() == RdKafka::Event::EVENT_ERROR )
+
+        if( event.type() == RdKafka::Event::EVENT_ERROR )
         {
             //We shutdown the app if its a fatal error OR if its an authentication issue which has plagued users multiple times
-            if( event.fatal() || event.err() == RdKafka::ErrorCode::ERR__AUTHENTICATION )
+            //Adding ERR__ALL_BROKERS_DOWN which happens when all brokers are down
+            if( event.fatal() ||
+                event.err() == RdKafka::ErrorCode::ERR__AUTHENTICATION ||
+                event.err() == RdKafka::ErrorCode::ERR__ALL_BROKERS_DOWN )
+            {
                 m_adapterManager -> forceShutdown( RdKafka::err2str( ( RdKafka::ErrorCode ) event.err() ) + event.str() );
+            }
         }
     }
 
@@ -73,7 +76,8 @@ private:
 
 KafkaAdapterManager::KafkaAdapterManager( csp::Engine * engine, const Dictionary & properties ) : AdapterManager( engine ),
                                                                                                   m_consumerIdx( 0 ),
-                                                                                                  m_producerPollThreadActive( false )
+                                                                                                  m_producerPollThreadActive( false ),
+                                                                                                  m_unrecoverableError( false )
 {
     m_maxThreads = properties.get<uint64_t>( "max_threads" );
     m_pollTimeoutMs = properties.get<TimeDelta>( "poll_timeout" ).asMilliseconds();
@@ -131,6 +135,7 @@ void KafkaAdapterManager::setConfProperties( RdKafka::Conf * conf, const Diction
 
 void KafkaAdapterManager::forceShutdown( const std::string & err )
 {
+    m_unrecoverableError = true;  // So we can alert the producer to stop trying to flush
     forceConsumerReplayComplete();
     try
     {
@@ -218,18 +223,18 @@ void KafkaAdapterManager::pollProducers()
 {
     while( m_producerPollThreadActive )
     {
-        m_producer -> poll( 1000 );
+        m_producer -> poll( m_pollTimeoutMs );
     }
 
     try
     {
         while( true )
         {
-            auto rc = m_producer -> flush( 10000 );
-            if( !rc )
+            auto rc = m_producer -> flush( 5000 );
+            if( !rc || m_unrecoverableError )
                 break;
 
-            if( rc && rc != RdKafka::ERR__TIMED_OUT )
+            if( rc != RdKafka::ERR__TIMED_OUT )
                 CSP_THROW( RuntimeException, "KafkaProducer failed to flush pending msgs on shutdown: " << RdKafka::err2str( rc ) );
         }
     }

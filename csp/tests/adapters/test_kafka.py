@@ -372,17 +372,78 @@ class TestKafka:
             assert [v[1] for v in sub_bytes] == [v[1] for v in pub[:count]]
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
-    @pytest.fixture(autouse=True)
-    def test_invalid_topic(self, kafkaadapter):
+    def test_invalid_topic(self, kafkaadapterkwargs):
         class SubData(csp.Struct):
             msg: str
 
+        kafkaadapter1 = KafkaAdapterManager(**kafkaadapterkwargs)
+
         # Was a bug where engine would stall
-        def graph():
+        def graph_sub():
             # csp.print('status', kafkaadapter.status())
-            return kafkaadapter.subscribe(
+            return kafkaadapter1.subscribe(
                 ts_type=SubData, msg_mapper=RawTextMessageMapper(), field_map={"": "msg"}, topic="foobar", key="none"
             )
 
         # With bug this would deadlock
-        csp.run(graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+        with pytest.raises(RuntimeError):
+            csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+        kafkaadapter2 = KafkaAdapterManager(**kafkaadapterkwargs)
+
+        def graph_pub():
+            msg_mapper = RawTextMessageMapper()
+            kafkaadapter2.publish(msg_mapper, x=csp.const("heyyyy"), topic="foobar", key="test_key124")
+
+        # With bug this would deadlock
+        with pytest.raises(RuntimeError):
+            csp.run(graph_pub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
+    def test_invalid_broker(self, kafkaadapterkwargs):
+        dict_with_broker = kafkaadapterkwargs.copy()
+        dict_with_broker["broker"] = "foobar"
+
+        kafkaadapter1 = KafkaAdapterManager(**dict_with_broker)
+
+        class SubData(csp.Struct):
+            msg: str
+
+        # Was a bug where engine would stall
+        def graph_sub():
+            return kafkaadapter1.subscribe(
+                ts_type=SubData, msg_mapper=RawTextMessageMapper(), field_map={"": "msg"}, topic="foobar", key="none"
+            )
+
+        # With bug this would deadlock
+        with pytest.raises(RuntimeError):
+            csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+
+        kafkaadapter2 = KafkaAdapterManager(**dict_with_broker)
+
+        def graph_pub():
+            msg_mapper = RawTextMessageMapper()
+            kafkaadapter2.publish(msg_mapper, x=csp.const("heyyyy"), topic="foobar", key="test_key124")
+
+        # With bug this would deadlock
+        with pytest.raises(RuntimeError):
+            csp.run(graph_pub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
+    def test_meta_field_map_tick_timestamp_from_field(self, kafkaadapterkwargs):
+        class SubData(csp.Struct):
+            msg: str
+            dt: datetime
+
+        kafkaadapter1 = KafkaAdapterManager(**kafkaadapterkwargs)
+
+        def graph_sub():
+            return kafkaadapter1.subscribe(
+                ts_type=SubData,
+                msg_mapper=RawTextMessageMapper(),
+                meta_field_map={"timestamp": "dt"},
+                topic="foobar",
+                tick_timestamp_from_field="dt",
+            )
+
+        with pytest.raises(ValueError):
+            csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)

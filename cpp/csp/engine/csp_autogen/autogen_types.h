@@ -14,7 +14,7 @@
 namespace csp::autogen
 {
 
-class CSP_PUBLIC TimeIndexPolicy : public csp::CspEnum
+class TimeIndexPolicy : public csp::CspEnum
 {
 public:
     // Raw value quick access
@@ -50,7 +50,7 @@ private:
     static std::shared_ptr<csp::CspEnumMeta> s_meta;
 };
 
-class CSP_PUBLIC DynamicBasketEvent : public csp::Struct
+class DynamicBasketEvent : public csp::Struct
 {
 public:
 
@@ -169,7 +169,7 @@ private:
     }
 };
 
-class CSP_PUBLIC DynamicBasketEvents : public csp::Struct
+class DynamicBasketEvents : public csp::Struct
 {
 public:
 

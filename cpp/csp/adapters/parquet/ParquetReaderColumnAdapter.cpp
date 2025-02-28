@@ -91,7 +91,7 @@ std::unique_ptr<ParquetColumnAdapter> createColumnAdapter(
             return std::unique_ptr<ParquetColumnAdapter>(
                     new NativeTypeColumnAdapter<double, arrow::DoubleArray>( parquetReader, field.name() ) );
         case arrow::Type::STRING:
-            return std::unique_ptr<ParquetColumnAdapter>( new StringColumnAdapter( parquetReader, field.name() ) );
+            return std::unique_ptr<ParquetColumnAdapter>( new StringColumnAdapter<::arrow::StringArray>( parquetReader, field.name() ) );
         case arrow::Type::BINARY:
             return std::unique_ptr<ParquetColumnAdapter>( new BytesColumnAdapter( parquetReader, field.name() ) );
         case arrow::Type::DATE32:
@@ -203,6 +203,7 @@ std::unique_ptr<ParquetColumnAdapter> createColumnAdapter(
             }
         }
         case arrow::Type::LARGE_STRING:
+            return std::unique_ptr<ParquetColumnAdapter>( new StringColumnAdapter<::arrow::LargeStringArray>( parquetReader, field.name() ) );
         default:
             CSP_THROW( ParquetColumnTypeError,
                        "Unsupported column type " << field.type() -> name() << " for column " << field.name() << " in file " << fileName );
@@ -584,7 +585,8 @@ void TimeColumnAdapter<UNIT, ArrowTimeArray>::readCurValue()
     }
 }
 
-void StringColumnAdapter::addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol )
+template< typename ArrowStringArrayType>
+void StringColumnAdapter<ArrowStringArrayType>::addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol )
 {
     if( inputAdapter -> type() -> type() == CspType::TypeTraits::ENUM )
     {
@@ -606,11 +608,12 @@ void StringColumnAdapter::addSubscriber( ManagedSimInputAdapter *inputAdapter, s
     }
     else
     {
-        BaseTypedColumnAdapter::addSubscriber( inputAdapter, symbol );
+        BaseTypedColumnAdapter<std::string, ArrowStringArrayType>::addSubscriber( inputAdapter, symbol );
     }
 }
 
-void StringColumnAdapter::readCurValue()
+template< typename ArrowStringArrayType>
+void StringColumnAdapter<ArrowStringArrayType>::readCurValue()
 {
     auto curRow = this -> m_parquetReader.getCurRow();
     if( this -> m_curChunkArray -> IsValid( curRow ) )

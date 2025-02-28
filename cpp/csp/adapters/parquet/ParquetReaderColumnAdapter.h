@@ -237,10 +237,12 @@ protected:
     void readCurValue() override;
 };
 
-class StringColumnAdapter : public BaseTypedColumnAdapter<std::string, arrow::StringArray>
+template< typename ArrowStringArrayType >
+class StringColumnAdapter : public BaseTypedColumnAdapter<std::string, ArrowStringArrayType>
 {
 public:
-    using BaseTypedColumnAdapter::BaseTypedColumnAdapter;
+    using BaseTypedColumnAdapter<std::string, ArrowStringArrayType>::BaseTypedColumnAdapter;
+    using BaseTypedColumnAdapter<std::string, ArrowStringArrayType>::m_dispatcher;
     void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) override;
     virtual CspTypePtr getNativeCspType() const override {return nullptr;}
 protected:

@@ -249,10 +249,11 @@ protected:
     void readCurValue() override;
 };
 
-class BytesColumnAdapter : public BaseTypedColumnAdapter<std::string, arrow::BinaryArray>
+template< typename ArrowBytesArrayType >
+class BytesColumnAdapter : public BaseTypedColumnAdapter<std::string, ArrowBytesArrayType>
 {
 public:
-    using BaseTypedColumnAdapter::BaseTypedColumnAdapter;
+    using BaseTypedColumnAdapter<std::string, ArrowBytesArrayType>::BaseTypedColumnAdapter;
     virtual CspTypePtr getNativeCspType() const override {return nullptr;}
 protected:
     void readCurValue() override;

@@ -91,9 +91,9 @@ std::unique_ptr<ParquetColumnAdapter> createColumnAdapter(
             return std::unique_ptr<ParquetColumnAdapter>(
                     new NativeTypeColumnAdapter<double, arrow::DoubleArray>( parquetReader, field.name() ) );
         case arrow::Type::STRING:
-            return std::unique_ptr<ParquetColumnAdapter>( new StringColumnAdapter<::arrow::StringArray>( parquetReader, field.name() ) );
+            return std::unique_ptr<ParquetColumnAdapter>( new StringColumnAdapter<arrow::StringArray>( parquetReader, field.name() ) );
         case arrow::Type::BINARY:
-            return std::unique_ptr<ParquetColumnAdapter>( new BytesColumnAdapter( parquetReader, field.name() ) );
+            return std::unique_ptr<ParquetColumnAdapter>( new BytesColumnAdapter<arrow::BinaryArray>( parquetReader, field.name() ) );
         case arrow::Type::DATE32:
             return createDateColumnAdapter<arrow::Date32Array>( parquetReader,
                                                                 field.name(),
@@ -203,7 +203,9 @@ std::unique_ptr<ParquetColumnAdapter> createColumnAdapter(
             }
         }
         case arrow::Type::LARGE_STRING:
-            return std::unique_ptr<ParquetColumnAdapter>( new StringColumnAdapter<::arrow::LargeStringArray>( parquetReader, field.name() ) );
+            return std::unique_ptr<ParquetColumnAdapter>( new StringColumnAdapter<arrow::LargeStringArray>( parquetReader, field.name() ) );
+        case arrow::Type::LARGE_BINARY:
+            return std::unique_ptr<ParquetColumnAdapter>( new BytesColumnAdapter<arrow::LargeBinaryArray>( parquetReader, field.name() ) );
         default:
             CSP_THROW( ParquetColumnTypeError,
                        "Unsupported column type " << field.type() -> name() << " for column " << field.name() << " in file " << fileName );
@@ -626,7 +628,8 @@ void StringColumnAdapter<ArrowStringArrayType>::readCurValue()
     }
 }
 
-void BytesColumnAdapter::readCurValue()
+template< typename ArrowBytesArrayType >
+void BytesColumnAdapter<ArrowBytesArrayType>::readCurValue()
 {
     auto curRow = this -> m_parquetReader.getCurRow();
     if( this -> m_curChunkArray -> IsValid( curRow ) )
@@ -762,7 +765,6 @@ void ListColumnAdapter<ValueArrayType, ValueType>::readCurValue()
         this -> m_curValue.reset();
     }
 }
-
 
 template<>
 void ListColumnAdapter<arrow::StringArray, std::string>::readCurValue()

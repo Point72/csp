@@ -20,6 +20,6 @@ private:
     PyObjectPtr m_result;
 };
 
-}
+} // namespace csp::python
 
 #endif

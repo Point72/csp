@@ -19,7 +19,7 @@ class MessageStructConverter
 public:
     MessageStructConverter( const CspTypePtr & type, const Dictionary & properties );
     virtual ~MessageStructConverter() {}
-    
+
     virtual csp::StructPtr asStruct( void * bytes, size_t size ) = 0;
 
     StructMetaPtr structMeta() { return m_structMeta; }
@@ -29,16 +29,16 @@ protected:
     StructMetaPtr m_structMeta;
 
 private:
-    using FieldEntry = std::pair<std::string,StructFieldPtr>;
+    using FieldEntry = std::pair<std::string, StructFieldPtr>;
     using Fields     = std::vector<FieldEntry>;
 
     Fields m_propertyFields;
 };
 
-using MessageStructConverterPtr=std::shared_ptr<MessageStructConverter>;
+using MessageStructConverterPtr = std::shared_ptr<MessageStructConverter>;
 
-//This ensures we dont recreate converters unnecessarily for say subscription by symbol with the same
-//conversion onformation
+// This ensures we dont recreate converters unnecessarily for say subscription by symbol with the same
+// conversion onformation
 class MessageStructConverterCache
 {
 public:
@@ -48,19 +48,19 @@ public:
 
     MessageStructConverterPtr create( const CspTypePtr &, const Dictionary & properties );
 
-    using Creator = std::function<MessageStructConverter*( const CspTypePtr &, const Dictionary & )>;
+    using Creator = std::function<MessageStructConverter *( const CspTypePtr &, const Dictionary & )>;
 
     bool registerConverter( std::string protocol, Creator creator );
 
 private:
-    using CacheKey = std::pair<const CspType*,Dictionary>;
-    using Cache = std::unordered_map<CacheKey,MessageStructConverterPtr,csp::hash::hash_pair>;
+    using CacheKey = std::pair<const CspType *, Dictionary>;
+    using Cache    = std::unordered_map<CacheKey, MessageStructConverterPtr, csp::hash::hash_pair>;
 
-    std::unordered_map<std::string,Creator> m_creators;
-    std::mutex                              m_cacheMutex;
-    Cache                                   m_cache;
+    std::unordered_map<std::string, Creator> m_creators;
+    std::mutex                               m_cacheMutex;
+    Cache                                    m_cache;
 };
 
-}
+} // namespace csp::adapters::utils
 
 #endif

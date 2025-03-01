@@ -26,7 +26,8 @@
 #include "arrow/compute/api.h"
 #include "arrow/python/visibility.h"
 
-namespace arrow {
+namespace arrow
+{
 
 class Array;
 class ChunkedArray;
@@ -34,39 +35,38 @@ class DataType;
 class MemoryPool;
 class Status;
 
-namespace py {
+namespace py
+{
 
-/// Convert NumPy arrays to Arrow. If target data type is not known, pass a
-/// type with null
-///
-/// \param[in] pool Memory pool for any memory allocations
-/// \param[in] ao an ndarray with the array data
-/// \param[in] mo an ndarray with a null mask (True is null), optional
-/// \param[in] from_pandas If true, use pandas's null sentinels to determine
-/// whether values are null
-/// \param[in] type a specific type to cast to, may be null
-/// \param[in] cast_options casting options
-/// \param[out] out a ChunkedArray, to accommodate chunked output
-ARROW_PYTHON_EXPORT
-Status NdarrayToArrow(MemoryPool* pool, PyObject* ao, PyObject* mo, bool from_pandas,
-                      const std::shared_ptr<DataType>& type,
-                      const compute::CastOptions& cast_options,
-                      std::shared_ptr<ChunkedArray>* out);
+    /// Convert NumPy arrays to Arrow. If target data type is not known, pass a
+    /// type with null
+    ///
+    /// \param[in] pool Memory pool for any memory allocations
+    /// \param[in] ao an ndarray with the array data
+    /// \param[in] mo an ndarray with a null mask (True is null), optional
+    /// \param[in] from_pandas If true, use pandas's null sentinels to determine
+    /// whether values are null
+    /// \param[in] type a specific type to cast to, may be null
+    /// \param[in] cast_options casting options
+    /// \param[out] out a ChunkedArray, to accommodate chunked output
+    ARROW_PYTHON_EXPORT
+    Status NdarrayToArrow( MemoryPool * pool, PyObject * ao, PyObject * mo, bool from_pandas,
+                           const std::shared_ptr<DataType> & type, const compute::CastOptions & cast_options,
+                           std::shared_ptr<ChunkedArray> * out );
 
-/// Safely convert NumPy arrays to Arrow. If target data type is not known,
-/// pass a type with null.
-///
-/// \param[in] pool Memory pool for any memory allocations
-/// \param[in] ao an ndarray with the array data
-/// \param[in] mo an ndarray with a null mask (True is null), optional
-/// \param[in] from_pandas If true, use pandas's null sentinels to determine
-/// whether values are null
-/// \param[in] type a specific type to cast to, may be null
-/// \param[out] out a ChunkedArray, to accommodate chunked output
-ARROW_PYTHON_EXPORT
-Status NdarrayToArrow(MemoryPool* pool, PyObject* ao, PyObject* mo, bool from_pandas,
-                      const std::shared_ptr<DataType>& type,
-                      std::shared_ptr<ChunkedArray>* out);
+    /// Safely convert NumPy arrays to Arrow. If target data type is not known,
+    /// pass a type with null.
+    ///
+    /// \param[in] pool Memory pool for any memory allocations
+    /// \param[in] ao an ndarray with the array data
+    /// \param[in] mo an ndarray with a null mask (True is null), optional
+    /// \param[in] from_pandas If true, use pandas's null sentinels to determine
+    /// whether values are null
+    /// \param[in] type a specific type to cast to, may be null
+    /// \param[out] out a ChunkedArray, to accommodate chunked output
+    ARROW_PYTHON_EXPORT
+    Status NdarrayToArrow( MemoryPool * pool, PyObject * ao, PyObject * mo, bool from_pandas,
+                           const std::shared_ptr<DataType> & type, std::shared_ptr<ChunkedArray> * out );
 
-}  // namespace py
-}  // namespace arrow
+} // namespace py
+} // namespace arrow

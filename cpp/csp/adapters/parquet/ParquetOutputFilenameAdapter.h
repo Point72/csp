@@ -3,7 +3,6 @@
 
 #include <csp/engine/OutputAdapter.h>
 
-
 namespace csp::adapters::parquet
 {
 class ParquetOutputAdapterManager;
@@ -11,19 +10,20 @@ class ParquetOutputAdapterManager;
 class ParquetOutputFilenameAdapter : public csp::OutputAdapter
 {
 public:
-    ParquetOutputFilenameAdapter( Engine *engine, ParquetOutputAdapterManager &parquetOutputAdapterManager )
-            : csp::OutputAdapter( engine ), m_parquetOutputAdapterManager( parquetOutputAdapterManager )
+    ParquetOutputFilenameAdapter( Engine * engine, ParquetOutputAdapterManager & parquetOutputAdapterManager )
+        : csp::OutputAdapter( engine )
+        , m_parquetOutputAdapterManager( parquetOutputAdapterManager )
     {
     }
 
     void executeImpl() override;
 
-    const char *name() const override { return "ParquetOutputFilenameAdapter"; }
+    const char * name() const override { return "ParquetOutputFilenameAdapter"; }
 
 protected:
-    ParquetOutputAdapterManager &m_parquetOutputAdapterManager;
+    ParquetOutputAdapterManager & m_parquetOutputAdapterManager;
 };
 
-}
+} // namespace csp::adapters::parquet
 
 #endif

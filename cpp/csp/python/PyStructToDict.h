@@ -7,8 +7,8 @@ namespace csp::python
 {
 
 // Entry point for converting structs into a python dict
-PyObjectPtr structToDict( const StructPtr& struct_ptr, PyObject * callable );
+PyObjectPtr structToDict( const StructPtr & struct_ptr, PyObject * callable );
 
-}
+} // namespace csp::python
 
 #endif

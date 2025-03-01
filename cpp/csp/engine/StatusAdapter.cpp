@@ -3,12 +3,6 @@
 namespace csp
 {
 
-INIT_CSP_ENUM( csp::StatusLevel,
-               "DEBUG",
-               "INFO",
-               "WARNING",
-               "ERROR",
-               "CRITICAL"
-);
+INIT_CSP_ENUM( csp::StatusLevel, "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL" );
 
 }

@@ -6,15 +6,14 @@
 namespace csp::python
 {
 
-//PushBatch
+// PushBatch
 struct PyPushBatch
 {
-    PyObject_HEAD
-    PushBatch batch;
+    PyObject_HEAD PushBatch batch;
 
     static PyTypeObject PyType;
 };
 
-}
+} // namespace csp::python
 
 #endif

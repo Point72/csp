@@ -40,15 +40,13 @@ lint-py:
 	python -m ruff format --check csp/ examples/ setup.py
 
 lint-cpp:
-	# clang-format --dry-run -Werror -i -style=file `find ./cpp/ -name "*.*pp"`
-	echo "C++ linting disabled for now"
+	clang-format --dry-run -Werror -i -style=file `find ./cpp/csp -type f -name "*.cpp" -o -name "*.h"`
 
 lint-docs:
 	python -m mdformat --check docs/wiki/ README.md examples/
 	python -m codespell_lib docs/wiki/ README.md examples/ --skip "*.cpp,*.h"
 
-# lint: lint-py lint-cpp  ## run lints
-lint: lint-py lint-docs ## run lints
+lint: lint-py lint-cpp lint-docs ## run lints
 
 # Alias
 lints: lint
@@ -58,8 +56,7 @@ fix-py:
 	python -m ruff format csp/ examples/ setup.py
 
 fix-cpp:
-	# clang-format -i -style=file `find ./cpp/ -name "*.*pp"`
-	echo "C++ autoformatting disabled for now"
+	clang-format -i -style=file `find ./cpp/csp -type f -name "*.cpp" -o -name "*.h"`
 
 fix-docs:
 	python -m mdformat docs/wiki/ README.md examples/

@@ -1,6 +1,6 @@
-#include <csp/python/PyCppNode.h>
 #include <csp/engine/CppNode.h>
 #include <csp/python/Conversions.h>
+#include <csp/python/PyCppNode.h>
 
 // Math ops
 REGISTER_CPPNODE( csp::cppnodes, add_f );
@@ -75,19 +75,14 @@ REGISTER_CPPNODE( csp::cppnodes, ge_i );
 REGISTER_CPPNODE( csp::cppnodes, le_f );
 REGISTER_CPPNODE( csp::cppnodes, le_i );
 
-static PyModuleDef _cspmathimpl_module = {
-    PyModuleDef_HEAD_INIT,
-    "_cspmathimpl",
-    "_cspmathimpl c++ module",
-    -1,
-    NULL, NULL, NULL, NULL, NULL
-};
+static PyModuleDef _cspmathimpl_module
+    = { PyModuleDef_HEAD_INIT, "_cspmathimpl", "_cspmathimpl c++ module", -1, NULL, NULL, NULL, NULL, NULL };
 
-PyMODINIT_FUNC PyInit__cspmathimpl(void)
+PyMODINIT_FUNC PyInit__cspmathimpl( void )
 {
-    PyObject* m;
+    PyObject * m;
 
-    m = PyModule_Create( &_cspmathimpl_module);
+    m = PyModule_Create( &_cspmathimpl_module );
     if( m == NULL )
         return NULL;
 

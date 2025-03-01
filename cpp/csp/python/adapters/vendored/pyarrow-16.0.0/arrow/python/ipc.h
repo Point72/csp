@@ -25,48 +25,51 @@
 #include "arrow/result.h"
 #include "arrow/util/macros.h"
 
-namespace arrow {
-namespace py {
+namespace arrow
+{
+namespace py
+{
 
-class ARROW_PYTHON_EXPORT PyRecordBatchReader : public RecordBatchReader {
- public:
-  std::shared_ptr<Schema> schema() const override;
+    class ARROW_PYTHON_EXPORT PyRecordBatchReader : public RecordBatchReader
+    {
+    public:
+        std::shared_ptr<Schema> schema() const override;
 
-  Status ReadNext(std::shared_ptr<RecordBatch>* batch) override;
+        Status ReadNext( std::shared_ptr<RecordBatch> * batch ) override;
 
-  // For use from Cython
-  // Assumes that `iterable` is borrowed
-  static Result<std::shared_ptr<RecordBatchReader>> Make(std::shared_ptr<Schema>,
-                                                         PyObject* iterable);
+        // For use from Cython
+        // Assumes that `iterable` is borrowed
+        static Result<std::shared_ptr<RecordBatchReader>> Make( std::shared_ptr<Schema>, PyObject * iterable );
 
- protected:
-  PyRecordBatchReader();
+    protected:
+        PyRecordBatchReader();
 
-  Status Init(std::shared_ptr<Schema>, PyObject* iterable);
+        Status Init( std::shared_ptr<Schema>, PyObject * iterable );
 
-  std::shared_ptr<Schema> schema_;
-  OwnedRefNoGIL iterator_;
-};
+        std::shared_ptr<Schema> schema_;
+        OwnedRefNoGIL           iterator_;
+    };
 
-class ARROW_PYTHON_EXPORT CastingRecordBatchReader : public RecordBatchReader {
- public:
-  std::shared_ptr<Schema> schema() const override;
+    class ARROW_PYTHON_EXPORT CastingRecordBatchReader : public RecordBatchReader
+    {
+    public:
+        std::shared_ptr<Schema> schema() const override;
 
-  Status ReadNext(std::shared_ptr<RecordBatch>* batch) override;
+        Status ReadNext( std::shared_ptr<RecordBatch> * batch ) override;
 
-  static Result<std::shared_ptr<RecordBatchReader>> Make(
-      std::shared_ptr<RecordBatchReader> parent, std::shared_ptr<Schema> schema);
+        static Result<std::shared_ptr<RecordBatchReader>> Make( std::shared_ptr<RecordBatchReader> parent,
+                                                                std::shared_ptr<Schema>            schema );
 
-  Status Close() override;
+        Status Close() override;
 
- protected:
-  CastingRecordBatchReader();
+    protected:
+        CastingRecordBatchReader();
 
-  Status Init(std::shared_ptr<RecordBatchReader> parent, std::shared_ptr<Schema> schema);
+        Status Init( std::shared_ptr<RecordBatchReader> parent, std::shared_ptr<Schema> schema );
 
-  std::shared_ptr<RecordBatchReader> parent_;
-  std::shared_ptr<Schema> schema_;
-};
+        std::shared_ptr<RecordBatchReader> parent_;
+        std::shared_ptr<Schema>            schema_;
+    };
 
-}  // namespace py
-}  // namespace arrow
+} // namespace py
+} // namespace arrow

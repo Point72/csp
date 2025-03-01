@@ -5,13 +5,12 @@
 
 namespace csp::python::constants
 {
-//These return borrowed refs
+// These return borrowed refs
 PyObject * UNSET();
 PyObject * REMOVE_DYNAMIC_KEY();
-//not really a constant, but convenient place to put this
+// not really a constant, but convenient place to put this
 PyObject * EDGE_TYPE();
 
-}
+} // namespace csp::python::constants
 
 #endif
-

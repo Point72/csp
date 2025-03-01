@@ -25,15 +25,15 @@ protected:
 
 using PushMode = Enum<PushModeTraits>;
 
-//ReplayMode is used by PushPull adapters
+// ReplayMode is used by PushPull adapters
 struct ReplayModeTraits
 {
-     enum _enum : unsigned char
+    enum _enum : unsigned char
     {
-        UNKNOWN        = 0,
-        EARLIEST       = 1,  //Replay all available data
-        LATEST         = 2,  //no replay at all, start from latest
-        START_TIME     = 3,  //replay from engine start time
+        UNKNOWN    = 0,
+        EARLIEST   = 1, // Replay all available data
+        LATEST     = 2, // no replay at all, start from latest
+        START_TIME = 3, // replay from engine start time
 
         NUM_TYPES
     };
@@ -44,6 +44,6 @@ protected:
 
 using ReplayMode = Enum<ReplayModeTraits>;
 
-}
+} // namespace csp
 
 #endif

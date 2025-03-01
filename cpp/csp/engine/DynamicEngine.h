@@ -23,23 +23,23 @@ public:
         GraphOutput( Engine * engine );
         ~GraphOutput();
 
-        void start() override;
-        void executeImpl() override {}
+        void         start() override;
+        void         executeImpl() override {}
         const char * name() const override { return "DynamicEngine::GraphOutput"; }
     };
 
-    void registerGraphOutput( const std::string & key, GraphOutput * output );
+    void                 registerGraphOutput( const std::string & key, GraphOutput * output );
     TimeSeriesProvider * outputTs( const std::string & key );
 
     void shutdown();
 
 private:
-    //these are outputs returned from the sub-graph, as opposed to csp.add_graph_output calls
-    using GraphOutputs = std::unordered_map<std::string,GraphOutput *>;
+    // these are outputs returned from the sub-graph, as opposed to csp.add_graph_output calls
+    using GraphOutputs = std::unordered_map<std::string, GraphOutput *>;
     GraphOutputs m_graphOutputs;
     ShutdownFn   m_shutdownFn;
 };
 
-}
+} // namespace csp
 
 #endif

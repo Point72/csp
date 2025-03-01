@@ -26,17 +26,19 @@
 #include "arrow/python/common.h"
 #include "arrow/util/macros.h"
 
-namespace arrow {
-namespace py {
-namespace csv {
+namespace arrow
+{
+namespace py
+{
+    namespace csv
+    {
 
-using PyInvalidRowCallback = std::function<::arrow::csv::InvalidRowResult(
-    PyObject*, const ::arrow::csv::InvalidRow&)>;
+        using PyInvalidRowCallback
+            = std::function<::arrow::csv::InvalidRowResult( PyObject *, const ::arrow::csv::InvalidRow & )>;
 
-ARROW_PYTHON_EXPORT
-::arrow::csv::InvalidRowHandler MakeInvalidRowHandler(PyInvalidRowCallback,
-                                                      PyObject* handler);
+        ARROW_PYTHON_EXPORT
+        ::arrow::csv::InvalidRowHandler MakeInvalidRowHandler( PyInvalidRowCallback, PyObject * handler );
 
-}  // namespace csv
-}  // namespace py
-}  // namespace arrow
+    } // namespace csv
+} // namespace py
+} // namespace arrow

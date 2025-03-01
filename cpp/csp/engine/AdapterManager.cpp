@@ -4,24 +4,24 @@
 namespace csp
 {
 
-ManagedSimInputAdapter::ManagedSimInputAdapter( csp::Engine * engine,
-                                                const CspTypePtr & type,
-                                                AdapterManager *manager,
-                                                PushMode pushMode ) : InputAdapter( engine, type, pushMode ),
-                                                                      m_manager( manager ),
-                                                                      m_lastCycleCount( 0 )
+ManagedSimInputAdapter::ManagedSimInputAdapter( csp::Engine * engine, const CspTypePtr & type, AdapterManager * manager,
+                                                PushMode pushMode )
+    : InputAdapter( engine, type, pushMode )
+    , m_manager( manager )
+    , m_lastCycleCount( 0 )
 {
 }
 
-AdapterManager::AdapterManager( csp::Engine * engine ) : m_engine( engine ), m_statusAdapter( nullptr ), m_started( false )
+AdapterManager::AdapterManager( csp::Engine * engine )
+    : m_engine( engine )
+    , m_statusAdapter( nullptr )
+    , m_started( false )
 {
-    if( !m_engine -> isRootEngine() )
+    if( !m_engine->isRootEngine() )
         CSP_THROW( NotImplemented, "AdapterManager support is not currently available in dynamic graphs" );
 }
 
-AdapterManager::~AdapterManager()
-{
-}
+AdapterManager::~AdapterManager() {}
 
 void AdapterManager::start( DateTime starttime, DateTime endtime )
 {
@@ -31,13 +31,11 @@ void AdapterManager::start( DateTime starttime, DateTime endtime )
     scheduleTimerCB( starttime );
 }
 
-void AdapterManager::stop()
-{
-}
+void AdapterManager::stop() {}
 
 void AdapterManager::processSimTimerCB()
 {
-    DateTime next = processNextSimTimeSlice( rootEngine() -> now() );
+    DateTime next = processNextSimTimeSlice( rootEngine()->now() );
     if( !next.isNone() )
         scheduleTimerCB( next );
 }
@@ -45,15 +43,15 @@ void AdapterManager::processSimTimerCB()
 StatusAdapter * AdapterManager::createStatusAdapter( CspTypePtr & type, PushMode pushMode )
 {
     if( !m_statusAdapter )
-        m_statusAdapter = m_engine -> createOwnedObject<StatusAdapter>( type, pushMode, statusPushGroup() );
+        m_statusAdapter = m_engine->createOwnedObject<StatusAdapter>( type, pushMode, statusPushGroup() );
 
     return m_statusAdapter;
 }
 
-void AdapterManager::pushStatus( int64_t level, int64_t errCode, const std::string & errMsg, PushBatch *batch ) const
+void AdapterManager::pushStatus( int64_t level, int64_t errCode, const std::string & errMsg, PushBatch * batch ) const
 {
     if( m_statusAdapter )
-        m_statusAdapter -> pushStatus( level, errCode, errMsg, batch );
+        m_statusAdapter->pushStatus( level, errCode, errMsg, batch );
 }
 
-}
+} // namespace csp

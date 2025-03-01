@@ -8,8 +8,7 @@
 static_assert( sizeof( csp::DialectGenericType ) == sizeof( csp::python::PyObjectPtr ) );
 static_assert( alignof( csp::DialectGenericType ) == alignof( csp::python::PyObjectPtr ) );
 
-
-//hook in fromCtype conversion
+// hook in fromCtype conversion
 namespace csp
 {
 template<>
@@ -18,6 +17,6 @@ struct CspType::TypeTraits::fromCType<csp::python::PyObjectPtr>
     static constexpr csp::CspType::TypeTraits::_enum type = csp::CspType::TypeTraits::DIALECT_GENERIC;
 };
 
-}
+} // namespace csp
 
 #endif

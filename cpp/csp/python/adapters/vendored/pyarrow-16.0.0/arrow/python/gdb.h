@@ -19,11 +19,13 @@
 
 #include "arrow/python/visibility.h"
 
-namespace arrow {
-namespace gdb {
+namespace arrow
+{
+namespace gdb
+{
 
-ARROW_PYTHON_EXPORT
-void TestSession();
+    ARROW_PYTHON_EXPORT
+    void TestSession();
 
-}  // namespace gdb
-}  // namespace arrow
+} // namespace gdb
+} // namespace arrow

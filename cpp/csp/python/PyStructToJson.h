@@ -7,8 +7,8 @@ namespace csp::python
 {
 
 // Entry point for converting structs into a json string
-std::string structToJson( const StructPtr& struct_ptr, PyObject * callable );
+std::string structToJson( const StructPtr & struct_ptr, PyObject * callable );
 
-}
+} // namespace csp::python
 
 #endif

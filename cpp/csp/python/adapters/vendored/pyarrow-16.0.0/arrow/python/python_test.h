@@ -25,18 +25,22 @@
 
 #include "arrow/python/visibility.h"
 
-namespace arrow {
-namespace py {
-namespace testing {
+namespace arrow
+{
+namespace py
+{
+    namespace testing
+    {
 
-struct TestCase {
-  std::string name;
-  std::function<Status()> func;
-};
+        struct TestCase
+        {
+            std::string             name;
+            std::function<Status()> func;
+        };
 
-ARROW_PYTHON_EXPORT
-std::vector<TestCase> GetCppTestCases();
+        ARROW_PYTHON_EXPORT
+        std::vector<TestCase> GetCppTestCases();
 
-}  // namespace testing
-}  // namespace py
-}  // namespace arrow
+    } // namespace testing
+} // namespace py
+} // namespace arrow

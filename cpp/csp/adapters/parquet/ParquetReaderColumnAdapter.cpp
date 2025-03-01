@@ -45,6 +45,46 @@ static inline std::unique_ptr<ParquetColumnAdapter> createTimeColumnAdapter(
     return std::unique_ptr<ParquetColumnAdapter>( adapter );
 }
 
+template< typename ArrowListArrayType >
+static inline std::unique_ptr<ParquetColumnAdapter> createListColumnAdapter(
+        ParquetReader &parquetReader,
+        const ::arrow::Field &field,
+        const std::string &fileName )
+{
+    auto listType  = std::static_pointer_cast<arrow::ListType>( field.type() );
+    auto valueType = listType -> value_type();
+    switch( valueType -> id() )
+    {
+        // TODO: Add support for Binary, and LargeBinary
+        case arrow::Type::INT64:
+            return std::make_unique<NativeListColumnAdapter<ArrowListArrayType, arrow::Int64Array>>( parquetReader, field.name() );
+        case arrow::Type::DOUBLE:
+            return std::make_unique<NativeListColumnAdapter<ArrowListArrayType, arrow::DoubleArray>>( parquetReader, field.name() );
+        case arrow::Type::BOOL:
+            return std::make_unique<NativeListColumnAdapter<ArrowListArrayType, arrow::BooleanArray>>( parquetReader, field.name() );
+        case arrow::Type::STRING:
+        {
+            return std::make_unique<BytesListColumnAdapter<ArrowListArrayType, arrow::StringArray>>( parquetReader, field.name() );
+        }
+        case arrow::Type::BINARY:
+        {
+            return std::make_unique<BytesListColumnAdapter<ArrowListArrayType, arrow::BinaryArray>>( parquetReader, field.name() );
+        }
+        case arrow::Type::LARGE_STRING:
+        {
+            return std::make_unique<BytesListColumnAdapter<ArrowListArrayType, arrow::LargeStringArray>>( parquetReader, field.name() );
+        }
+        case arrow::Type::LARGE_BINARY:
+        {
+            return std::make_unique<BytesListColumnAdapter<ArrowListArrayType, arrow::LargeBinaryArray>>( parquetReader, field.name() );
+        }
+        default:
+            CSP_THROW( TypeError,
+                       "Trying to create arrow list array reader for unsupported element type " << valueType -> name()
+                       << " for column " << field.name() << " in file " << fileName );
+    }
+}
+
 std::unique_ptr<ParquetColumnAdapter> createColumnAdapter(
         ParquetReader &parquetReader,
         const ::arrow::Field &field,
@@ -185,27 +225,13 @@ std::unique_ptr<ParquetColumnAdapter> createColumnAdapter(
             return res;
         }
         case arrow::Type::LIST:
-        {
-            auto listType  = std::static_pointer_cast<arrow::ListType>( field.type() );
-            auto valueType = listType -> value_type();
-            switch( valueType -> id() )
-            {
-                case arrow::Type::INT64:
-                    return std::make_unique<ListColumnAdapter<arrow::Int64Array>>( parquetReader, field.name() );
-                case arrow::Type::DOUBLE:
-                    return std::make_unique<ListColumnAdapter<arrow::DoubleArray>>( parquetReader, field.name() );
-                case arrow::Type::BOOL:
-                    return std::make_unique<ListColumnAdapter<arrow::BooleanArray>>( parquetReader, field.name() );
-                case arrow::Type::STRING:
-                    return std::make_unique<ListColumnAdapter<arrow::StringArray, std::string>>( parquetReader, field.name() );
-                default:
-                    CSP_THROW( TypeError, "Trying to create arrow list array reader for unsupported element type " << valueType -> name() << " for column " << field.name() );
-            }
-        }
+            return createListColumnAdapter<arrow::ListArray>( parquetReader, field, fileName );
         case arrow::Type::LARGE_STRING:
             return std::unique_ptr<ParquetColumnAdapter>( new StringColumnAdapter<arrow::LargeStringArray>( parquetReader, field.name() ) );
         case arrow::Type::LARGE_BINARY:
             return std::unique_ptr<ParquetColumnAdapter>( new BytesColumnAdapter<arrow::LargeBinaryArray>( parquetReader, field.name() ) );
+        case arrow::Type::LARGE_LIST:
+            return createListColumnAdapter<arrow::LargeListArray>( parquetReader, field, fileName );
         default:
             CSP_THROW( ParquetColumnTypeError,
                        "Unsupported column type " << field.type() -> name() << " for column " << field.name() << " in file " << fileName );
@@ -215,39 +241,6 @@ std::unique_ptr<ParquetColumnAdapter> createColumnAdapter(
 std::unique_ptr<ParquetColumnAdapter> createMissingColumnAdapter(ParquetReader &parquetReader,const std::string& columnName)
 {
     return std::make_unique<MissingColumnAdapter>( parquetReader, columnName );
-}
-
-template< typename ValueType, typename ArrowArrayType, typename ValueDispatcherT >
-void BaseTypedColumnAdapter<ValueType, ArrowArrayType, ValueDispatcherT>::addSubscriber( ManagedSimInputAdapter *inputAdapter,
-                                                                                         std::optional<utils::Symbol> symbol )
-{
-    try
-    {
-
-        auto callback = CompatibleTypeSwitch::invoke( inputAdapter -> type(), [ inputAdapter ]( auto tag )
-        {
-            return std::function<void(
-                    const ValueType * )>( [ inputAdapter ]( const ValueType *val )
-                                          {
-                                              if( val )
-                                              {
-                                                  inputAdapter -> pushTick<typename decltype(tag)::type>( *val );
-                                              }
-                                              else
-                                              {
-                                                  inputAdapter -> pushNullTick<typename decltype(tag)::type>();
-                                              }
-                                          } );
-
-        } );
-        m_dispatcher.addSubscriber( callback, symbol );
-    }
-    catch( UnsupportedSwitchType &e )
-    {
-        CSP_THROW( TypeError, "Unexpected column type for column " << getColumnName() << " , expected "
-                                                                   << inputAdapter -> type() -> type().asCString() <<
-                                                                   " got " << ArrowArrayType::TypeClass::type_name() );
-    }
 }
 
 template< typename ValueType, typename ArrowArrayType, typename ValueDispatcherT >
@@ -268,7 +261,6 @@ void BaseTypedColumnAdapter<ValueType, ArrowArrayType, ValueDispatcherT>::ensure
 {
     try
     {
-
         CompatibleTypeSwitch::invoke( cspType.get(), [ cspType, this ]( auto tag )
         {
             // No need to check native types here, they won't be assignable so it will raise exception.
@@ -703,37 +695,10 @@ namespace
     };
 }
 
-template< typename ValueArrayType, typename ValueType >
-void ListColumnAdapter<ValueArrayType, ValueType>::addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol )
+template< typename ArrowListArrayType, typename ValueArrayType, typename ValueType >
+void NativeListColumnAdapter<ArrowListArrayType, ValueArrayType, ValueType>::readCurValue()
 {
-    CSP_THROW( NotImplemented, "Trying to subscribe to list column indirectly, via struct field?" );
-}
-
-template< typename ValueArrayType, typename ValueType >
-void ListColumnAdapter<ValueArrayType, ValueType>::addSubscriber( ManagedSimInputAdapter *inputAdapter,
-                                                                  std::optional<utils::Symbol> symbol,
-                                                                  const DialectGenericListReaderInterface::Ptr &listReader )
-{
-    CSP_TRUE_OR_THROW_RUNTIME( m_listReader == nullptr,
-                               "Trying to subscribe list column in parquet reader more than once, this is not supported" );
-    CSP_TRUE_OR_THROW_RUNTIME( listReader != nullptr,
-                               "Trying to subscribe list column in parquet reader with null listReader" );
-    Base::addSubscriber( inputAdapter, symbol );
-
-    m_listReader = std::dynamic_pointer_cast<TypedDialectGenericListReaderInterface<ValueType>>( listReader );
-    CSP_TRUE_OR_THROW_RUNTIME( m_listReader != nullptr,
-                               "Subscribed to parquet column " << getColumnName() << " with type "
-                                                               << "NumpyArray[" << listReader -> getValueType() -> type().asString()
-                                                               << "] while "
-                                                               << " column type in file is NumpyArray["
-                                                               << getContainerValueType() -> type().asString() << "]"
-                                                               << " in file " << m_parquetReader.getCurFileOrTableName() );
-}
-
-template< typename ValueArrayType, typename ValueType >
-void ListColumnAdapter<ValueArrayType, ValueType>::readCurValue()
-{
-    CSP_TRUE_OR_THROW_RUNTIME( m_listReader != nullptr,
+    CSP_TRUE_OR_THROW_RUNTIME( this -> m_listReader != nullptr,
                                "Trying to read list value from parquet file but not list reader interface is set" );
 
     auto curRow = this -> m_parquetReader.getCurRow();
@@ -742,8 +707,8 @@ void ListColumnAdapter<ValueArrayType, ValueType>::readCurValue()
         auto values      = this -> m_curChunkArray -> value_slice( curRow );
         auto typedValues = std::dynamic_pointer_cast<ValueArrayType>( values );
 
-        auto arrayValue     = m_listReader -> create( typedValues -> length() );
-        auto* internalBuffer = m_listReader -> getRawDataBuffer( arrayValue );
+        auto arrayValue     = this -> m_listReader -> create( typedValues -> length() );
+        auto* internalBuffer = this -> m_listReader -> getRawDataBuffer( arrayValue );
         if( internalBuffer != nullptr )
         {
             for( int64_t i = 0; i < typedValues -> length(); ++i )
@@ -755,7 +720,7 @@ void ListColumnAdapter<ValueArrayType, ValueType>::readCurValue()
         {
             for( int64_t i = 0; i < typedValues -> length(); ++i )
             {
-                m_listReader -> setValue( arrayValue, i, ArrayValidValueProvider<ValueType>::getValue(typedValues, i) );
+                this -> m_listReader -> setValue( arrayValue, i, ArrayValidValueProvider<ValueType>::getValue(typedValues, i) );
             }
         }
         this -> m_curValue = std::move( arrayValue );
@@ -766,17 +731,17 @@ void ListColumnAdapter<ValueArrayType, ValueType>::readCurValue()
     }
 }
 
-template<>
-void ListColumnAdapter<arrow::StringArray, std::string>::readCurValue()
+template< typename ArrowListArrayType, typename ArrowBytesArrayType >
+void BytesListColumnAdapter<ArrowListArrayType, ArrowBytesArrayType >::readCurValue()
 {
-    CSP_TRUE_OR_THROW_RUNTIME( m_listReader != nullptr,
+    CSP_TRUE_OR_THROW_RUNTIME( this -> m_listReader != nullptr,
                                "Trying to read list value from parquet file but not list reader interface is set" );
 
     auto curRow = this -> m_parquetReader.getCurRow();
     if( this -> m_curChunkArray -> IsValid( curRow ) )
     {
         auto values      = this -> m_curChunkArray -> value_slice( curRow );
-        auto typedValues = std::dynamic_pointer_cast<arrow::StringArray>( values );
+        auto typedValues = std::dynamic_pointer_cast<ArrowBytesArrayType>( values );
 
         uint32_t maxStringLength = 0;
         for( int64_t i = 0; i < typedValues -> length(); ++i )
@@ -785,11 +750,11 @@ void ListColumnAdapter<arrow::StringArray, std::string>::readCurValue()
             maxStringLength = std::max( ( uint32_t ) ArrayValidValueProvider<std::string_view>::getValue(typedValues, i).length(), maxStringLength );
         }
 
-        auto arrayValue = m_listReader -> create( typedValues -> length(), maxStringLength );
+        auto arrayValue = this -> m_listReader -> create( typedValues -> length(), maxStringLength );
 
         for( int64_t i = 0; i < typedValues -> length(); ++i )
         {
-            m_listReader -> setValue( arrayValue, i, std::string(typedValues -> GetView( i )));
+            this -> m_listReader -> setValue( arrayValue, i, std::string(typedValues -> GetView( i )));
         }
         this -> m_curValue = std::move( arrayValue );
     }
@@ -798,19 +763,6 @@ void ListColumnAdapter<arrow::StringArray, std::string>::readCurValue()
         this -> m_curValue.reset();
     }
 }
-
-// We need to force the compiler to instantiate the relevant ListColumnAdapter classes since the implementation is not in header
-template
-class ListColumnAdapter<arrow::Int64Array>;
-
-template
-class ListColumnAdapter<arrow::DoubleArray>;
-
-template
-class ListColumnAdapter<arrow::BooleanArray>;
-
-template
-class ListColumnAdapter<arrow::StringArray, std::string>;
 
 void StructColumnAdapter::addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol )
 {

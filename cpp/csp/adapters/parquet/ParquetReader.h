@@ -226,21 +226,65 @@ public:
 
         if(columnAdapterReference->getContainerValueType()->type() == csp::CspType::Type::STRING)
         {
-            auto &listAdapter = dynamic_cast<ListColumnAdapter<arrow::StringArray, std::string> &>(*columnAdapterReference);
-            listAdapter.addSubscriber( inputAdapter, symbol,
-                                         listReaderInterface );
+            // TODO: This is just bad code, need to cleanup
+            if (auto* la = dynamic_cast<BytesListColumnAdapter<arrow::ListArray, arrow::StringArray> *>(columnAdapterReference.get()); la != nullptr)
+            {
+                la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+            }
+            else if (auto* la = dynamic_cast<BytesListColumnAdapter<arrow::ListArray, arrow::LargeStringArray> *>(columnAdapterReference.get()); la != nullptr)
+            {
+                la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+            }
+            else if (auto* la = dynamic_cast<BytesListColumnAdapter<arrow::LargeListArray, arrow::StringArray> *>(columnAdapterReference.get()); la != nullptr)
+            {
+                la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+            }
+            else if (auto* la = dynamic_cast<BytesListColumnAdapter<arrow::LargeListArray, arrow::LargeStringArray> *>(columnAdapterReference.get()); la != nullptr)
+            {
+                la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+            }
+            else if (auto* la = dynamic_cast<BytesListColumnAdapter<arrow::ListArray, arrow::BinaryArray> *>(columnAdapterReference.get()); la != nullptr)
+            {
+                la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+            }
+            else if (auto* la = dynamic_cast<BytesListColumnAdapter<arrow::ListArray, arrow::LargeBinaryArray> *>(columnAdapterReference.get()); la != nullptr)
+            {
+                la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+            }
+            else if (auto* la = dynamic_cast<BytesListColumnAdapter<arrow::LargeListArray, arrow::BinaryArray> *>(columnAdapterReference.get()); la != nullptr)
+            {
+                la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+            }
+            else if (auto* la = dynamic_cast<BytesListColumnAdapter<arrow::LargeListArray, arrow::LargeBinaryArray> *>(columnAdapterReference.get()); la != nullptr)
+            {
+                la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+            }
+            else
+            {
+                CSP_THROW( csp::NotImplemented, column + " is not of a supported list type" );
+            }
         }
         else
         {
             PartialSwitchCspType<csp::CspType::Type::BOOL, csp::CspType::Type::INT64, csp::CspType::Type::DOUBLE>::invoke(
                     columnAdapterReference -> getContainerValueType().get(),
-                    [ &columnAdapterReference, &listReaderInterface, &symbol, &inputAdapter ]( auto tag )
+                    [ &columnAdapterReference, &listReaderInterface, &symbol, &inputAdapter, &column ]( auto tag )
                     {
                         using T = typename decltype(tag)::type;
                         using ArrowArrayType = typename arrow::TypeTraits<typename arrow::CTypeTraits<T>::ArrowType>::ArrayType;
-                        auto &listAdapter = dynamic_cast<ListColumnAdapter<ArrowArrayType> &>(*columnAdapterReference);
-                        listAdapter.addSubscriber( inputAdapter, symbol,
-                                                     listReaderInterface );
+                        // TODO: This is just bad code, need to cleanup
+                        if ( auto* la = dynamic_cast<NativeListColumnAdapter<arrow::ListArray, ArrowArrayType> *>( columnAdapterReference.get() ); la != nullptr )
+                        {
+                            la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+                        }
+                        else if ( auto* la = dynamic_cast<NativeListColumnAdapter<arrow::LargeListArray, ArrowArrayType> *>( columnAdapterReference.get() ); la != nullptr )
+                        {
+                            la->addSubscriber( inputAdapter, symbol, listReaderInterface );
+                        }
+                        else
+                        {
+                            CSP_THROW( csp::NotImplemented, column + " is not of a supported list type" );
+                        }
                     } );
         }
     }

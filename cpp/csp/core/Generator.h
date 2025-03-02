@@ -5,7 +5,7 @@
 
 namespace csp
 {
-template< typename V, typename ...Args >
+template<typename V, typename... Args>
 class Generator
 {
 public:
@@ -17,11 +17,11 @@ public:
     virtual void init( Args... ) = 0;
 
     // Called to get the next value. Return true if value retrieved, false otherwise
-    virtual bool next( V &value ) = 0;
+    virtual bool next( V & value ) = 0;
 };
 
-template< typename V, typename ...Args >
+template<typename V, typename... Args>
 using GeneratorPtr = std::shared_ptr<Generator<V, Args...>>;
-}
+} // namespace csp
 
 #endif

@@ -31,50 +31,56 @@
 
 #include "arrow/python/common.h"
 
-namespace arrow {
+namespace arrow
+{
 
 class Array;
 class Status;
 
-namespace py {
+namespace py
+{
 
-struct PyConversionOptions {
-  PyConversionOptions() = default;
+    struct PyConversionOptions
+    {
+        PyConversionOptions() = default;
 
-  PyConversionOptions(const std::shared_ptr<DataType>& type, int64_t size,
-                      MemoryPool* pool, bool from_pandas)
-      : type(type), size(size), from_pandas(from_pandas) {}
+        PyConversionOptions( const std::shared_ptr<DataType> & type, int64_t size, MemoryPool * pool, bool from_pandas )
+            : type( type )
+            , size( size )
+            , from_pandas( from_pandas )
+        {
+        }
 
-  // Set to null if to be inferred
-  std::shared_ptr<DataType> type;
+        // Set to null if to be inferred
+        std::shared_ptr<DataType> type;
 
-  // Default is -1, which indicates the size should the same as the input sequence
-  int64_t size = -1;
+        // Default is -1, which indicates the size should the same as the input sequence
+        int64_t size = -1;
 
-  bool from_pandas = false;
+        bool from_pandas = false;
 
-  /// Used to maintain backwards compatibility for
-  /// timezone bugs (see ARROW-9528).  Should be removed
-  /// after Arrow 2.0 release.
-  bool ignore_timezone = false;
+        /// Used to maintain backwards compatibility for
+        /// timezone bugs (see ARROW-9528).  Should be removed
+        /// after Arrow 2.0 release.
+        bool ignore_timezone = false;
 
-  bool strict = false;
-};
+        bool strict = false;
+    };
 
-/// \brief Convert sequence (list, generator, NumPy array with dtype object) of
-/// Python objects.
-/// \param[in] obj the sequence to convert
-/// \param[in] mask a NumPy array of true/false values to indicate whether
-/// values in the sequence are null (true) or not null (false). This parameter
-/// may be null
-/// \param[in] options various conversion options
-/// \param[in] pool MemoryPool to use for allocations
-/// \return Result ChunkedArray
-ARROW_PYTHON_EXPORT
-Result<std::shared_ptr<ChunkedArray>> ConvertPySequence(
-    PyObject* obj, PyObject* mask, PyConversionOptions options,
-    MemoryPool* pool = default_memory_pool());
+    /// \brief Convert sequence (list, generator, NumPy array with dtype object) of
+    /// Python objects.
+    /// \param[in] obj the sequence to convert
+    /// \param[in] mask a NumPy array of true/false values to indicate whether
+    /// values in the sequence are null (true) or not null (false). This parameter
+    /// may be null
+    /// \param[in] options various conversion options
+    /// \param[in] pool MemoryPool to use for allocations
+    /// \return Result ChunkedArray
+    ARROW_PYTHON_EXPORT
+    Result<std::shared_ptr<ChunkedArray>> ConvertPySequence( PyObject * obj, PyObject * mask,
+                                                             PyConversionOptions options,
+                                                             MemoryPool *        pool = default_memory_pool() );
 
-}  // namespace py
+} // namespace py
 
-}  // namespace arrow
+} // namespace arrow

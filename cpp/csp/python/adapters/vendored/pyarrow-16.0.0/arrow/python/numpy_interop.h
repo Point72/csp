@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "arrow/python/platform.h"  // IWYU pragma: export
+#include "arrow/python/platform.h" // IWYU pragma: export
 
-#include <numpy/numpyconfig.h>  // IWYU pragma: export
+#include <numpy/numpyconfig.h> // IWYU pragma: export
 
 // Don't use the deprecated Numpy functions
 #ifdef NPY_1_7_API_VERSION
@@ -38,9 +38,9 @@
 #define NO_IMPORT_ARRAY
 #endif
 
-#include <numpy/arrayobject.h>   // IWYU pragma: export
-#include <numpy/arrayscalars.h>  // IWYU pragma: export
-#include <numpy/ufuncobject.h>   // IWYU pragma: export
+#include <numpy/arrayobject.h>  // IWYU pragma: export
+#include <numpy/arrayscalars.h> // IWYU pragma: export
+#include <numpy/ufuncobject.h>  // IWYU pragma: export
 
 // A bit subtle. Numpy has 5 canonical integer types:
 // (or, rather, type pairs: signed and unsigned)
@@ -69,35 +69,43 @@
 
 // Backported NumPy 2 API (can be removed if numpy 2 is required)
 #if NPY_ABI_VERSION < 0x02000000
-#define PyDataType_ELSIZE(descr) ((descr)->elsize)
-#define PyDataType_C_METADATA(descr) ((descr)->c_metadata)
-#define PyDataType_FIELDS(descr) ((descr)->fields)
+#define PyDataType_ELSIZE( descr ) ( ( descr )->elsize )
+#define PyDataType_C_METADATA( descr ) ( ( descr )->c_metadata )
+#define PyDataType_FIELDS( descr ) ( ( descr )->fields )
 #endif
 
-namespace arrow {
-namespace py {
+namespace arrow
+{
+namespace py
+{
 
-inline int import_numpy() {
+    inline int import_numpy()
+    {
 #ifdef NUMPY_IMPORT_ARRAY
-  import_array1(-1);
-  import_umath1(-1);
+        import_array1( -1 );
+        import_umath1( -1 );
 #endif
 
-  return 0;
-}
+        return 0;
+    }
 
-// See above about the missing Numpy integer type numbers
-inline int fix_numpy_type_num(int type_num) {
+    // See above about the missing Numpy integer type numbers
+    inline int fix_numpy_type_num( int type_num )
+    {
 #if !NPY_INT32_IS_INT && NPY_BITSOF_INT == 32
-  if (type_num == NPY_INT) return NPY_INT32;
-  if (type_num == NPY_UINT) return NPY_UINT32;
+        if( type_num == NPY_INT )
+            return NPY_INT32;
+        if( type_num == NPY_UINT )
+            return NPY_UINT32;
 #endif
 #if !NPY_INT64_IS_LONG_LONG && NPY_BITSOF_LONGLONG == 64
-  if (type_num == NPY_LONGLONG) return NPY_INT64;
-  if (type_num == NPY_ULONGLONG) return NPY_UINT64;
+        if( type_num == NPY_LONGLONG )
+            return NPY_INT64;
+        if( type_num == NPY_ULONGLONG )
+            return NPY_UINT64;
 #endif
-  return type_num;
-}
+        return type_num;
+    }
 
-}  // namespace py
-}  // namespace arrow
+} // namespace py
+} // namespace arrow

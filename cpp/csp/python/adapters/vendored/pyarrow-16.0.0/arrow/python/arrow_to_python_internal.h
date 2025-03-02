@@ -20,30 +20,37 @@
 #include "arrow/array.h"
 #include "arrow/python/platform.h"
 
-namespace arrow {
-namespace py {
-namespace internal {
-// TODO(ARROW-12976):  See if we can refactor Pandas ObjectWriter logic
-// to the .cc file and move this there as well if we can.
+namespace arrow
+{
+namespace py
+{
+    namespace internal
+    {
+        // TODO(ARROW-12976):  See if we can refactor Pandas ObjectWriter logic
+        // to the .cc file and move this there as well if we can.
 
-// Converts array to a sequency of python objects.
-template <typename ArrayType, typename WriteValue, typename Assigner>
-inline Status WriteArrayObjects(const ArrayType& arr, WriteValue&& write_func,
-                                Assigner out_values) {
-  // TODO(ARROW-12976): Use visitor here?
-  const bool has_nulls = arr.null_count() > 0;
-  for (int64_t i = 0; i < arr.length(); ++i) {
-    if (has_nulls && arr.IsNull(i)) {
-      Py_INCREF(Py_None);
-      *out_values = Py_None;
-    } else {
-      RETURN_NOT_OK(write_func(arr.GetView(i), out_values));
-    }
-    ++out_values;
-  }
-  return Status::OK();
-}
+        // Converts array to a sequency of python objects.
+        template<typename ArrayType, typename WriteValue, typename Assigner>
+        inline Status WriteArrayObjects( const ArrayType & arr, WriteValue && write_func, Assigner out_values )
+        {
+            // TODO(ARROW-12976): Use visitor here?
+            const bool has_nulls = arr.null_count() > 0;
+            for( int64_t i = 0; i < arr.length(); ++i )
+            {
+                if( has_nulls && arr.IsNull( i ) )
+                {
+                    Py_INCREF( Py_None );
+                    *out_values = Py_None;
+                }
+                else
+                {
+                    RETURN_NOT_OK( write_func( arr.GetView( i ), out_values ) );
+                }
+                ++out_values;
+            }
+            return Status::OK();
+        }
 
-}  // namespace internal
-}  // namespace py
-}  // namespace arrow
+    } // namespace internal
+} // namespace py
+} // namespace arrow

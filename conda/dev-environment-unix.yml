@@ -6,6 +6,7 @@ dependencies:
  - bison
  - brotli
  - bump-my-version
+ - clang-format>=19,<20
  - cmake
  - codespell>=2.2.6,<2.3
  - compilers

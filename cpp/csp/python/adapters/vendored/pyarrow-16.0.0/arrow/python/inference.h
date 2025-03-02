@@ -30,35 +30,37 @@
 
 #include "common.h"
 
-namespace arrow {
+namespace arrow
+{
 
 class Array;
 class Status;
 
-namespace py {
+namespace py
+{
 
-// These functions take a sequence input, not arbitrary iterables
+    // These functions take a sequence input, not arbitrary iterables
 
-/// \brief Infer Arrow type from a Python sequence
-/// \param[in] obj the sequence of values
-/// \param[in] mask an optional mask where True values are null. May
-/// be nullptr
-/// \param[in] pandas_null_sentinels use pandas's null value markers
-ARROW_PYTHON_EXPORT
-Result<std::shared_ptr<arrow::DataType>> InferArrowType(PyObject* obj, PyObject* mask,
-                                                        bool pandas_null_sentinels);
+    /// \brief Infer Arrow type from a Python sequence
+    /// \param[in] obj the sequence of values
+    /// \param[in] mask an optional mask where True values are null. May
+    /// be nullptr
+    /// \param[in] pandas_null_sentinels use pandas's null value markers
+    ARROW_PYTHON_EXPORT
+    Result<std::shared_ptr<arrow::DataType>> InferArrowType( PyObject * obj, PyObject * mask,
+                                                             bool pandas_null_sentinels );
 
-/// Checks whether the passed Python object is a boolean scalar
-ARROW_PYTHON_EXPORT
-bool IsPyBool(PyObject* obj);
+    /// Checks whether the passed Python object is a boolean scalar
+    ARROW_PYTHON_EXPORT
+    bool IsPyBool( PyObject * obj );
 
-/// Checks whether the passed Python object is an integer scalar
-ARROW_PYTHON_EXPORT
-bool IsPyInt(PyObject* obj);
+    /// Checks whether the passed Python object is an integer scalar
+    ARROW_PYTHON_EXPORT
+    bool IsPyInt( PyObject * obj );
 
-/// Checks whether the passed Python object is a float scalar
-ARROW_PYTHON_EXPORT
-bool IsPyFloat(PyObject* obj);
+    /// Checks whether the passed Python object is a float scalar
+    ARROW_PYTHON_EXPORT
+    bool IsPyFloat( PyObject * obj );
 
-}  // namespace py
-}  // namespace arrow
+} // namespace py
+} // namespace arrow

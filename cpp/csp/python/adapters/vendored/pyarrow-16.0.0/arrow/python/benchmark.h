@@ -21,16 +21,19 @@
 
 #include "arrow/python/visibility.h"
 
-namespace arrow {
-namespace py {
-namespace benchmark {
+namespace arrow
+{
+namespace py
+{
+    namespace benchmark
+    {
 
-// Micro-benchmark routines for use from ASV
+        // Micro-benchmark routines for use from ASV
 
-// Run PandasObjectIsNull() once over every object in *list*
-ARROW_PYTHON_EXPORT
-void Benchmark_PandasObjectIsNull(PyObject* list);
+        // Run PandasObjectIsNull() once over every object in *list*
+        ARROW_PYTHON_EXPORT
+        void Benchmark_PandasObjectIsNull( PyObject * list );
 
-}  // namespace benchmark
-}  // namespace py
-}  // namespace arrow
+    } // namespace benchmark
+} // namespace py
+} // namespace arrow

@@ -5,19 +5,14 @@
 namespace csp::python
 {
 
-static PyModuleDef _csptypesimpl_module = {
-    PyModuleDef_HEAD_INIT,
-    "_csptypesimpl",
-    "_csptypesimpl c++ module",
-    -1,
-    NULL, NULL, NULL, NULL, NULL
-};
+static PyModuleDef _csptypesimpl_module
+    = { PyModuleDef_HEAD_INIT, "_csptypesimpl", "_csptypesimpl c++ module", -1, NULL, NULL, NULL, NULL, NULL };
 
-PyMODINIT_FUNC PyInit__csptypesimpl(void)
+PyMODINIT_FUNC PyInit__csptypesimpl( void )
 {
-    PyObject* m;
+    PyObject * m;
 
-    m = PyModule_Create( &_csptypesimpl_module);
+    m = PyModule_Create( &_csptypesimpl_module );
     if( m == NULL )
         return NULL;
 
@@ -27,4 +22,4 @@ PyMODINIT_FUNC PyInit__csptypesimpl(void)
     return m;
 }
 
-}
+} // namespace csp::python

@@ -23,7 +23,8 @@
 #include "arrow/status.h"
 #include "arrow/util/future.h"
 
-namespace arrow::py {
+namespace arrow::py
+{
 
 /// \brief Bind a Python callback to an arrow::Future.
 ///
@@ -40,21 +41,23 @@ namespace arrow::py {
 ///   raised by py_wrapper.
 /// \param py_wrapper A function (likely defined in Cython) to convert the C++
 ///   result of the future to a Python object.
-template <typename T, typename PyWrapper = PyObject* (*)(T)>
-void BindFuture(Future<T> future, PyObject* py_cb, PyWrapper py_wrapper) {
-  Py_INCREF(py_cb);
-  OwnedRefNoGIL cb_ref(py_cb);
+template<typename T, typename PyWrapper = PyObject * (*)( T )>
+void BindFuture( Future<T> future, PyObject * py_cb, PyWrapper py_wrapper )
+{
+    Py_INCREF( py_cb );
+    OwnedRefNoGIL cb_ref( py_cb );
 
-  auto future_cb = [cb_ref = std::move(cb_ref),
-                    py_wrapper = std::move(py_wrapper)](Result<T> result) {
-    SafeCallIntoPythonVoid([&]() {
-      OwnedRef py_value_or_exc{WrapResult(std::move(result), std::move(py_wrapper))};
-      Py_XDECREF(
-          PyObject_CallFunctionObjArgs(cb_ref.obj(), py_value_or_exc.obj(), NULLPTR));
-      ARROW_WARN_NOT_OK(CheckPyError(), "Internal error in async call");
-    });
-  };
-  future.AddCallback(std::move(future_cb));
+    auto future_cb = [cb_ref = std::move( cb_ref ), py_wrapper = std::move( py_wrapper )]( Result<T> result )
+    {
+        SafeCallIntoPythonVoid(
+            [&]()
+            {
+                OwnedRef py_value_or_exc{ WrapResult( std::move( result ), std::move( py_wrapper ) ) };
+                Py_XDECREF( PyObject_CallFunctionObjArgs( cb_ref.obj(), py_value_or_exc.obj(), NULLPTR ) );
+                ARROW_WARN_NOT_OK( CheckPyError(), "Internal error in async call" );
+            } );
+    };
+    future.AddCallback( std::move( future_cb ) );
 }
 
-}  // namespace arrow::py
+} // namespace arrow::py

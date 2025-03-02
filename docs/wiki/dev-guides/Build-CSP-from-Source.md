@@ -211,7 +211,7 @@ CSP has linting and auto formatting.
 ```bash
 make lint-cpp
 # or
-# clang-format --dry-run -Werror -i -style=file `find ./cpp/ -name "*.*pp"`
+# clang-format --dry-run -Werror -i -style=file `find ./cpp/csp -type f -name "*.cpp" -o -name "*.h"`
 ```
 
 **C++ Autoformatting**
@@ -219,7 +219,7 @@ make lint-cpp
 ```bash
 make fix-cpp
 # or
-# clang-format -i -style=file `find ./cpp/ -name "*.*pp"`
+# clang-format -i -style=file `find ./cpp/csp -type f -name "*.cpp" -o -name "*.h"`
 ```
 
 **Python Linting**

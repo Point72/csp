@@ -30,44 +30,43 @@ public:
     void forceReplayCompleted();
 
 private:
-
     struct TopicData
     {
-        //Key -> Subscriber
-        using SubscriberMap = std::unordered_map<std::string, std::vector<KafkaSubscriber*>>;
-        SubscriberMap      subscribers;
-        KafkaSubscriber *  wildcardSubscriber = nullptr;
-        std::vector<bool>  partitionLive;
-        bool               flaggedReplayComplete = false;
+        // Key -> Subscriber
+        using SubscriberMap = std::unordered_map<std::string, std::vector<KafkaSubscriber *>>;
+        SubscriberMap     subscribers;
+        KafkaSubscriber * wildcardSubscriber = nullptr;
+        std::vector<bool> partitionLive;
+        bool              flaggedReplayComplete = false;
 
         void markReplayComplete()
         {
             if( !flaggedReplayComplete )
             {
                 // Flag all regular subscribers
-                for( auto& subscriberEntry : subscribers )
+                for( auto & subscriberEntry : subscribers )
                 {
-                    for( auto* subscriber : subscriberEntry.second )
-                        subscriber -> flagReplayComplete();
+                    for( auto * subscriber : subscriberEntry.second )
+                        subscriber->flagReplayComplete();
                 }
-                
+
                 // Handle wildcard subscriber if present
                 if( wildcardSubscriber )
-                    wildcardSubscriber -> flagReplayComplete();
-                
+                    wildcardSubscriber->flagReplayComplete();
+
                 flaggedReplayComplete = true;
             }
         }
     };
 
-    std::unordered_map<std::string,TopicData> m_topics;
-    KafkaAdapterManager *                     m_mgr;
-    std::unique_ptr<RdKafka::KafkaConsumer>   m_consumer;
-    std::unique_ptr<RebalanceCb>              m_rebalanceCb;
-    std::unique_ptr<std::thread>              m_pollThread;
-    volatile bool                             m_running;
+    std::unordered_map<std::string, TopicData> m_topics;
+    KafkaAdapterManager *                      m_mgr;
+    std::unique_ptr<RdKafka::KafkaConsumer>    m_consumer;
+    std::unique_ptr<RebalanceCb>               m_rebalanceCb;
+    std::unique_ptr<std::thread>               m_pollThread;
+    volatile bool                              m_running;
 };
 
-}
+} // namespace csp::adapters::kafka
 
 #endif

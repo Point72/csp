@@ -18,8 +18,8 @@ public:
 
     static PyInputProxy * create( PyNode * node, InputId id );
 
-    bool ticked() const;
-    bool valid() const;
+    bool     ticked() const;
+    bool     valid() const;
     uint32_t count() const;
     uint32_t num_ticks() const;
 
@@ -28,21 +28,20 @@ public:
 
     Scheduler::Handle scheduleAlarm( DateTimeOrTimeDelta timedelta, PyObject * value );
     Scheduler::Handle rescheduleAlarm( Scheduler::Handle handle, DateTimeOrTimeDelta timedelta );
-    void cancelAlarm( Scheduler::Handle handle );
+    void              cancelAlarm( Scheduler::Handle handle );
 
     void setBufferingPolicy( int32_t tickCount, TimeDelta tickHistory );
 
     PyObject * lastValue() const { return lastValueToPython( ts() ); }
 
-    PyObject * valueAt(ValueType valueType, PyObject *indexArg, PyObject *duplicatePolicyArg,PyObject *defaultValueArg) const;
+    PyObject * valueAt( ValueType valueType, PyObject * indexArg, PyObject * duplicatePolicyArg,
+                        PyObject * defaultValueArg ) const;
 
-    //used by dynamic basket output
+    // used by dynamic basket output
     void setElemId( int64_t elemId ) { m_id.elemId = elemId; }
 
-    PyObject * valuesAt(ValueType valueType, PyObject *startIndexArg,
-                        PyObject *endIndexArg,
-                        PyObject *startIndexPolicyArg,
-                        PyObject *endIndexPolicyArg) const;
+    PyObject * valuesAt( ValueType valueType, PyObject * startIndexArg, PyObject * endIndexArg,
+                         PyObject * startIndexPolicyArg, PyObject * endIndexPolicyArg ) const;
 
     static PyTypeObject PyType;
 
@@ -56,6 +55,6 @@ private:
     InputId  m_id;
 };
 
-}
+} // namespace csp::python
 
 #endif

@@ -22,11 +22,10 @@ public:
     input_iterator inputs() const override { return input_iterator( &m_input ); }
 
 private:
-    //not owned
+    // not owned
     TimeSeriesProvider * m_input;
-
 };
 
-}
+} // namespace csp
 
 #endif

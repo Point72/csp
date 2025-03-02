@@ -10,7 +10,7 @@ struct DateTimeWireTypeTraits
 {
     enum _enum : unsigned char
     {
-        UNKNOWN = 0,
+        UNKNOWN        = 0,
         UINT64_NANOS   = 1,
         UINT64_MICROS  = 2,
         UINT64_MILLIS  = 3,
@@ -25,6 +25,6 @@ protected:
 
 using DateTimeWireType = csp::Enum<DateTimeWireTypeTraits>;
 
-};
+}; // namespace csp::adapters::utils
 
 #endif

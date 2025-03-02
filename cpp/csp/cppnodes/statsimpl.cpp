@@ -9,13 +9,10 @@ public:
     using _generic_tick_window_updates<double, _tick_window_updates>::_generic_tick_window_updates;
     _STATIC_CREATE_METHOD( _tick_window_updates );
 
-    inline double createNan()
-    {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
+    inline double createNan() { return std::numeric_limits<double>::quiet_NaN(); }
 
-    inline void validateShape() { }
-    inline void checkValid() { }
+    inline void validateShape() {}
+    inline void checkValid() {}
 };
 
 EXPORT_CPPNODE( _tick_window_updates );
@@ -26,13 +23,10 @@ public:
     using _generic_time_window_updates<double, _time_window_updates>::_generic_time_window_updates;
     _STATIC_CREATE_METHOD( _time_window_updates );
 
-    inline double createNan()
-    {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
+    inline double createNan() { return std::numeric_limits<double>::quiet_NaN(); }
 
-    inline void validateShape() { }
-    inline void checkValid() { }
+    inline void validateShape() {}
+    inline void checkValid() {}
 };
 
 EXPORT_CPPNODE( _time_window_updates );
@@ -43,10 +37,7 @@ public:
     using _generic_cross_sectional<double, std::vector<double>, _cross_sectional_as_list>::_generic_cross_sectional;
     _STATIC_CREATE_METHOD( _cross_sectional_as_list );
 
-    inline void computeCrossSectional()
-    {
-        s_window.copy_values( &unnamed_output().reserveSpace() );
-    }
+    inline void computeCrossSectional() { s_window.copy_values( &unnamed_output().reserveSpace() ); }
 };
 
 EXPORT_CPPNODE( _cross_sectional_as_list );
@@ -65,7 +56,7 @@ DECLARE_CPPNODE( _min_hit_by_tick )
 
     TS_OUTPUT( bool );
 
-    INIT_CPPNODE( _min_hit_by_tick ) { }
+    INIT_CPPNODE( _min_hit_by_tick ) {}
 
     START()
     {
@@ -97,7 +88,7 @@ DECLARE_CPPNODE( _in_sequence_check )
     TS_INPUT( Generic, x );
     TS_INPUT( Generic, y );
 
-    INIT_CPPNODE( _in_sequence_check ) { }
+    INIT_CPPNODE( _in_sequence_check ) {}
 
     INVOKE()
     {
@@ -121,7 +112,7 @@ DECLARE_CPPNODE( _sync_nan_f )
     TS_NAMED_OUTPUT( double, x_sync );
     TS_NAMED_OUTPUT( double, y_sync );
 
-    INIT_CPPNODE( _sync_nan_f ) { }
+    INIT_CPPNODE( _sync_nan_f ) {}
 
     INVOKE()
     {
@@ -159,13 +150,18 @@ protected:
     STATE_VAR( DataValidator<C>, s_computation );
     TS_OUTPUT( double );
 
-    //Expanded out INIT_CPPNODE without create call...
-    CSP csp;
-    const char * name() const override { return "_compute"; }
+    // Expanded out INIT_CPPNODE without create call...
+    CSP          csp;
+    const char * name() const override
+    {
+        return "_compute";
+    }
 
 public:
-    _compute( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef ) : csp::CppNode( engine, nodedef )
-    {}
+    _compute( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef )
+        : csp::CppNode( engine, nodedef )
+    {
+    }
 
     START()
     {
@@ -182,12 +178,12 @@ public:
         }
         if( csp.ticked( additions ) )
         {
-            for( double x: additions.lastValue() )
+            for( double x : additions.lastValue() )
                 s_computation.add( x );
         }
         if( csp.ticked( removals ) )
         {
-            for( double x: removals.lastValue() )
+            for( double x : removals.lastValue() )
                 s_computation.remove( x );
         }
         if( csp.ticked( trigger ) )
@@ -206,7 +202,7 @@ public:
 
     void initDataValidator( DataValidator<C> & validator ) override
     {
-        validator = DataValidator<C>( this -> min_data_points, this -> ignore_na );
+        validator = DataValidator<C>( this->min_data_points, this->ignore_na );
     }
 };
 
@@ -220,7 +216,7 @@ public:
 
     void initDataValidator( DataValidator<C> & validator ) override
     {
-        validator = DataValidator<C>( this -> min_data_points, this -> ignore_na, this -> arg );
+        validator = DataValidator<C>( this->min_data_points, this->ignore_na, this->arg );
     }
 };
 
@@ -235,7 +231,7 @@ public:
 
     void initDataValidator( DataValidator<C> & validator ) override
     {
-        validator = DataValidator<C>( this -> min_data_points, this -> ignore_na, this -> arg1, this -> arg2 );
+        validator = DataValidator<C>( this->min_data_points, this->ignore_na, this->arg1, this->arg2 );
     }
 };
 
@@ -251,32 +247,32 @@ public:
 
     void initDataValidator( DataValidator<C> & validator ) override
     {
-        validator = DataValidator<C>( this -> min_data_points, true, alpha, this -> ignore_na, horizon, adjust );
+        validator = DataValidator<C>( this->min_data_points, true, alpha, this->ignore_na, horizon, adjust );
     }
 };
 
 // Export node templates
-EXPORT_TEMPLATE_CPPNODE( _count,            _computeCommonArgs<Count> );
-EXPORT_TEMPLATE_CPPNODE( _sum,              _computeCommonArgs<Sum> );
-EXPORT_TEMPLATE_CPPNODE( _kahan_sum,        _computeCommonArgs<KahanSum> );
-EXPORT_TEMPLATE_CPPNODE( _mean,             _computeCommonArgs<Mean> );
-EXPORT_TEMPLATE_CPPNODE( _first,            _computeCommonArgs<First> );
-EXPORT_TEMPLATE_CPPNODE( _prod,             _computeCommonArgs<Product> );
-EXPORT_TEMPLATE_CPPNODE( _last,             _computeCommonArgs<Last> );
-EXPORT_TEMPLATE_CPPNODE( _unique,           SINGLE_ARG( _computeOneArg<int64_t, Unique> ) );
-EXPORT_TEMPLATE_CPPNODE( _min_max,          SINGLE_ARG( _computeOneArg<bool, AscendingMinima> ) );
-EXPORT_TEMPLATE_CPPNODE( _var,              SINGLE_ARG( _computeOneArg<int64_t, Variance> ) );
-EXPORT_TEMPLATE_CPPNODE( _sem,              SINGLE_ARG( _computeOneArg<int64_t, StandardError> ) );
-EXPORT_TEMPLATE_CPPNODE( _skew,             SINGLE_ARG( _computeOneArg<bool, Skew> ) );
-EXPORT_TEMPLATE_CPPNODE( _rank,             SINGLE_ARG( _computeTwoArg<int64_t, Rank> ) );
-EXPORT_TEMPLATE_CPPNODE( _kurt,             SINGLE_ARG( _computeTwoArg<bool, Kurtosis> ) );
-EXPORT_TEMPLATE_CPPNODE( _ema_compute,      _computeEMA<EMA> );
-EXPORT_TEMPLATE_CPPNODE( _ema_adjusted,     _computeEMA<AdjustedEMA>);
+EXPORT_TEMPLATE_CPPNODE( _count, _computeCommonArgs<Count> );
+EXPORT_TEMPLATE_CPPNODE( _sum, _computeCommonArgs<Sum> );
+EXPORT_TEMPLATE_CPPNODE( _kahan_sum, _computeCommonArgs<KahanSum> );
+EXPORT_TEMPLATE_CPPNODE( _mean, _computeCommonArgs<Mean> );
+EXPORT_TEMPLATE_CPPNODE( _first, _computeCommonArgs<First> );
+EXPORT_TEMPLATE_CPPNODE( _prod, _computeCommonArgs<Product> );
+EXPORT_TEMPLATE_CPPNODE( _last, _computeCommonArgs<Last> );
+EXPORT_TEMPLATE_CPPNODE( _unique, SINGLE_ARG( _computeOneArg<int64_t, Unique> ) );
+EXPORT_TEMPLATE_CPPNODE( _min_max, SINGLE_ARG( _computeOneArg<bool, AscendingMinima> ) );
+EXPORT_TEMPLATE_CPPNODE( _var, SINGLE_ARG( _computeOneArg<int64_t, Variance> ) );
+EXPORT_TEMPLATE_CPPNODE( _sem, SINGLE_ARG( _computeOneArg<int64_t, StandardError> ) );
+EXPORT_TEMPLATE_CPPNODE( _skew, SINGLE_ARG( _computeOneArg<bool, Skew> ) );
+EXPORT_TEMPLATE_CPPNODE( _rank, SINGLE_ARG( _computeTwoArg<int64_t, Rank> ) );
+EXPORT_TEMPLATE_CPPNODE( _kurt, SINGLE_ARG( _computeTwoArg<bool, Kurtosis> ) );
+EXPORT_TEMPLATE_CPPNODE( _ema_compute, _computeEMA<EMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_adjusted, _computeEMA<AdjustedEMA> );
 EXPORT_TEMPLATE_CPPNODE( _ema_debias_alpha, _computeEMA<AlphaDebiasEMA> );
 
-
 // The following nodes are written independently from _compute
-// They either have an additional input (i.e. ddof for covariance) or are implemented differently (i.e. weighted mean, which needs weight inputs)
+// They either have an additional input (i.e. ddof for covariance) or are implemented differently (i.e. weighted mean,
+// which needs weight inputs)
 
 /*
 Computation node for statistics requiring an int argument
@@ -301,13 +297,18 @@ protected:
 
     TS_OUTPUT( double );
 
-   //Expanded out INIT_CPPNODE without create call...
-    CSP csp;
-    const char * name() const override { return "_bivariate_compute"; }
+    // Expanded out INIT_CPPNODE without create call...
+    CSP          csp;
+    const char * name() const override
+    {
+        return "_bivariate_compute";
+    }
 
 public:
-    _bivariate_compute( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef ) : csp::CppNode( engine, nodedef )
-    {}
+    _bivariate_compute( csp::Engine * engine, const csp::CppNode::NodeDef & nodedef )
+        : csp::CppNode( engine, nodedef )
+    {
+    }
 
     START()
     {
@@ -333,7 +334,7 @@ public:
         {
             const std::vector<double> & removals_x = x_rem.lastValue();
             const std::vector<double> & removals_y = y_rem.lastValue();
-            for ( size_t i = 0; i < removals_x.size(); i++ )
+            for( size_t i = 0; i < removals_x.size(); i++ )
                 s_computation.remove( removals_x[i], removals_y[i] );
         }
         if( csp.ticked( trigger ) )
@@ -352,7 +353,7 @@ public:
 
     void initDataValidator( DataValidator<C> & validator ) override
     {
-        validator = DataValidator<C>( this -> min_data_points, this -> ignore_na );
+        validator = DataValidator<C>( this->min_data_points, this->ignore_na );
     }
 };
 
@@ -366,7 +367,7 @@ public:
 
     void initDataValidator( DataValidator<C> & validator ) override
     {
-        validator = DataValidator<C>( this -> min_data_points, this -> ignore_na, this -> arg );
+        validator = DataValidator<C>( this->min_data_points, this->ignore_na, this->arg );
     }
 };
 
@@ -381,18 +382,17 @@ public:
 
     void initDataValidator( DataValidator<C> & validator ) override
     {
-        validator = DataValidator<C>( this -> min_data_points, this -> ignore_na, this -> arg1, this -> arg2 );
+        validator = DataValidator<C>( this->min_data_points, this->ignore_na, this->arg1, this->arg2 );
     }
 };
 
-EXPORT_TEMPLATE_CPPNODE( _weighted_mean,    _bivarComputeCommonArgs<WeightedMean> );
-EXPORT_TEMPLATE_CPPNODE( _corr,             _bivarComputeCommonArgs<Correlation> );
-EXPORT_TEMPLATE_CPPNODE( _weighted_var,     SINGLE_ARG( _bivarComputeOneArg<int64_t, WeightedVariance> ) );
-EXPORT_TEMPLATE_CPPNODE( _weighted_sem,     SINGLE_ARG( _bivarComputeOneArg<int64_t, WeightedStandardError> ) );
-EXPORT_TEMPLATE_CPPNODE( _covar,            SINGLE_ARG( _bivarComputeOneArg<int64_t, Covariance> ) );
-EXPORT_TEMPLATE_CPPNODE( _weighted_skew,    SINGLE_ARG( _bivarComputeOneArg<bool, WeightedSkew> ) );
-EXPORT_TEMPLATE_CPPNODE( _weighted_kurt,    SINGLE_ARG( _bivarComputeTwoArg<bool, WeightedKurtosis> ) );
-
+EXPORT_TEMPLATE_CPPNODE( _weighted_mean, _bivarComputeCommonArgs<WeightedMean> );
+EXPORT_TEMPLATE_CPPNODE( _corr, _bivarComputeCommonArgs<Correlation> );
+EXPORT_TEMPLATE_CPPNODE( _weighted_var, SINGLE_ARG( _bivarComputeOneArg<int64_t, WeightedVariance> ) );
+EXPORT_TEMPLATE_CPPNODE( _weighted_sem, SINGLE_ARG( _bivarComputeOneArg<int64_t, WeightedStandardError> ) );
+EXPORT_TEMPLATE_CPPNODE( _covar, SINGLE_ARG( _bivarComputeOneArg<int64_t, Covariance> ) );
+EXPORT_TEMPLATE_CPPNODE( _weighted_skew, SINGLE_ARG( _bivarComputeOneArg<bool, WeightedSkew> ) );
+EXPORT_TEMPLATE_CPPNODE( _weighted_kurt, SINGLE_ARG( _bivarComputeTwoArg<bool, WeightedKurtosis> ) );
 
 // Trivariate and multivariate statistics
 template<typename C>
@@ -414,7 +414,7 @@ DECLARE_CPPNODE( _trivariate_compute )
 
     TS_OUTPUT( double );
 
-    INIT_CPPNODE( _trivariate_compute ) { }
+    INIT_CPPNODE( _trivariate_compute ) {}
 
     START()
     {
@@ -454,9 +454,9 @@ DECLARE_CPPNODE( _trivariate_compute )
 };
 
 EXPORT_TEMPLATE_CPPNODE( _weighted_covar, _trivariate_compute<WeightedCovariance> );
-EXPORT_TEMPLATE_CPPNODE( _weighted_corr,  _trivariate_compute<WeightedCorrelation> );
+EXPORT_TEMPLATE_CPPNODE( _weighted_corr, _trivariate_compute<WeightedCorrelation> );
 
-DECLARE_CPPNODE ( _quantile )
+DECLARE_CPPNODE( _quantile )
 {
     TS_INPUT( std::vector<double>, additions );
     TS_INPUT( std::vector<double>, removals );
@@ -471,7 +471,7 @@ DECLARE_CPPNODE ( _quantile )
 
     TS_LISTBASKET_OUTPUT( double );
 
-    INIT_CPPNODE( _quantile ) { }
+    INIT_CPPNODE( _quantile ) {}
 
     START()
     {
@@ -486,24 +486,23 @@ DECLARE_CPPNODE ( _quantile )
         }
         if( csp.ticked( additions ) )
         {
-            for( double x: additions.lastValue() )
+            for( double x : additions.lastValue() )
                 s_qtl.add( x );
         }
         if( csp.ticked( removals ) )
         {
-            for ( double x: removals.lastValue() )
+            for( double x : removals.lastValue() )
                 s_qtl.remove( x );
         }
         if( csp.ticked( trigger ) )
         {
-            for ( size_t i = 0; i < quants.value().size(); i++ )
+            for( size_t i = 0; i < quants.value().size(); i++ )
                 unnamed_output()[i].output( s_qtl.compute( i ) );
         }
     }
-
 };
 
-EXPORT_CPPNODE ( _quantile );
+EXPORT_CPPNODE( _quantile );
 
 template<typename C>
 DECLARE_CPPNODE( _exp_timewise )
@@ -518,7 +517,7 @@ DECLARE_CPPNODE( _exp_timewise )
     STATE_VAR( DataValidator<C>, s_computation );
     TS_OUTPUT( double );
 
-    INIT_CPPNODE( _exp_timewise ) { }
+    INIT_CPPNODE( _exp_timewise ) {}
 
     START()
     {
@@ -527,7 +526,7 @@ DECLARE_CPPNODE( _exp_timewise )
 
     INVOKE()
     {
-        if ( csp.ticked( reset ) )
+        if( csp.ticked( reset ) )
         {
             s_computation.reset();
         }
@@ -544,8 +543,8 @@ DECLARE_CPPNODE( _exp_timewise )
     }
 };
 
-EXPORT_TEMPLATE_CPPNODE( _ema_timewise,         _exp_timewise<HalflifeEMA> );
-EXPORT_TEMPLATE_CPPNODE( _ema_debias_halflife,  _exp_timewise<HalflifeDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_timewise, _exp_timewise<HalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_debias_halflife, _exp_timewise<HalflifeDebiasEMA> );
 
 DECLARE_CPPNODE( _arg_min_max )
 {
@@ -562,7 +561,7 @@ DECLARE_CPPNODE( _arg_min_max )
     STATE_VAR( DataValidator<ArgMinMax>, s_computation );
     TS_OUTPUT( DateTime );
 
-    INIT_CPPNODE( _arg_min_max ) { }
+    INIT_CPPNODE( _arg_min_max ) {}
 
     START()
     {
@@ -583,7 +582,7 @@ DECLARE_CPPNODE( _arg_min_max )
 
         if( csp.ticked( removals ) )
         {
-            for( double v: removals.lastValue() )
+            for( double v : removals.lastValue() )
                 s_computation.remove( v );
         }
 
@@ -596,4 +595,4 @@ DECLARE_CPPNODE( _arg_min_max )
 
 EXPORT_CPPNODE( _arg_min_max );
 
-}
+} // namespace csp::cppnodes

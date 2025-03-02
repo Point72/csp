@@ -64,6 +64,7 @@ develop = [
     "twine",
     "wheel",
     # lint
+    "clang-format>=19,<20",  # repackaged as a python package for convenience
     "codespell>=2.2.6,<2.3",
     "isort>=5,<6",
     "mdformat==0.7.17",  # >0.7.17 doesnot support python 3.8

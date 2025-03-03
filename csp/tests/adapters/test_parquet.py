@@ -1094,17 +1094,18 @@ class TestParquet(unittest.TestCase):
 
         def _run_test(dts, items, item_type):
             df = polars.DataFrame({"timestamp": dts, "data": items})
-            with tempfile.NamedTemporaryFile(prefix="csp_unit_tests", mode="w+b") as temp_file:
-                df.write_parquet(temp_file.name)
-                table = pyarrow.parquet.read_table(temp_file.name)
+            with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as tmp_folder:
+                file_name = os.path.join(tmp_folder, "data.parquet")
+                df.write_parquet(file_name)
+                table = pyarrow.parquet.read_table(file_name)
                 new_schema = pyarrow.schema(
                     [pyarrow.field("timestamp", pyarrow.timestamp("us")), pyarrow.field("data", item_type)]
                 )
-                pyarrow.parquet.write_table(table.cast(new_schema), temp_file.name)
+                pyarrow.parquet.write_table(table.cast(new_schema), file_name)
 
                 @csp.graph
                 def my_graph() -> csp.ts[MyStruct]:
-                    reader = ParquetReader(temp_file.name, time_column="timestamp")
+                    reader = ParquetReader(file_name, time_column="timestamp")
                     return reader.subscribe_all(MyStruct, MyStruct.default_field_map())
 
                 read_data = csp.run(my_graph, starttime=dts[0], endtime=dts[-1])

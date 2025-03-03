@@ -16,17 +16,19 @@ public:
         Engine * engine,
         CspTypePtr & type,
         PushMode pushMode,
-        const Dictionary & properties
+        const Dictionary & properties,
+        bool dynamic
     );
 
-    void processMessage( void* c, size_t t, PushBatch* batch );
+    void processMessage( const std::string& source, void * c, size_t t, PushBatch* batch );
 
 private:
     adapters::utils::MessageStructConverterPtr m_converter;
+    const bool m_dynamic;
 
 };
 
 } 
 
 
-#endif // _IN_CSP_ADAPTERS_WEBSOCKETS_CLIENT_INPUTADAPTER_H
+#endif

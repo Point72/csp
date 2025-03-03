@@ -5,7 +5,9 @@ set(WS_CLIENT_HEADER_FILES
         ClientInputAdapter.h
         ClientOutputAdapter.h
         ClientHeaderUpdateAdapter.h
+        ClientConnectionRequestAdapter.h
         WebsocketEndpoint.h
+        WebsocketEndpointManager.h
         ${WEBSOCKET_HEADER} 
 )
 
@@ -14,7 +16,9 @@ set(WS_CLIENT_SOURCE_FILES
         ClientInputAdapter.cpp
         ClientOutputAdapter.cpp
         ClientHeaderUpdateAdapter.cpp
+        ClientConnectionRequestAdapter.cpp
         WebsocketEndpoint.cpp
+        WebsocketEndpointManager.cpp
         ${WS_CLIENT_HEADER_FILES}
         ${WEBSOCKET_SOURCE}
 )

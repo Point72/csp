@@ -180,6 +180,10 @@ before-build = "make requirements"
 archs = "AMD64"
 skip = "*win32 *arm_64"
 
+[tool.codespell]
+skip = "*.cpp,*.h"
+ignore-words-list = "thron"
+
 [tool.isort]
 combine_as_imports = true
 include_trailing_comma = true

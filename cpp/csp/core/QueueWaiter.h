@@ -29,12 +29,11 @@ public:
     bool wait( TimeDelta maxWaitTime )
     {
         std::unique_lock<std::mutex> lock( m_lock );
-        bool rv = false;
         if( !m_eventsPending && maxWaitTime.asNanoseconds() > 0 )
-            rv = m_condition.wait_for( lock, std::chrono::nanoseconds( maxWaitTime.asNanoseconds() ), [this]() { return m_eventsPending; } );
+            m_condition.wait_for( lock, std::chrono::nanoseconds( maxWaitTime.asNanoseconds() ), [this]() { return m_eventsPending; } );
 
-        if( rv )
-            m_eventsPending = false;
+        bool rv = m_eventsPending;
+        m_eventsPending = false;
         return rv;
     }
 

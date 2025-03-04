@@ -91,6 +91,12 @@ class TestPydanticTypeResolver_CspTypeVar(TestCase):
         context.resolve_tvars()
         self.assertDictEqual(context.tvars, {"T": float})
 
+    def test_bad_variable_name(self):
+        self.assertRaises(SyntaxError, lambda: CspTypeVar[""])
+        self.assertRaises(SyntaxError, TypeAdapter, CspTypeVar["~T"])
+        self.assertRaises(SyntaxError, TypeAdapter, CspTypeVar["1"])
+        _ = TypeAdapter(CspTypeVar["T1"])
+
 
 class TestPydanticTypeResolver_CspTypeVarType(TestCase):
     def test_one_value(self):
@@ -181,6 +187,12 @@ class TestPydanticTypeResolver_CspTypeVarType(TestCase):
         ta.validate_python(csp.null_ts(List[float]), context=context)
         context.resolve_tvars()
         self.assertDictEqual(context.tvars, {"T": float})
+
+    def test_bad_variable_name(self):
+        self.assertRaises(SyntaxError, lambda: CspTypeVarType[""])
+        self.assertRaises(SyntaxError, TypeAdapter, CspTypeVarType["~T"])
+        self.assertRaises(SyntaxError, TypeAdapter, CspTypeVarType["1"])
+        _ = TypeAdapter(CspTypeVarType["T1"])
 
 
 T = TypeVar("T")

@@ -99,9 +99,9 @@ class TsTypeValidator:
     For example, this is to make sure that:
         ts[List] can validate as ts[List[float]]
         ts[Dict[str, List[str]] won't validate as ts[Dict[str, List[float]]
-        ts["T"], ts[TypeVar("T")], ts[List["T"]], etc are allowed
-        ts[Optional[float]], ts[Union[float, int]], ts[Annotated[float, None]], etc are not allowed
-        etc
+    Notes:
+        ts["T"], ts[TypeVar("T")], ts[List["T"]], ts[Optional[float]], ts[Union[float, int]], ts[Any] are allowed
+        ts[Annotated[float, None]], are not allowed
     For validation of csp baskets, this piece becomes the bottleneck
     """
 
@@ -125,7 +125,7 @@ class TsTypeValidator:
         self._source_is_union = CspTypingUtils.is_union_type(source_type)
         self._source_args = typing.get_args(source_type)
         self._source_adapter = None
-        if type(source_type) in (typing.ForwardRef, typing.TypeVar):
+        if type(source_type) in (typing.ForwardRef, typing.TypeVar) or source_type is typing.Any:
             pass  # Will handle these separately as part of type checking
         elif self._source_origin is None and isinstance(self._source_type, type):
             # self._source_adapter = TypeAdapter(typing.Type[source_type])
@@ -162,12 +162,19 @@ class TsTypeValidator:
         self._last_value_type = value_type
         self._last_context = info.context if info is not None else None
 
+        if value_type is typing.Any:
+            # https://docs.python.org/3/library/typing.html#the-any-type
+            # "Notice that no type checking is performed when assigning a value of type Any to a more precise type."
+            return value_type
+
         # Fast path because while we could use the source adapter in the next block to validate,
         # it's about 10x faster to do a simple validation with issubclass, and this adds up on baskets
         if self._source_origin is None:
             # Want to allow int to be passed for float (i.e. in resolution of TVars)
             if self._source_type is float and value_type is int:
                 return self._source_type
+            if self._source_type is typing.Any:
+                return value_type
             try:
                 if issubclass(value_type, self._source_type):
                     return value_type

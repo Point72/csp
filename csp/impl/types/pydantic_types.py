@@ -35,6 +35,14 @@ class CspTypeVarType(Generic[_T]):
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         typ = _check_source_type(cls, source_type)
+        if not typ or not typ[0].isalpha():
+            if typ and typ[0] == "~":
+                raise SyntaxError(
+                    f"Invalid generic type: {typ}. The generic type annotation (i.e. `~T`) is only allowed at the top level (i.e. `value: '~T'`)."
+                )
+            raise SyntaxError(
+                f"Invalid generic type: {typ}. Generic types in csp must start with an alphabetic character."
+            )
 
         def _validator(v: Any, info: ValidationInfo) -> Any:
             # info.context should be an instance of TVarValidationContext, but we don't check for performance
@@ -55,6 +63,14 @@ class CspTypeVar(Generic[_T]):
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         tvar = _check_source_type(cls, source_type)
+        if not tvar or not tvar[0].isalpha():
+            if tvar and tvar[0] == "~":
+                raise SyntaxError(
+                    f"Invalid generic type: {tvar}. The generic type annotation (i.e. `~T`) is only allowed at the top level (i.e. `value: '~T'`)."
+                )
+            raise SyntaxError(
+                f"Invalid generic type: {tvar}. Generic types in csp must start with an alphabetic character. "
+            )
 
         def _validator(v: Any, info: ValidationInfo) -> Any:
             # info.context should be an instance of TVarValidationContext, but we don't check for performance

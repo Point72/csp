@@ -1,6 +1,7 @@
-import pandas as pd
 import unittest
 from datetime import datetime, timedelta
+
+import pandas as pd
 from numpy import NaN
 
 import csp

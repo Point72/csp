@@ -33,7 +33,7 @@ Any number of fields on a struct can be set by a user; others will remain unset 
 
 Recall from [More with CSP](More-with-CSP) that we can store state variables in a `csp.node` using a `csp.state` block. We will create a node that tracks updates to a user's cart by storing the `Cart` struct as a state variable named `s_cart`.
 
-> \[!TIP\]
+> [!TIP]
 > By convention, state variables are prefixed with `s_` for readability.
 
 A CSP node can return multiple named outputs. To annotate a multi-output node, we use `csp.Outputs` syntax for the return type annotation. To tick out each named value, we use the `csp.output` function. After each update event, we will tick out the total value of the user's cart and the number of items present.
@@ -42,7 +42,7 @@ To apply a discount for all items added in the first minute, we can use an alarm
 
 A *passive* input is a time-series input that will not cause the node to execute when it ticks. When we access the input within the node, we always get its most recent value. The opposite of passive inputs are *active* inputs, which trigger a node to compute upon a tick. So far, every input we've worked with has been an active input. We will set the discount input to be passive at graph startup.
 
-> \[!TIP\]
+> [!TIP]
 > By default, all `csp.ts` inputs are active. You can change the activity of an input at any point during execution by using `csp.make_passive` or `csp.make_active`.
 
 ```python

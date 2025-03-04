@@ -1,8 +1,9 @@
 import os
-import pytz
-import sqlalchemy as db
 import unittest
 from datetime import date, datetime, time
+
+import pytz
+import sqlalchemy as db
 
 import csp
 from csp.adapters.db import _SQLALCHEMY_2, DateTimeAccessor, DBReader, EngineStartTimeAccessor, TimestampAccessor

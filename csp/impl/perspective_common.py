@@ -1,5 +1,6 @@
-import pytz
 from datetime import date, datetime
+
+import pytz
 from packaging import version
 
 try:
@@ -18,7 +19,7 @@ try:
 
 except ImportError:
     raise ImportError(
-        "perspective must be installed to use this module. " "To install, run 'pip install perspective-python'."
+        "perspective must be installed to use this module. To install, run 'pip install perspective-python'."
     )
 
 

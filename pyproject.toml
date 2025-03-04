@@ -3,7 +3,7 @@ requires = [
     "cmake",
     "deprecated",  # Because used in csp.impl.struct, which is used in autogen
     "oldest-supported-numpy",
-    "pyarrow>=7,<19",
+    "pyarrow>=15,<19",
     "ruamel.yaml",
     "scikit-build",
     "setuptools>=69,<74",
@@ -16,7 +16,7 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.0.9"
+version = "0.0.11"
 requires-python = ">=3.9"
 
 dependencies = [
@@ -25,7 +25,8 @@ dependencies = [
     "packaging",
     "pandas",
     "psutil",
-    "pyarrow>=7,<19",
+    "pyarrow>=15,<19",
+    "pydantic>=2",
     "pytz",
     "ruamel.yaml",
     "sqlalchemy",
@@ -63,10 +64,10 @@ develop = [
     "twine",
     "wheel",
     # lint
-    "codespell>=2.2.6,<2.3",
-    "isort>=5,<6",
-    "mdformat==0.7.17",  # >0.7.17 doesnot support python 3.8
-    "ruff>=0.3,<0.4",
+    "codespell>=2.4,<2.5",
+    "mdformat>=0.7.19,<0.8",
+    "mdformat-tables>=1,<1.1",
+    "ruff>=0.9,<0.10",
     # test
     "pytest",
     "pytest-asyncio",
@@ -85,8 +86,6 @@ develop = [
     "threadpoolctl",  # test_random
     "tornado",  # profiler, perspective, websocket
     "python-rapidjson", # websocket
-    # type checking
-    "pydantic>=2",
 ]
 showgraph = [
     "graphviz",
@@ -103,7 +102,6 @@ test = [
     "perspective-python",
     "polars",
     "psutil",
-    "pydantic>=2",
     "requests",
     "slack-sdk>=3",
     "sqlalchemy",
@@ -118,7 +116,7 @@ slack = [
 ]
 
 [tool.bumpversion]
-current_version = "0.0.9"
+current_version = "0.0.11"
 commit = false
 tag = false
 commit_args = "-s"
@@ -182,23 +180,27 @@ before-build = "make requirements"
 archs = "AMD64"
 skip = "*win32 *arm_64"
 
-[tool.isort]
-combine_as_imports = true
-include_trailing_comma = true
-line_length = 120
-profile = "black"
-
-default_section = "THIRDPARTY"
-sections = "FUTURE,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
-
-known_first_party = "csp"
-
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 testpaths = "csp/tests"
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+default-section = "third-party"
+known-first-party = ["csp"]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]

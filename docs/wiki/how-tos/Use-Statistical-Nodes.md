@@ -403,7 +403,7 @@ The recalculation clears any accumulated floating-point error up to that point.
 
 ### The `recalc` parameter
 
-The `recalc` parameter is an optional time-series argument designed to stop unbounded floating-point error accumulation in rolling `csp.stats`  functions.
+The `recalc` parameter is an optional time-series argument designed to stop unbounded floating-point error accumulation in rolling `csp.stats` functions.
 When `recalc` ticks, the next calculation of the desired statistic will be computed with all data in the window.
 This clears any accumulated error from prior intervals.
 The parameter is meant to be used heuristically for use cases involving large data streams and small interval sizes, causing values to be continuously added and removed from the window.

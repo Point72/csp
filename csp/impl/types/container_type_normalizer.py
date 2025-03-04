@@ -1,5 +1,6 @@
-import numpy
 import typing
+
+import numpy
 import typing_extensions
 
 import csp.typing

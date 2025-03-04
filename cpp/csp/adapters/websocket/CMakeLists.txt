@@ -20,7 +20,7 @@ set(WS_CLIENT_SOURCE_FILES
 )
 
 add_library(csp_websocket_client_adapter STATIC ${WS_CLIENT_SOURCE_FILES})
-set_target_properties(csp_websocket_client_adapter PROPERTIES PUBLIC_HEADER "${WS_CLIENT_SOURCE_FILES}")
+set_target_properties(csp_websocket_client_adapter PROPERTIES PUBLIC_HEADER "${WS_CLIENT_HEADER_FILES}")
 
 find_package(Boost REQUIRED)
 find_package(OpenSSL REQUIRED)

@@ -1,8 +1,9 @@
-import numpy
 import os
 from importlib.metadata import PackageNotFoundError, version as get_package_version
-from packaging import version
 from typing import Callable, Dict, Optional, TypeVar
+
+import numpy
+from packaging import version
 
 import csp
 from csp.impl.struct import Struct
@@ -85,13 +86,13 @@ class ParquetWriter:
 
         if file_name and os.path.exists(file_name):
             if split_columns_to_files:
-                assert os.path.isdir(
-                    file_name
-                ), f"split_columns_to_files is True, but existing past {file_name} is file, not folder"
+                assert os.path.isdir(file_name), (
+                    f"split_columns_to_files is True, but existing past {file_name} is file, not folder"
+                )
             else:
-                assert os.path.isfile(
-                    file_name
-                ), f"split_columns_to_files is False, but existing past {file_name} is folder, not file"
+                assert os.path.isfile(file_name), (
+                    f"split_columns_to_files is False, but existing past {file_name} is folder, not file"
+                )
 
         self._all_column_names = set()
         self._properties = {

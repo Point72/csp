@@ -61,7 +61,7 @@ Final count: 9
 
 We can use a combination of pre-written nodes from `baselib` and `stats` to calculate the correlation of two Poisson point processes in 1-minute buckets. Even though both processes have the same rate they will be fully independent, so we expect the correlation to converge to zero.
 
-We will first compute the number of events in each 1-minute period by using the (`csp.diff`)\[Base-Nodes-API#cspdiff\] and (`csp.sample`)\[Base-Nodes-API#cspsample\] functions. `diff` gives the difference between the value of a time series at the current time and some time in the past. `sample` will get the value of a time series whenever some other time series ticks. We will also use a (`csp.timer`)\[Base-Adapters-API#csptimer\] so that we sample the values every minute.
+We will first compute the number of events in each 1-minute period by using the (`csp.diff`)[Base-Nodes-API#cspdiff] and (`csp.sample`)[Base-Nodes-API#cspsample] functions. `diff` gives the difference between the value of a time series at the current time and some time in the past. `sample` will get the value of a time series whenever some other time series ticks. We will also use a (`csp.timer`)[Base-Adapters-API#csptimer] so that we sample the values every minute.
 
 ```python
 @csp.graph

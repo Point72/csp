@@ -1,8 +1,9 @@
+from datetime import datetime, timedelta
+from typing import Optional
+
 import pandas as pd
 import pytz
-from datetime import datetime, timedelta
 from pandas.compat import set_function_name
-from typing import Optional
 
 import csp
 import csp.impl.pandas_accessor  # To ensure that the csp accessors are registered

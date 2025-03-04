@@ -1,5 +1,5 @@
 import sys
-from typing import Dict, ForwardRef, Generic, List, Mapping, TypeVar, Union, get_args, get_origin
+from typing import Any, Dict, ForwardRef, Generic, List, Mapping, TypeVar, Union, get_args, get_origin
 from unittest import TestCase
 
 import numpy as np
@@ -105,6 +105,18 @@ class TestTsTypeValidation(TestCase):
         ta = TypeAdapter(TsType[float])
         ta.validate_python(csp.null_ts(float), context=context)
         ta.validate_python(None, context=context)
+
+    def test_any(self):
+        ta = TypeAdapter(TsType[Any])
+        ta.validate_python(csp.null_ts(float))
+        ta.validate_python(csp.null_ts(object))
+        ta.validate_python(csp.null_ts(List[str]))
+        ta.validate_python(csp.null_ts(Dict[str, List[float]]))
+
+        # https://docs.python.org/3/library/typing.html#the-any-type
+        # "Notice that no type checking is performed when assigning a value of type Any to a more precise type."
+        ta = TypeAdapter(TsType[float])
+        ta.validate_python(csp.null_ts(Any))
 
 
 class TestOutputValidation(TestCase):

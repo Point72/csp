@@ -19,7 +19,7 @@ Calling `results()` will return a ProfilerInfo object which contains the followi
 - **`average_cycle_time`**: the average time of a single engine cycle
 - **`max_cycle_time`**: the maximum time of a single engine cycle
 - **`utilization`**: the average "fraction of the graph" which runs each cycle. Defined as: (total number of node executions) / (number of nodes in the graph * cycle_count)\`
-- **`node_stats`**: a dictionary where node_stats\["nodetype"\] holds the execution level data for each nodetype that was executed during the run. This data is stored as a dictionary with keys:
+- **`node_stats`**: a dictionary where node_stats["nodetype"] holds the execution level data for each nodetype that was executed during the run. This data is stored as a dictionary with keys:
   - **`executions`**: the total number of times the nodetype was executed throughout the run
   - **`max_time`**: the maximum amount of time (in seconds) it took for that nodetype to execute
   - **`total_time`**: the total amount of time (in seconds) it took for that nodetype to execute throughout the run
@@ -59,7 +59,7 @@ info = profiler.graph_info(graph)
 - **`node_count`**: the total number of nodes in the graph (including input/output adapters)
 - **`edge_count`**: the total number of edges in the graph
 - **`nodetype_counts`**: the number of each type of node in the graph
-  i.e. nodetype_counts\['filter'\] = 3 means there are 3 filter nodes in the graph
+  i.e. nodetype_counts['filter'] = 3 means there are 3 filter nodes in the graph
 - **`longest_path`**: the longest path in the graph, represented as a list that contains all nodes in the path from start to end
 
 GraphInfo additionally comes with some useful utilities. These are:

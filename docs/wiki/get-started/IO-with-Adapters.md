@@ -6,7 +6,7 @@ In this tutorial, you write to and read from Parquet files on the local file sys
 
 `csp` has the `ParquetWriter` and `ParquetReader` adapters to stream data to and from Parquet files. Check out the complete [API in the Reference documentation](https://github.com/Point72/csp/wiki/Input-Output-Adapters-API#parquet).
 
-> \[!IMPORTANT\]
+> [!IMPORTANT]
 > `csp` graphs can process historical *and* real-time data with little to no changes in the application code.
 
 ## Streaming a csp.Struct

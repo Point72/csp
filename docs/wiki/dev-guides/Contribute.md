@@ -1,6 +1,6 @@
 Contributions are welcome on this project. We distribute under the terms of the [Apache 2.0 license](https://github.com/Point72/csp/blob/main/LICENSE).
 
-> \[!NOTE\]
+> [!NOTE]
 > CSP requires [Developer Certificate of Origin](https://en.wikipedia.org/wiki/Developer_Certificate_of_Origin) for all contributions.
 > This is enforced by a [Probot GitHub App](https://probot.github.io/apps/dco/), which checks that commits are "signed".
 > Read [instructions to configure commit signing](Local-Development-Setup#configure-commit-signing).

@@ -19,7 +19,7 @@ The output of `compute_elk_pop`, being the number of expected elks, will **feed 
 For use cases like this, the `csp.feedback` construct exists. It allows us to pass the output of a downstream node to one upstream so that a recomputation is triggered on the next [engine cycle](CSP-Graph#Graph-Propagation-and-Single-Dispatch).
 Using `csp.feedback`, one can wire a feedback as an input to a node, and effectively bind the actual edge that feeds it later in the graph.
 
-> \[!IMPORTANT\]
+> [!IMPORTANT]
 > A graph containing one or more `csp.feedback` edges is still acyclic. The feedback connection will trigger a recomputation of the upstream node on the next engine cycle, which will be at the same engine time as the current cycle. Internally `csp.feedback` creates a pair of input and output adapters that are bound together.
 
 - **`csp.feedback(ts_type)`**: `ts_type` is the type of the timeseries (ie int, str).

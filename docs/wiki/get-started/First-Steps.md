@@ -39,7 +39,7 @@ def regex_match(log_line: ts[str], regex: str) -> ts[bool]:
 
 The `regex_match` ingests a time series of strings which are the lines of our logs, and matches them against the expression "regex". The node returns a time series of Booleans. If the expressions match, then we output True; if they don't, then we don't output a value at all. This stops any downstream consumers from executing.
 
-> \[!IMPORTANT\]
+> [!IMPORTANT]
 > csp nodes are strictly typed, and the type is enforced by the C++ engine.
 
 The node will be invoked whenever the value of `log_line` is updated. Since we have a single input, we do not need to check whether `log_line` has ticked or if its valid. If there are multiple `ts` inputs in a `csp.node`, it is a good practice to check that each input is valid before accessing its value.

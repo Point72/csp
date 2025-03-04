@@ -10,7 +10,7 @@
 ## Output Adapters
 
 Output adapters are used to define graph outputs, and they differ from input adapters in a number of important ways.
-Output adapters also differ from terminal nodes, e.g. regular `csp.node` instances that do not define outputs, and instead consume and emit their inputs inside their `csp.ticked`  blocks.
+Output adapters also differ from terminal nodes, e.g. regular `csp.node` instances that do not define outputs, and instead consume and emit their inputs inside their `csp.ticked` blocks.
 
 For many use cases, it will be sufficient to omit writing an output adapter entirely.
 Consider the following example of a terminal node that writes an input dictionary timeseries to a file.
@@ -38,7 +38,7 @@ The derived type should define the method:
 
 - `def on_tick(self, time: datetime, value: object)`: this will be called when the input to the output adapter ticks.
 
-The OutputAdapter that you define will be used as the runtime *--impl–-*.  You also need to define a *--graph--* time representation of the time series edge.
+The OutputAdapter that you define will be used as the runtime *--impl–-*. You also need to define a *--graph--* time representation of the time series edge.
 In order to do this you should define a `csp.impl.wiring.py_output_adapter_def`.
 The `py_output_adapter_def` creates a *--graph--* time representation of your adapter:
 
@@ -212,7 +212,7 @@ class MyAdapterManager(AdapterManagerImpl):
 ```
 
 This adapter manager is a bit of a silly example, but it demonstrates the core concepts.
-The adapter manager will demultiplex a shared stream (in this case, the stream defined in `_run`  is a random sequence of `MyData` structs) between all the input adapters it manages.
+The adapter manager will demultiplex a shared stream (in this case, the stream defined in `_run` is a random sequence of `MyData` structs) between all the input adapters it manages.
 The input adapter itself will do nothing more than let the adapter manager know that it exists:
 
 ```python

@@ -1289,11 +1289,9 @@ class TestParsing(unittest.TestCase):
 
         # tests bug found with multiple dictionary baskets getting bound to same shape
         @csp.graph
-        def g() -> (
-            csp.Outputs(
-                i=csp.OutputBasket(Dict[str, csp.ts[int]], shape=["V1"]),
-                s=csp.OutputBasket(Dict[str, csp.ts[str]], shape=["V2"]),
-            )
+        def g() -> csp.Outputs(
+            i=csp.OutputBasket(Dict[str, csp.ts[int]], shape=["V1"]),
+            s=csp.OutputBasket(Dict[str, csp.ts[str]], shape=["V2"]),
         ):
             i_v1 = csp.curve(int, [(timedelta(hours=10), 1), (timedelta(hours=30), 1)])
             s_v2 = csp.curve(str, [(timedelta(hours=30), "val1")])
@@ -1938,11 +1936,9 @@ class TestParsing(unittest.TestCase):
 
         # named multiple
         @csp.graph
-        def g11() -> (
-            csp.Outputs(
-                d1=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
-                d2=csp.OutputBasket(Dict[str, ts[int]], shape=["v3", "v4"]),
-            )
+        def g11() -> csp.Outputs(
+            d1=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
+            d2=csp.OutputBasket(Dict[str, ts[int]], shape=["v3", "v4"]),
         ):
             x1 = csp.timer(timedelta(seconds=1), 1)
             x2 = csp.timer(timedelta(seconds=1), 2)
@@ -1951,11 +1947,9 @@ class TestParsing(unittest.TestCase):
             __return__(d1={"v1": x1, "v2": x2}, d2={"v3": x3, "v4": x4})
 
         @csp.graph
-        def g12() -> (
-            csp.Outputs(
-                d1=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
-                d2=csp.OutputBasket(Dict[str, ts[int]], shape=["v3", "v4"]),
-            )
+        def g12() -> csp.Outputs(
+            d1=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
+            d2=csp.OutputBasket(Dict[str, ts[int]], shape=["v3", "v4"]),
         ):
             x1 = csp.timer(timedelta(seconds=1), 1)
             x2 = csp.timer(timedelta(seconds=1), 2)
@@ -1978,24 +1972,20 @@ class TestParsing(unittest.TestCase):
             csp.output(d["v2"], 4)
 
         @csp.graph
-        def g13() -> (
-            csp.Outputs(
-                l=csp.OutputBasket(List[ts[int]], shape=2),
-                d=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
-                s=ts[str],
-            )
+        def g13() -> csp.Outputs(
+            l=csp.OutputBasket(List[ts[int]], shape=2),
+            d=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
+            s=ts[str],
         ):
             x1 = csp.timer(timedelta(seconds=1), 1)
             x = n2(x1)
             __return__(l=x.l, d=x.d, s=csp.timer(timedelta(seconds=1), "a"))
 
         @csp.graph
-        def g14() -> (
-            csp.Outputs(
-                l=csp.OutputBasket(List[ts[int]], shape=2),
-                d=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
-                s=ts[str],
-            )
+        def g14() -> csp.Outputs(
+            l=csp.OutputBasket(List[ts[int]], shape=2),
+            d=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
+            s=ts[str],
         ):
             x1 = csp.timer(timedelta(seconds=1), 1)
             x = n2(x1)

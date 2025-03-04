@@ -1157,9 +1157,9 @@ Args:
   - If the interval is a tick count then this must also be a tick count. Example: interval=100, min_window=50 means to use 100-tick rolling interval with no output until we have 50 ticks
 - **method**:  the method to use to rank groups of records
   that have the same value
-  - **`"min"`**: the lowest rank in the group is returned i.e. if the window data is \[1,2,2,3\] and the last tick is 2, then rank=1
-  - **`"max"`**: the highest rank in the group is returned i.e. if the window data is \[1,2,2,3\] and the last tick is 2, then rank=3
-  - **`"avg"`**: the average rank in the group is returned i.e. if the window data is \[1,2,2,3\] and the last tick is 2, then rank=2
+  - **`"min"`**: the lowest rank in the group is returned i.e. if the window data is [1,2,2,3] and the last tick is 2, then rank=1
+  - **`"max"`**: the highest rank in the group is returned i.e. if the window data is [1,2,2,3] and the last tick is 2, then rank=3
+  - **`"avg"`**: the average rank in the group is returned i.e. if the window data is [1,2,2,3] and the last tick is 2, then rank=2
   - *By default,* the "min" method is used.
 - **ignore_na**: if True, does not include any nan values in the window. If false, nan values in the window will make the entire window value nan.
 - **trigger**: another optional time-series which can be used to externally trigger computations. Whenever the trigger ticks, the given statistic will be updated and returned.

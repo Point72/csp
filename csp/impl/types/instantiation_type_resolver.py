@@ -1,8 +1,9 @@
 import collections
 import inspect
-import numpy
 import typing
 from abc import ABCMeta, abstractmethod
+
+import numpy
 
 import csp.typing
 from csp.impl.types import tstype

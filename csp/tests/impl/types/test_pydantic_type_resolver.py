@@ -1,7 +1,8 @@
-import numpy as np
-from pydantic import BaseModel, TypeAdapter, ValidationInfo, field_validator, model_validator
 from typing import Dict, Generic, List, Set, TypeVar, get_args, get_origin
 from unittest import TestCase
+
+import numpy as np
+from pydantic import BaseModel, TypeAdapter, ValidationInfo, field_validator, model_validator
 
 import csp
 import csp.typing
@@ -90,6 +91,12 @@ class TestPydanticTypeResolver_CspTypeVar(TestCase):
         ta.validate_python(np.float64(0.0), context=context)
         context.resolve_tvars()
         self.assertDictEqual(context.tvars, {"T": float})
+
+    def test_bad_variable_name(self):
+        self.assertRaises(SyntaxError, lambda: CspTypeVar[""])
+        self.assertRaises(SyntaxError, TypeAdapter, CspTypeVar["~T"])
+        self.assertRaises(SyntaxError, TypeAdapter, CspTypeVar["1"])
+        _ = TypeAdapter(CspTypeVar["T1"])
 
 
 class TestPydanticTypeResolver_CspTypeVarType(TestCase):
@@ -181,6 +188,12 @@ class TestPydanticTypeResolver_CspTypeVarType(TestCase):
         ta.validate_python(csp.null_ts(List[float]), context=context)
         context.resolve_tvars()
         self.assertDictEqual(context.tvars, {"T": float})
+
+    def test_bad_variable_name(self):
+        self.assertRaises(SyntaxError, lambda: CspTypeVarType[""])
+        self.assertRaises(SyntaxError, TypeAdapter, CspTypeVarType["~T"])
+        self.assertRaises(SyntaxError, TypeAdapter, CspTypeVarType["1"])
+        _ = TypeAdapter(CspTypeVarType["T1"])
 
 
 T = TypeVar("T")

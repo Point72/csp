@@ -1,13 +1,14 @@
 import os
-import pytz
 import threading
+import unittest
+from datetime import datetime, timedelta
+from typing import List
+
+import pytz
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
-import unittest
-from datetime import datetime, timedelta
 from tornado.testing import bind_unused_port
-from typing import List
 
 import csp
 from csp import ts

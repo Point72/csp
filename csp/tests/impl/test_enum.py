@@ -1,10 +1,11 @@
 import _pickle
 import json
-import pytest
 import unittest
 from datetime import datetime, timedelta
-from pydantic import BaseModel, ConfigDict, RootModel
 from typing import Dict, List
+
+import pytest
+from pydantic import BaseModel, ConfigDict, RootModel
 
 import csp
 from csp import ts

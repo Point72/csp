@@ -1,9 +1,10 @@
-import numpy as np
-import pytest
 import sys
-from pydantic import TypeAdapter
 from typing import Any, Dict, ForwardRef, Generic, List, Mapping, TypeVar, Union, get_args, get_origin
 from unittest import TestCase
+
+import numpy as np
+import pytest
+from pydantic import TypeAdapter
 
 import csp
 from csp import dynamic_demultiplex, ts

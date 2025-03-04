@@ -2,11 +2,12 @@ import functools
 import itertools
 import logging
 import math
-import numpy as np
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum, auto
 from typing import List
+
+import numpy as np
 
 import csp
 from csp import ts
@@ -1093,7 +1094,7 @@ class TestBaselib(unittest.TestCase):
             csp.run(graph, starttime=st, endtime=timedelta(seconds=60))
 
         exp_out = [
-            f'CRITICAL:csp:{(st+timedelta(seconds=(i+1))).strftime("%Y-%m-%d %H:%M:%S")} x:{(structs[i])}'
+            f"CRITICAL:csp:{(st + timedelta(seconds=(i + 1))).strftime('%Y-%m-%d %H:%M:%S')} x:{(structs[i])}"
             for i in range(60)
         ]
         self.assertEqual(cm.output, exp_out)
@@ -1112,7 +1113,7 @@ class TestBaselib(unittest.TestCase):
 
         l = lambda x: "y:2.0" if x % 2 else "x:1.0"
         exp_out = [
-            f'CRITICAL:myVeryOwnLogger:{(st+timedelta(seconds=((i+2)//2))).strftime("%Y-%m-%d %H:%M:%S")} {l(i)}'
+            f"CRITICAL:myVeryOwnLogger:{(st + timedelta(seconds=((i + 2) // 2))).strftime('%Y-%m-%d %H:%M:%S')} {l(i)}"
             for i in range(120)
         ]
         self.assertEqual(cm.output, exp_out)
@@ -1136,15 +1137,15 @@ class TestBaselib(unittest.TestCase):
             csp.run(graph, starttime=st, endtime=timedelta(seconds=60))
 
         exp_out_log1 = [
-            f'CRITICAL:logger1:{(st+timedelta(seconds=(i+1))).strftime("%Y-%m-%d %H:%M:%S")} x:{float(i+1)}'
+            f"CRITICAL:logger1:{(st + timedelta(seconds=(i + 1))).strftime('%Y-%m-%d %H:%M:%S')} x:{float(i + 1)}"
             for i in range(60)
         ]
         exp_out_log2 = [
-            f'CRITICAL:logger2:{(st+timedelta(seconds=(i+1))).strftime("%Y-%m-%d %H:%M:%S")} y:{float(i+2)}'
+            f"CRITICAL:logger2:{(st + timedelta(seconds=(i + 1))).strftime('%Y-%m-%d %H:%M:%S')} y:{float(i + 2)}"
             for i in range(60)
         ]
         exp_out_log3 = [
-            f'CRITICAL:logger3:{(st+timedelta(seconds=(i+1))).strftime("%Y-%m-%d %H:%M:%S")} z:{float(i+3)}'
+            f"CRITICAL:logger3:{(st + timedelta(seconds=(i + 1))).strftime('%Y-%m-%d %H:%M:%S')} z:{float(i + 3)}"
             for i in range(60)
         ]
         self.assertEqual(cm1.output, exp_out_log1)

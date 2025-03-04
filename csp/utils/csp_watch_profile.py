@@ -1,7 +1,8 @@
 import argparse
-import requests
 import time
 from datetime import datetime
+
+import requests
 
 from csp.profiler import ProfilerInfo
 

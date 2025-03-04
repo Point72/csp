@@ -1,4 +1,3 @@
-import numpy as np
 import os
 import pickle
 import re
@@ -6,6 +5,8 @@ import typing
 import unittest
 from datetime import datetime, time, timedelta
 from typing import Callable, Dict, List, Optional, Union
+
+import numpy as np
 
 import csp
 import csp.impl.types.instantiation_type_resolver as type_resolver

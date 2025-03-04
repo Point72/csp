@@ -1,10 +1,11 @@
-import numpy as np
 import operator
+from datetime import datetime
+
+import numpy as np
 import pandas as pd
 import pandas._testing as pd_test
 import pandas.tests.extension.base as base
 import pytest
-from datetime import datetime
 from pandas import Series
 from pandas.tests.extension.conftest import *
 

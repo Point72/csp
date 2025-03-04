@@ -1,8 +1,9 @@
-import pytz
 import threading
 import time
 from collections import deque
 from datetime import datetime, timedelta
+
+import pytz
 
 from csp.impl.__cspimpl import _cspimpl
 from csp.impl.error_handling import ExceptionContext
@@ -33,9 +34,9 @@ def _normalize_run_times(starttime, endtime, realtime):
 
 
 def build_graph(f, *args, starttime=None, endtime=None, realtime=False, **kwargs):
-    assert (
-        (starttime is None) == (endtime is None)
-    ), "Start time and end time should either both be specified or none of them should be specified when building a graph"
+    assert (starttime is None) == (endtime is None), (
+        "Start time and end time should either both be specified or none of them should be specified when building a graph"
+    )
     if starttime:
         starttime, endtime = _normalize_run_times(starttime, endtime, realtime)
     with (
@@ -180,9 +181,9 @@ def run(
 
         if isinstance(g, Context):
             if g.start_time is not None:
-                assert (
-                    (g.start_time, g.end_time) == (starttime, endtime)
-                ), f"Trying to run graph on period {(starttime, endtime)} while it was built for {(g.start_time, g.end_time)}"
+                assert (g.start_time, g.end_time) == (starttime, endtime), (
+                    f"Trying to run graph on period {(starttime, endtime)} while it was built for {(g.start_time, g.end_time)}"
+                )
 
             if Profiler.instance() is not None:
                 engine_settings["profile"] = True

@@ -40,7 +40,7 @@ Then, in `calc_site_traffic` we compute the total user traffic by creating the u
 
 The CSP graph propagation algorithm ensures that all nodes are executed *after* any of their dependencies on a given engine cycle.
 
-> \[!IMPORTANT\]
+> [!IMPORTANT]
 > An *engine cycle* refers to a single execution of a CSP graph. There can be multiple engine cycles at the same *timestamp*; for example, a single data source may have two events both at `2020-01-01 00:00:00`. These events will be executed in two *cycles* that both occur at the same timestamp. Another case where multiple cycles can occur is [csp.feedback](Add-Cycles-in-Graphs).
 
 For example, consider the graph below:

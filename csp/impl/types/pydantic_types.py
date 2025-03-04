@@ -1,9 +1,10 @@
 import sys
 import types
 import typing
+from typing import Any, ForwardRef, Generic, Optional, Type, TypeVar, Union, get_args, get_origin
+
 from pydantic import GetCoreSchemaHandler, ValidationInfo, ValidatorFunctionWrapHandler
 from pydantic_core import CoreSchema, core_schema
-from typing import Any, ForwardRef, Generic, Optional, Type, TypeVar, Union, get_args, get_origin
 
 from csp.impl.types.common_definitions import OutputBasket, OutputBasketContainer
 from csp.impl.types.tstype import SnapKeyType, SnapType, isTsDynamicBasket

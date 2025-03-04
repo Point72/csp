@@ -1,9 +1,7 @@
 import collections
 import gc
-import numpy as np
 import os
 import pickle
-import psutil
 import random
 import re
 import sys
@@ -13,6 +11,9 @@ import typing
 import unittest
 from datetime import datetime, timedelta
 from typing import Callable, Dict, List
+
+import numpy as np
+import psutil
 
 import csp
 from csp import PushMode, ts

@@ -12,7 +12,7 @@ One can use these metrics to identify bottlenecks/inefficiencies in their graphs
 ## Profiling a real-time `csp.graph`
 
 The `csp.profiler` library provides a GUI for profiling real-time CSP graphs.
-One can access this GUI by adding a `http_port`  argument to their profiler call.
+One can access this GUI by adding a `http_port` argument to their profiler call.
 
 ```python
 with profiler.Profiler(http_port=8888) as p:
@@ -44,7 +44,7 @@ with profiler.Profiler(cycle_file="cycle_data.csv", node_file="node_data.csv") a
     ...
 ```
 
-After the graph is run, the file `node_data.csv`  contains:
+After the graph is run, the file `node_data.csv` contains:
 
 ```
 Node Type,Execution Time
@@ -54,7 +54,7 @@ _time_window_updates,4.759e-06
 ...
 ```
 
-After the graph is run, the file `cycle_data.csv`  contains:
+After the graph is run, the file `cycle_data.csv` contains:
 
 ```
 Execution Time

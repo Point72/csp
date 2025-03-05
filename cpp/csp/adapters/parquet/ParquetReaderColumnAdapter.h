@@ -288,7 +288,6 @@ class BaseListColumnAdapter : public BaseTypedColumnAdapter<DialectGenericType, 
 public:
     using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::BaseTypedColumnAdapter;
     using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::getColumnName;
-    using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::m_parquetReader;
     void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) override;
     void addSubscriber( ManagedSimInputAdapter *inputAdapter,
                         std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override;
@@ -299,6 +298,7 @@ protected:
     // For now we allow only one subscription for list columns. In the future we might allow multiple subscriptions using different readers.
     // For example we could subscritbe to the same column as a list and as array, we would need to do more book keepting in this case.
     typename TypedDialectGenericListReaderInterface<ValueType>::Ptr m_listReader = nullptr;
+    using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::m_parquetReader;
 };
 
 template< typename ArrowListArrayType, typename ValueArrayType, typename ValueType=typename ValueArrayType::TypeClass::c_type >

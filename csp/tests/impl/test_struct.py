@@ -1,6 +1,8 @@
 import enum
 import json
+import os
 import pickle
+import sys
 import typing
 import unittest
 from datetime import date, datetime, time, timedelta
@@ -16,6 +18,8 @@ import csp
 from csp.impl.struct import define_nested_struct, define_struct, defineNestedStruct, defineStruct
 from csp.impl.types.typing_utils import FastList
 from csp.typing import Numpy1DArray
+
+USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
 
 class MyEnum(csp.Enum):
@@ -3902,6 +3906,286 @@ class TestCspStruct(unittest.TestCase):
         json_data = json.loads(TypeAdapter(DataPoint).dump_json(result))
         self.assertNotIn("_last_updated", json_data)
         self.assertNotIn("_source", json_data["data"])
+
+    def test_literal_types_validation(self):
+        """Test that Literal type annotations correctly validate input values in CSP Structs"""
+
+        # Define a simple class with various Literal types
+        class StructWithLiterals(csp.Struct):
+            # String literals
+            color: Literal["red", "green", "blue"]
+            # Integer literals
+            size: Literal[1, 2, 3]
+            # Mixed type literals
+            status: Literal["on", "off", 0, 1, True, False]
+            # Optional literal with default
+            mode: Optional[Literal["fast", "slow"]] = "fast"
+
+        # Test valid assignments
+        s1 = StructWithLiterals(color="red", size=2, status="on")
+        self.assertEqual(s1.color, "red")
+        self.assertEqual(s1.size, 2)
+        self.assertEqual(s1.status, "on")
+        self.assertEqual(s1.mode, "fast")  # Default value
+
+        # Test another valid instance with different values
+        s2 = StructWithLiterals(color="blue", size=1, status=True, mode="slow")
+        self.assertEqual(s2.color, "blue")
+        self.assertEqual(s2.size, 1)
+        self.assertEqual(s2.status, True)
+        self.assertEqual(s2.mode, "slow")
+
+        # Test direct assignment
+        s3 = StructWithLiterals(color="green", size=3, status=0)
+        s3.color = "blue"
+        s3.size = 2
+        s3.status = False
+        self.assertEqual(s3.color, "blue")
+        self.assertEqual(s3.size, 2)
+        self.assertEqual(s3.status, False)
+
+        # This should fail! But old csp type checking doesnt catch
+        StructWithLiterals(color="yellow", size=1, status="on")  # Invalid color
+
+        # This should fail! But old csp type checking doesnt catch
+        StructWithLiterals(color="red", size=4, status="on")  # Invalid size
+
+        # This should fail! But old csp type checking doesnt catch
+        StructWithLiterals(color="red", size=1, status="standby")  # Invalid status
+
+        # Test with Pydantic validation
+        if USE_PYDANTIC:
+            # Test valid values
+            result = TypeAdapter(StructWithLiterals).validate_python({"color": "green", "size": 3, "status": 0})
+            self.assertEqual(result.color, "green")
+            self.assertEqual(result.size, 3)
+            self.assertEqual(result.status, 0)
+
+            # Test invalid color with Pydantic validation
+            with self.assertRaises(ValidationError) as exc_info:
+                TypeAdapter(StructWithLiterals).validate_python({"color": "yellow", "size": 1, "status": "on"})
+            self.assertIn("1 validation error for", str(exc_info.exception))
+            self.assertIn("color", str(exc_info.exception))
+
+            # Test invalid size with Pydantic validation
+            with self.assertRaises(ValidationError) as exc_info:
+                TypeAdapter(StructWithLiterals).validate_python({"color": "red", "size": 4, "status": "on"})
+            self.assertIn("1 validation error for", str(exc_info.exception))
+            self.assertIn("size", str(exc_info.exception))
+
+            # Test invalid status with Pydantic validation
+            with self.assertRaises(ValidationError) as exc_info:
+                TypeAdapter(StructWithLiterals).validate_python({"color": "red", "size": 1, "status": "standby"})
+            self.assertIn("1 validation error for", str(exc_info.exception))
+            self.assertIn("status", str(exc_info.exception))
+
+            # Test invalid mode with Pydantic validation
+            with self.assertRaises(ValidationError) as exc_info:
+                TypeAdapter(StructWithLiterals).validate_python(
+                    {"color": "red", "size": 1, "status": "on", "mode": "medium"}
+                )
+            self.assertIn("1 validation error for", str(exc_info.exception))
+            self.assertIn("mode", str(exc_info.exception))
+            # Test serialization and deserialization preserves literal values
+            result = TypeAdapter(StructWithLiterals).validate_python({"color": "green", "size": 3, "status": 0})
+            json_data = TypeAdapter(StructWithLiterals).dump_json(result)
+            restored = TypeAdapter(StructWithLiterals).validate_json(json_data)
+            self.assertEqual(restored.color, "green")
+            self.assertEqual(restored.size, 3)
+            self.assertEqual(restored.status, 0)
+
+    def test_literal_in_complex_structures(self):
+        """Test Literal type annotations in more complex structures with nesting and containers"""
+
+        # Define a class using Literal in collection types and nested structs
+        class Configuration(csp.Struct):
+            mode: Literal["debug", "production", "test"]
+
+        class ItemType(csp.Enum):
+            WEAPON = 1
+            ARMOR = 2
+            POTION = 3
+
+        class Item(csp.Struct):
+            name: str
+            type: ItemType
+            rarity: Literal["common", "uncommon", "rare", "epic", "legendary"]
+
+        class Character(csp.Struct):
+            name: str
+            # Literal in list
+            classes: List[Literal["warrior", "mage", "rogue"]]
+            # Literal in dictionary values
+            attributes: Dict[str, Literal[1, 2, 3, 4, 5]]
+            # Nested struct with literal
+            config: Configuration
+            # List of nested structs with literals
+            inventory: List[Item]
+
+        # Create valid instance with various literal usages
+        character = Character(
+            name="Test Character",
+            classes=["warrior", "mage"],
+            attributes={"strength": 5, "intelligence": 3, "dexterity": 4},
+            config=Configuration(mode="debug"),
+            inventory=[
+                Item(name="Sword", type=ItemType.WEAPON, rarity="common"),
+                Item(name="Health Potion", type=ItemType.POTION, rarity="rare"),
+            ],
+        )
+
+        # Test data is correctly set
+        self.assertEqual(character.name, "Test Character")
+        self.assertEqual(character.classes, ["warrior", "mage"])
+        self.assertEqual(character.attributes, {"strength": 5, "intelligence": 3, "dexterity": 4})
+        self.assertEqual(character.config.mode, "debug")
+        self.assertEqual(len(character.inventory), 2)
+        self.assertEqual(character.inventory[0].rarity, "common")
+        self.assertEqual(character.inventory[1].rarity, "rare")
+
+        # This should fail! But default csp struct type checking doesnt catch
+        Configuration(mode="invalid")
+
+        # This should fail! But default csp struct type checking doesnt catch
+        Item(name="Bad Item", type=ItemType.ARMOR, rarity="unknown")
+
+        # This should fail! But we dont check on mutation
+        character.classes.append("paladin")  # Invalid class
+
+        # This should fail! But we dont check on mutation
+        character.attributes["wisdom"] = 6  # Value out of range
+
+        if USE_PYDANTIC:
+            # Test valid nested data
+            data = {
+                "name": "Pydantic Character",
+                "classes": ["rogue", "warrior"],
+                "attributes": {"strength": 2, "wisdom": 4},
+                "config": {"mode": "production"},
+                "inventory": [{"name": "Shield", "type": ItemType.ARMOR, "rarity": "uncommon"}],
+            }
+            result = TypeAdapter(Character).validate_python(data)
+            self.assertEqual(result.name, "Pydantic Character")
+            self.assertEqual(result.classes, ["rogue", "warrior"])
+            self.assertEqual(result.config.mode, "production")
+            self.assertEqual(result.inventory[0].rarity, "uncommon")
+
+            # Test invalid literal in nested structure
+            invalid_data = data.copy()
+            invalid_data["config"] = {"mode": "invalid_mode"}
+            with self.assertRaises(ValidationError) as exc_info:
+                TypeAdapter(Character).validate_python(invalid_data)
+
+            # Test serialization/deserialization round trip
+            round_trip = TypeAdapter(Character).validate_python(TypeAdapter(Character).dump_python(result))
+            self.assertEqual(round_trip.name, result.name)
+            self.assertEqual(round_trip.classes, result.classes)
+            self.assertEqual(round_trip.config.mode, result.config.mode)
+            self.assertEqual(round_trip.inventory[0].rarity, result.inventory[0].rarity)
+
+    def test_pipe_operator_types(self):
+        """Test using the pipe operator for union types in Python 3.10+"""
+        if sys.version_info >= (3, 10):  # Only run on Python 3.10+
+            # Define a class using various pipe operator combinations
+            class PipeTypesConfig(csp.Struct):
+                # Basic primitive types with pipe
+                id_field: str | int
+                # Pipe with None (similar to Optional)
+                description: str | None = None
+                # Multiple types with pipe
+                value: str | int | float | bool
+                # Container with pipe
+                tags: List[str] | Dict[str, str] | None = None
+                # Pipe with literal for comparison
+                status: Literal["active", "inactive"] | None = "active"
+
+            # Test with string ID
+            p1 = PipeTypesConfig(id_field="abc123", value="test_value")
+            self.assertEqual(p1.id_field, "abc123")
+            self.assertIsNone(p1.description)
+            self.assertEqual(p1.value, "test_value")
+            self.assertIsNone(p1.tags)
+            self.assertEqual(p1.status, "active")
+
+            # Test with integer ID
+            p2 = PipeTypesConfig(id_field=42, value=3.14, description="A config")
+            self.assertEqual(p2.id_field, 42)
+            self.assertEqual(p2.description, "A config")
+            self.assertEqual(p2.value, 3.14)
+
+            # Test with boolean value and list tags
+            p3 = PipeTypesConfig(id_field=99, value=True, tags=["tag1", "tag2"])
+            self.assertEqual(p3.id_field, 99)
+            self.assertEqual(p3.value, True)
+            self.assertEqual(p3.tags, ["tag1", "tag2"])
+
+            # Test with dict tags
+            p4 = PipeTypesConfig(id_field="xyz", value=42, tags={"key1": "val1", "key2": "val2"})
+            self.assertEqual(p4.id_field, "xyz")
+            self.assertEqual(p4.value, 42)
+            self.assertEqual(p4.tags, {"key1": "val1", "key2": "val2"})
+
+            # Test direct assignment
+            p5 = PipeTypesConfig(id_field="test", value=1)
+            p5.id_field = 100
+            p5.value = False
+            p5.tags = ["new", "tags"]
+            p5.description = "Updated"
+            self.assertEqual(p5.id_field, 100)
+            self.assertEqual(p5.value, False)
+            self.assertEqual(p5.tags, ["new", "tags"])
+            self.assertEqual(p5.description, "Updated")
+
+            # Test Pydantic validation if available
+            if USE_PYDANTIC:
+                # Test all valid types
+                valid_cases = [
+                    {"id_field": "string_id", "value": "string_value"},
+                    {"id_field": 42, "value": 123},
+                    {"id_field": "mixed", "value": 3.14},
+                    {"id_field": 999, "value": True},
+                    {"id_field": "with_desc", "value": 1, "description": "Description"},
+                    {"id_field": "with_tags", "value": 1, "tags": ["a", "b", "c"]},
+                    {"id_field": "with_dict", "value": 1, "tags": {"a": "A", "b": "B"}},
+                ]
+
+                for case in valid_cases:
+                    result = TypeAdapter(PipeTypesConfig).validate_python(case)
+                    self.assertEqual(result.id_field, case["id_field"])
+                    self.assertEqual(result.value, case["value"])
+
+                # Test invalid values
+                invalid_cases = [
+                    {"id_field": 3.14, "value": 1},  # Float for id_field
+                    {"id_field": None, "value": 1},  # None for required id_field
+                    {"id_field": "test", "value": {}},  # Dict for value
+                    {"id_field": "test", "value": None},  # None for required value
+                    {"id_field": "test", "value": 1, "status": "unknown"},  # Invalid literal
+                ]
+
+                for case in invalid_cases:
+                    with self.assertRaises(ValidationError):
+                        TypeAdapter(PipeTypesConfig).validate_python(case)
+
+                # Test serialization/deserialization
+                original = PipeTypesConfig(
+                    id_field="test_id",
+                    value=42,
+                    description="Test description",
+                    tags=["tag1", "tag2"],
+                    status="inactive",
+                )
+
+                # Convert to JSON and back
+                json_data = TypeAdapter(PipeTypesConfig).dump_json(original)
+                restored = TypeAdapter(PipeTypesConfig).validate_json(json_data)
+
+                # Verify data integrity
+                self.assertEqual(restored.id_field, original.id_field)
+                self.assertEqual(restored.value, original.value)
+                self.assertEqual(restored.description, original.description)
+                self.assertEqual(restored.tags, original.tags)
+                self.assertEqual(restored.status, original.status)
 
 
 if __name__ == "__main__":

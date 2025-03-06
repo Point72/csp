@@ -1,6 +1,6 @@
 import sys
 from inspect import isclass
-from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union, get_args, get_origin
+from typing import Any, Callable, Dict, Generic, List, Literal, Optional, Type, TypeVar, Union, get_args, get_origin
 from unittest import TestCase
 
 import csp
@@ -160,3 +160,12 @@ class TestAdjustAnnotations(TestCase):
         self.assertAnnotationsEqual(
             adjust_annotations(CspTypeVarType[T], forced_tvars={"T": float}), Union[Type[float], Type[int]]
         )
+
+    def test_literal(self):
+        self.assertAnnotationsEqual(adjust_annotations(Literal["a", "b"]), Literal["a", "b"])
+        self.assertAnnotationsEqual(
+            adjust_annotations(Literal["a", "b"], make_optional=True), Optional[Literal["a", "b"]]
+        )
+        self.assertAnnotationsEqual(adjust_annotations(Literal[123, "a"]), Literal[123, "a"])
+        self.assertAnnotationsEqual(adjust_annotations(Literal[123, None]), Literal[123, None])
+        self.assertAnnotationsEqual(adjust_annotations(ts[Literal[123, None]]), ts[Literal[123, None]])

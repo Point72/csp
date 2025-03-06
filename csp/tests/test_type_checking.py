@@ -1,6 +1,7 @@
 import os
 import pickle
 import re
+import sys
 import typing
 import unittest
 from datetime import datetime, time, timedelta
@@ -937,6 +938,60 @@ class TestTypeChecking(unittest.TestCase):
         for input_type, expected in test_cases:
             result = CspTypingUtils.is_callable(input_type)
             self.assertEqual(result, expected)
+
+    def test_literal_with_pipe_operator(self):
+        """Test combining Literal types with the pipe operator in Python 3.10+."""
+        if sys.version_info >= (3, 10) and USE_PYDANTIC:  # this doesn't work without pydantic type checking
+
+            def run_literal_pipe_test():
+                from typing import Literal
+
+                @csp.node
+                def node_with_literal_pipe(x: ts[int], choice: Literal["a", "b", "c"] | None | int) -> ts[str]:
+                    if csp.ticked(x):
+                        return str(choice) if choice is not None else "none"
+
+                @csp.graph
+                def graph_with_literal_pipe(choice: Literal["a", "b", "c"] | None | int) -> ts[str]:
+                    return csp.const(str(choice) if choice is not None else "none")
+
+                @csp.node
+                def dummy_node(x: ts["T"]):  # to avoid pruning
+                    if csp.ticked(x):
+                        ...
+
+                def graph():
+                    # These should work - valid literal values or None or int
+                    dummy_node(node_with_literal_pipe(csp.const(10), "a"))
+                    dummy_node(node_with_literal_pipe(csp.const(10), "b"))
+                    dummy_node(node_with_literal_pipe(csp.const(10), "c"))
+                    dummy_node(node_with_literal_pipe(csp.const(10), None))
+                    dummy_node(node_with_literal_pipe(csp.const(10), 12))
+
+                    graph_with_literal_pipe("a")
+                    graph_with_literal_pipe("b")
+                    graph_with_literal_pipe("c")
+                    graph_with_literal_pipe(None)
+                    graph_with_literal_pipe(12)
+
+                    msg = "(?s)2 validation errors for node_with_literal_pipe.*choice.*"
+                    with self.assertRaisesRegex(TypeError, msg):
+                        dummy_node(node_with_literal_pipe(csp.const(10), "d"))
+
+                csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+                # Test direct graph building
+                csp.build_graph(graph_with_literal_pipe, "a")
+                csp.build_graph(graph_with_literal_pipe, None)
+                csp.build_graph(graph_with_literal_pipe, 12)
+
+                # This should fail
+                msg = "(?s)2 validation errors for graph_with_literal_pipe.*choice.*"
+                with self.assertRaisesRegex(TypeError, msg):
+                    csp.build_graph(graph_with_literal_pipe, "d")
+
+            # Run the test
+            run_literal_pipe_test()
 
 
 if __name__ == "__main__":

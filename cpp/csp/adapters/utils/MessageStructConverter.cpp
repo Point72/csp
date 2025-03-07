@@ -26,9 +26,9 @@ bool MessageStructConverterCache::registerConverter( std::string protocol, Creat
     return true;
 }
 
-bool MessageStructConverterCache::hasConverter( std::string protocol )
+bool MessageStructConverterCache::hasConverter( std::string protocol ) const
 {
-  return m_creators.find( protocol ) != m_creators.end();
+    return m_creators.find( protocol ) != m_creators.end();
 }
 
 MessageStructConverterCache & MessageStructConverterCache::instance()

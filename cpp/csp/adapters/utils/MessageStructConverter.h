@@ -51,7 +51,7 @@ public:
     using Creator = std::function<MessageStructConverter*( const CspTypePtr &, const Dictionary & )>;
 
     bool registerConverter( std::string protocol, Creator creator );
-    bool hasConverter( std::string protocol );
+    bool hasConverter( std::string protocol ) const;
 private:
     using CacheKey = std::pair<const CspType*,Dictionary>;
     using Cache = std::unordered_map<CacheKey,MessageStructConverterPtr,csp::hash::hash_pair>;

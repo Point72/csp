@@ -5,7 +5,7 @@ import math
 import queue
 import threading
 from datetime import datetime, timedelta
-from typing import Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import numpy as np
 import pytz
@@ -764,7 +764,14 @@ def static_cast(x: ts["T"], outType: "U") -> ts["U"]:
     as there will be no runtime type checking.
     """
     # Special case bool / int which are native types, but bool evaluates as a subclass of int
-    if not issubclass(outType, x.tstype.typ) or (outType is bool and x.tstype.typ is int):
+    # Allow Any to be cast to anything and vice versa
+    # matching the behavior of Any in the python docs
+    if (
+        x.tstype.typ is not Any
+        and outType is not Any
+        and not issubclass(outType, x.tstype.typ)
+        or (outType is bool and x.tstype.typ is int)
+    ):
         raise TypeError(f"Unable to csp.static_cast edge of type {x.tstype.typ.__name__} to {outType.__name__}")
     return Edge(ts[outType], nodedef=x.nodedef, output_idx=x.output_idx, basket_idx=x.basket_idx)
 

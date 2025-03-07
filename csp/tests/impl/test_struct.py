@@ -33,6 +33,7 @@ class StructNoDefaults(csp.Struct):
     a2: List[str]
     a3: FastList[object]
     a4: List[bytes]
+    a5: Numpy1DArray[float]
 
 
 class StructWithDefaults(csp.Struct):
@@ -829,6 +830,28 @@ class TestCspStruct(unittest.TestCase):
             del looped.np_arr
             del comp.np_arr
             self.assertEqual(looped, comp)
+
+    def test_to_json_loop_with_no_defaults(self):
+        for use_pydantic in [True, False]:
+            base_struct = StructNoDefaults(
+                a1=[9, 10],
+                a5=np.array([1, 2, 3]),
+                bt=b"ab\001\000c",
+            )
+            if not use_pydantic:
+                # Need the callback to handle the numpy array type
+                looped = StructNoDefaults.type_adapter().validate_json(base_struct.to_json(lambda x: x.tolist()))
+            else:
+                looped = StructNoDefaults.type_adapter().validate_json(
+                    StructNoDefaults.type_adapter().dump_json(base_struct)
+                )
+            # Note that we cant compare numpy arrays, so we check them independently
+            self.assertTrue(np.array_equal(looped.a5, base_struct.a5))
+
+            del looped.a5
+            del base_struct.a5
+            self.assertEqual(looped, base_struct)
+            self.assertFalse(isinstance(looped.a1, list))
 
     def test_from_dict_loop_with_generic_typing(self):
         class MyStruct(csp.Struct):

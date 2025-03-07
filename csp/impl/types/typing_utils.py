@@ -32,7 +32,15 @@ class FastList(typing.List, typing.Generic[T]):  # Need to inherit from Generic[
                 return raw_data
             return validator(raw_data)  # just return a list
 
-        return core_schema.no_info_wrap_validator_function(function=create_instance, schema=list_schema)
+        return core_schema.no_info_wrap_validator_function(
+            function=create_instance,
+            schema=list_schema,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda val: list(v for v in val),
+                return_schema=list_schema,
+                when_used="json",
+            ),
+        )
 
 
 class CspTypingUtils39:

@@ -149,12 +149,13 @@ class StructMeta(_csptypesimpl.PyStructMeta):
 class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
     @classmethod
     def type_adapter(cls):
-        # Late import to avoid autogen issues
-        from pydantic import TypeAdapter
-
         internal_type_adapter = getattr(cls, "_pydantic_type_adapter", None)
         if internal_type_adapter:
             return internal_type_adapter
+
+        # Late import to avoid autogen issues
+        from pydantic import TypeAdapter
+
         cls._pydantic_type_adapter = TypeAdapter(cls)
         return cls._pydantic_type_adapter
 

@@ -152,17 +152,6 @@ class StructMeta(_csptypesimpl.PyStructMeta):
 
 class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
     @classmethod
-    def type_adapter(cls):
-        # Late import to avoid autogen issues
-        from pydantic import TypeAdapter
-
-        internal_type_adapter = getattr(cls, "_pydantic_type_adapter", None)
-        if internal_type_adapter:
-            return internal_type_adapter
-        cls._pydantic_type_adapter = TypeAdapter(cls)
-        return cls._pydantic_type_adapter
-
-    @classmethod
     def metadata(cls, typed=False):
         if typed:
             return cls.__full_metadata_typed__
@@ -246,9 +235,7 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
                 return obj_type(json)
 
     @classmethod
-    def from_dict(cls, json: dict, use_pydantic: bool = False):
-        if use_pydantic:
-            return cls.type_adapter().validate_python(json)
+    def from_dict(cls, json: dict):
         return cls._obj_from_python(json, cls)
 
     def to_dict_depr(self):

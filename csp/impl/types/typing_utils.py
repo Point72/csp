@@ -15,6 +15,25 @@ class FastList(typing.List, typing.Generic[T]):  # Need to inherit from Generic[
     def __init__(self):
         raise NotImplementedError("Can not init FastList class")
 
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        from pydantic_core import core_schema
+
+        # Late import to not interfere with autogen
+        args = typing.get_args(source_type)
+        if args:
+            inner_type = args[0]
+            list_schema = handler.generate_schema(typing.List[inner_type])
+        else:
+            list_schema = handler.generate_schema(typing.List)
+
+        def create_instance(raw_data, validator):
+            if isinstance(raw_data, FastList):
+                return raw_data
+            return validator(raw_data)  # just return a list
+
+        return core_schema.no_info_wrap_validator_function(function=create_instance, schema=list_schema)
+
 
 class CspTypingUtils39:
     _ORIGIN_COMPAT_MAP = {list: typing.List, set: typing.Set, dict: typing.Dict, tuple: typing.Tuple}

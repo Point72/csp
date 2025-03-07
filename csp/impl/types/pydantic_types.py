@@ -1,7 +1,7 @@
 import sys
 import types
 import typing
-from typing import Any, ForwardRef, Generic, Optional, Type, TypeVar, Union, get_args, get_origin
+from typing import Any, ForwardRef, Generic, Literal, Optional, Type, TypeVar, Union, get_args, get_origin
 
 from pydantic import GetCoreSchemaHandler, ValidationInfo, ValidatorFunctionWrapHandler
 from pydantic_core import CoreSchema, core_schema
@@ -184,6 +184,8 @@ def adjust_annotations(
             return TsType[
                 adjust_annotations(args[0], top_level=False, in_ts=True, make_optional=False, forced_tvars=forced_tvars)
             ]
+        if origin is Literal:  # for literals, we stop converting
+            return Optional[annotation] if make_optional else annotation
         else:
             try:
                 if origin is CspTypeVar or origin is CspTypeVarType:

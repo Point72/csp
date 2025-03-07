@@ -1,6 +1,7 @@
 import enum
 import json
 import pickle
+import sys
 import unittest
 from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
@@ -3939,6 +3940,129 @@ class TestCspStruct(unittest.TestCase):
         json_data = json.loads(TypeAdapter(DataPoint).dump_json(result))
         self.assertNotIn("_last_updated", json_data)
         self.assertNotIn("_source", json_data["data"])
+
+    def test_literal_types_validation(self):
+        """Test that Literal type annotations correctly validate input values in CSP Structs"""
+
+        # Define a simple class with various Literal types
+        class StructWithLiterals(csp.Struct):
+            # String literals
+            color: Literal["red", "green", "blue"]
+            # Integer literals
+            size: Literal[1, 2, 3]
+            # Mixed type literals
+            status: Literal["on", "off", 0, 1, True, False]
+            # Optional literal with default
+            mode: Optional[Literal["fast", "slow"]] = "fast"
+
+        # Test valid assignments
+        s1 = StructWithLiterals(color="red", size=2, status="on")
+        self.assertEqual(s1.color, "red")
+        self.assertEqual(s1.size, 2)
+        self.assertEqual(s1.status, "on")
+        self.assertEqual(s1.mode, "fast")  # Default value
+
+        s2 = StructWithLiterals.from_dict(dict(color="blue", size=1, status=True, mode="slow"))
+        s2_dump = s2.to_json()
+        s2_looped = TypeAdapter(StructWithLiterals).validate_json(s2_dump)
+        self.assertEqual(s2, s2_looped)
+        s2_dict = s2.to_dict()
+        s2_looped_dict = s2.from_dict(s2_dict)
+        self.assertEqual(s2_looped_dict, s2)
+
+        # Invalid color, but from_dict still accepts
+        StructWithLiterals.from_dict(dict(color="yellow", size=1, status="on"))
+
+        # Invalid size but from_dict still accepts
+        StructWithLiterals.from_dict(dict(color="red", size=4, status="on"))
+
+        # Invalid status but from_dict still accepts
+        StructWithLiterals.from_dict(dict(color="red", size=1, status="standby"))
+
+        # Invalid mode but from_dict still accepts
+        StructWithLiterals.from_dict(dict(color="red", size=1, mode=12))
+
+        # Invalid size and since the literals are all the same type
+        # If we give an incorrect type, we catch the error
+        with self.assertRaises(ValueError) as exc_info:
+            StructWithLiterals.from_dict(dict(color="red", size="adasd", mode=12))
+        self.assertIn("Expected type <class 'int'> received <class 'str'>", str(exc_info.exception))
+
+        # Test valid values
+        result = TypeAdapter(StructWithLiterals).validate_python({"color": "green", "size": 3, "status": 0})
+        self.assertEqual(result.color, "green")
+        self.assertEqual(result.size, 3)
+        self.assertEqual(result.status, 0)
+
+        # Test invalid color with Pydantic validation
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(StructWithLiterals).validate_python({"color": "yellow", "size": 1, "status": "on"})
+        self.assertIn("1 validation error for", str(exc_info.exception))
+        self.assertIn("color", str(exc_info.exception))
+
+        # Test invalid size with Pydantic validation
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(StructWithLiterals).validate_python({"color": "red", "size": 4, "status": "on"})
+        self.assertIn("1 validation error for", str(exc_info.exception))
+        self.assertIn("size", str(exc_info.exception))
+
+        # Test invalid status with Pydantic validation
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(StructWithLiterals).validate_python({"color": "red", "size": 1, "status": "standby"})
+        self.assertIn("1 validation error for", str(exc_info.exception))
+        self.assertIn("status", str(exc_info.exception))
+
+        # Test invalid mode with Pydantic validation
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(StructWithLiterals).validate_python(
+                {"color": "red", "size": 1, "status": "on", "mode": "medium"}
+            )
+        self.assertIn("1 validation error for", str(exc_info.exception))
+        self.assertIn("mode", str(exc_info.exception))
+
+    def test_pipe_operator_types(self):
+        """Test using the pipe operator for union types in Python 3.10+"""
+        if sys.version_info >= (3, 10):  # Only run on Python 3.10+
+            # Define a class using various pipe operator combinations
+            class PipeTypesConfig(csp.Struct):
+                # Basic primitive types with pipe
+                id_field: str | int
+                # Pipe with None (similar to Optional)
+                description: str | None = None
+                # Multiple types with pipe
+                value: str | int | float | bool
+                # Container with pipe
+                tags: List[str] | Dict[str, str] | None = None
+                # Pipe with literal for comparison
+                status: Literal["active", "inactive"] | None = "active"
+
+            # Test all valid types
+            valid_cases = [
+                {"id_field": "string_id", "value": "string_value"},
+                {"id_field": 42, "value": 123},
+                {"id_field": "mixed", "value": 3.14},
+                {"id_field": 999, "value": True},
+                {"id_field": "with_desc", "value": 1, "description": "Description"},
+                {"id_field": "with_dict", "value": 1, "tags": None},
+            ]
+
+            for case in valid_cases:
+                result = PipeTypesConfig.from_dict(case)
+                # use the other route to get back the result
+                result_to_dict_loop = TypeAdapter(PipeTypesConfig).validate_python(result.to_dict())
+                self.assertEqual(result, result_to_dict_loop)
+
+            # Test invalid values
+            invalid_cases = [
+                {"id_field": 3.14, "value": 1},  # Float for id_field
+                {"id_field": None, "value": 1},  # None for required id_field
+                {"id_field": "test", "value": {}},  # Dict for value
+                {"id_field": "test", "value": None},  # None for required value
+                {"id_field": "test", "value": 1, "status": "unknown"},  # Invalid literal
+            ]
+            for case in invalid_cases:
+                with self.assertRaises(ValidationError):
+                    TypeAdapter(PipeTypesConfig).validate_python(case)
 
 
 if __name__ == "__main__":

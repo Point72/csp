@@ -23,7 +23,7 @@ class CspTypingUtils39:
 
     @classmethod
     def is_generic_container(cls, typ):
-        return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union
+        return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ not in (typing.Union, typing.Literal)
 
     @classmethod
     def is_type_spec(cls, val):
@@ -55,6 +55,10 @@ class CspTypingUtils39:
     @classmethod
     def is_union_type(cls, typ):
         return isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union
+
+    @classmethod
+    def is_literal_type(cls, typ):
+        return isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Literal
 
     @classmethod
     def is_forward_ref(cls, typ):

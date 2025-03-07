@@ -35,7 +35,11 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 # Lists need to be normalized too as potentially we need to add a boolean flag to use FastList
                 if v == FastList:
                     raise TypeError(f"{v} annotation is not supported without args")
-                if CspTypingUtils.is_generic_container(v) or CspTypingUtils.is_union_type(v):
+                if (
+                    CspTypingUtils.is_generic_container(v)
+                    or CspTypingUtils.is_union_type(v)
+                    or CspTypingUtils.is_literal_type(v)
+                ):
                     actual_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(v)
                     if CspTypingUtils.is_generic_container(actual_type):
                         raise TypeError(f"{v} annotation is not supported as a struct field [{actual_type}]")
@@ -191,7 +195,8 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         if CspTypingUtils.is_generic_container(obj_type):
             if CspTypingUtils.get_origin(obj_type) in (typing.List, typing.Set, typing.Tuple, FastList):
                 return_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(obj_type)
-                (expected_item_type,) = obj_type.__args__
+                # We only take the first item, so like for a Tuple, we would ignore arguments after
+                expected_item_type = obj_type.__args__[0]
                 return_type = list if isinstance(return_type, list) else return_type
                 return return_type(cls._obj_from_python(v, expected_item_type) for v in json)
             elif CspTypingUtils.get_origin(obj_type) is typing.Dict:
@@ -206,6 +211,13 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
                 return json
             else:
                 raise NotImplementedError(f"Can not deserialize {obj_type} from json")
+        elif CspTypingUtils.is_union_type(obj_type):
+            return json  ## no checks, just let it through
+        elif CspTypingUtils.is_literal_type(obj_type):
+            return_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(obj_type)
+            if isinstance(json, return_type):
+                return json
+            raise ValueError(f"Expected type {return_type} received {json.__class__}")
         elif issubclass(obj_type, Struct):
             if not isinstance(json, dict):
                 raise TypeError("Representation of struct as json is expected to be of dict type")

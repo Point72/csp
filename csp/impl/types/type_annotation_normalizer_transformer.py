@@ -51,6 +51,8 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
         return node
 
     def visit_Subscript(self, node):
+        # We choose to avoid parsing here
+        # to maintain current behavior of allowing empty lists in our types
         return node
 
     def visit_List(self, node):
@@ -98,17 +100,13 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
         return node
 
     def visit_Constant(self, node):
-        if not self._cur_arg:
+        if not self._cur_arg or not isinstance(node.value, str):
             return node
-
-        if self._cur_arg:
-            return ast.Call(
-                func=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="TypeVar", ctx=ast.Load()),
-                args=[node],
-                keywords=[],
-            )
-        else:
-            return node
+        return ast.Call(
+            func=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="TypeVar", ctx=ast.Load()),
+            args=[node],
+            keywords=[],
+        )
 
     def visit_Str(self, node):
         return self.visit_Constant(node)

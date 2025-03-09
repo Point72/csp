@@ -5,7 +5,7 @@ import math
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum, auto
-from typing import List
+from typing import Any, List
 
 import numpy as np
 
@@ -1230,6 +1230,19 @@ class TestBaselib(unittest.TestCase):
         # Runtime type check
         with self.assertRaisesRegex(TypeError, 'expected output type on .* to be of type "int" got type "float"'):
             csp.run(csp.dynamic_cast(x_float, int), starttime=datetime.utcnow(), endtime=timedelta())
+
+    def test_static_cast_any(self):
+        @csp.node
+        def my_node(x: ts[timedelta]) -> ts[int]:
+            return x
+
+        def g():
+            x = csp.const(1)
+            any_x = csp.static_cast(x, Any)
+            return my_node(any_x)
+
+        res = csp.run(g, starttime=datetime.utcnow(), endtime=timedelta(1))
+        self.assertEqual(res[0][0][1], 1)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import sys
 import types
 import typing
+from inspect import isclass
 from typing import Any, ForwardRef, Generic, Literal, Optional, Type, TypeVar, Union, get_args, get_origin
 
 from pydantic import GetCoreSchemaHandler, ValidationInfo, ValidatorFunctionWrapHandler
@@ -140,7 +141,9 @@ def adjust_annotations(
     args = get_args(annotation)
     if isinstance(annotation, str):
         annotation = TypeVar(annotation)
-    elif isinstance(annotation, OutputBasketContainer):
+    elif isinstance(annotation, OutputBasketContainer) or (
+        isclass(annotation) and issubclass(annotation, OutputBasket)
+    ):
         return OutputBasket(
             typ=adjust_annotations(
                 annotation.typ, top_level=False, in_ts=False, make_optional=False, forced_tvars=forced_tvars

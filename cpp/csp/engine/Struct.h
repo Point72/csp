@@ -677,7 +677,7 @@ std::shared_ptr<typename StructField::upcast<T>::type> StructMeta::getMetaField(
     std::shared_ptr<typename StructField::upcast<T>::type> typedfield = std::dynamic_pointer_cast<typename StructField::upcast<T>::type>( field_ );
     if( !typedfield )
         CSP_THROW( TypeError, expectedtype << " - provided struct type " << name() << " expected type " << CspType::Type::fromCType<T>::type << " for field " << fieldname
-                                           << " but got type " << field_ -> type() -> type() << " for " << expectedtype );
+                                           << " but got type " << field_ -> type() -> type() );
 
     return typedfield;
 }

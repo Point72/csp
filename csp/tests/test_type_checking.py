@@ -14,6 +14,7 @@ import csp.impl.types.instantiation_type_resolver as type_resolver
 from csp import ts
 from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring.runtime import build_graph
+from csp.typing import Numpy1DArray
 
 USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
@@ -1038,6 +1039,33 @@ class TestTypeChecking(unittest.TestCase):
                 msg = r"In function graph_with_pipe_union: Expected str \| int \| None for argument 'value', got .*"
             with self.assertRaisesRegex(TypeError, msg):
                 csp.build_graph(graph_with_pipe_union, 3.14)
+
+    def test_generic_annotation(self):
+        @csp.node
+        def node_with_generic_default(
+            x: ts[int], np_float: ts[Numpy1DArray[float]] = csp.null_ts(Numpy1DArray[float])
+        ) -> ts[Numpy1DArray[float]]:
+            if csp.ticked(x):
+                return np.array([3.0])
+            if csp.ticked(np_float):
+                return np_float
+
+        res = csp.run(
+            node_with_generic_default,
+            x=csp.const(11),
+            starttime=datetime(2020, 2, 7, 9),
+            endtime=datetime(2020, 2, 7, 9, 1),
+        )
+        assert res[0][0][1] == np.array([3.0])
+
+        res = csp.run(
+            node_with_generic_default,
+            x=csp.null_ts(int),
+            np_float=csp.const(np.array([4.0])),
+            starttime=datetime(2020, 2, 7, 9),
+            endtime=datetime(2020, 2, 7, 9, 1),
+        )
+        assert res[0][0][1] == np.array([4.0])
 
 
 if __name__ == "__main__":

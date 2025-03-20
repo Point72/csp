@@ -692,6 +692,15 @@ class TestCspStruct(unittest.TestCase):
                     for key in blank.metadata().keys():
                         self.assertEqual(getattr(blank, key), getattr(source, key), (typ, typ2, key))
 
+                    # Test other direction ( derived copy from base )
+                    blank = typ2()
+                    source = typ()
+                    for key in typ.metadata().keys():
+                        setattr(source, key, values[key])
+                    blank.copy_from(source)
+                    for key in source.metadata().keys():
+                        self.assertEqual(getattr(blank, key), getattr(source, key), (typ, typ2, key))
+
     def test_copy_from_unsets(self):
         source = DerivedMixed(i=1, f=2.3, i2=4, s2="woodchuck")
         dest1 = DerivedMixed(i=5, b=True, l2=[1, 2, 3])
@@ -711,6 +720,13 @@ class TestCspStruct(unittest.TestCase):
         self.assertTrue(dest2.f == 2.3)  # adds
         self.assertFalse(hasattr(dest2, "s"))  # unsets
         self.assertFalse(hasattr(dest2, "a1"))
+
+        # from base class -> derived
+        dest2 = BaseMixed(i=6, s="banana", a1=[4, 5, 6])
+        dest3 = DerivedMixed(i=5, b=True)
+        dest3.copy_from(dest2)
+        self.assertTrue(dest3.i == 6)  # overrides already set value
+        self.assertFalse(hasattr(dest3, "b"))  # unsets
 
     def test_deepcopy_from(self):
         source = StructWithLists(
@@ -750,6 +766,14 @@ class TestCspStruct(unittest.TestCase):
         self.assertTrue(dest2.f == 2.3)  # adds
         self.assertTrue(dest2.s == "banana")  # no unsets
         self.assertTrue(dest2.a1 == [4, 5, 6])
+
+        # update from base class
+        dest3 = DerivedMixed()
+        dest3.update_from(dest2)
+        self.assertTrue(dest3.i == 1)  # overrides already set value
+        self.assertTrue(dest3.f == 2.3)  # adds
+        self.assertTrue(dest3.s == "banana")  # no unsets
+        self.assertTrue(dest3.a1 == [4, 5, 6])
 
     def test_update(self):
         dest = DerivedMixed(i2=5, b=True, l2=[1, 2, 3], s="foo")

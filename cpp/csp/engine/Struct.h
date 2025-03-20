@@ -634,6 +634,7 @@ public:
 
     //returns true if derived == base or if derived is a derived type of base
     static bool isDerivedType( const StructMeta * derived, const StructMeta * base );
+    static const StructMeta * commonBase( const StructMeta * x, const StructMeta * y );
 
     template<typename T>
     std::shared_ptr<typename StructField::upcast<T>::type> getMetaField( const char * fieldname, const char * expectedtype );

@@ -256,15 +256,16 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         res = self._obj_to_python(self)
         return res
 
-    @classmethod
-    def postprocess_to_dict(self, obj):
-        """Postprocess hook for to_dict method
-
-        This method is invoked by to_dict after converting a struct to a dict
-        as an additional hook for users to modify the dict before it is returned
-        by the to_dict method
-        """
-        return obj
+    #  NOTE: Users can implement this method to customize the output of to_dict
+    #  @classmethod
+    #  def postprocess_to_dict(cls, obj):
+    #      """Postprocess hook for to_dict method
+    #
+    #      This method is invoked by to_dict after converting a struct to a dict
+    #      as an additional hook for users to modify the dict before it is returned
+    #      by the to_dict method
+    #      """
+    #      return obj
 
     def to_dict(self, callback=None):
         """Create a dictionary representation of the struct

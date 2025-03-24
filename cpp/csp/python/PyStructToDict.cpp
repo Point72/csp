@@ -4,6 +4,7 @@
 namespace csp::python
 {
 static thread_local std::unordered_set<const void *> g_tl_ptrsVisited;
+static thread_local bool g_tl_preserveEnums;
 
 class CircularRefCheck {
 public:
@@ -45,8 +46,10 @@ inline PyObjectPtr parseCspToPython( const T& val, const CspType& typ, PyObject 
 template<>
 inline PyObjectPtr parseCspToPython( const CspEnum& val, const CspType& typ, PyObject * callable )
 {
-    // NOTE: Customization parameter to return the enum instead of string to be added
-    return PyObjectPtr::own( toPython( val.name() ) );
+    if( g_tl_preserveEnums )
+        return PyObjectPtr::own( toPython( val, typ ) );
+    else
+        return PyObjectPtr::own( toPython( val.name() ) );
 }
 
 // Helper function to convert csp Structs into python object recursively
@@ -196,7 +199,8 @@ PyObjectPtr parsePyObject( PyObject * value, PyObject * callable, bool is_recurs
     else if( PyType_IsSubtype( Py_TYPE( value ), &PyCspEnum::PyType ) )
     {
         auto enum_ptr = static_cast<PyCspEnum *>( value ) -> enum_;
-        return parseCspToPython( enum_ptr, CspType( CspType::Type::ENUM ), callable );
+        PyObject* py_type = ( PyObject* ) ( Py_TYPE( value ) );
+        return parseCspToPython( enum_ptr, *pyTypeAsCspType( py_type ), callable );
     }
     else
     {
@@ -215,10 +219,12 @@ PyObjectPtr parsePyObject( PyObject * value, PyObject * callable, bool is_recurs
     }
 }
 
-PyObjectPtr structToDict( const StructPtr& struct_ptr, PyObject * callable )
+PyObjectPtr structToDict( const StructPtr& struct_ptr, PyObject * callable, bool preserve_enums )
 {
     // Reset circular reference checker state
     g_tl_ptrsVisited.clear();
+    // Set config options
+    g_tl_preserveEnums = preserve_enums;
     return parseStructToDictRecursive( struct_ptr, callable );
 }
 

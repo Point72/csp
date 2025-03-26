@@ -1538,6 +1538,119 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 1, "postprocess_called": True, "mss": {"i": 0, "postprocess_called": True}}
         self.assertEqual(test_struct.to_dict(), result_dict)
 
+    def test_to_dict_preserve_enums(self):
+        class MyEnum(csp.Enum):
+            A = 1
+            B = 2
+            C = 3
+
+        class MySubEnum(csp.Enum):
+            SUB_A = 1
+            SUB_B = 2
+            SUB_C = 3
+
+        class MySubStruct(csp.Struct):
+            a: List[MySubEnum]
+            b: list[MySubEnum]
+            c: list
+            d: set
+            e: tuple
+            f: Dict[str, MySubEnum]
+            g: dict
+            h: MySubEnum
+            i: MyEnum
+
+        class MyStruct(csp.Struct):
+            a: List[MyEnum]
+            b: list[MyEnum]
+            c: list
+            d: set
+            e: tuple
+            f: Dict[str, MyEnum]
+            g: dict
+            h: MySubEnum
+            i: MyEnum
+            j: MySubStruct
+            k: List[MySubStruct]
+
+        test_sub_struct = MySubStruct(
+            a=[MySubEnum.SUB_A, MySubEnum.SUB_B],
+            b=[MySubEnum.SUB_B, MySubEnum.SUB_C],
+            c=[MySubEnum.SUB_C, MySubEnum.SUB_A],
+            d=set([MySubEnum.SUB_A, MySubEnum.SUB_B]),
+            e=(MySubEnum.SUB_B, MySubEnum.SUB_C),
+            f={"3": MySubEnum.SUB_C, "1": MySubEnum.SUB_A},
+            g={"1": MySubEnum.SUB_A, "2": MySubEnum.SUB_B},
+            h=MySubEnum.SUB_A,
+            i=MyEnum.B,
+        )
+        result_sub_dict = {
+            "a": ["SUB_A", "SUB_B"],
+            "b": ["SUB_B", "SUB_C"],
+            "c": ["SUB_C", "SUB_A"],
+            "d": {"SUB_A", "SUB_B"},
+            "e": ("SUB_B", "SUB_C"),
+            "f": {"3": "SUB_C", "1": "SUB_A"},
+            "g": {"1": "SUB_A", "2": "SUB_B"},
+            "h": "SUB_A",
+            "i": "B",
+        }
+        result_sub_dict_preserve_enums = {
+            "a": [MySubEnum.SUB_A, MySubEnum.SUB_B],
+            "b": [MySubEnum.SUB_B, MySubEnum.SUB_C],
+            "c": [MySubEnum.SUB_C, MySubEnum.SUB_A],
+            "d": {MySubEnum.SUB_A, MySubEnum.SUB_B},
+            "e": (MySubEnum.SUB_B, MySubEnum.SUB_C),
+            "f": {"3": MySubEnum.SUB_C, "1": MySubEnum.SUB_A},
+            "g": {"1": MySubEnum.SUB_A, "2": MySubEnum.SUB_B},
+            "h": MySubEnum.SUB_A,
+            "i": MyEnum.B,
+        }
+        self.assertEqual(test_sub_struct.to_dict(), result_sub_dict)
+        self.assertEqual(test_sub_struct.to_dict(preserve_enums=True), result_sub_dict_preserve_enums)
+
+        test_struct = MyStruct(
+            a=[MyEnum.A, MyEnum.B],
+            b=[MyEnum.B, MyEnum.C],
+            c=[MyEnum.C, MyEnum.A],
+            d=set([MyEnum.A, MyEnum.B]),
+            e=(MyEnum.B, MyEnum.C),
+            f={"3": MyEnum.C, "1": MyEnum.A},
+            g={"1": MyEnum.A, "2": MyEnum.B},
+            h=MySubEnum.SUB_A,
+            i=MyEnum.B,
+            j=test_sub_struct,
+            k=[test_sub_struct, test_sub_struct],
+        )
+        result_dict = {
+            "a": ["A", "B"],
+            "b": ["B", "C"],
+            "c": ["C", "A"],
+            "d": {"A", "B"},
+            "e": ("B", "C"),
+            "f": {"3": "C", "1": "A"},
+            "g": {"1": "A", "2": "B"},
+            "h": "SUB_A",
+            "i": "B",
+            "j": result_sub_dict,
+            "k": [result_sub_dict, result_sub_dict],
+        }
+        result_dict_preserve_enums = {
+            "a": [MyEnum.A, MyEnum.B],
+            "b": [MyEnum.B, MyEnum.C],
+            "c": [MyEnum.C, MyEnum.A],
+            "d": {MyEnum.A, MyEnum.B},
+            "e": (MyEnum.B, MyEnum.C),
+            "f": {"3": MyEnum.C, "1": MyEnum.A},
+            "g": {"1": MyEnum.A, "2": MyEnum.B},
+            "h": MySubEnum.SUB_A,
+            "i": MyEnum.B,
+            "j": result_sub_dict_preserve_enums,
+            "k": [result_sub_dict_preserve_enums, result_sub_dict_preserve_enums],
+        }
+        self.assertEqual(test_struct.to_dict(), result_dict)
+        self.assertEqual(test_struct.to_dict(preserve_enums=True), result_dict_preserve_enums)
+
     def test_to_json_primitives(self):
         class MyStruct(csp.Struct):
             b: bool = True

@@ -267,14 +267,15 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
     #      """
     #      return obj
 
-    def to_dict(self, callback=None):
+    def to_dict(self, callback=None, preserve_enums=False):
         """Create a dictionary representation of the struct
 
         Args:
             callback: Optional function to parse types that are not supported by default in csp and convert them to
                       dicts csp by default can parse Structs, lists, sets, tuples, dicts, datetimes, and primitive types
+            preserve_enums: Optional flag to not convert enums to strings when converting structs into dicts
         """
-        res = super().to_dict(callback)
+        res = super().to_dict(callback, preserve_enums)
         return res
 
     def to_json(self, callback=lambda x: x):

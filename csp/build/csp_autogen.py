@@ -19,6 +19,9 @@ from csp.impl.struct import Struct  # noqa: E402
 
 
 def struct_type(type_info):
+    # If struct pytype is None then we are dealing with a generic csp.Struct field type
+    if type_info["pytype"] is None:
+        return "csp::StructPtr"
     return f"""csp::autogen::{type_info["pytype"].__name__}::Ptr"""
 
 

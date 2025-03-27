@@ -4201,6 +4201,18 @@ class TestCspStruct(unittest.TestCase):
                 with self.assertRaises(ValidationError):
                     TypeAdapter(PipeTypesConfig).validate_python(case)
 
+    def test__metadata_info(self):
+        class MyStruct(DerivedMixed):
+            typed: BaseNative
+            generic: csp.Struct
+
+        metadata_info = MyStruct._metadata_info()
+        self.assertEqual(metadata_info["is_native"], False)
+        typed_field = [f for f in metadata_info["fields"] if f["fieldname"] == "typed"][0]
+        generic_field = [f for f in metadata_info["fields"] if f["fieldname"] == "generic"][0]
+        self.assertEqual(typed_field["type"]["pytype"], BaseNative)
+        self.assertEqual(generic_field["type"]["pytype"], None)
+
 
 if __name__ == "__main__":
     unittest.main()

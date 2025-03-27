@@ -272,7 +272,8 @@ static PyObjectPtr PyStructMeta_typeinfo( const CspType * type )
     {
         auto const * structType = static_cast<const CspStructType*>( type );
         auto const * structMeta = static_cast<const DialectStructMeta*>( structType -> meta().get() );
-        if( PyDict_SetItemString( out.get(), "pytype", ( PyObject * ) structMeta -> pyType() ) < 0 )
+        PyObject * pyType = structMeta ? ( PyObject * ) structMeta -> pyType() : Py_None;
+        if( PyDict_SetItemString( out.get(), "pytype", pyType ) < 0 )
             CSP_THROW( PythonPassthrough, "" );
     }
     else if( type -> type() == CspType::Type::ARRAY )

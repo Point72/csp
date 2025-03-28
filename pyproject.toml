@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "cmake",
+    "cmake<3.27",
     "deprecated",  # Because used in csp.impl.struct, which is used in autogen
     "oldest-supported-numpy",
     "pyarrow>=15,<19",

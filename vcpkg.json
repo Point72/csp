@@ -2,7 +2,7 @@
   "name": "main",
   "version-string": "latest",
   "dependencies": [
-    "arrow",
+    { "name": "arrow", "version>=": "19.0.1" },
     "boost-beast",
     "boost-multi-index",
     "brotli",
@@ -37,12 +37,5 @@
     "thrift",
     "utf8proc"
   ],
-  "overrides": [
-    {
-      "name": "arrow",
-      "version": "16.0.0",
-      "port-version" : 1
-    }
-  ],
-  "builtin-baseline": "6af584dd59aa5bdba75dae6781ec74614e03e5b9"
+  "builtin-baseline": "b02e341c927f16d991edbd915d8ea43eac52096c"
 }

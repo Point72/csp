@@ -17,7 +17,6 @@
 #include <csp/python/PyCppNode.h>
 #include <csp/python/PyNodeWrapper.h>
 #include <csp/python/NumpyConversions.h>
-#include <arrow/python/pyarrow.h>
 #include <arrow/io/memory.h>
 #include <arrow/ipc/reader.h>
 #include <locale>
@@ -77,21 +76,6 @@ REGISTER_CPPNODE( csp::cppnodes, parquet_dict_basket_writer );
 namespace
 {
 
-struct PyArrowInitializer
-{
-    static inline bool ensureInitialized()
-    {
-        static bool initialized = false;
-        if( unlikely( !initialized ) )
-        {
-            if( arrow::py::import_pyarrow() != 0 )
-                CSP_THROW( csp::python::PythonPassthrough, "" );
-            initialized = true;
-        }
-        return initialized;
-    }
-};
-
 class FileNameGenerator : public csp::Generator<std::string, csp::DateTime, csp::DateTime>
 {
 public:
@@ -145,7 +129,6 @@ public:
     ArrowTableGenerator( PyObject *wrappedGenerator )
             : m_wrappedGenerator( csp::python::PyObjectPtr::incref( wrappedGenerator ) )
     {
-        PyArrowInitializer::ensureInitialized();
     }
 
     void init( csp::DateTime start, csp::DateTime end ) override

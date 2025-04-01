@@ -45,7 +45,7 @@ dependencies:
  - rapidjson
  - requests
  - ruamel.yaml
- - ruff>=0.9,<0.10
+ - ruff>=0.9,<0.12
  - scikit-build
  - setuptools>=69,<74
  - sqlalchemy

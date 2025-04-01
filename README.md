@@ -14,6 +14,7 @@
 
 <br/>
 
+
 `csp` is a high performance reactive stream processing library. The main engine is a C++ complex event graph processor, with bindings exposed into Python. Its key features include switchable simulation/realtime timesteps for both offline and online processing, custom input and output adapters for integration with static and streaming data sources and sinks, and extensible acceleration via customizable C++ nodes for calculations.
 
 The high level goal of `csp` is to make writing realtime code simple and performant. Write event driven code once, test it in simulation, then deploy as realtime without any code changes.

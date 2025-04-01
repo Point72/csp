@@ -21,7 +21,7 @@ requires-python = ">=3.9"
 
 dependencies = [
     "deprecated",
-    "numpy<2",
+    "numpy<3",
     "packaging",
     "pandas",
     "psutil",

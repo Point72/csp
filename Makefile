@@ -203,7 +203,7 @@ dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
 
 dependencies-win:  ## install dependencies via windows
-	choco install cmake --version=3.31.6
+	choco install cmake --version=3.31.6 --allow-downgrade
 	choco install curl winflexbison ninja unzip zip --no-progress -y
 
 ############################################################################################

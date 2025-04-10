@@ -5,6 +5,15 @@
 #include <exprtk.hpp>
 #include <numpy/ndarrayobject.h>
 
+#include <arrow/type.h>
+#include <arrow/table.h>
+#include <arrow/c/abi.h>
+#include <arrow/c/bridge.h>
+
+#include <csp/adapters/parquet/ParquetReader.h>
+#include <csp/adapters/utils/StructAdapterInfo.h>
+#include <csp/adapters/utils/ValueDispatcher.h>
+
 static void * init_nparray()
 {
     csp::python::AcquireGIL gil;
@@ -325,6 +334,136 @@ DECLARE_CPPNODE( exprtk_impl )
 
 EXPORT_CPPNODE( exprtk_impl );
 
+DECLARE_CPPNODE( record_batches_to_struct )
+{
+    using InMemoryTableParquetReader = csp::adapters::parquet::InMemoryTableParquetReader;
+    class MyTableReader : public InMemoryTableParquetReader
+    {
+    public:
+        MyTableReader( std::vector<std::string> columns, std::shared_ptr<arrow::Schema> schema ):
+            InMemoryTableParquetReader( nullptr, columns, false, {}, false )
+        {
+            m_schema = schema;
+        }
+        std::string getCurFileOrTableName() const override{ return "IN_RECORD_BATCH"; }
+        void initialize() { setColumnAdaptersFromCurrentTable(); }
+        void parseBatches( std::vector<std::shared_ptr<arrow::RecordBatch>> record_batches )
+        {
+            // TODO: Check if the schema has not changed
+            auto table_result = arrow::Table::FromRecordBatches(record_batches);
+            if( !table_result.ok() )
+                CSP_THROW( NotImplemented, "Unable to make table from record batches" );
+
+            setTable( table_result.ValueUnsafe() );
+
+            if( !readNextRowGroup() )
+                CSP_THROW( NotImplemented, "Unable to read row group from table" );
+
+            while( readNextRow() )
+            {
+                for( auto& adapter: getStructAdapters() )
+                {
+                    adapter -> dispatchValue( nullptr );
+                }
+            }
+        }
+        void stop()
+        {
+            InMemoryTableParquetReader::clear();
+        }
+    protected:
+        bool openNextFile() override { return false; }
+        void clear() override { setTable( nullptr ); }
+    };
+
+    SCALAR_INPUT( DialectGenericType,  schema_ptr );
+    SCALAR_INPUT( StructMetaPtr,  cls );
+    SCALAR_INPUT( DictionaryPtr,  properties );
+    TS_INPUT( Generic, data );
+
+    TS_OUTPUT( Generic );
+
+    std::shared_ptr<MyTableReader> reader;
+    CspTypePtr outType;
+    std::vector<StructPtr>* m_structsVecPtr;
+
+    using StructAdapterInfo = csp::adapters::utils::StructAdapterInfo;
+    using ValueDispatcher = csp::adapters::utils::ValueDispatcher<StructPtr &>;
+
+    INIT_CPPNODE( record_batches_to_struct )
+    {
+        auto & input_def = tsinputDef( "data" );
+        if( input_def.type -> type() != CspType::Type::ARRAY )
+            CSP_THROW( TypeError, "record_batches_to_struct expected ts array type, got " << input_def.type -> type() );
+
+        auto * aType = static_cast<const CspArrayType *>( input_def.type.get() );
+        CspTypePtr elemType = aType -> elemType();
+        if( elemType -> type() != CspType::Type::DIALECT_GENERIC )
+            CSP_THROW( TypeError, "record_batches_to_struct expected ts array of DIALECT_GENERIC type, got " << elemType -> type() );
+
+        auto & output_def = tsoutputDef( "" );
+        if( output_def.type -> type() != CspType::Type::ARRAY )
+            CSP_THROW( NotImplemented, "record_batches_to_struct expected ts array type, got " << output_def.type -> type() );
+    }
+
+    START()
+    {
+        // Create Adapters for Schema
+        PyObject* capsule = csp::python::toPythonBorrowed(schema_ptr);
+        struct ArrowSchema* c_schema = reinterpret_cast<struct ArrowSchema*>( PyCapsule_GetPointer(capsule, "arrow_schema") );
+        auto result = arrow::ImportSchema(c_schema);
+        if( !result.ok() )
+            CSP_THROW( NotImplemented, "Unable to import schema" );
+        std::shared_ptr<arrow::Schema> schema = result.ValueUnsafe();
+        std::vector<std::string> columns;
+        auto field_map = properties.value() -> get<DictionaryPtr>( "field_map" );
+        for( auto it = field_map -> begin(); it != field_map -> end(); ++it )
+        {
+            // TODO: Check if the column exists in the table
+            columns.push_back(it.key());
+        }
+        reader = std::make_shared<MyTableReader>( columns, schema );
+        reader -> initialize();
+
+        outType = std::make_shared<csp::CspStructType>( cls.value() );
+        StructAdapterInfo key{ outType, field_map };
+        auto& struct_adapter = reader -> getStructAdapter( key );
+        struct_adapter.addSubscriber( [this]( StructPtr * s )
+                                      {
+                                          if( s ) this -> m_structsVecPtr -> push_back( *s );
+                                          else CSP_THROW( NotImplemented, "StructPtr was null" );
+                                      }, {} );
+    }
+
+    INVOKE()
+    {
+        if( csp.ticked( data ) )
+        {
+            auto & py_batches = data.lastValue<std::vector<DialectGenericType>>();
+            std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
+            for( auto& py_batch: py_batches )
+            {
+                PyObject* py_tuple = csp::python::toPythonBorrowed( py_batch );
+                PyObject* py_schema = PyTuple_GET_ITEM( py_tuple, 0 );
+                PyObject* py_array = PyTuple_GET_ITEM( py_tuple, 1 );
+                struct ArrowSchema* c_schema = reinterpret_cast<struct ArrowSchema*>( PyCapsule_GetPointer( py_schema, "arrow_schema" ) );
+                struct ArrowArray* c_array = reinterpret_cast<struct ArrowArray*>( PyCapsule_GetPointer( py_array, "arrow_array" ) );
+                auto result = arrow::ImportRecordBatch(c_array, c_schema);
+                if( !result.ok() )
+                    CSP_THROW( NotImplemented, "Unable to import record batch from c interface" );
+                batches.emplace_back(result.ValueUnsafe());
+            }
+            std::vector<StructPtr> & out = unnamed_output().reserveSpace<std::vector<StructPtr>>();
+            out.clear();
+            m_structsVecPtr = &out;
+            reader -> parseBatches( batches );
+            m_structsVecPtr = nullptr;
+        }
+    }
+};
+
+EXPORT_CPPNODE( record_batches_to_struct );
+
 }
 
 // Base nodes
@@ -350,6 +489,7 @@ REGISTER_CPPNODE( csp::cppnodes, struct_fromts );
 REGISTER_CPPNODE( csp::cppnodes, struct_collectts );
 
 REGISTER_CPPNODE( csp::cppnodes, exprtk_impl );
+REGISTER_CPPNODE( csp::cppnodes, record_batches_to_struct );
 
 static PyModuleDef _cspbaselibimpl_module = {
     PyModuleDef_HEAD_INIT,

@@ -1,7 +1,4 @@
-import itertools
-import queue
-import threading
-from typing import Iterable, List, Optional
+from typing import Iterable, List
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -9,89 +6,30 @@ import pyarrow.parquet as pq
 
 import csp
 from csp.impl.types.tstype import ts
-from csp.impl.wiring import py_pull_adapter_def, py_push_adapter_def
+from csp.impl.wiring import py_pull_adapter_def
 
 __all__ = [
-    "ArrowRealtimeAdapter",
     "ArrowHistoricalAdapter",
-    "accumulate_record_batches",
+    "write_record_batches",
 ]
 
 
-class ArrowRealtimeAdapterImpl(csp.impl.pushadapter.PushInputAdapter):
-    """Stream record batches in realtime into csp"""
-
-    def __init__(self, timeout: int, source: queue.Queue[pa.RecordBatch]):
-        """
-        Args:
-            timeout: max time in seconds to block for when waiting from results from the queue
-            source: queue of streaming record batches, needs to be provided by the user
-        """
-        self.timeout = timeout
-        self.queue = source
-        self._thread = None
-        self._running = False
-        self._exc = None
-        super().__init__()
-
-    def start(self, start_time, end_time):
-        self._thread = threading.Thread(target=self._run)
-        self._running = True
-        self._thread.start()
-
-    def stop(self):
-        if self._running:
-            self._running = False
-            self._thread.join()
-            if self._exc:
-                raise self._exc
-
-    def _run(self):
-        while self._running:
-            try:
-                new_batches = self.queue.get(block=True, timeout=self.timeout)
-                self.push_tick(new_batches)
-            except queue.Empty:
-                # No new data loop back
-                pass
-            except Exception as e:
-                self._exc = e
-                break
-
-
-ArrowRealtimeAdapter = py_push_adapter_def(
-    "ArrowRealtimeAdapter",
-    ArrowRealtimeAdapterImpl,
-    ts[List[pa.RecordBatch]],
-    timeout=int,
-    source=queue.Queue[pa.RecordBatch],
-)
-
-
+# TODO: Handle the ts column and start_time/end_time being of different types
 class ArrowHistoricalAdapterImpl(csp.impl.pulladapter.PullInputAdapter):
     """Stream record batches from some source into csp"""
 
-    def __init__(
-        self,
-        ts_col_name: str,
-        stream: Optional[Iterable[pa.RecordBatch]],
-        tables: Optional[Iterable[pa.Table]],
-        filenames: Optional[Iterable[str]],
-    ):
+    def __init__(self, ts_col_name: str, source: Iterable[pa.RecordBatch]):
         """
         Args:
             ts_col_name: name of column that contains the timestamp field
-            stream: an optional iterable of record batches
-            tables: an optional iterable for arrow tables to read from
-            filenames: an optional iterable of parquet files to read from
+            source: an optional iterable of record batches
+            #  tables: an optional iterable for arrow tables to read from
+            #  filenames: an optional iterable of parquet files to read from
 
-        NOTE: The user is responsible for ensuring that the data is sorted in ascending order on the 'ts_col_name' field
-        NOTE: batches from stream, tables and filenames are iterated in that order
+        NOTE: The user is responsible for ensuring that the data is sorted in
+            ascending order on the 'ts_col_name' field
         """
-        assert stream or filenames or tables, "Atleast one of stream, filenames, or tables must be not None"
-        self.stream = stream
-        self.tables = tables
-        self.filenames = filenames
+        self.source = source
         self.ts_col_name = ts_col_name
         super().__init__()
 
@@ -116,19 +54,6 @@ class ArrowHistoricalAdapterImpl(csp.impl.pulladapter.PullInputAdapter):
         self.filtered_start_time = False
         # the starting batch with start_time filtered
         self.starting_batch = None
-
-        batch_iters = []
-        if self.stream:
-            batch_iters += [self.stream]
-
-        if self.tables:
-            batch_iters += [table.to_batches() for table in self.tables]
-
-        if self.filenames:
-            batch_iters += [pq.ParquetFile(filename).iter_batches() for filename in self.filenames]
-
-        self.source = itertools.chain(*batch_iters)
-
         super().start(start_time, end_time)
 
     def next(self):
@@ -219,25 +144,24 @@ ArrowHistoricalAdapter = py_pull_adapter_def(
     ArrowHistoricalAdapterImpl,
     ts[List[pa.RecordBatch]],
     ts_col_name=str,
-    stream=Optional[Iterable[pa.RecordBatch]],
-    tables=Optional[Iterable[pa.Table]],
-    filenames=Optional[Iterable[str]],
+    source=Iterable[pa.RecordBatch],
 )
 
 
 @csp.node
-def accumulate_record_batches(filename: str, merge_record_batches: bool, batches: csp.ts[List[pa.RecordBatch]]):
+def write_record_batches(where: str, merge_record_batches: bool, batches: csp.ts[List[pa.RecordBatch]], kwargs: dict):
     """
     Dump all the record batches to a parquet file
 
     Args:
-        filename: name of file to write the data to
+        where: destination to write the data to
         merge_record_batches: A flag to combine all the record batches of a single tick into a single record batch (can save some space at the cost of memory)
         batches: The timeseries of list of record batches
+        **kwargs: additional args to pass to the ParquetWriter
     """
     with csp.state():
         s_writer = None
-        s_filename = filename
+        s_destination = where
         s_merge_batches = merge_record_batches
 
     with csp.stop():
@@ -249,5 +173,5 @@ def accumulate_record_batches(filename: str, merge_record_batches: bool, batches
 
         for batch in batches:
             if s_writer is None:
-                s_writer = pq.ParquetWriter(s_filename, batch.schema)
+                s_writer = pq.ParquetWriter(s_destination, batch.schema, **kwargs)
             s_writer.write_batch(batch)

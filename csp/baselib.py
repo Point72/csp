@@ -5,9 +5,10 @@ import math
 import queue
 import threading
 from datetime import datetime, timedelta
-from typing import Callable, Dict, List, Optional, TypeVar, Union
+from typing import Callable, Dict, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
+import pyarrow as pa
 import pytz
 
 import csp
@@ -62,6 +63,7 @@ __all__ = [
     "times_ns",
     "unroll",
     "wrap_feedback",
+    "record_batches_to_struct",
 ]
 
 T = TypeVar("T")
@@ -620,6 +622,29 @@ def accum(x: ts["T"], start: "~T" = 0) -> ts["T"]:
     if csp.ticked(x):
         s_accum += x
         return s_accum
+
+
+@node(cppimpl=_cspbaselibimpl.record_batches_to_struct)
+def _record_batches(
+    schema_ptr: object,
+    cls: "T",
+    properties: dict,
+    data: ts[List[Tuple[object, object]]],
+) -> ts[List["T"]]:
+    raise NotImplementedError("No python implementation of exprtk_impl")
+    return None
+
+
+@graph
+def record_batches_to_struct(
+    schema_ptr: pa.Schema, cls: "T", properties: dict, data: ts[List[pa.RecordBatch]]
+) -> ts[List["T"]]:
+    return _record_batches(
+        schema_ptr.__arrow_c_schema__(),
+        cls,
+        properties,
+        apply(data, lambda rbs: [rb.__arrow_c_array__() for rb in rbs], List[Tuple[object, object]]),
+    )
 
 
 @node(cppimpl=_cspbaselibimpl.exprtk_impl)

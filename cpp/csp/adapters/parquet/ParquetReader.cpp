@@ -382,10 +382,13 @@ void SingleFileParquetReader::clear()
 }
 
 InMemoryTableParquetReader::InMemoryTableParquetReader( GeneratorPtr generatorPtr, std::vector<std::string> columns,
-                                                        bool allowMissingColumns, std::optional<std::string> symbolColumnName )
+                                                        bool allowMissingColumns, std::optional<std::string> symbolColumnName, bool call_init )
         : SingleTableParquetReader( columns, true, allowMissingColumns, symbolColumnName ), m_generatorPtr( generatorPtr )
 {
-    init();
+    if( call_init )
+    {
+        init();
+    }
 }
 
 bool InMemoryTableParquetReader::openNextFile()

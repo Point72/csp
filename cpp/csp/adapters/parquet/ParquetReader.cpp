@@ -192,9 +192,17 @@ void SingleTableParquetReader::setColumnAdaptersFromCurrentTable()
             columnAdapter = createColumnAdapter( *this, *field, getCurFileOrTableName(), &getStructColumnMeta() );
             auto &fieldInfo = fieldsInfo[ index ];
 
-            for( std::size_t i = 0; i < fieldInfo.m_width; ++i )
+            if( isArrowIPC() )
             {
-                m_neededColumnIndices.push_back( fieldInfo.m_startColumnIndex + i );
+                // Needed for all memory tables
+                m_neededColumnIndices.push_back( index );
+            }
+            else
+            {
+                for( std::size_t i = 0; i < fieldInfo.m_width; ++i )
+                {
+                    m_neededColumnIndices.push_back( fieldInfo.m_startColumnIndex + i );
+                }
             }
         }
         else

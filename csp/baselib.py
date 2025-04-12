@@ -64,6 +64,7 @@ __all__ = [
     "unroll",
     "wrap_feedback",
     "record_batches_to_struct",
+    "struct_to_record_batches",
 ]
 
 T = TypeVar("T")
@@ -624,8 +625,42 @@ def accum(x: ts["T"], start: "~T" = 0) -> ts["T"]:
         return s_accum
 
 
+@node(cppimpl=_cspbaselibimpl.struct_to_record_batches)
+def _struct_to_record_batches(
+    schema_ptr: object,
+    cls: "T",
+    properties: dict,
+    chunk_size: int,
+    data: ts[List["T"]],
+) -> ts[List[Tuple[object, object]]]:
+    raise NotImplementedError("No python implementation of exprtk_impl")
+    return None
+
+
+class _ArrowDummy:
+    def __init__(self, tup):
+        self.tup = tup
+
+    def __arrow_c_array__(self, requested_schema=None):
+        return self.tup
+
+
+@graph
+def struct_to_record_batches(
+    schema_ptr: pa.Schema, cls: "T", properties: dict, chunk_size: int, data: ts[List["T"]]
+) -> ts[List[pa.RecordBatch]]:
+    tups = _struct_to_record_batches(
+        schema_ptr.__arrow_c_schema__(),
+        cls,
+        properties,
+        chunk_size,
+        data,
+    )
+    return apply(tups, lambda tups: [pa.record_batch(_ArrowDummy(tup)) for tup in tups], List[pa.RecordBatch])
+
+
 @node(cppimpl=_cspbaselibimpl.record_batches_to_struct)
-def _record_batches(
+def _record_batches_to_struct(
     schema_ptr: object,
     cls: "T",
     properties: dict,
@@ -639,7 +674,7 @@ def _record_batches(
 def record_batches_to_struct(
     schema_ptr: pa.Schema, cls: "T", properties: dict, data: ts[List[pa.RecordBatch]]
 ) -> ts[List["T"]]:
-    return _record_batches(
+    return _record_batches_to_struct(
         schema_ptr.__arrow_c_schema__(),
         cls,
         properties,

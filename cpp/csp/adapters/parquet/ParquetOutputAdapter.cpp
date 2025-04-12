@@ -192,6 +192,16 @@ StructParquetOutputHandler::StructParquetOutputHandler( Engine *engine, ParquetW
     }
 }
 
+void StructParquetOutputHandler::writeValueFromArgs( const StructPtr input )
+{
+    const Struct *structData = input.get();
+
+    for( auto &&valueHandler: m_valueHandlers )
+    {
+        valueHandler( structData );
+    }
+}
+
 void StructParquetOutputHandler::writeValueFromTs( const TimeSeriesProvider *input )
 {
     const Struct *structData = input -> lastValueTyped<StructPtr>().get();

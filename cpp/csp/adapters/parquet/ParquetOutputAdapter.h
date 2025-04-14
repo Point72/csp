@@ -151,6 +151,7 @@ public:
     }
 
     void writeValueFromTs( const TimeSeriesProvider *input ) override final;
+    void writeValueFromArgs( const StructPtr input );
 
 private:
     using ValueHandler = std::function<void( const Struct * )>;

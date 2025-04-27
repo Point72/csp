@@ -63,12 +63,8 @@ class NumbaNodeParser(NodeParser):
 
         for kwd in call.keywords:
             if kwd.arg not in self._state_types:
-                if isinstance(kwd.value, ast.Num):
-                    self._state_types[kwd.arg] = type(kwd.value.n)
-                elif isinstance(kwd.value, ast.Str):
-                    self._state_types[kwd.arg] = str
-                elif isinstance(kwd.value, ast.NameConstant) and isinstance(kwd.value.value, bool):
-                    self._state_types[kwd.arg] = bool
+                if isinstance(kwd.value, ast.Constant):
+                    self._state_types[kwd.arg] = type(kwd.value)
                 else:
                     raise CspParseError(
                         f"Unable to resolve type of state variable {kwd.arg}, explicit type must be provided in numba_node decorator",
@@ -186,12 +182,15 @@ class NumbaNodeParser(NodeParser):
             new_args.append(new_arg)
 
         cls_field_types = [
-            ast.Tuple(elts=[ast.Str(s=arg.arg), ast.Name(id=self.get_arg_type_var_name(arg.arg), ctx=l_ctx)], ctx=l_ctx)
+            ast.Tuple(
+                elts=[ast.Constant(arg.arg), ast.Name(id=self.get_arg_type_var_name(arg.arg), ctx=l_ctx)], ctx=l_ctx
+            )
             for arg in self.get_non_ts_args()
         ]
         cls_field_types += [
             ast.Tuple(
-                elts=[ast.Str(s=state_var), ast.Name(id=self.get_state_type_var_name(state_var), ctx=l_ctx)], ctx=l_ctx
+                elts=[ast.Constant(state_var), ast.Name(id=self.get_state_type_var_name(state_var), ctx=l_ctx)],
+                ctx=l_ctx,
             )
             for state_var in state_vars
         ]

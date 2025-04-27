@@ -678,7 +678,7 @@ class NodeParser(BaseParser):
     def _parse_special_blocks(self, body):
         # skip doc string
         for index, node in enumerate(body):
-            if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Str):
+            if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Constant):
                 break
 
         last_special_block = None
@@ -766,7 +766,7 @@ class NodeParser(BaseParser):
         node_proxy = [
             ast.Assign(
                 targets=[self._node_proxy_expr(ast.Store())],
-                value=ast.Tuple(elts=[ast.Str(self._NODE_P_VARNAME), ast.Num(n=0)], ctx=ast.Load()),
+                value=ast.Tuple(elts=[ast.Constant(self._NODE_P_VARNAME), ast.Constant(0)], ctx=ast.Load()),
             )
         ]  # '#nodep'
         ts_in_proxies = []
@@ -780,7 +780,7 @@ class NodeParser(BaseParser):
                     ast.Assign(
                         targets=[proxy],
                         value=ast.Tuple(
-                            elts=[ast.Str(s=self._INPUT_PROXY_VARNAME), ast.Num(n=inp.ts_idx)], ctx=ast.Load()
+                            elts=[ast.Constant(self._INPUT_PROXY_VARNAME), ast.Constant(inp.ts_idx)], ctx=ast.Load()
                         ),
                     )
                 )
@@ -789,7 +789,7 @@ class NodeParser(BaseParser):
                         ast.Assign(
                             targets=[ast.Name(id=inp.name, ctx=ast.Store())],
                             value=ast.Tuple(
-                                elts=[ast.Str(s=self._INPUT_VAR_VARNAME), ast.Num(n=inp.ts_idx)], ctx=ast.Load()
+                                elts=[ast.Constant(self._INPUT_VAR_VARNAME), ast.Num(n=inp.ts_idx)], ctx=ast.Load()
                             ),
                         )
                     )
@@ -801,7 +801,7 @@ class NodeParser(BaseParser):
                 ast.Assign(
                     targets=[ast.Name(id=name, ctx=ast.Store())],
                     value=ast.Tuple(
-                        elts=[ast.Str(s=self._OUTPUT_PROXY_VARNAME), ast.Num(n=output.ts_idx)], ctx=ast.Load()
+                        elts=[ast.Constant(self._OUTPUT_PROXY_VARNAME), ast.Constant(output.ts_idx)], ctx=ast.Load()
                     ),
                 )
             )

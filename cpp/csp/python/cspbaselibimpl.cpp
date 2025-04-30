@@ -537,7 +537,7 @@ DECLARE_CPPNODE( record_batches_to_struct )
 
                 auto* data_ptr = &m_ndarrayDimColData[ndarray_idx++];
                 addListSubscriber( dim_col_name, dim_col_dialect_generic_type,
-                    [this, data_ptr]( const DialectGenericType * d )
+                    [data_ptr]( const DialectGenericType * d )
                     {
                         if( d ) *data_ptr = *d;
                         else CSP_THROW( ValueError, "Failed to create DIALECT_GENERIC while parsing the record batches" );

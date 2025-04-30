@@ -15,6 +15,8 @@
 #include <csp/adapters/parquet/ParquetOutputAdapter.h>
 #include <csp/adapters/parquet/ParquetWriter.h>
 #include <csp/python/PyObjectPtr.h>
+#include <csp/core/Exception.h>
+#include <csp/python/PyDialectGenericListsInterface.h>
 
 static void * init_nparray()
 {
@@ -42,8 +44,36 @@ void ReleaseArrowArrayPyCapsule( PyObject* capsule ) {
     free( array );
 }
 
+static csp::DialectGenericType numpy_ndarray_reshape( csp::DialectGenericType data, csp::DialectGenericType dims )
+{
+    auto arrayObject = reinterpret_cast<PyArrayObject *>(csp::python::toPythonBorrowed(data));
+    auto dimsObject = reinterpret_cast<PyObject *>(csp::python::toPythonBorrowed(dims));
+
+    auto new_array = csp::python::PyObjectPtr::own(PyArray_Reshape( arrayObject, dimsObject ));
+    return csp::python::fromPython<csp::DialectGenericType>(new_array.get());
+}
+
+static std::pair<csp::DialectGenericType, csp::DialectGenericType> numpy_ndarray_flatten( csp::DialectGenericType data )
+{
+    auto arrayObject = reinterpret_cast<PyArrayObject *>(csp::python::toPythonBorrowed(data));
+    npy_intp ndims[1] = { PyArray_NDIM( arrayObject ) };
+    auto dims = PyArray_DIMS( arrayObject );
+    auto shape = csp::python::PyObjectPtr::own( PyArray_SimpleNew( 1, ndims, NPY_INT ) );
+    int* shape_data = reinterpret_cast<int*>( PyArray_DATA( reinterpret_cast<PyArrayObject*>( shape.get() ) ) );
+    for(int i = 0; i < ndims[0]; i++)
+    {
+        shape_data[i] = dims[i];
+    }
+    PyArray_SetBaseObject( reinterpret_cast<PyArrayObject*>( shape.get() ), Py_None );
+    auto flat = csp::python::PyObjectPtr::own( PyArray_Flatten( arrayObject, NPY_CORDER ) );
+    auto flat_array = csp::python::fromPython<csp::DialectGenericType>( flat.get() );
+    auto shape_array = csp::python::fromPython<csp::DialectGenericType>( shape.get() );
+    return std::make_pair( std::move(flat_array), std::move(shape_array) );
+}
+
 namespace csp::cppnodes
 {
+
 DECLARE_CPPNODE( exprtk_impl )
 {
     class BaseValueContainer
@@ -357,6 +387,7 @@ EXPORT_CPPNODE( exprtk_impl );
 DECLARE_CPPNODE( record_batches_to_struct )
 {
     using InMemoryTableParquetReader = csp::adapters::parquet::InMemoryTableParquetReader;
+    using DialectGenericSubscriber = csp::adapters::utils::ValueDispatcher<const DialectGenericType&>::SubscriberType;
     class RecordBatchReader : public InMemoryTableParquetReader
     {
     public:
@@ -384,8 +415,20 @@ DECLARE_CPPNODE( record_batches_to_struct )
                 {
                     adapter -> dispatchValue( nullptr );
                 }
+                for(auto& adapter: m_postAdapters)
+                {
+                    adapter -> dispatchValue( nullptr );
+                }
             }
         }
+        void setPostAdapters( std::vector<std::string>& col_names )
+        {
+            for( auto& col_name: col_names )
+            {
+                m_postAdapters.emplace_back( (*this)[col_name].get() );
+            }
+        }
+
         void stop()
         {
             InMemoryTableParquetReader::clear();
@@ -393,6 +436,7 @@ DECLARE_CPPNODE( record_batches_to_struct )
     protected:
         bool openNextFile() override { return false; }
         void clear() override { setTable( nullptr ); }
+        std::vector<csp::adapters::parquet::ParquetColumnAdapter*> m_postAdapters;
     };
 
     SCALAR_INPUT( DialectGenericType,  schema_ptr );
@@ -402,8 +446,9 @@ DECLARE_CPPNODE( record_batches_to_struct )
 
     TS_OUTPUT( Generic );
 
-    std::shared_ptr<RecordBatchReader> reader;
+    std::shared_ptr<RecordBatchReader> m_reader;
     std::vector<StructPtr>* m_structsVecPtr;
+    std::vector<DialectGenericType> m_ndarrayDimColData;
 
     INIT_CPPNODE( record_batches_to_struct )
     {
@@ -421,6 +466,13 @@ DECLARE_CPPNODE( record_batches_to_struct )
             CSP_THROW( TypeError, "record_batches_to_struct expected ts array type, got " << output_def.type -> type() );
     }
 
+    void addListSubscriber( std::string col_name, DialectGenericType generic_type, DialectGenericSubscriber subscriber )
+    {
+        auto &&field_type = csp::python::pyTypeAsCspType( csp::python::toPythonBorrowed( generic_type ) );
+        auto list_reader_interface = csp::python::create_numpy_array_reader_impl( field_type );
+        (*m_reader)[col_name] -> addSubscriber( subscriber, {}, list_reader_interface );
+    }
+
     START()
     {
         // Create Adapters for Schema
@@ -432,6 +484,7 @@ DECLARE_CPPNODE( record_batches_to_struct )
         std::shared_ptr<arrow::Schema> schema = result.ValueUnsafe();
         std::vector<std::string> columns;
         auto field_map = properties.value() -> get<DictionaryPtr>( "field_map" );
+        // Extract the columns names
         for( auto it = field_map -> begin(); it != field_map -> end(); ++it )
         {
             if( schema -> GetFieldByName( it.key() ) )
@@ -439,17 +492,95 @@ DECLARE_CPPNODE( record_batches_to_struct )
             else
                 CSP_THROW( ValueError, "column " << it.key() << " not found in schema" );
         }
-        reader = std::make_shared<RecordBatchReader>( columns, schema );
-        reader -> initialize();
+        std::vector<std::string> extra_columns;
 
-        CspTypePtr outType = std::make_shared<csp::CspStructType>( cls.value() );
-        csp::adapters::utils::StructAdapterInfo key{ std::move( outType ), std::move( field_map ) };
-        auto& struct_adapter = reader -> getStructAdapter( key );
+        // Extract the numpy column names
+        auto numpy_fields = properties.value() -> get<DictionaryPtr>( "numpy_fields" );
+        auto numpy_field_types = properties.value() -> get<DictionaryPtr>( "numpy_field_types" );
+        auto numpy_dimension_names = properties.value() -> get<DictionaryPtr>( "numpy_dimension_names" );
+        auto numpy_dimension_types = properties.value() -> get<DictionaryPtr>( "numpy_dimension_types" );
+        for( auto it = numpy_fields-> begin(); it != numpy_fields-> end(); ++it )
+        {
+            if( schema -> GetFieldByName( it.key() ) )
+            {
+                auto col_name = it.key();
+                columns.push_back( col_name );
+                if( numpy_dimension_names -> exists( col_name ) )
+                {
+                    auto dim_col_name = numpy_dimension_names -> get<std::string>( col_name );
+                    columns.push_back( dim_col_name );
+                }
+            }
+            else
+                CSP_THROW( ValueError, "column " << it.key() << " not found in schema" );
+        }
+        m_reader = std::make_shared<RecordBatchReader>( columns, schema );
+        m_reader -> initialize();
+
+        m_ndarrayDimColData.resize( numpy_dimension_names -> size() );
+        std::shared_ptr<csp::CspStructType> out_type = std::make_shared<csp::CspStructType>( cls.value() );
+
+        // Add adapters for numpy arrays
+        unsigned ndarray_idx = 0;
+        for( auto it = numpy_fields -> begin(); it != numpy_fields -> end(); ++it )
+        {
+            auto col_name = it.key();
+            auto dialect_generic_type = numpy_field_types -> get<DialectGenericType>(col_name);
+
+            auto field_name = it.value<std::string>();
+            auto &&field_ptr = out_type -> meta() -> field( field_name );
+            if( numpy_dimension_names -> exists( col_name ) )
+            {
+                // Is NDArray
+                auto dim_col_name = numpy_dimension_names -> get<std::string>(col_name);
+                auto dim_col_dialect_generic_type = numpy_dimension_types -> get<DialectGenericType>(col_name);
+
+                auto* data_ptr = &m_ndarrayDimColData[ndarray_idx++];
+                addListSubscriber( dim_col_name, dim_col_dialect_generic_type,
+                    [this, data_ptr]( const DialectGenericType * d )
+                    {
+                        if( d ) *data_ptr = *d;
+                        else CSP_THROW( ValueError, "Failed to create DIALECT_GENERIC while parsing the record batches" );
+                    }
+                );
+                extra_columns.push_back( dim_col_name );
+
+                addListSubscriber( col_name, dialect_generic_type,
+                    [this, field_ptr, data_ptr]( const DialectGenericType * d )
+                    {
+                        if( d )
+                        {
+                            auto new_data = numpy_ndarray_reshape( *d, *data_ptr );
+                            field_ptr -> setValue<DialectGenericType>( this -> m_structsVecPtr -> back().get(), new_data );
+                        }
+                        else CSP_THROW( ValueError, "Failed to create DIALECT_GENERIC while parsing the record batches" );
+                    }
+                );
+            }
+            else
+            {
+                // Is 1DArray
+                addListSubscriber( col_name, dialect_generic_type,
+                        [this, field_ptr]( const DialectGenericType * d )
+                        {
+                            if( d ) field_ptr -> setValue<DialectGenericType>( this -> m_structsVecPtr -> back().get(), *d );
+                            else CSP_THROW( ValueError, "Failed to create DIALECT_GENERIC while parsing the record batches" );
+                        }
+                );
+            }
+            extra_columns.push_back( col_name );
+        }
+        m_reader -> setPostAdapters( extra_columns );
+
+        // Add the adapter for struct
+        csp::adapters::utils::StructAdapterInfo key{ std::move( out_type ), std::move( field_map ) };
+        auto& struct_adapter = m_reader -> getStructAdapter( key );
         struct_adapter.addSubscriber( [this]( StructPtr * s )
                                       {
                                           if( s ) this -> m_structsVecPtr -> push_back( *s );
                                           else CSP_THROW( ValueError, "Failed to create struct while parsing the record batches" );
                                       }, {} );
+
     }
 
     INVOKE()
@@ -473,7 +604,7 @@ DECLARE_CPPNODE( record_batches_to_struct )
             std::vector<StructPtr> & out = unnamed_output().reserveSpace<std::vector<StructPtr>>();
             out.clear();
             m_structsVecPtr = &out;
-            reader -> parseBatches( batches );
+            m_reader -> parseBatches( batches );
             m_structsVecPtr = nullptr;
         }
     }
@@ -492,6 +623,7 @@ DECLARE_CPPNODE( struct_to_record_batches )
     TS_OUTPUT( Generic );
 
     using StructParquetOutputHandler = csp::adapters::parquet::StructParquetOutputHandler;
+    using ListColumnParquetOutputHandler = csp::adapters::parquet::ListColumnParquetOutputHandler;
     using ParquetWriter = csp::adapters::parquet::ParquetWriter;
     class MyParquetWriter : public ParquetWriter
     {
@@ -509,9 +641,16 @@ DECLARE_CPPNODE( struct_to_record_batches )
     };
 
     std::shared_ptr<StructParquetOutputHandler> m_handler;
-    CspTypePtr m_cspType;
+    std::vector<std::shared_ptr<ListColumnParquetOutputHandler>> m_numpyArrayHandlers;
+    std::vector<csp::adapters::parquet::DialectGenericListWriterInterface::Ptr> m_numpyArrayWriters;
+    std::vector<csp::StructFieldPtr> m_listFieldPtrs;
+    std::vector<int> m_dimIndex;
+    std::vector<std::shared_ptr<ListColumnParquetOutputHandler>> m_numpyArrayDimHandlers;
+    std::vector<csp::adapters::parquet::DialectGenericListWriterInterface::Ptr> m_numpyArrayDimWriters;
     std::shared_ptr<MyParquetWriter> m_writer;
     std::shared_ptr<arrow::Schema> m_schema;
+    std::vector<std::pair<unsigned, unsigned>> m_dimColumnMapping;
+    CspTypePtr m_outType;
 
     INIT_CPPNODE( struct_to_record_batches )
     {
@@ -534,24 +673,75 @@ DECLARE_CPPNODE( struct_to_record_batches )
         // Create Adapters for Schema
         auto field_map = properties.value() -> get<DictionaryPtr>( "field_map" );
         m_writer = std::make_shared<MyParquetWriter>( chunk_size.value() );
-        m_cspType = std::make_shared<csp::CspStructType>( cls.value() );
-        m_handler = std::make_shared<StructParquetOutputHandler>( engine(), *m_writer, m_cspType, field_map );
-        std::vector<std::shared_ptr<arrow::Field>> arrowFields;
+        m_outType = std::make_shared<csp::CspStructType>( cls.value() );
+        m_handler = std::make_shared<StructParquetOutputHandler>( engine(), *m_writer, m_outType, field_map );
+        std::vector<std::shared_ptr<arrow::Field>> arrow_fields;
         for( unsigned i = 0; i < m_handler -> getNumColumns(); i++ )
         {
-            arrowFields.push_back( arrow::field( m_handler -> getColumnArrayBuilder( i ) -> getColumnName(),
+            arrow_fields.push_back( arrow::field( m_handler -> getColumnArrayBuilder( i ) -> getColumnName(),
                                                  m_handler -> getColumnArrayBuilder( i ) -> getDataType() ) );
         }
-        m_schema = arrow::schema( arrowFields );
+        auto numpy_fields = properties.value() -> get<DictionaryPtr>( "numpy_fields" );
+        auto numpy_field_types = properties.value() -> get<DictionaryPtr>( "numpy_field_types" );
+        auto numpy_dimension_names = properties.value() -> get<DictionaryPtr>( "numpy_dimension_names" );
+        auto numpy_dimension_types = properties.value() -> get<DictionaryPtr>( "numpy_dimension_types" );
+
+        m_numpyArrayWriters.resize( numpy_fields -> size() );
+        m_numpyArrayHandlers.resize( numpy_fields -> size() );
+        m_dimIndex.resize( numpy_fields -> size() );
+        m_numpyArrayDimWriters.resize( numpy_dimension_names -> size() );
+        m_numpyArrayDimHandlers.resize( numpy_dimension_names -> size() );
+        unsigned array_idx = 0;
+        unsigned dim_array_idx = 0;
+
+        auto out_type = std::make_shared<csp::CspStructType>( cls.value() );
+        for( auto it = numpy_fields-> begin(); it != numpy_fields-> end(); ++it )
+        {
+            auto field_name = it.key();
+            auto col_name = it.value<std::string>();
+            auto field_type = numpy_field_types -> get<DialectGenericType>(field_name);
+            auto &&value_type = csp::python::pyTypeAsCspType( csp::python::toPythonBorrowed( field_type ) );
+            m_numpyArrayWriters[array_idx] = csp::python::create_numpy_array_writer_impl( value_type );
+            m_numpyArrayHandlers[array_idx] = std::make_shared<ListColumnParquetOutputHandler>( engine(), *m_writer, value_type, col_name, m_numpyArrayWriters[array_idx] );
+            m_listFieldPtrs.push_back( out_type -> meta() -> field( field_name ) );
+            arrow_fields.push_back( arrow::field( m_numpyArrayHandlers[array_idx] -> getColumnArrayBuilder( 0 ) -> getColumnName(),
+                                                  m_numpyArrayHandlers[array_idx] -> getColumnArrayBuilder( 0 ) -> getDataType() ) );
+            if( numpy_dimension_names -> exists( field_name ) )
+            {
+                auto dim_col_name = numpy_dimension_names -> get<std::string>( field_name );
+                auto dim_col_type = numpy_dimension_types -> get<DialectGenericType>( field_name );
+                auto &&dim_col_value_type = csp::python::pyTypeAsCspType( csp::python::toPythonBorrowed( dim_col_type ) );
+                m_numpyArrayDimWriters[dim_array_idx] = csp::python::create_numpy_array_writer_impl( dim_col_value_type );
+                m_numpyArrayDimHandlers[dim_array_idx] = std::make_shared<ListColumnParquetOutputHandler>( engine(), *m_writer, dim_col_value_type, dim_col_name, m_numpyArrayDimWriters[dim_array_idx] );
+                arrow_fields.push_back( arrow::field( m_numpyArrayDimHandlers[dim_array_idx] -> getColumnArrayBuilder( 0 ) -> getColumnName(),
+                                                      m_numpyArrayDimHandlers[dim_array_idx] -> getColumnArrayBuilder( 0 ) -> getDataType() ) );
+                m_dimIndex[array_idx] = dim_array_idx;
+                dim_array_idx++;
+            }
+            else
+            {
+                m_dimIndex[array_idx] = -1;
+            }
+            array_idx++;
+        }
+        m_schema = arrow::schema( arrow_fields );
     }
 
-    DialectGenericType getData( std::shared_ptr<StructParquetOutputHandler> handler, int num_rows )
+    DialectGenericType getData( int num_rows )
     {
         std::vector<std::shared_ptr<arrow::Array>> columns;
-        columns.reserve( handler -> getNumColumns() );
-        for( unsigned i = 0; i < handler -> getNumColumns(); i++ )
+        columns.reserve( m_handler -> getNumColumns() );
+        for( unsigned i = 0; i < m_handler -> getNumColumns(); i++ )
         {
-            columns.push_back( handler -> getColumnArrayBuilder( i ) -> buildArray() );
+            columns.push_back( m_handler -> getColumnArrayBuilder( i ) -> buildArray() );
+        }
+        for( unsigned i = 0; i < m_listFieldPtrs.size(); i++ )
+        {
+            columns.push_back( m_numpyArrayHandlers[i] -> getColumnArrayBuilder( 0 ) -> buildArray() );
+            if( m_dimIndex[i] != -1 )
+            {
+                columns.push_back( m_numpyArrayDimHandlers[m_dimIndex[i]] -> getColumnArrayBuilder( 0 ) -> buildArray() );
+            }
         }
         auto rb_ptr = arrow::RecordBatch::Make( m_schema, num_rows, columns );
         const arrow::RecordBatch& rb = *rb_ptr;
@@ -579,15 +769,38 @@ DECLARE_CPPNODE( struct_to_record_batches )
                 {
                     m_handler -> getColumnArrayBuilder( i ) -> handleRowFinished();
                 }
+                for( unsigned i = 0; i < m_listFieldPtrs.size(); i++ )
+                {
+                    auto& field_ptr = m_listFieldPtrs[i];
+                    if( m_dimIndex[i] != -1 )
+                    {
+                        auto& list_handler = m_numpyArrayHandlers[i];
+                        auto ndarray = field_ptr -> value<DialectGenericType>( st.get() );
+                        DialectGenericType flat_array, shape;
+                        std::tie( flat_array, shape ) = numpy_ndarray_flatten( std::move(ndarray) );
+                        list_handler -> writeValueFromArgs( flat_array );
+                        list_handler -> getColumnArrayBuilder( 0 ) -> handleRowFinished();
+
+                        auto& dim_list_handler = m_numpyArrayDimHandlers[m_dimIndex[i]];
+                        dim_list_handler -> writeValueFromArgs( shape );
+                        dim_list_handler -> getColumnArrayBuilder( 0 ) -> handleRowFinished();
+                    }
+                    else
+                    {
+                        auto& list_handler = m_numpyArrayHandlers[i];
+                        list_handler -> writeValueFromArgs( field_ptr -> value<DialectGenericType>( st.get() ) );
+                        list_handler -> getColumnArrayBuilder( 0 ) -> handleRowFinished();
+                    }
+                }
                 if( ++cur_chunk_size >= m_writer -> getChunkSize() )
                 {
-                    out.emplace_back( getData( m_handler, cur_chunk_size ) );
+                    out.emplace_back( getData( cur_chunk_size ) );
                     cur_chunk_size = 0;
                 }
             }
             if( cur_chunk_size > 0)
             {
-                out.emplace_back( getData( m_handler, cur_chunk_size ) );
+                out.emplace_back( getData( cur_chunk_size ) );
             }
         }
     }

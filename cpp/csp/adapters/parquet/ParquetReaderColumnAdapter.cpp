@@ -749,6 +749,24 @@ void BaseListColumnAdapter<ArrowListArrayType, ValueArrayType, ValueType>::addSu
                                                                << " in file " << m_parquetReader.getCurFileOrTableName() );
 }
 
+template< typename ArrowListArrayType, typename ValueArrayType, typename ValueType>
+void BaseListColumnAdapter<ArrowListArrayType, ValueArrayType, ValueType>::addSubscriber( csp::adapters::utils::ValueDispatcher<const DialectGenericType&>::SubscriberType subscriber, std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader )
+{
+    CSP_TRUE_OR_THROW_RUNTIME( m_listReader == nullptr,
+                               "Trying to subscribe list column in parquet reader more than once, this is not supported" );
+    CSP_TRUE_OR_THROW_RUNTIME( listReader != nullptr,
+                               "Trying to subscribe list column in parquet reader with null listReader" );
+    m_listReader = std::dynamic_pointer_cast<TypedDialectGenericListReaderInterface<ValueType>>( listReader );
+    CSP_TRUE_OR_THROW_RUNTIME( m_listReader != nullptr,
+                               "Subscribed to parquet column " << getColumnName() << " with type "
+                                                               << "NumpyArray[" << listReader -> getValueType() -> type().asString()
+                                                               << "] while "
+                                                               << " column type in file is NumpyArray["
+                                                               << getContainerValueType() -> type().asString() << "]"
+                                                               << " in file " << m_parquetReader.getCurFileOrTableName() );
+    m_dispatcher.addSubscriber( subscriber, symbol );
+}
+
 template< typename ArrowListArrayType, typename ValueArrayType, typename ValueType >
 void NativeListColumnAdapter<ArrowListArrayType, ValueArrayType, ValueType>::readCurValue()
 {

@@ -36,6 +36,7 @@ set(CSPIMPL_PUBLIC_HEADERS
         PyBasketInputProxy.h
         PyBasketOutputProxy.h
         PyCppNode.h
+	 PyDialectGenericListsInterface.h
         PyEngine.h
         PyInputAdapterWrapper.h
         PyInputProxy.h

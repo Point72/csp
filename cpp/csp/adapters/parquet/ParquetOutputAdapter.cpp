@@ -127,10 +127,10 @@ ListColumnParquetOutputHandler::ListColumnParquetOutputHandler( Engine *engine, 
                                                             listWriterInterface ) )
 {
     m_valueHandler = std::make_unique<ValueHandler>(
-            [ this ]( const TimeSeriesProvider *input )
+            [ this ]( const DialectGenericType& input )
             {
                 static_cast<ListColumnArrayBuilder *>(this -> m_columnArrayBuilder.get())
-                        -> setValue( input -> lastValueTyped<DialectGenericType>() );
+                        -> setValue( input );
             } );
 }
 
@@ -176,7 +176,7 @@ std::shared_ptr<::arrow::ArrayBuilder> ListColumnParquetOutputHandler::createVal
 
 void ListColumnParquetOutputAdapter::executeImpl()
 {
-    ( *m_valueHandler )( input() );
+    ( *m_valueHandler )( input() -> lastValueTyped<DialectGenericType>() );
     m_parquetWriter.scheduleEndCycleEvent();
 }
 

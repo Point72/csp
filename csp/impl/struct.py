@@ -95,19 +95,48 @@ class StructMeta(_csptypesimpl.PyStructMeta):
         from pydantic import PydanticSchemaGenerationError
         from pydantic_core import core_schema
 
+        # Add a reference to our schema for others to reference
+        ref = f"#/$defs/{cls.__name__}"
+
         fields = {}
         for field_name, field_type in cls.__full_metadata_typed__.items():
             if field_name.startswith("_"):
                 continue  # we skip fields with underscore, like pydantic does
-            try:
-                field_schema = handler.generate_schema(field_type)
-            except PydanticSchemaGenerationError:
-                # This logic allows for handling generic types with types we cant get a schema for, only 1 layer deep, same as csp
-                item_tp = typing.Any if typing.get_origin(field_type) is None else typing.get_args(field_type)[0]
+            field_schema = None
+            # Handle container types with forward refs
+            origin = typing.get_origin(field_type)
+            if origin is not None:
+                args = typing.get_args(field_type)
+
+                # Only Dict is supported for now
+                if origin in (dict, typing.Dict):
+                    key_type, value_type = args
+                    # Handle key schema
+                    try:
+                        key_schema = handler.generate_schema(key_type)
+                    except PydanticSchemaGenerationError:
+                        key_schema = core_schema.any_schema()
+
+                    # Handle value schema with possible forward ref
+                    if isinstance(value_type, str):
+                        value_schema = core_schema.definition_reference_schema(schema_ref=f"#/$defs/{value_type}")
+                    else:
+                        try:
+                            value_schema = handler.generate_schema(value_type)
+                        except Exception:
+                            value_schema = core_schema.any_schema()
+                    field_schema = core_schema.dict_schema(key_schema, value_schema)
+
+            if field_schema is None:
                 try:
-                    field_schema = handler.generate_schema(item_tp)
+                    field_schema = handler.generate_schema(field_type)
                 except PydanticSchemaGenerationError:
-                    field_schema = core_schema.any_schema()  # give up finally
+                    # This logic allows for handling generic types with types we cant get a schema for, only 1 layer deep, same as csp
+                    item_tp = typing.Any if typing.get_origin(field_type) is None else typing.get_args(field_type)[0]
+                    try:
+                        field_schema = handler.generate_schema(item_tp)
+                    except PydanticSchemaGenerationError:
+                        field_schema = core_schema.any_schema()  # give up finally
 
             if field_name in cls.__defaults__:
                 field_schema = core_schema.with_default_schema(
@@ -144,6 +173,7 @@ class StructMeta(_csptypesimpl.PyStructMeta):
         return core_schema.no_info_wrap_validator_function(
             function=create_instance,
             schema=fields_schema,
+            ref=ref,  # We need this to allow for recursive struct definitions
             serialization=core_schema.wrap_serializer_function_ser_schema(
                 function=serializer, schema=fields_schema, when_used="always"
             ),

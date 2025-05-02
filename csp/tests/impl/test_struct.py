@@ -4,7 +4,7 @@ import pickle
 import sys
 import unittest
 from datetime import date, datetime, time, timedelta
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
+from typing import Any, Dict, ForwardRef, List, Literal, Optional, Set, Tuple, Union
 
 import numpy as np
 import pytz
@@ -4212,6 +4212,48 @@ class TestCspStruct(unittest.TestCase):
         generic_field = [f for f in metadata_info["fields"] if f["fieldname"] == "generic"][0]
         self.assertEqual(typed_field["type"]["pytype"], BaseNative)
         self.assertEqual(generic_field["type"]["pytype"], None)
+
+    def test_circular_definitons(self):
+        class ParentState(csp.Struct):
+            id: int
+            child_states: Dict[int, "ChildState"]
+
+        class ChildState(csp.Struct):
+            id: int
+            # This creates the circular reference
+            parent_state: ParentState
+
+        vals = [
+            dict(id=12),
+            dict(id=12, child_states={}),
+            dict(child_states={11: dict(id=12)}),
+            dict(child_states={11: ChildState(id=11, parent_state=ParentState(id=12))}),
+        ]
+        parent_ta = ParentState.type_adapter()
+        # NOTE: We need to rebuild with force=True
+        parent_ta.rebuild(force=True)
+        for val in vals:
+            res = parent_ta.validate_python(val)
+            self.assertEqual(res, parent_ta.validate_json(parent_ta.dump_json(res)))
+
+        bad_vals = [
+            dict(child_states={"a": None}),
+            dict(id=12, child_states=[]),
+            dict(child_states={"parent_state": {"id": 12}}),
+        ]
+        for bad_val in bad_vals:
+            with self.assertRaises(ValidationError):
+                parent_ta.validate_python(bad_val)
+
+        vals = [
+            dict(id=12),
+            dict(id=11, parent_state=ParentState(id=12)),
+            dict(id=12, parent_state=dict(id=11, child_states={})),
+        ]
+        child_ta = ChildState.type_adapter()
+        for val in vals:
+            res = child_ta.validate_python(val)
+            self.assertEqual(res, child_ta.validate_json(child_ta.dump_json(res)))
 
 
 if __name__ == "__main__":

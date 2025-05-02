@@ -1127,6 +1127,33 @@ class TestTypeChecking(unittest.TestCase):
             if csp.ticked(y):
                 return sum(y) if isinstance(y, list) else y
 
+    def test_circular_reference(self):
+        class ParentState(csp.Struct):
+            id: int
+            child_states: Dict[int, "ChildState"]
+
+        class ChildState(csp.Struct):
+            id: int
+            # This creates the circular reference
+            parent_state: ParentState
+
+        @csp.node
+        def node_with_recursive_type(x: ts[ParentState], y: ChildState) -> ts[ChildState]:
+            if csp.ticked(x):
+                return ChildState(id=12, parent_state=x)
+
+        parent = ParentState(id=11, child_states={})
+        recursive_child = ChildState(id=3, parent_state=parent)
+        parent.child_states[3] = recursive_child
+        res = csp.run(
+            node_with_recursive_type,
+            x=csp.const(ParentState(id=11, child_states={})),
+            y=recursive_child,
+            starttime=datetime(2020, 2, 7, 9),
+            endtime=datetime(2020, 2, 7, 9, 1),
+        )
+        assert res[0][0][1] == ChildState(id=12, parent_state=ParentState(id=11, child_states={}))
+
 
 if __name__ == "__main__":
     unittest.main()

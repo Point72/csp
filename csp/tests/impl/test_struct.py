@@ -4213,6 +4213,19 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(typed_field["type"]["pytype"], BaseNative)
         self.assertEqual(generic_field["type"]["pytype"], None)
 
+    def test_type_adapter_inherited(self):
+        class MyStruct(csp.Struct):
+            x: int
+
+        class MyStructB(MyStruct):
+            y: str
+
+        validated_struct = MyStruct.type_adapter().validate_python(dict(x=11))
+        self.assertEqual(validated_struct, MyStruct(x=11))
+
+        validated_child_struct = MyStructB.type_adapter().validate_python(dict(y="a"))
+        self.assertEqual(validated_child_struct, MyStructB(y="a"))
+
 
 if __name__ == "__main__":
     unittest.main()

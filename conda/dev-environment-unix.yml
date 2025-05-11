@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
+ - astor
  - bison
  - brotli
  - bump-my-version

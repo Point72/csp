@@ -4,6 +4,7 @@ channels:
   - nodefaults
 dependencies:
 #  - bison  # not available on windows
+ - astor
  - brotli
  - bump-my-version
  - cmake

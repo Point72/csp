@@ -48,6 +48,8 @@ public:
     virtual void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) = 0;
     // NOTE: This API is only defined for ListType Column Adapters
     virtual void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) = 0;
+    // NOTE: This API is only used to add subscriber for ListType column adapters in cases where there is no ManagedSimInputAdapter
+    virtual void addSubscriber( csp::adapters::utils::ValueDispatcher<const DialectGenericType&>::SubscriberType subscriber, std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) = 0;
 
     virtual void dispatchValue( const utils::Symbol *symbol ) = 0;
 
@@ -124,6 +126,10 @@ public:
 
     virtual void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) override {};
     virtual void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override {};
+    virtual void addSubscriber( csp::adapters::utils::ValueDispatcher<const DialectGenericType&>::SubscriberType subscriber, std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override
+    {
+        CSP_THROW(TypeError, "Trying to add DIALECT_GENERIC subscriber on non container type");
+    }
 
     virtual void dispatchValue( const utils::Symbol *symbol ) override {};
 
@@ -172,6 +178,10 @@ public:
     void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) override;
     void addSubscriber( ManagedSimInputAdapter *inputAdapter,
                         std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override;
+    virtual void addSubscriber( csp::adapters::utils::ValueDispatcher<const DialectGenericType&>::SubscriberType subscriber, std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override
+    {
+        CSP_THROW(TypeError, "Trying to add DIALECT_GENERIC subscriber on non container type");
+    }
     void dispatchValue( const utils::Symbol *symbol ) override;
 
     void ensureType( CspType::Ptr cspType ) override;
@@ -288,9 +298,11 @@ class BaseListColumnAdapter : public BaseTypedColumnAdapter<DialectGenericType, 
 public:
     using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::BaseTypedColumnAdapter;
     using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::getColumnName;
+    using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::m_dispatcher;
     void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) override;
     void addSubscriber( ManagedSimInputAdapter *inputAdapter,
                         std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override;
+    void addSubscriber( csp::adapters::utils::ValueDispatcher<const DialectGenericType&>::SubscriberType subscriber, std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override;
     CspTypePtr getNativeCspType() const override {return nullptr;}
     bool isListType() const override{ return true; };
     CspTypePtr getContainerValueType() const override{ return CspType::fromCType<ValueType>::type(); }

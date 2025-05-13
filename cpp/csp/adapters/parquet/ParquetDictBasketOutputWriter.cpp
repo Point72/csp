@@ -20,11 +20,11 @@ void ParquetDictBasketOutputWriter::start()
     m_indexFileWriterContainer = std::make_unique<MultipleFileWriterWrapperContainer>(
             arrow::schema( { arrow::field( m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getColumnName(),
                                            m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getDataType() ) } ),
-            m_adapterMgr.isWriteArrowBinary() );
-    if( !m_adapterMgr.getFileName().empty() )
+            m_adapterMgr -> isWriteArrowBinary() );
+    if( !m_adapterMgr -> getFileName().empty() )
     {
-        m_indexFileWriterContainer -> open( m_adapterMgr.getFileName(),
-                                            m_adapterMgr.getCompression(), m_adapterMgr.isAllowOverwrite() );
+        m_indexFileWriterContainer -> open( m_adapterMgr -> getFileName(),
+                                            m_adapterMgr -> getCompression(), m_adapterMgr -> isAllowOverwrite() );
 
     }
 }
@@ -45,7 +45,7 @@ void ParquetDictBasketOutputWriter::stop()
 
 void ParquetDictBasketOutputWriter::writeValue( const std::string &valueKey, const TimeSeriesProvider *ts )
 {
-    m_adapterMgr.scheduleEndCycle();
+    m_adapterMgr -> scheduleEndCycle();
     m_symbolOutputAdapter -> writeValue<std::string, StringArrayBuilder>( valueKey );
     ParquetWriter::onEndCycle();
     ++m_nextCycleIndex;
@@ -86,7 +86,7 @@ void ParquetDictBasketOutputWriter::onFileNameChange( const std::string &fileNam
     if(!fileName.empty())
     {
         m_indexFileWriterContainer
-                -> open( fileName, m_adapterMgr.getCompression(), m_adapterMgr.isAllowOverwrite() );
+                -> open( fileName, m_adapterMgr -> getCompression(), m_adapterMgr -> isAllowOverwrite() );
     }
 
 }

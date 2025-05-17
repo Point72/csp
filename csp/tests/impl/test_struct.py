@@ -1522,20 +1522,27 @@ class TestCspStruct(unittest.TestCase):
         class MySubStruct(csp.Struct):
             i: int = 0
 
-            def postprocess_to_dict(obj):
+            def postprocess_to_dict(self, obj):
                 obj["postprocess_called"] = True
+                obj["postprocess_val"] = self.i
                 return obj
 
         class MyStruct(csp.Struct):
             i: int = 1
             mss: MySubStruct = MySubStruct()
 
-            def postprocess_to_dict(obj):
+            def postprocess_to_dict(self, obj):
                 obj["postprocess_called"] = True
+                obj["postprocess_val"] = self.i
                 return obj
 
-        test_struct = MyStruct()
-        result_dict = {"i": 1, "postprocess_called": True, "mss": {"i": 0, "postprocess_called": True}}
+        test_struct = MyStruct(i=5)
+        result_dict = {
+            "i": 5,
+            "postprocess_called": True,
+            "postprocess_val": 5,
+            "mss": {"i": 0, "postprocess_called": True, "postprocess_val": 0},
+        }
         self.assertEqual(test_struct.to_dict(), result_dict)
 
     def test_to_dict_preserve_enums(self):

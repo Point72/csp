@@ -170,10 +170,10 @@ PyObjectPtr StructToDictHelper::parseStructToDictRecursive( const StructPtr& sel
     }
 
     // Optional postprocess hook in python to allow caller to customize to_dict behavior for struct
-    PyObject * py_type = ( PyObject * ) meta -> pyType();
-    if( PyObject_HasAttrString( py_type, "postprocess_to_dict" ) )
+    auto py_struct = PyObjectPtr::own( toPython( self ) );
+    if( PyObject_HasAttrString( py_struct.get(), "postprocess_to_dict" ) )
     {
-        auto postprocess_dict_callable = PyObjectPtr::own( PyObject_GetAttrString( py_type, "postprocess_to_dict" ) );
+        auto postprocess_dict_callable = PyObjectPtr::own( PyObject_GetAttrString( py_struct.get(), "postprocess_to_dict" ) );
         new_dict = PyObjectPtr::check( PyObject_CallFunction( postprocess_dict_callable.get(), "(O)", new_dict.get() ) );
     }
     return new_dict;

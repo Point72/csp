@@ -2,7 +2,7 @@
 # Project Configuration #
 #########################
 cmake_minimum_required(VERSION 3.20.0)
-project(csp VERSION "0.9.0")
+project(csp VERSION "0.10.0")
 set(CMAKE_CXX_STANDARD 20)
 
 ###################################################################################################################################################

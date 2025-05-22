@@ -122,7 +122,7 @@ print(f"CMake Args: {cmake_args}")
 
 setup(
     name="csp",
-    version="0.9.0",
+    version="0.10.0",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,

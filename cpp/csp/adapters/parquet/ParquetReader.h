@@ -424,21 +424,28 @@ private:
     bool                 m_allowMissingFiles;
 };
 
-class InMemoryTableParquetReader final : public SingleTableParquetReader
+class InMemoryTableParquetReader : public SingleTableParquetReader
 {
 public:
     using GeneratorPtr = csp::Generator<std::shared_ptr<arrow::Table>, csp::DateTime, csp::DateTime>::Ptr;
 
     InMemoryTableParquetReader( GeneratorPtr generatorPtr, std::vector<std::string> columns,
                                 bool allowMissingColumns,
-                                std::optional<std::string> symbolColumnName = {} );
+                                std::optional<std::string> symbolColumnName = {},
+                                bool call_init = true);
     std::string getCurFileOrTableName() const override{ return "IN_MEMORY_TABLE"; }
 
 protected:
-    bool openNextFile() override;
-    bool readNextRowGroup() override;
+    virtual bool openNextFile() override;
+    virtual bool readNextRowGroup() override;
+    void setTable( std::shared_ptr<arrow::Table> table )
+    {
+        m_fullTable = table;
+        m_nextChunkIndex = 0;
+        m_curTable = nullptr;
+    }
 
-    void clear() override;
+    virtual void clear() override;
 
 private:
     GeneratorPtr                    m_generatorPtr;

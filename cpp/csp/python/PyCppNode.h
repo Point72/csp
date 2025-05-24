@@ -33,6 +33,6 @@ REGISTER_MODULE_METHOD( #Name, Name##_cppnode_create, METH_VARARGS, #Name );
 #define REGISTER_CPPNODE( Namespace, NodeName ) CPPNODE_CREATE_FWD_DECL( Namespace, NodeName ) \
     _REGISTER_CPPNODE( NodeName, Namespace::CPPNODE_CREATE_METHOD( NodeName ) )
 
-#endif
-
 }
+
+#endif

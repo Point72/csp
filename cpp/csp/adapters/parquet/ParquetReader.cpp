@@ -192,9 +192,17 @@ void SingleTableParquetReader::setColumnAdaptersFromCurrentTable()
             columnAdapter = createColumnAdapter( *this, *field, getCurFileOrTableName(), &getStructColumnMeta() );
             auto &fieldInfo = fieldsInfo[ index ];
 
-            for( std::size_t i = 0; i < fieldInfo.m_width; ++i )
+            if( isArrowIPC() )
             {
-                m_neededColumnIndices.push_back( fieldInfo.m_startColumnIndex + i );
+                // Needed for all memory tables
+                m_neededColumnIndices.push_back( index );
+            }
+            else
+            {
+                for( std::size_t i = 0; i < fieldInfo.m_width; ++i )
+                {
+                    m_neededColumnIndices.push_back( fieldInfo.m_startColumnIndex + i );
+                }
             }
         }
         else
@@ -382,10 +390,13 @@ void SingleFileParquetReader::clear()
 }
 
 InMemoryTableParquetReader::InMemoryTableParquetReader( GeneratorPtr generatorPtr, std::vector<std::string> columns,
-                                                        bool allowMissingColumns, std::optional<std::string> symbolColumnName )
+                                                        bool allowMissingColumns, std::optional<std::string> symbolColumnName, bool call_init )
         : SingleTableParquetReader( columns, true, allowMissingColumns, symbolColumnName ), m_generatorPtr( generatorPtr )
 {
-    init();
+    if( call_init )
+    {
+        init();
+    }
 }
 
 bool InMemoryTableParquetReader::openNextFile()

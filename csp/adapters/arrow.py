@@ -1,0 +1,101 @@
+from typing import Iterable, List, Tuple
+
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+import csp
+from csp.impl.types.tstype import ts
+from csp.impl.wiring import input_adapter_def
+
+__all__ = [
+    "CRecordBatchPullInputAdapter",
+    "RecordBatchPullInputAdapter",
+    "write_record_batches",
+]
+
+
+CRecordBatchPullInputAdapter = input_adapter_def(
+    "CRecordBatchPullInputAdapter",
+    csp.lib._cspimpl._record_batch_input_adapter_creator,
+    ts[List[Tuple[object, object]]],
+    arg1=str,
+    arg2=Iterable[Tuple[object, object]],
+    arg3=object,
+    arg4=bool,
+)
+"""Stream record batches using the PyCapsule C Data interface from an iterator/generator into csp
+
+Args:
+    ts_col_name: Name of the timestamp column containing timestamps in ascending order
+    source: Iterator/generator of pycapsule objects obtained by calling __arrow_c_array__() on the python record batches
+    schema: The schema of the record batches
+    expect_small_batches: Optional flag to optimize performance for scenarios where there are few rows (<10) per timestamp
+
+Returns:
+    List of pycapsule objects each corresponding to a record batch in the PyCapsule representation (similar to calling __arrow_c_array__() on a record batch)
+
+NOTE: The ascending order of the timestamp column must be enforced by the caller
+"""
+
+
+class _RecordBatchCSource:
+    def __init__(self, tup):
+        self.tup = tup
+
+    def __arrow_c_array__(self, requested_schema=None):
+        return self.tup
+
+
+@csp.graph
+def RecordBatchPullInputAdapter(
+    ts_col_name: str, source: Iterable[pa.RecordBatch], schema: pa.Schema, expect_small_batches: bool = False
+) -> csp.ts[[pa.RecordBatch]]:
+    """Stream record batches from an iterator/generator into csp
+
+    Args:
+        ts_col_name: Name of the timestamp column containing timestamps in ascending order
+        source: Iterator/generator of record batches
+        schema: The schema of the record batches
+        expect_small_batches: Optional flag to optimize performance for scenarios where there are few rows (<10) per timestamp
+
+    NOTE: The ascending order of the timestamp column must be enforced by the caller
+    """
+    # Safety checks
+    ts_col = schema.field(ts_col_name)
+    if not pa.types.is_timestamp(ts_col.type):
+        raise ValueError(f"{ts_col_name} is not a valid timestamp column in the schema")
+
+    c_source = map(lambda rb: rb.__arrow_c_array__(), source)
+    c_data = CRecordBatchPullInputAdapter(ts_col_name, c_source, schema.__arrow_c_schema__(), expect_small_batches)
+    return csp.apply(
+        c_data, lambda c_tups: [pa.record_batch(_RecordBatchCSource(c_tup)) for c_tup in c_tups], List[pa.RecordBatch]
+    )
+
+
+@csp.node
+def write_record_batches(where: str, merge_record_batches: bool, batches: csp.ts[List[pa.RecordBatch]], kwargs: dict):
+    """
+    Dump all the record batches to a parquet file
+
+    Args:
+        where: destination to write the data to
+        merge_record_batches: A flag to combine all the record batches of a single tick into a single record batch (can save some space at the cost of memory)
+        batches: The timeseries of list of record batches
+        **kwargs: additional args to pass to the ParquetWriter
+    """
+    with csp.state():
+        s_writer = None
+        s_destination = where
+        s_merge_batches = merge_record_batches
+
+    with csp.stop():
+        s_writer.close()
+
+    if csp.ticked(batches):
+        if s_merge_batches:
+            batches = [pa.concat_batches(batches)]
+
+        for batch in batches:
+            if s_writer is None:
+                s_writer = pq.ParquetWriter(s_destination, batch.schema, **kwargs)
+            s_writer.write_batch(batch)

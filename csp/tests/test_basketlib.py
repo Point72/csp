@@ -41,11 +41,15 @@ class TestBasket(unittest.TestCase):
             synced_auto_dict = basketlib.sync(
                 x={"a": random_floats1, "b": random_floats_async}, threshold=self.sync_threshold, output_incomplete=True
             )
+            synced_int_dict = basketlib.sync(
+                x={0: random_floats1, 1: random_floats_async}, threshold=self.sync_threshold, output_incomplete=True
+            )
 
             csp.add_graph_output("synced_py", synced_py[1])
             csp.add_graph_output("synced_cpp", synced_cpp[1])
             csp.add_graph_output("synced_auto_list", synced_auto_list[1])
             csp.add_graph_output("synced_auto_dict", synced_auto_dict["b"])
+            csp.add_graph_output("synced_int_dict", synced_int_dict[1])
 
         seed = time.time()
         print(f"Seeding with {seed}")
@@ -55,6 +59,7 @@ class TestBasket(unittest.TestCase):
         self.assertEqual(results["synced_py"], results["synced_cpp"])
         self.assertEqual(results["synced_py"], results["synced_auto_list"])
         self.assertEqual(results["synced_auto_list"], results["synced_auto_dict"])
+        self.assertEqual(results["synced_auto_dict"], results["synced_int_dict"])
 
     def test_basic(self):
         @csp.graph()

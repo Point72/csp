@@ -69,11 +69,12 @@ public:
 
     void pushPyTick( bool live, PyObject * time, PyObject * value, PushBatch * batch ) override
     {
+        DateTime t = fromPython<DateTime>( time );
         try
         {
             if( !validatePyType( this -> dataType(), m_pyType.ptr(), value ) )
                 CSP_THROW( TypeError, "" );
-            pushTick<T>( live, fromPython<DateTime>( time ), std::move( fromPython<T>( value, *this -> dataType() ) ), batch );
+            pushTick<T>( live, t, std::move( fromPython<T>( value, *this -> dataType() ) ), batch );
         }
         catch( const TypeError & )
         {

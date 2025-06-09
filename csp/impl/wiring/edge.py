@@ -1,3 +1,6 @@
+import inspect
+
+
 class Edge:
     __slots__ = ["tstype", "nodedef", "output_idx", "basket_idx"]
 
@@ -193,8 +196,7 @@ class Edge:
         from csp.impl.struct import Struct
 
         typ = super().__getattribute__("tstype").typ
-
-        if issubclass(typ, Struct):
+        if inspect.isclass(typ) and issubclass(typ, Struct):
             import csp
 
             elemtype = typ.metadata(typed=True).get(key)

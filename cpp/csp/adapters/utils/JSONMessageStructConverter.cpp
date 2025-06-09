@@ -11,6 +11,7 @@ using SupportedCspTypeSwitch = PartialSwitchCspType<csp::CspType::Type::BOOL,
                                                     csp::CspType::Type::INT32,
                                                     csp::CspType::Type::INT64,
                                                     csp::CspType::Type::DOUBLE,
+                                                    csp::CspType::Type::DATE,
                                                     csp::CspType::Type::DATETIME,
                                                     csp::CspType::Type::STRING,
                                                     csp::CspType::Type::ENUM,
@@ -71,6 +72,15 @@ std::string JSONMessageStructConverter::convertJSON( const char * fieldname, con
         return jValue.GetString();
     else
         CSP_THROW( TypeError, "expected STRING type for json field " << fieldname );
+}
+
+template<>
+Date JSONMessageStructConverter::convertJSON( const char * fieldname, const rapidjson::Value & jValue, Date * )
+{
+    if( jValue.IsString() )
+        return Date::fromYYYYMMDD( jValue.GetString() );
+    else
+        CSP_THROW( TypeError, "expected STRING type for json DATE field " << fieldname );
 }
 
 template<>

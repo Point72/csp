@@ -61,7 +61,7 @@ def _matrix_decomposition(matrix, now):
     U, S, Vt = np.linalg.svd(matrix)
     if not np.allclose(matrix, matrix.T):
         raise ValueError(f"{now}: covariance not symmetric")
-    if not np.allclose(U, Vt):
+    if not np.allclose(U, Vt.T):
         raise ValueError(f"{now}: covariance not positive semidefinite")
     return np.dot(U, np.sqrt(np.diag(S)), out=U)
 

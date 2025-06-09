@@ -201,6 +201,22 @@ bool StructMeta::isDerivedType( const StructMeta * derived, const StructMeta * b
     return b != nullptr;
 }
 
+const StructMeta * StructMeta::commonBase( const StructMeta * x, const StructMeta *  y )
+{
+    const StructMeta * m = x;
+    while( m && m != y )
+        m = m -> m_base.get();
+
+    if( !m )
+    {
+        m = y;
+        while( m && m != x )
+            m = m -> m_base.get();
+    }
+    return m;
+
+}
+
 void StructMeta::initialize( Struct * s ) const
 {
     //TODO optimize initialize to use default if availbel instead of constructing
@@ -231,12 +247,14 @@ void StructMeta::copyFrom( const Struct * src, Struct * dest )
     if( unlikely( src == dest ) )
         return;
 
-    if( dest -> meta() != src -> meta() && 
-        !StructMeta::isDerivedType( src -> meta(), dest -> meta() ) )
-            CSP_THROW( TypeError, "Attempting to copy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
-                       << "'. copy_from may only be used to copy from same type or derived types" );
+    const StructMeta * meta = commonBase( src -> meta(), dest -> meta() );
+    if( !meta )
+    {
+        CSP_THROW( TypeError, "Attempting to copy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
+                   << "'. copy_from may only be used to copy from struct with a common base type" );
+    }
 
-    dest -> meta() -> copyFromImpl( src, dest, false );
+    meta -> copyFromImpl( src, dest, false );
 }
 
 void StructMeta::deepcopyFrom( const Struct * src, Struct * dest )
@@ -244,12 +262,14 @@ void StructMeta::deepcopyFrom( const Struct * src, Struct * dest )
     if( unlikely( src == dest ) )
         return;
 
-    if( dest -> meta() != src -> meta() && 
-        !StructMeta::isDerivedType( src -> meta(), dest -> meta() ) )
-            CSP_THROW( TypeError, "Attempting to deepcopy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
-                       << "'. deepcopy_from may only be used to copy from same type or derived types" );
-
-    dest -> meta() -> copyFromImpl( src, dest, true );
+    const StructMeta * meta = commonBase( src -> meta(), dest -> meta() );
+    if( !meta )
+    {
+        CSP_THROW( TypeError, "Attempting to deepcopy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
+                   << "'. deepcopy_from may only be used to copy from struct with a common base type" );
+    }
+    
+    meta -> copyFromImpl( src, dest, true );
 }   
 
 void StructMeta::copyFromImpl( const Struct * src, Struct * dest, bool deepcopy ) const
@@ -291,12 +311,15 @@ void StructMeta::updateFrom( const Struct * src, Struct * dest )
     if( unlikely( src == dest ) )
         return;
 
-    if( dest -> meta() != src -> meta() && 
-        !StructMeta::isDerivedType( src -> meta(), dest -> meta() ) )
-            CSP_THROW( TypeError, "Attempting to update from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
-                       << "'. update_from may only be used to update from same type or derived types" );
+    const StructMeta * meta = commonBase( src -> meta(), dest -> meta() );
+    
+    if( !meta )
+    {
+        CSP_THROW( TypeError, "Attempting to update from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
+                   << "'. update_from may only be used to update from struct with a common base type" );
+    }
 
-    dest -> meta() -> updateFromImpl( src, dest );
+    meta -> updateFromImpl( src, dest );
 }    
 
 void StructMeta::updateFromImpl( const Struct * src, Struct * dest ) const

@@ -634,6 +634,9 @@ public:
 
     //returns true if derived == base or if derived is a derived type of base
     static bool isDerivedType( const StructMeta * derived, const StructMeta * base );
+    //Given two types x and y this will return one or the other based on which is a base class of the other.
+    //if x derives from y, returns y.  if y derives from x, returns x.  Otherwise this returns null.  NOTE this wont return a common ancestor
+    static const StructMeta * commonBase( const StructMeta * x, const StructMeta * y );
 
     template<typename T>
     std::shared_ptr<typename StructField::upcast<T>::type> getMetaField( const char * fieldname, const char * expectedtype );

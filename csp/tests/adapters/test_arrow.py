@@ -1,22 +1,12 @@
-import math
-import os
 import tempfile
-import unittest
 from datetime import datetime, timedelta
 
-import numpy
-import pandas
-import polars
-import pyarrow
 import pyarrow as pa
-import pyarrow.parquet
+import pyarrow.parquet as pq
 import pytest
-import pytz
 
 import csp
-from csp.adapters.arrow import CRecordBatchPullInputAdapter, RecordBatchPullInputAdapter, write_record_batches
-from csp.adapters.output_adapters.parquet import ParquetOutputConfig
-from csp.adapters.parquet import ParquetReader, ParquetWriter
+from csp.adapters.arrow import RecordBatchPullInputAdapter, write_record_batches
 
 _STARTTIME = datetime(2020, 1, 1, 9, 0, 0)
 
@@ -27,13 +17,18 @@ def G(ts_col_name: str, schema: pa.Schema, batches: object, expect_small: bool):
     csp.add_graph_output("data", data)
 
 
+@csp.graph
+def WB(where: str, merge: bool, batches: csp.ts[[pa.RecordBatch]]):
+    data = write_record_batches(where, merge, batches, {})
+
+
 class TestArrow:
     def make_record_batch(self, ts_col_name: str, row_size: int, ts: datetime) -> pa.RecordBatch:
         data = {
-            ts_col_name: pa.array([ts] * row_size, type=pa.timestamp("s")),
+            ts_col_name: pa.array([ts] * row_size, type=pa.timestamp("ms")),
             "name": pa.array([chr(ord("A") + idx % 26) for idx in range(row_size)]),
         }
-        schema = pa.schema([(ts_col_name, pa.timestamp("s")), ("name", pa.string())])
+        schema = pa.schema([(ts_col_name, pa.timestamp("ms")), ("name", pa.string())])
         rb = pa.RecordBatch.from_pydict(data)
         return rb.cast(schema)
 
@@ -42,141 +37,148 @@ class TestArrow:
             self.make_record_batch(ts_col_name, row_size, start + timedelta(seconds=interval * idx))
             for idx, row_size in enumerate(row_sizes)
         ]
-        return res[0].schema, res
+        return res[0].schema, res, start, start + timedelta(seconds=interval * (len(row_sizes) - 1))
 
     @pytest.mark.parametrize("small_batches", (True, False))
     def test_bad_ts_col_name(self, small_batches: bool):
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=[1])
+        schema, rbs, dt_start, dt_end = self.make_data(ts_col_name="TsCol", row_sizes=[1])
         with pytest.raises(KeyError):
-            results = csp.run(G, "NotTsCol", rbs[0], rbs[1], small_batches, starttime=_STARTTIME)
+            results = csp.run(G, "NotTsCol", schema, rbs, small_batches, starttime=_STARTTIME)
 
     @pytest.mark.parametrize("small_batches", (True, False))
     def test_bad_ts_col_type(self, small_batches: bool):
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=[1])
+        schema, rbs, dt_start, dt_end = self.make_data(ts_col_name="TsCol", row_sizes=[1])
         with pytest.raises(ValueError):
-            results = csp.run(G, "name", rbs[0], rbs[1], small_batches, starttime=_STARTTIME)
+            results = csp.run(G, "name", schema, rbs, small_batches, starttime=_STARTTIME)
 
     @pytest.mark.parametrize("small_batches", (True, False))
     def test_bad_source(self, small_batches: bool):
-        rbs = (pa.schema([("TsCol", pa.timestamp("s"))]), 1)
+        schema, rbs = (pa.schema([("TsCol", pa.timestamp("s"))]), 1)
         with pytest.raises(TypeError):
-            results = csp.run(G, "TsCol", rbs[0], rbs[1], small_batches, starttime=_STARTTIME)
+            results = csp.run(G, "TsCol", schema, rbs, small_batches, starttime=_STARTTIME)
 
     @pytest.mark.parametrize("small_batches", (True, False))
     def test_empty_rb(self, small_batches: bool):
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=[0])
-        results = csp.run(G, "TsCol", rbs[0], rbs[1], small_batches, starttime=_STARTTIME)
-        assert len(results["data"]) == 0
-
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=[0, 0, 0])
-        results = csp.run(G, "TsCol", rbs[0], rbs[1], small_batches, starttime=_STARTTIME)
-        assert len(results["data"]) == 0
-
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=[0, 0, 0, 0, 0, 0])
-        results = csp.run(G, "TsCol", rbs[0], rbs[1], small_batches, starttime=_STARTTIME)
-        assert len(results["data"]) == 0
-
-    @pytest.mark.parametrize("small_batches", (True, False))
-    def test_start_not_found(self, small_batches: bool):
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=[10])
-        results = csp.run(G, "TsCol", rbs[0], rbs[1], small_batches, starttime=_STARTTIME + timedelta(days=1))
-        assert len(results["data"]) == 0
-
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=[100, 10])
-        results = csp.run(G, "TsCol", rbs[0], rbs[1], small_batches, starttime=_STARTTIME + timedelta(days=1))
-        assert len(results["data"]) == 0
-
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=[100, 10, 1, 0, 0, 1, 2, 3, 4])
-        results = csp.run(G, "TsCol", rbs[0], rbs[1], small_batches, starttime=_STARTTIME + timedelta(days=1))
-        assert len(results["data"]) == 0
-
-    @pytest.mark.parametrize("small_batches", (True, False))
-    def test_start_found(self, small_batches: bool):
-        row_sizes = [10]
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
-        results = csp.run(G, "TsCol", rbs[0], rbs[1], small_batches, starttime=_STARTTIME + timedelta(days=-1))
-        assert len(results["data"]) == 1
-        assert results["data"][0][1] == rbs[1]
-
-        row_sizes = [10, 11]
-        rbs_prev = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes, start=_STARTTIME + timedelta(days=-1))
-        rbs_new = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
-        rbs = rbs_prev[1] + rbs_new[1]
-        results = csp.run(G, "TsCol", rbs_prev[0], rbs, small_batches, starttime=_STARTTIME)
-        assert len(results["data"]) == 2
-        for i in range(len(results["data"])):
-            assert results["data"][i][1][0].equals(rbs_new[1][i])
-
-        row_sizes = [10, 11]
-        rbs_prev = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes, start=_STARTTIME + timedelta(days=-1))
-        rbs_new = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
-        rbs = [pa.concat_batches(rbs_prev[1] + rbs_new[1])]
-        results = csp.run(G, "TsCol", rbs_prev[0], rbs, small_batches, starttime=_STARTTIME)
-        assert len(results["data"]) == 2
-        for i in range(len(results["data"])):
-            assert results["data"][i][1][0].equals(rbs_new[1][i])
-
-    @pytest.mark.parametrize("small_batches", (True, False))
-    def test_split(self, small_batches: bool):
-        row_sizes = [10]
-        rbs_multi = [self.make_data(ts_col_name="TsCol", row_sizes=row_sizes) for i in range(10)]
-        schema = rbs_multi[0][0]
-        rbs = sum([rbs_multi[i][1] for i in range(len(rbs_multi))], [])
+        schema, rbs, dt_start, dt_end = self.make_data(ts_col_name="TsCol", row_sizes=[0] * 1)
         results = csp.run(G, "TsCol", schema, rbs, small_batches, starttime=_STARTTIME)
-        results = results["data"]
-        assert len(results) == len(row_sizes)
-        assert results[0][1] == rbs
+        assert len(results["data"]) == 0
 
-        row_sizes = [10]
-        rbs_multi = [self.make_data(ts_col_name="TsCol", row_sizes=row_sizes) for i in range(10)]
-        schema = rbs_multi[0][0]
-        rbs_1 = sum([rbs_multi[i][1] for i in range(len(rbs_multi))], [])
-        rbs_multi = [
-            self.make_data(ts_col_name="TsCol", row_sizes=row_sizes, start=_STARTTIME + timedelta(minutes=1))
-            for i in range(10)
-        ]
-        rbs_2 = sum([rbs_multi[i][1] for i in range(len(rbs_multi))], [])
-        rbs = rbs_1 + rbs_2
+        schema, rbs, dt_start, dt_end = self.make_data(ts_col_name="TsCol", row_sizes=[0] * 3)
         results = csp.run(G, "TsCol", schema, rbs, small_batches, starttime=_STARTTIME)
-        results = results["data"]
-        assert len(results) == 2
-        assert results[0][1] == rbs_1
-        assert results[1][1] == rbs_2
+        assert len(results["data"]) == 0
+
+        schema, rbs, dt_start, dt_end = self.make_data(ts_col_name="TsCol", row_sizes=[0] * 4)
+        results = csp.run(G, "TsCol", schema, rbs, small_batches, starttime=_STARTTIME)
+        assert len(results["data"]) == 0
+
+        schema, rbs, dt_start, dt_end = self.make_data(ts_col_name="TsCol", row_sizes=[0] * 1024)
+        results = csp.run(G, "TsCol", schema, rbs, small_batches, starttime=_STARTTIME)
+        assert len(results["data"]) == 0
 
     @pytest.mark.parametrize("small_batches", (True, False))
-    def test_different_sizes(self, small_batches: bool):
-        row_sizes = [i for i in range(10)] + [0, 0, 0, 0] + [i for i in range(10)] + [0, 0, 0, 0]
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
-        schema = rbs[0]
-        rbs = rbs[1]
-        rbs_true = [rb for rb in rbs if len(rb)]
-        results = csp.run(G, "TsCol", schema, rbs, small_batches, starttime=_STARTTIME)
-        results = results["data"]
-        assert len(results) == len(rbs_true)
-        for i in range(len(rbs_true)):
-            assert results[i][1][0] == rbs_true[i]
-
-        row_sizes = [i for i in range(10)] + [0, 0, 0, 0] + [i for i in range(10)] + [0, 0, 0, 0]
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
-        schema = rbs[0]
-        rbs_true = [rb for rb in rbs[1] if len(rb)]
-        rbs = [pa.concat_batches(rbs[1])]
-        results = csp.run(G, "TsCol", schema, rbs, small_batches, starttime=_STARTTIME)
-        results = results["data"]
-        assert len(results) == len(rbs_true)
-        for i in range(len(rbs_true)):
-            assert results[i][1][0] == rbs_true[i]
+    @pytest.mark.parametrize("row_sizes", ([10], [100, 10], [100, 10, 1, 0, 0, 1, 2, 3, 4]))
+    @pytest.mark.parametrize("delta", (timedelta(microseconds=1), timedelta(seconds=1), timedelta(days=1)))
+    def test_start_not_found(self, small_batches: bool, row_sizes: [int], delta: timedelta):
+        schema, rbs, dt_start, dt_end = self.make_data(ts_col_name="TsCol", row_sizes=[10])
+        results = csp.run(G, "TsCol", schema, rbs, small_batches, starttime=dt_start + delta)
+        assert len(results["data"]) == 0
 
     @pytest.mark.parametrize("small_batches", (True, False))
-    def test_end_time_early(self, small_batches: bool):
-        rbs = self.make_data(ts_col_name="TsCol", row_sizes=[10])
+    @pytest.mark.parametrize("row_sizes", ([10], [100, 10], [1, 0, 2, 0, 3, 0]))
+    @pytest.mark.parametrize("row_sizes_prev", ([10], [100, 10], [1, 0, 0, 1]))
+    @pytest.mark.parametrize("delta", (timedelta(microseconds=1), timedelta(seconds=1), timedelta(days=1)))
+    def test_start_found(self, small_batches: bool, row_sizes: [int], row_sizes_prev: [int], delta: timedelta):
+        clean_row_sizes = [r for r in row_sizes if r != 0]
+        schema, rbs_prev, _, old_dt_end = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
+        schema, rbs, dt_start, dt_end = self.make_data(
+            ts_col_name="TsCol", row_sizes=row_sizes, start=old_dt_end + timedelta(days=10)
+        )
+        clean_rbs = [rb for rb in rbs if len(rb) != 0]
+        full_rbs = rbs_prev + rbs
+        results = csp.run(G, "TsCol", schema, full_rbs, small_batches, starttime=dt_start - delta)
+        assert len(results["data"]) == len(clean_row_sizes)
+        assert [len(r[1][0]) for r in results["data"]] == clean_row_sizes
+        assert [r[1][0] for r in results["data"]] == clean_rbs
+
+        results = csp.run(G, "TsCol", schema, [pa.concat_batches(full_rbs)], small_batches, starttime=dt_start - delta)
+        assert len(results["data"]) == len(clean_row_sizes)
+        assert [len(r[1][0]) for r in results["data"]] == clean_row_sizes
+        assert [r[1][0] for r in results["data"]] == clean_rbs
+
+    @pytest.mark.parametrize("small_batches", (True, False))
+    @pytest.mark.parametrize("row_sizes", ([10],))
+    @pytest.mark.parametrize("repeat", (1, 10, 100))
+    @pytest.mark.parametrize("dt_count", (1, 5))
+    def test_split(self, small_batches: bool, row_sizes: [int], repeat: int, dt_count: int):
+        schema, _, dt_start, dt_end = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
+        rbs_indivs = [[]] * dt_count
+        rbs_full = []
+        for idx in range(dt_count):
+            _data = [
+                self.make_data(ts_col_name="TsCol", row_sizes=row_sizes, start=dt_start + timedelta(seconds=idx))[1]
+                for i in range(repeat)
+            ]
+            rbs_indivs[idx] = [item for sublist in _data for item in sublist]
+            rbs_full += rbs_indivs[idx]
+        results = csp.run(G, "TsCol", schema, rbs_full, small_batches, starttime=_STARTTIME)
+        assert len(results["data"]) == len(rbs_indivs)
+        assert [len(r[1]) for r in results["data"]] == [repeat] * dt_count
+        for idx, tup in enumerate(results["data"]):
+            assert tup[1] == rbs_indivs[idx]
+
+        results = csp.run(G, "TsCol", schema, [pa.concat_batches(rbs_full)], small_batches, starttime=_STARTTIME)
+        assert len(results["data"]) == len(rbs_indivs)
+        for idx, tup in enumerate(results["data"]):
+            assert pa.Table.from_batches(tup[1]) == pa.Table.from_batches(rbs_indivs[idx])
+
+    @pytest.mark.parametrize("small_batches", (True, False))
+    @pytest.mark.parametrize("row_sizes", ([10, 0, 0, 1], [0, 1, 0, 10]))
+    def test_end_time_early(self, small_batches: bool, row_sizes: [int]):
+        schema, rbs, _, _ = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
         results = csp.run(
             G,
             "TsCol",
-            rbs[0],
-            rbs[1],
+            schema,
+            rbs,
             small_batches,
             starttime=_STARTTIME - timedelta(days=1),
             endtime=_STARTTIME - timedelta(days=1) + timedelta(seconds=1),
         )
         assert len(results["data"]) == 0
+
+    @pytest.mark.parametrize("small_batches", (True, False))
+    @pytest.mark.parametrize("seed", (1, 42, 100, 123))
+    def test_different_size_rbs(self, small_batches: bool, seed: int):
+        import random
+
+        random.seed(seed)
+        row_sizes = [random.randint(0, 100) for i in range(10000)]
+        clean_row_sizes = [r for r in row_sizes if r != 0]
+        schema, rbs, _, _ = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
+        clean_rbs = [rb for rb in rbs if len(rb) != 0]
+        results = csp.run(
+            G,
+            "TsCol",
+            schema,
+            rbs,
+            small_batches,
+            starttime=_STARTTIME,
+        )
+        assert len(results["data"]) == len(clean_row_sizes)
+        assert [len(r[1][0]) for r in results["data"]] == clean_row_sizes
+        assert [r[1][0] for r in results["data"]] == clean_rbs
+
+    @pytest.mark.parametrize("concat", (False, True))
+    @pytest.mark.parametrize("row_sizes", ([1], [10], [1, 2, 3, 4, 5]))
+    def test_write_record_batches(self, row_sizes: [int], concat: bool):
+        _, rbs, _, _ = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
+        if not concat:
+            rbs_ts = [[rb] for rb in rbs]
+        else:
+            rbs_ts = [rbs]
+        with tempfile.NamedTemporaryFile(prefix="csp_unit_tests", mode="w") as temp_file:
+            temp_file.close()
+            csp.run(WB, temp_file.name, concat, csp.unroll(csp.const(rbs_ts)), starttime=_STARTTIME)
+            res = pq.read_table(temp_file.name)
+            orig = pa.Table.from_batches(rbs)
+            assert res.equals(orig)

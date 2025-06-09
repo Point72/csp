@@ -21,12 +21,11 @@ static InputAdapter * record_batch_input_adapter_creator( csp::AdapterManager * 
         CSP_THROW( ValueError, "Source is not a valid iterator/generator of record batches" );
 
     auto tsColName = fromPython<csp::CspType::StringCType>( pyTsColName );
-
     auto cspType = pyTypeAsCspType( pyType );
+    auto source = PyObjectPtr::incref( pySource );
+    auto schema = PyObjectPtr::incref( pySchema );
 
-    auto source = csp::python::arrow::RecordBatchIterator( pySource, pySchema );
-
-    return pyengine -> engine() -> createOwnedObject<csp::python::arrow::RecordBatchInputAdapter>( cspType, std::move( tsColName ), std::move( source ), expectSmallBatches );
+    return pyengine -> engine() -> createOwnedObject<csp::python::arrow::RecordBatchInputAdapter>( cspType, std::move( schema ), std::move( tsColName ), std::move( source ), expectSmallBatches );
 }
 
 REGISTER_INPUT_ADAPTER( _record_batch_input_adapter_creator, record_batch_input_adapter_creator );

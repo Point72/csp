@@ -4,6 +4,7 @@
 #include <csp/engine/PullInputAdapter.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/Conversions.h>
+#include <csp/core/Time.h>
 #include <Python.h>
 
 #include <arrow/array.h>
@@ -12,6 +13,7 @@
 #include <arrow/type.h>
 #include <arrow/table.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 
@@ -21,34 +23,51 @@ namespace csp::python::arrow
 class RecordBatchIterator
 {
 public:
-    RecordBatchIterator( PyObject * iter, PyObject * py_schema ): m_iter( PyObjectPtr::incref( iter ) )
+    RecordBatchIterator() {}
+    RecordBatchIterator( PyObjectPtr iter, std::shared_ptr<::arrow::Schema> schema ): m_iter( std::move( iter ) ), m_schema( schema )
     {
-        // Extract the arrow schema
-        struct ArrowSchema * c_schema = reinterpret_cast<struct ArrowSchema*>( PyCapsule_GetPointer( py_schema, "arrow_schema" ) );
-        auto result = ::arrow::ImportSchema( c_schema );
-        if( !result.ok() )
-            CSP_THROW( ValueError, "Failed to load schema for record batches through the PyCapsule C Data interface: " << result.status().ToString() );
-        m_schema = std::move(result).ValueUnsafe();
     }
 
     std::shared_ptr<::arrow::RecordBatch> next()
     {
         auto py_tuple = csp::python::PyObjectPtr::own( PyIter_Next( m_iter.get() ) );
+        if( PyErr_Occurred() )
+        {
+            CSP_THROW( csp::python::PythonPassthrough, "" );
+        }
+
         if( py_tuple.get() == NULL )
         {
             // No more data in the input steam
             return nullptr;
         }
-        else
+
+        if( !PyTuple_Check( py_tuple.get() ) )
         {
-            // Extract the record batch
-            PyObject * py_array = PyTuple_GET_ITEM( py_tuple.get(), 1 );
-            struct ArrowArray * c_array = reinterpret_cast<struct ArrowArray*>( PyCapsule_GetPointer( py_array, "arrow_array" ) );
-            auto result = ::arrow::ImportRecordBatch( c_array, m_schema );
-            if( !result.ok() )
-                CSP_THROW( ValueError, "Failed to load record batches through PyCapsule C Data interface: " << result.status().ToString() );
-            return std::move(result).ValueUnsafe();
+            CSP_THROW( csp::TypeError, "Invalid arrow data, expected tuple (using the PyCapsule C interface) got " << Py_TYPE( py_tuple.get() ) -> tp_name );
         }
+
+        auto num_elems = PyTuple_Size( py_tuple.get()  );
+        if( PyErr_Occurred() )
+        {
+            CSP_THROW( csp::python::PythonPassthrough, "" );
+        }
+        if( num_elems != 2 )
+        {
+            CSP_THROW( csp::TypeError, "Invalid arrow data, expected tuple (using the PyCapsule C interface) with 2 elements got " << num_elems );
+        }
+
+        // Extract the record batch
+        PyObject * py_array = PyTuple_GetItem( py_tuple.get(), 1 );
+        if( !PyCapsule_IsValid( py_array, "arrow_array" ) )
+        {
+            CSP_THROW( csp::TypeError, "Invalid arrow data, expected tuple from the PyCapsule C interface " );
+        }
+        struct ArrowArray * c_array = reinterpret_cast<struct ArrowArray*>( PyCapsule_GetPointer( py_array, "arrow_array" ) );
+        auto result = ::arrow::ImportRecordBatch( c_array, m_schema );
+        if( !result.ok() )
+            CSP_THROW( ValueError, "Failed to load record batches through PyCapsule C Data interface: " << result.status().ToString() );
+        return std::move( result ).ValueUnsafe();
     }
 
 private:
@@ -76,118 +95,103 @@ void ReleaseArrowArrayPyCapsule( PyObject * capsule ) {
 class RecordBatchInputAdapter: public PullInputAdapter<std::vector<DialectGenericType>>
 {
 public:
-    RecordBatchInputAdapter( Engine * engine, CspTypePtr & type, std::string tsColName, RecordBatchIterator source, int expectSmallBatches )
+    RecordBatchInputAdapter( Engine * engine, CspTypePtr & type, PyObjectPtr pySchema, std::string tsColName, PyObjectPtr source, int expectSmallBatches )
         : PullInputAdapter<std::vector<DialectGenericType>>( engine, type, PushMode::LAST_VALUE ),
           m_tsColName( tsColName ),
-          m_source( source ),
           m_expectSmallBatches( expectSmallBatches != 0 ),
           m_finished( false )
     {
+        // Extract the arrow schema
+        struct ArrowSchema * c_schema = reinterpret_cast<struct ArrowSchema*>( PyCapsule_GetPointer( pySchema.get(), "arrow_schema" ) );
+        auto result = ::arrow::ImportSchema( c_schema );
+        if( !result.ok() )
+            CSP_THROW( ValueError, "Failed to load schema for record batches through the PyCapsule C Data interface: " << result.status().ToString() );
+        m_schema = std::move( result ).ValueUnsafe();
+
+        auto tsField = m_schema -> GetFieldByName( m_tsColName );
+        auto timestampType = std::static_pointer_cast<::arrow::TimestampType>( tsField -> type() );
+        switch( timestampType -> unit() )
+        {
+            case ::arrow::TimeUnit::SECOND:
+            {
+                m_multiplier = csp::NANOS_PER_SECOND;
+                break;
+            }
+            case ::arrow::TimeUnit::MILLI:
+            {
+                m_multiplier = NANOS_PER_MILLISECOND;
+                break;
+            }
+            case ::arrow::TimeUnit::MICRO:
+            {
+                m_multiplier = NANOS_PER_MICROSECOND;
+                break;
+            }
+            case ::arrow::TimeUnit::NANO:
+            {
+                m_multiplier = 1;
+                break;
+            }
+            default:
+            {
+                CSP_THROW( ValueError, "Unsupported unit type for arrow timestamp column" );
+            }
+        }
+
+        m_source = RecordBatchIterator( source, m_schema );
     }
 
-    int64_t findFirstMatchingIndex( DateTime time )
+    int64_t findFirstMatchingIndex()
     {
         // Find the first index with time equal or greater than `time`
-        auto m_numRows = m_tsArray -> length();
-        auto start_time = ( time.asNanoseconds() % m_multiplier == 0 ) ? time.asNanoseconds()/m_multiplier : time.asNanoseconds()/m_multiplier + 1;
-
         auto first_time = m_tsArray -> Value( 0 );
-        if( first_time >= start_time )
+        if( first_time >= m_startTime )
         {
+            // Early break
             return 0;
         }
 
         auto last_time = m_tsArray -> Value( m_numRows - 1 );
-        if( last_time < start_time )
+        if( last_time < m_startTime )
         {
-            return -1;
+            // Early break
+            return m_numRows;
         }
-
-        auto l = 0;
-        auto r = m_numRows-1;
-        auto mid = 0;
-        while( l <= r )
-        {
-            mid = (l + r) / 2;
-            auto mid_time = m_tsArray -> Value( mid );
-            if( mid_time < start_time )
-            {
-                auto mid_next_time = m_tsArray -> Value( mid + 1 );
-                if( mid_next_time >= start_time )
-                {
-                    break;
-                }
-                else
-                {
-                    l = mid+1;
-                }
-            }
-            else if ( mid_time > start_time )
-            {
-                r = mid - 1;
-            }
-        }
-        return mid+1;
+        auto it = std::lower_bound( m_tsArray -> begin(), m_tsArray -> end(), m_startTime );
+        return it.index();
     }
-
 
     int64_t findNextLargerTimestampIndex( int64_t start_idx )
     {
         // Find the first index with time just greater than the time at start_idx
-        int64_t res = 0;
         auto cur_time = m_tsArray -> Value( start_idx );
+        auto begin = ::arrow::TimestampArray::IteratorType( *m_tsArray, start_idx );
+        ::arrow::TimestampArray::IteratorType it;
         if( m_expectSmallBatches )
         {
-            auto idx = start_idx + 1;
-            while( idx < m_numRows && m_tsArray -> Value( idx ) == cur_time )
-            {
-                idx++;
-            }
-            res = idx;
+            auto predicate = [cur_time]( std::optional<int64_t> new_time ) -> bool { return cur_time != new_time.value(); };
+            it = std::find_if( begin, m_endIt, predicate );
         }
         else
         {
-            auto last_time = m_tsArray -> Value( m_numRows - 1 );
-            if( last_time == cur_time )
+            if( m_arrayLastTime == cur_time )
             {
                 return m_numRows;
             }
-
-            auto l = start_idx;
-            auto r = m_numRows-1;
-            auto mid = 0;
-            while( l <= r )
-            {
-                mid = (l + r) / 2;
-                auto mid_time = m_tsArray -> Value( mid );
-                if( mid_time == cur_time )
-                {
-                    auto mid_next_time = m_tsArray -> Value( mid + 1 );
-                    if( mid_next_time > cur_time )
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        l = mid+1;
-                    }
-                }
-                else if ( mid_time > cur_time )
-                {
-                    r = mid - 1;
-                }
-            }
-            res = mid+1;
+            it = std::upper_bound( begin, m_endIt, cur_time );
         }
-        return res;
+        return it.index();
     }
 
     void start( DateTime start, DateTime end ) override
     {
+        // start and end as multiples of the unit in timestamp column
+        auto start_nanos = start.asNanoseconds();
+        m_startTime = ( start_nanos % m_multiplier == 0 ) ? start_nanos / m_multiplier : start_nanos / m_multiplier + 1;
+        m_endTime = end.asNanoseconds() / m_multiplier;
+
         // Find the starting index where time >= start
-        m_endTime = end.asNanoseconds();
-        bool reachedStartTime = false;
-        while( !reachedStartTime and !m_finished )
+        while( !m_finished )
         {
             m_curRecordBatch = getNonEmptyRecordBatchFromSource();
             if( !m_curRecordBatch )
@@ -195,48 +199,18 @@ public:
                 m_finished = true;
                 continue;
             }
-            auto schema = m_curRecordBatch -> schema();
-            auto tsField = schema -> GetFieldByName( m_tsColName );
-            auto timestampType = std::static_pointer_cast<::arrow::TimestampType>( tsField -> type() );
             auto array = m_curRecordBatch -> GetColumnByName( m_tsColName );
             if( !array )
             {
-                m_finished = true;
-                continue;
+                CSP_THROW( ValueError, "Failed to get timestamp column " << m_tsColName << " from record batch " << m_curRecordBatch -> ToString() );
             }
 
             m_tsArray = std::static_pointer_cast<::arrow::TimestampArray>( array );
             m_numRows = m_tsArray -> length();
-
-            switch( timestampType -> unit() )
-            {
-                case ::arrow::TimeUnit::SECOND:
-                {
-                    m_multiplier = 1000000000;
-                    break;
-                }
-                case ::arrow::TimeUnit::MILLI:
-                {
-                    m_multiplier = 1000000;
-                    break;
-                }
-                case ::arrow::TimeUnit::MICRO:
-                {
-                    m_multiplier = 1000;
-                    break;
-                }
-                case ::arrow::TimeUnit::NANO:
-                {
-                    m_multiplier = 1;
-                    break;
-                }
-                default:
-                {
-                    CSP_THROW( ValueError, "Unsupported unit type for arrow timestamp column" );
-                }
-            }
-            m_curBatchIdx = findFirstMatchingIndex( start );
-            if( m_curBatchIdx >= 0 )
+            m_endIt = m_tsArray -> end();
+            m_arrayLastTime = m_tsArray -> Value( m_numRows - 1 );
+            m_curBatchIdx = findFirstMatchingIndex();
+            if( m_curBatchIdx < m_numRows )
             {
                 break;
             }
@@ -247,7 +221,7 @@ public:
     std::shared_ptr<::arrow::RecordBatch> getNonEmptyRecordBatchFromSource()
     {
         std::shared_ptr<::arrow::RecordBatch> rb;
-        while( ( rb = m_source.next() ) && ( rb -> num_rows() == 0) ) { continue; }
+        while( ( rb = m_source.next() ) && ( rb -> num_rows() == 0 ) ) { continue; }
         return rb;
     }
 
@@ -264,37 +238,38 @@ public:
 
     bool next( DateTime & t, std::vector<DialectGenericType> & value ) override
     {
-        m_curResult.clear();
+        std::vector<DialectGenericType> cur_result;
         bool newRecordBatch = false;
+        int64_t cur_ts = 0;
         while( !m_finished )
         {
             // Slice current record batch
             auto new_ts = m_tsArray -> Value( m_curBatchIdx );
-            if( new_ts * m_multiplier > m_endTime )
+            if( new_ts > m_endTime )
             {
                 // Past the end time
                 m_finished = true;
                 break;
             }
-            if( newRecordBatch && new_ts != m_curTs )
+            if( newRecordBatch && new_ts != cur_ts )
             {
                 // Next timestamp encountered, return the current list of record batches
-                value = m_curResult;
-                m_time = csp::DateTime::fromNanoseconds( m_curTs * m_multiplier );
-                t = m_time;
+                value = std::move( cur_result );
+                auto time = csp::DateTime::fromNanoseconds( cur_ts * m_multiplier );
+                t = std::move( time );
                 return true;
             }
-            m_curTs = new_ts;
+            cur_ts = new_ts;
             auto next_idx = findNextLargerTimestampIndex( m_curBatchIdx );
             auto slice = m_curRecordBatch -> Slice( m_curBatchIdx, next_idx - m_curBatchIdx );
-            m_curResult.emplace_back( convertRecordBatchToPython( slice ) );
+            cur_result.emplace_back( convertRecordBatchToPython( slice ) );
             m_curBatchIdx = next_idx;
             if( m_curBatchIdx != m_numRows )
             {
                 // All rows for current timestamp have been found
-                value = m_curResult;
-                m_time = csp::DateTime::fromNanoseconds( m_curTs * m_multiplier );
-                t = m_time;
+                value = std::move( cur_result );
+                auto time = csp::DateTime::fromNanoseconds( cur_ts * m_multiplier );
+                t = std::move( time );
                 return true;
             }
             // Get the next record batch
@@ -305,16 +280,23 @@ public:
                 break;
             }
             auto array = m_curRecordBatch -> GetColumnByName( m_tsColName );
+            if( !array )
+            {
+                CSP_THROW( ValueError, "Failed to get timestamp column " << m_tsColName << " from record batch " << m_curRecordBatch -> ToString() );
+            }
+
             m_tsArray = std::static_pointer_cast<::arrow::TimestampArray>( array );
             m_numRows = m_tsArray -> length();
+            m_endIt = m_tsArray -> end();
+            m_arrayLastTime = m_tsArray -> Value( m_numRows - 1 );
             m_curBatchIdx = 0;
             newRecordBatch = true;
         }
-        if( !m_curResult.empty() )
+        if( !cur_result.empty() )
         {
-            value = m_curResult;
-            m_time = csp::DateTime::fromNanoseconds( m_curTs * m_multiplier );
-            t = m_time;
+            value = std::move( cur_result );
+            auto time = csp::DateTime::fromNanoseconds( cur_ts * m_multiplier );
+            t = std::move( time );
             return true;
         }
         return false;
@@ -323,13 +305,15 @@ public:
 private:
     std::string m_tsColName;
     RecordBatchIterator m_source;
+
     int m_expectSmallBatches;
     bool m_finished;
+    std::shared_ptr<::arrow::Schema> m_schema;
     std::shared_ptr<::arrow::RecordBatch> m_curRecordBatch;
     std::shared_ptr<::arrow::TimestampArray> m_tsArray;
-    int64_t m_multiplier, m_numRows, m_curTs, m_endTime, m_curBatchIdx;
-    std::vector<DialectGenericType> m_curResult;
-    DateTime m_time;
+    ::arrow::TimestampArray::IteratorType m_endIt;
+    int64_t m_arrayLastTime;
+    int64_t m_multiplier, m_numRows, m_startTime, m_endTime, m_curBatchIdx;
 };
 
 };

@@ -59,8 +59,11 @@ int64_t scalingFromNumpyDtUnit( NPY_DATETIMEUNIT base )
 
 NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr )
 {
-    PyArray_DatetimeDTypeMetaData* dtypeMeta = (PyArray_DatetimeDTypeMetaData*)(descr -> c_metadata);
-    PyArray_DatetimeMetaData* dtMeta = &(dtypeMeta -> meta);
+    // NOTE: the use of _PyArray_LegacyDescr matches what the numpy source code does presently.
+    // PyDataType_C_METADATA(descr) does not work, e.g.
+    // PyArray_DatetimeDTypeMetaData* dtypeMeta = (PyArray_DatetimeDTypeMetaData*)(PyDataType_C_METADATA(descr));
+    PyArray_DatetimeDTypeMetaData* dtypeMeta = ( PyArray_DatetimeDTypeMetaData * ) ( ( (_PyArray_LegacyDescr *) descr ) -> c_metadata );
+    PyArray_DatetimeMetaData* dtMeta = &( dtypeMeta -> meta );
     return dtMeta -> base;
 }
 
@@ -68,7 +71,7 @@ static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> wstr_converte
 
 void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem_size_bytes )
 {
-    // strings from numpy arrays are fixed width and zero filled.  
+    // strings from numpy arrays are fixed width and zero filled.
     // if the last char is 0, can treat as null terminated, else use full width
 
     if( numpy_type == NPY_UNICODELTR)
@@ -87,7 +90,7 @@ void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem
             out = wstr_converter.to_bytes( wstr );
         }
     }
-    else if( numpy_type == NPY_STRINGLTR || numpy_type == NPY_STRINGLTR2 )
+    else if( numpy_type == NPY_STRINGLTR )
     {
         const char * const raw_value = (const char *) data;
 
@@ -120,11 +123,11 @@ void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char )
         case NPY_INTLTR:
         case NPY_UINTLTR:
         case NPY_LONGLTR:
+        case NPY_LONGLONGLTR:
             if( cspType != csp::CspType::Type::INT64 )
                 CSP_THROW( ValueError, "numpy type " << numpy_type_char << " requires int output type" );
             break;
         case NPY_ULONGLTR:
-        case NPY_LONGLONGLTR:
         case NPY_ULONGLONGLTR:
             CSP_THROW( ValueError, "numpy type " << numpy_type_char << " (int type that can't cleanly convert to long) not supported" );
         case NPY_HALFLTR:
@@ -144,7 +147,6 @@ void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char )
             // everything works as object
             break;
         case NPY_STRINGLTR:
-        case NPY_STRINGLTR2:
         case NPY_UNICODELTR:
         case NPY_CHARLTR:
             if( cspType != csp::CspType::Type::STRING )

@@ -93,9 +93,14 @@ public:
         static_cast<ColumnBuilderType *>(this -> m_columnArrayBuilder.get()) -> setValue( value );
     }
 
-    void writeValueFromTs( const TimeSeriesProvider *input ) override final
+    void writeValueFromArgs( const DialectGenericType& input )
     {
         ( *m_valueHandler )( input );
+    }
+
+    void writeValueFromTs( const TimeSeriesProvider *input ) override final
+    {
+        ( *m_valueHandler )( input -> lastValueTyped<DialectGenericType>() );
     }
 
 private:
@@ -104,7 +109,7 @@ private:
 
 
 protected :
-    using ValueHandler = std::function<void( const TimeSeriesProvider * )>;
+    using ValueHandler = std::function<void( const DialectGenericType& )>;
 
     std::unique_ptr<ValueHandler>           m_valueHandler;
     std::shared_ptr<ListColumnArrayBuilder> m_columnArrayBuilder;
@@ -151,6 +156,7 @@ public:
     }
 
     void writeValueFromTs( const TimeSeriesProvider *input ) override final;
+    void writeValueFromArgs( const StructPtr input );
 
 private:
     using ValueHandler = std::function<void( const Struct * )>;

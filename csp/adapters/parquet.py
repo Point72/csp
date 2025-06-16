@@ -1,5 +1,4 @@
 import datetime
-import io
 from importlib.metadata import PackageNotFoundError, version as get_package_version
 from typing import TypeVar
 
@@ -88,9 +87,7 @@ class ParquetReader:
             if not _CAN_READ_ARROW_BINARY:
                 raise TypeError("CSP Cannot load binary arrows derived from pyarrow versions less than 4.0.1")
             wrapped = self._filenames_gen
-            self._filenames_gen = lambda starttime, endtime: self._arrow_in_memory_table_to_buffers(
-                wrapped, starttime, endtime
-            )
+            self._filenames_gen = lambda starttime, endtime: self._arrow_c_data_interface(wrapped, starttime, endtime)
             binary_arrow = True
         self._properties = {"split_columns_to_files": split_columns_to_files}
         if symbol_column:
@@ -116,22 +113,12 @@ class ParquetReader:
         self._properties["allow_missing_files"] = allow_missing_files
 
     @classmethod
-    def _arrow_in_memory_table_to_buffers(cls, gen, startime, endtime):
-        # This is a temporary solution until we implement PyArrow in-memory suport:
-        # Currently when we try to read in c++ pyarrow structures that were created in python it crashes. We believe that the reason is difference in compilers. c++ interface is generally not portable across compilers and compiler versions. As current workaround we create a temporary files in python from in-memory tables and consume those in c++ code, this is bad and ugly apporoach.
-        # Possible solutions:
-        # 1. Try using pyarrow c interface (introduced in pyarrow 5.0.0), it doesn't seem like it's sufficient for our needs but we could try using it.
-        # 2. Compile the arrow adapter in the user environment - generally it's hard to do and is a huge opening to a bunch of issues, we should probably avoid this approach as much as possible.
-        # 3. The most "sane" solution is probably to use numpy array as intermediate layer, i.e transform pyarrow tables to arrow arrays (and pass a bunch of metadata about those arrays - to properly resolve typing). We probably won't be able to support ALL arrow types, we will limit ourselves to a reasonable set of types for which we will have to implement conversions.
+    def _arrow_c_data_interface(cls, gen, startime, endtime):
         for v in gen(startime, endtime):
             if not isinstance(v, pyarrow.Table):
                 raise TypeError(f"Expected PyTable from generator, got {type(v).__name__}")
-
-            sink = io.BytesIO()
-            with pyarrow.ipc.new_stream(sink, v.schema) as writer:
-                writer.write_table(v)
-
-            yield sink.getvalue()
+            # Use the PyCapsule C data interface to pass data zero copy
+            yield v.__arrow_c_stream__()
 
     @node
     def _reconstruct_struct_array_fields(self, s: ts["T"], fields: {str: ts[object]}, struct_typ: "T") -> ts["T"]:

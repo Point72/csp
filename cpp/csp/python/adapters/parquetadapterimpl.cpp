@@ -17,8 +17,10 @@
 #include <csp/python/PyCppNode.h>
 #include <csp/python/PyNodeWrapper.h>
 #include <csp/python/NumpyConversions.h>
+#include <arrow/c/abi.h>
+#include <arrow/c/bridge.h>
 #include <arrow/io/memory.h>
-#include <arrow/ipc/reader.h>
+#include <arrow/table.h>
 #include <locale>
 #include <codecvt>
 
@@ -156,34 +158,30 @@ public:
         {
             CSP_THROW( csp::python::PythonPassthrough, "" );
         }
-        if( nextVal == nullptr )
+        if( nextValPtr.get() == nullptr )
         {
             return false;
         }
 
-        if(!PyBytes_Check( nextVal ))
+        if( !PyCapsule_IsValid( nextValPtr.get(), "arrow_array_stream" ) )
         {
-            CSP_THROW( csp::TypeError, "Invalid arrow buffer type, expected bytes got " << Py_TYPE( nextVal ) -> tp_name );
+            CSP_THROW( csp::TypeError, "Invalid arrow data, expected PyCapsule got " << Py_TYPE( nextValPtr.get() ) -> tp_name );
         }
-        const char * data = PyBytes_AsString( nextVal );
-        if( !data )
-            CSP_THROW( csp::python::PythonPassthrough, "" );
-        auto size = PyBytes_Size(nextVal);
-        m_data = csp::python::PyObjectPtr::incref(nextVal);
-        std::shared_ptr<arrow::io::BufferReader> bufferReader = std::make_shared<arrow::io::BufferReader>(
-                reinterpret_cast<const uint8_t *>(data), size );
-        std::shared_ptr<arrow::ipc::RecordBatchStreamReader> reader = arrow::ipc::RecordBatchStreamReader::Open(bufferReader.get()).ValueOrDie();
-        auto result = reader->ToTable();
-        if (!(result.ok()))
-            CSP_THROW(csp::RuntimeException, "Failed read arrow table from buffer");
-        value = std::move(result.ValueUnsafe());
+        // Extract the record batch
+        struct ArrowArrayStream * c_stream = reinterpret_cast<struct ArrowArrayStream*>( PyCapsule_GetPointer( nextValPtr.get(), "arrow_array_stream" ) );
+        auto reader_result = arrow::ImportRecordBatchReader( c_stream );
+        if( !reader_result.ok() )
+            CSP_THROW( csp::ValueError, "Failed to load record batches through PyCapsule C Data interface: " << reader_result.status().ToString() );
+        auto reader = std::move( reader_result.ValueUnsafe() );
+        auto table_result = arrow::Table::FromRecordBatchReader( reader.get() );
+        if( !table_result.ok() )
+            CSP_THROW( csp::ValueError, "Failed to load table from record batches " << table_result.status().ToString() );
+        value = std::move( table_result.ValueUnsafe() );
         return true;
     }
 private:
     csp::python::PyObjectPtr m_wrappedGenerator;
     csp::python::PyObjectPtr m_iter;
-    // We need to keep the last buffer in memory since arrow doesn't copy it but can refer to strings in it
-    csp::python::PyObjectPtr m_data;
 };
 
 template< typename CspCType>

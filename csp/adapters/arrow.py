@@ -73,22 +73,34 @@ def RecordBatchPullInputAdapter(
 
 
 @csp.node
-def write_record_batches(where: str, merge_record_batches: bool, batches: csp.ts[List[pa.RecordBatch]], kwargs: dict):
+def write_record_batches(
+    where: str,
+    batches: csp.ts[List[pa.RecordBatch]],
+    kwargs: dict,
+    merge_record_batches: bool = False,
+    max_batch_size: int = 0,
+):
     """
     Dump all the record batches to a parquet file
 
     Args:
         where: destination to write the data to
-        merge_record_batches: A flag to combine all the record batches of a single tick into a single record batch (can save some space at the cost of memory)
         batches: The timeseries of list of record batches
-        **kwargs: additional args to pass to the ParquetWriter
+        kwargs: additional args to pass to the ParquetWriter
+        merge_record_batches: A flag to combine all the record batches in a single tick into a single record batch
+        max_batch_size: the max size of each batch to be written, combine record batches across ticks
     """
     with csp.state():
         s_writer = None
         s_destination = where
         s_merge_batches = merge_record_batches
+        s_max_batch_size = max_batch_size
+        s_prev_batch = None
+        s_prev_batch_size = 0
 
     with csp.stop():
+        if s_prev_batch:
+            s_writer.write_batch(pa.concat_batches(s_prev_batch))
         s_writer.close()
 
     if csp.ticked(batches):
@@ -96,6 +108,17 @@ def write_record_batches(where: str, merge_record_batches: bool, batches: csp.ts
             batches = [pa.concat_batches(batches)]
 
         for batch in batches:
+            if len(batch) == 0:
+                continue
             if s_writer is None:
                 s_writer = pq.ParquetWriter(s_destination, batch.schema, **kwargs)
-            s_writer.write_batch(batch)
+            if s_prev_batch is None:
+                s_prev_batch = [batch]
+                s_prev_batch_size = len(batch)
+            elif s_prev_batch_size + len(batch) > s_max_batch_size:
+                s_writer.write_batch(pa.concat_batches(s_prev_batch))
+                s_prev_batch = [batch]
+                s_prev_batch_size = len(batch)
+            else:
+                s_prev_batch += [batch]
+                s_prev_batch_size += len(batch)

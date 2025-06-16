@@ -63,11 +63,11 @@ public:
         {
             CSP_THROW( csp::TypeError, "Invalid arrow data, expected tuple from the PyCapsule C interface " );
         }
-        struct ArrowArray * c_array = reinterpret_cast<struct ArrowArray*>( PyCapsule_GetPointer( py_array, "arrow_array" ) );
+        ArrowArray * c_array = reinterpret_cast<ArrowArray*>( PyCapsule_GetPointer( py_array, "arrow_array" ) );
         auto result = ::arrow::ImportRecordBatch( c_array, m_schema );
         if( !result.ok() )
             CSP_THROW( ValueError, "Failed to load record batches through PyCapsule C Data interface: " << result.status().ToString() );
-        return std::move( result ).ValueUnsafe();
+        return result.ValueUnsafe();
     }
 
 private:
@@ -76,7 +76,7 @@ private:
 };
 
 void ReleaseArrowSchemaPyCapsule( PyObject * capsule ) {
-    struct ArrowSchema * schema = reinterpret_cast<struct ArrowSchema*>( PyCapsule_GetPointer( capsule, "arrow_schema" ) );
+    ArrowSchema * schema = reinterpret_cast<ArrowSchema*>( PyCapsule_GetPointer( capsule, "arrow_schema" ) );
     if ( schema -> release != NULL )
     {
         schema -> release( schema );
@@ -85,7 +85,7 @@ void ReleaseArrowSchemaPyCapsule( PyObject * capsule ) {
 }
 
 void ReleaseArrowArrayPyCapsule( PyObject * capsule ) {
-    struct ArrowArray * array = reinterpret_cast<struct ArrowArray*>( PyCapsule_GetPointer( capsule, "arrow_array" ) );
+    ArrowArray * array = reinterpret_cast<ArrowArray*>( PyCapsule_GetPointer( capsule, "arrow_array" ) );
     if ( array -> release != NULL ) {
         array -> release( array );
     }
@@ -95,18 +95,18 @@ void ReleaseArrowArrayPyCapsule( PyObject * capsule ) {
 class RecordBatchInputAdapter: public PullInputAdapter<std::vector<DialectGenericType>>
 {
 public:
-    RecordBatchInputAdapter( Engine * engine, CspTypePtr & type, PyObjectPtr pySchema, std::string tsColName, PyObjectPtr source, int expectSmallBatches )
+    RecordBatchInputAdapter( Engine * engine, CspTypePtr & type, PyObjectPtr pySchema, std::string tsColName, PyObjectPtr source, bool expectSmallBatches )
         : PullInputAdapter<std::vector<DialectGenericType>>( engine, type, PushMode::LAST_VALUE ),
           m_tsColName( tsColName ),
-          m_expectSmallBatches( expectSmallBatches != 0 ),
+          m_expectSmallBatches( expectSmallBatches ),
           m_finished( false )
     {
         // Extract the arrow schema
-        struct ArrowSchema * c_schema = reinterpret_cast<struct ArrowSchema*>( PyCapsule_GetPointer( pySchema.get(), "arrow_schema" ) );
+        ArrowSchema * c_schema = reinterpret_cast<ArrowSchema*>( PyCapsule_GetPointer( pySchema.get(), "arrow_schema" ) );
         auto result = ::arrow::ImportSchema( c_schema );
         if( !result.ok() )
             CSP_THROW( ValueError, "Failed to load schema for record batches through the PyCapsule C Data interface: " << result.status().ToString() );
-        m_schema = std::move( result ).ValueUnsafe();
+        m_schema = std::move( result.ValueUnsafe() );
 
         auto tsField = m_schema -> GetFieldByName( m_tsColName );
         auto timestampType = std::static_pointer_cast<::arrow::TimestampType>( tsField -> type() );
@@ -119,12 +119,12 @@ public:
             }
             case ::arrow::TimeUnit::MILLI:
             {
-                m_multiplier = NANOS_PER_MILLISECOND;
+                m_multiplier = csp::NANOS_PER_MILLISECOND;
                 break;
             }
             case ::arrow::TimeUnit::MICRO:
             {
-                m_multiplier = NANOS_PER_MICROSECOND;
+                m_multiplier = csp::NANOS_PER_MICROSECOND;
                 break;
             }
             case ::arrow::TimeUnit::NANO:
@@ -157,7 +157,17 @@ public:
             // Early break
             return m_numRows;
         }
-        auto it = std::lower_bound( m_tsArray -> begin(), m_tsArray -> end(), m_startTime );
+        ::arrow::TimestampArray::IteratorType it;
+        auto begin = ++( m_tsArray -> begin() );
+        if( m_expectSmallBatches )
+        {
+            auto predicate = [this]( std::optional<int64_t> new_time ) -> bool { return new_time.value() >= this -> m_startTime; };
+            it = std::find_if( begin, m_endIt, predicate );
+        }
+        else
+        {
+            it = std::lower_bound( begin, m_endIt, m_startTime );
+        }
         return it.index();
     }
 
@@ -181,6 +191,13 @@ public:
             it = std::upper_bound( begin, m_endIt, cur_time );
         }
         return it.index();
+    }
+
+    std::shared_ptr<::arrow::RecordBatch> getNonEmptyRecordBatchFromSource()
+    {
+        std::shared_ptr<::arrow::RecordBatch> rb;
+        while( ( rb = m_source.next() ) && ( rb -> num_rows() == 0 ) ) { continue; }
+        return rb;
     }
 
     void start( DateTime start, DateTime end ) override
@@ -218,17 +235,10 @@ public:
         PullInputAdapter<std::vector<DialectGenericType>>::start( start, end );
     }
 
-    std::shared_ptr<::arrow::RecordBatch> getNonEmptyRecordBatchFromSource()
-    {
-        std::shared_ptr<::arrow::RecordBatch> rb;
-        while( ( rb = m_source.next() ) && ( rb -> num_rows() == 0 ) ) { continue; }
-        return rb;
-    }
-
     DialectGenericType convertRecordBatchToPython( std::shared_ptr<::arrow::RecordBatch> rb )
     {
-        struct ArrowSchema* rb_schema = ( struct ArrowSchema* )malloc( sizeof( struct ArrowSchema ) );
-        struct ArrowArray* rb_array = ( struct ArrowArray* )malloc( sizeof( struct ArrowArray ) );
+        ArrowSchema* rb_schema = ( ArrowSchema* )malloc( sizeof( ArrowSchema ) );
+        ArrowArray* rb_array = ( ArrowArray* )malloc( sizeof( ArrowArray ) );
         ::arrow::Status st = ::arrow::ExportRecordBatch( *rb, rb_array, rb_schema );
         auto py_schema = csp::python::PyObjectPtr::own( PyCapsule_New( rb_schema, "arrow_schema", ReleaseArrowSchemaPyCapsule ) );
         auto py_array = csp::python::PyObjectPtr::own( PyCapsule_New( rb_array, "arrow_array", ReleaseArrowArrayPyCapsule ) );
@@ -255,8 +265,7 @@ public:
             {
                 // Next timestamp encountered, return the current list of record batches
                 value = std::move( cur_result );
-                auto time = csp::DateTime::fromNanoseconds( cur_ts * m_multiplier );
-                t = std::move( time );
+                t = csp::DateTime::fromNanoseconds( cur_ts * m_multiplier );;
                 return true;
             }
             cur_ts = new_ts;
@@ -268,8 +277,7 @@ public:
             {
                 // All rows for current timestamp have been found
                 value = std::move( cur_result );
-                auto time = csp::DateTime::fromNanoseconds( cur_ts * m_multiplier );
-                t = std::move( time );
+                t = csp::DateTime::fromNanoseconds( cur_ts * m_multiplier );;
                 return true;
             }
             // Get the next record batch
@@ -295,8 +303,7 @@ public:
         if( !cur_result.empty() )
         {
             value = std::move( cur_result );
-            auto time = csp::DateTime::fromNanoseconds( cur_ts * m_multiplier );
-            t = std::move( time );
+            t = csp::DateTime::fromNanoseconds( cur_ts * m_multiplier );;
             return true;
         }
         return false;

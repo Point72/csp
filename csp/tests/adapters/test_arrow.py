@@ -18,8 +18,8 @@ def G(ts_col_name: str, schema: pa.Schema, batches: object, expect_small: bool):
 
 
 @csp.graph
-def WB(where: str, merge: bool, batches: csp.ts[[pa.RecordBatch]]):
-    data = write_record_batches(where, merge, batches, {})
+def WB(where: str, merge: bool, batch_size: int, batches: csp.ts[[pa.RecordBatch]]):
+    data = write_record_batches(where, batches, {}, merge, batch_size)
 
 
 class TestArrow:
@@ -170,7 +170,8 @@ class TestArrow:
 
     @pytest.mark.parametrize("concat", (False, True))
     @pytest.mark.parametrize("row_sizes", ([1], [10], [1, 2, 3, 4, 5]))
-    def test_write_record_batches(self, row_sizes: [int], concat: bool):
+    @pytest.mark.parametrize("batch_size", (1, 5, 10))
+    def test_write_record_batches(self, row_sizes: [int], concat: bool, batch_size: int):
         _, rbs, _, _ = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
         if not concat:
             rbs_ts = [[rb] for rb in rbs]
@@ -178,7 +179,52 @@ class TestArrow:
             rbs_ts = [rbs]
         with tempfile.NamedTemporaryFile(prefix="csp_unit_tests", mode="w") as temp_file:
             temp_file.close()
-            csp.run(WB, temp_file.name, concat, csp.unroll(csp.const(rbs_ts)), starttime=_STARTTIME)
+            csp.run(WB, temp_file.name, concat, batch_size, csp.unroll(csp.const(rbs_ts)), starttime=_STARTTIME)
             res = pq.read_table(temp_file.name)
             orig = pa.Table.from_batches(rbs)
             assert res.equals(orig)
+
+    @pytest.mark.parametrize("concat", (False, True))
+    @pytest.mark.parametrize("row_sizes", ([1], [10], [1, 2, 3, 4, 5]))
+    def test_write_record_batches_concat(self, row_sizes: [int], concat: bool):
+        _, rbs, _, _ = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
+        if not concat:
+            rbs_ts = [[rb] for rb in rbs]
+        else:
+            rbs_ts = [rbs]
+        with tempfile.NamedTemporaryFile(prefix="csp_unit_tests", mode="w") as temp_file:
+            temp_file.close()
+            csp.run(WB, temp_file.name, concat, 0, csp.unroll(csp.const(rbs_ts)), starttime=_STARTTIME)
+            res = pq.read_table(temp_file.name)
+            orig = pa.Table.from_batches(rbs)
+            assert res.equals(orig)
+            if not concat:
+                rbs_ts_expected = [rb[0] for rb in rbs_ts]
+            else:
+                rbs_ts_expected = [pa.concat_batches(rbs_ts[0])]
+            assert rbs_ts_expected == res.to_batches()
+
+    def test_write_record_batches_batch_sizes(self):
+        row_sizes = [10] * 10
+        _, rbs, _, _ = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
+        rbs_ts = [rbs]
+        with tempfile.NamedTemporaryFile(prefix="csp_unit_tests", mode="w") as temp_file:
+            temp_file.close()
+            csp.run(WB, temp_file.name, False, 20, csp.unroll(csp.const(rbs_ts)), starttime=_STARTTIME)
+            res = pq.read_table(temp_file.name)
+            orig = pa.Table.from_batches(rbs)
+            assert res.equals(orig)
+            rbs_ts_expected = [pa.concat_batches(rbs[2 * i : 2 * i + 2]) for i in range(5)]
+            assert rbs_ts_expected == res.to_batches()
+
+        row_sizes = [10] * 10
+        _, rbs, _, _ = self.make_data(ts_col_name="TsCol", row_sizes=row_sizes)
+        rbs_ts = [rbs]
+        with tempfile.NamedTemporaryFile(prefix="csp_unit_tests", mode="w") as temp_file:
+            temp_file.close()
+            csp.run(WB, temp_file.name, False, 30, csp.unroll(csp.const(rbs_ts)), starttime=_STARTTIME)
+            res = pq.read_table(temp_file.name)
+            orig = pa.Table.from_batches(rbs)
+            assert res.equals(orig)
+            rbs_ts_expected = [pa.concat_batches(rbs[3 * i : 3 * i + 3]) for i in range(4)]
+            assert rbs_ts_expected == res.to_batches()

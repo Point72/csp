@@ -25,7 +25,7 @@ static InputAdapter * record_batch_input_adapter_creator( csp::AdapterManager * 
     auto source = PyObjectPtr::incref( pySource );
     auto schema = PyObjectPtr::incref( pySchema );
 
-    return pyengine -> engine() -> createOwnedObject<csp::python::arrow::RecordBatchInputAdapter>( cspType, std::move( schema ), std::move( tsColName ), std::move( source ), expectSmallBatches );
+    return pyengine -> engine() -> createOwnedObject<csp::python::arrow::RecordBatchInputAdapter>( cspType, std::move( schema ), std::move( tsColName ), std::move( source ), expectSmallBatches != 0 );
 }
 
 REGISTER_INPUT_ADAPTER( _record_batch_input_adapter_creator, record_batch_input_adapter_creator );

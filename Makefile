@@ -204,7 +204,7 @@ dependencies-vcpkg:  ## install dependencies via vcpkg
 
 dependencies-win:  ## install dependencies via windows
 	choco install cmake --version=3.31.6 --allow-downgrade
-	choco install curl winflexbison ninja unzip zip --no-progress -y
+	choco install curl winflexbison ninja unzip --no-progress -y
 
 ############################################################################################
 # Thanks to Francoise at marmelab.com for this

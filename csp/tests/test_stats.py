@@ -3599,6 +3599,36 @@ class TestStats(unittest.TestCase):
         self.assertTrue(pd.Series(res["kurt"][1]).isna().all())
         self.assertTrue(pd.Series(res["corr"][1]).isna().all())
 
+    def test_ema_cov_horizon_bug(self):
+        # Bug in finite horizon, adjusted, unbiased EMA covariance with ignore_na=True
+        # Also applies to ema_var/ema_std as well, as they use cov
+        # When the first data points are NaN, after the initial NaN is removed the next value that is removed has the wrong lookback weight applied to it
+
+        st = datetime(2020, 1, 1)
+        N = 15
+        K = 3
+        horizon = 10
+        alpha = 0.1
+        values = [np.nan if i < K else float(i) for i in range(N)]
+
+        @csp.graph
+        def g():
+            x = csp.curve(
+                typ=float, data=[(st + timedelta(seconds=i), values[i]) for i in range(N)]
+            )  # start with some NaNs
+            ema_std = csp.stats.ema_std(x, alpha=alpha, adjust=True, bias=False, ignore_na=True, horizon=horizon)
+            csp.add_graph_output("ema_std", ema_std)
+
+        res = csp.run(g, starttime=st, endtime=timedelta(seconds=N), output_numpy=True)
+
+        golden_ema_std = np.array(
+            [
+                pd.Series(values[max(0, j - horizon + 1) : j + 1]).ewm(alpha=alpha, ignore_na=True).std().iloc[-1]
+                for j in range(N)
+            ]
+        )
+        np.testing.assert_allclose(res["ema_std"][1], golden_ema_std, atol=1e-10)
+
 
 if __name__ == "__main__":
     unittest.main()

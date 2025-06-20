@@ -1597,38 +1597,43 @@ class AlphaDebiasEMA
 
         AlphaDebiasEMA & operator=( AlphaDebiasEMA && rhs ) = default;
 
+        
         void add( double x )
         {
-            if( m_first && likely( !isnan( x ) ) )
+            if( likely( !isnan( x ) ) )
             {
-                m_wsum = 1;
-                m_sqsum = 1;
-                m_first = false;
-            }
-            else if( likely( !isnan( x ) ) )
-            {
-                double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
-                m_wsum *= decay_factor;
-                m_sqsum *= decay_factor * decay_factor;
-                m_offset = 1;
-
-                double w0;
-                if( m_adjust )
-                    w0 = 1.0;
-                else
-                    w0 = 1 - m_decay;
-                m_sqsum += w0 * w0;
-                m_wsum += w0;
-                if( !m_adjust )
+                if( unlikely( m_first ) )
                 {
-                    double correction = decay_factor + w0;
-                    m_wsum /= correction;
-                    m_sqsum /= ( correction * correction );
+                    m_wsum = 1;
+                    m_sqsum = 1;
+                    m_first = false;
+                }
+                else
+                {
+                    double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
+                    m_wsum *= decay_factor;
+                    m_sqsum *= decay_factor * decay_factor;
+                    m_offset = 1;
+
+                    double w0;
+                    if( m_adjust )
+                        w0 = 1.0;
+                    else
+                        w0 = 1 - m_decay;
+                    m_sqsum += w0 * w0;
+                    m_wsum += w0;
+                    if( !m_adjust )
+                    {
+                        double correction = decay_factor + w0;
+                        m_wsum /= correction;
+                        m_sqsum /= ( correction * correction );
+                    }
                 }
             }
-            else if ( likely( !m_first ) )
+            else
             {
-                m_offset++;
+                if( likely( !m_first ) )
+                    m_offset++;
                 m_nan_count++;
             }
         }

@@ -196,7 +196,7 @@ jobs:
             - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
             - macos-13 # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
-            - windows-2019 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2019-Readme.md
+            - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
             - "3.9"
             - "3.10"
@@ -250,15 +250,15 @@ jobs:
 
             # Avoid extra resources for windows build
             - is-full-run: false
-              os: windows-2019
+              os: windows-2022
               python-version: "3.9"
 
             - is-full-run: false
-              os: windows-2019
+              os: windows-2022
               python-version: "3.10"
 
             - is-full-run: false
-              os: windows-2019
+              os: windows-2022
               python-version: "3.11"
 
             # avoid unnecessary use of mac resources
@@ -328,14 +328,14 @@ jobs:
 
         ##########
         # Windows
-        - name: Python Build Steps (Windows 2019)
+        - name: Python Build Steps (Windows 2022)
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-win_amd64"
-            CSP_GENERATOR: "Visual Studio 16 2019"
+            CSP_GENERATOR: "Visual Studio 17 2022"
             VCPKG_DEFAULT_BINARY_CACHE: C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_cache
             VCPKG_DOWNLOADS: C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_download_cache
-          if: ${{ matrix.os == 'windows-2019' }}
+          if: ${{ matrix.os == 'windows-2022' }}
 
         ##########
         # Common
@@ -433,7 +433,7 @@ jobs:
             - ubuntu-24.04
             - macos-13
             - macos-14
-            - windows-2019
+            - windows-2022
           python-version:
             - 3.9
             - "3.10"
@@ -451,15 +451,15 @@ jobs:
 
             # Avoid extra resources for windows build
             - is-full-run: false
-              os: windows-2019
+              os: windows-2022
               python-version: "3.9"
 
             - is-full-run: false
-              os: windows-2019
+              os: windows-2022
               python-version: "3.10"
 
             - is-full-run: false
-              os: windows-2019
+              os: windows-2022
               python-version: "3.11"
 
             # avoid unnecessary use of mac resources

@@ -3599,6 +3599,47 @@ class TestStats(unittest.TestCase):
         self.assertTrue(pd.Series(res["kurt"][1]).isna().all())
         self.assertTrue(pd.Series(res["corr"][1]).isna().all())
 
+    def test_allow_non_overlapping_bivariate(self):
+        st = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g(allow_non_overlapping: bool):
+            x = csp.curve(
+                typ=float,
+                data=[
+                    (datetime(2020, 1, 1), 1),
+                    (datetime(2020, 1, 2), 2),
+                    (datetime(2020, 1, 4), 4),  # discarded
+                    (datetime(2020, 1, 6), 6),  # discarded
+                    (datetime(2020, 1, 7), 7),
+                ],
+            )
+            y = csp.curve(
+                typ=float,
+                data=[
+                    (datetime(2020, 1, 1), 1),
+                    (datetime(2020, 1, 2), 2),
+                    (datetime(2020, 1, 3), -1),  # discarded
+                    (datetime(2020, 1, 5), -2),  # discarded
+                    (datetime(2020, 1, 7), 7),
+                ],
+            )
+            cov = csp.stats.cov(x, y, 5, 1, allow_non_overlapping=allow_non_overlapping)
+            corr = csp.stats.corr(x, y, 5, 1, allow_non_overlapping=allow_non_overlapping)
+            ema_cov = csp.stats.ema_cov(x, y, 1, alpha=0.1, allow_non_overlapping=allow_non_overlapping)
+            csp.add_graph_output("cov", cov)
+            csp.add_graph_output("corr", corr)
+            csp.add_graph_output("ema_cov", ema_cov)
+
+        res = csp.run(g, True, starttime=st, endtime=timedelta(days=8), output_numpy=True)
+        for output in res.values():
+            # Convert expected datetimes to the same type as output
+            expected_dates = pd.to_datetime([datetime(2020, 1, i) for i in (1, 2, 7)])
+            np.testing.assert_array_equal(output[0], expected_dates.values)
+
+        # Additional sanity check is that correlation should be 1 as middle ticks are ignored
+        np.testing.assert_allclose(res["corr"][1], np.array([np.nan, 1.0, 1.0]), equal_nan=True)
+
     def test_ema_cov_horizon_bug(self):
         # Bug in finite horizon, adjusted, unbiased EMA covariance with ignore_na=True
         # Also applies to ema_var/ema_std as well, as they use cov

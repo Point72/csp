@@ -31,6 +31,7 @@ class FileWriterWrapperContainer;
 class ParquetWriter : public EndCycleListener
 {
 public:
+    ParquetWriter();
     ParquetWriter( ParquetOutputAdapterManager *mgr, std::optional<bool> writeTimestampColumn = {} );
     ParquetWriter( ParquetOutputAdapterManager *mgr, const Dictionary & properties );
 
@@ -53,11 +54,11 @@ public:
 
     void onEndCycle() override;
 
-    std::uint32_t getChunkSize() const{ return m_adapterMgr.getBatchSize(); }
+    virtual std::uint32_t getChunkSize() const{ return m_adapterMgr -> getBatchSize(); }
 
     virtual void scheduleEndCycleEvent()
     {
-        m_adapterMgr.scheduleEndCycle();
+        m_adapterMgr -> scheduleEndCycle();
     }
 
     bool isFileOpen() const;
@@ -76,7 +77,7 @@ protected:
     using Adapters = std::vector<ParquetOutputHandler *>;
     using PublishedColumnNames = std::unordered_set<std::string>;
 
-    ParquetOutputAdapterManager &m_adapterMgr;
+    ParquetOutputAdapterManager *m_adapterMgr;
     Engine                      *m_engine;
 private:
     Adapters             m_adapters;

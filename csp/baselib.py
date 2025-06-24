@@ -5,9 +5,10 @@ import math
 import queue
 import threading
 from datetime import datetime, timedelta
-from typing import Callable, Dict, List, Optional, TypeVar, Union
+from typing import Callable, Dict, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
+import pyarrow as pa
 import pytz
 
 import csp
@@ -15,6 +16,7 @@ from csp.impl.__cspimpl import _cspimpl
 from csp.impl.constants import UNSET
 from csp.impl.types.common_definitions import OutputBasket, Outputs
 from csp.impl.types.tstype import ts
+from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring import DelayedEdge, Edge, OutputsContainer, graph, input_adapter_def, node
 from csp.impl.wiring.delayed_node import DelayedNodeWrapperDef
 from csp.lib import _cspbaselibimpl
@@ -62,6 +64,8 @@ __all__ = [
     "times_ns",
     "unroll",
     "wrap_feedback",
+    "record_batches_to_struct",
+    "struct_to_record_batches",
 ]
 
 T = TypeVar("T")
@@ -620,6 +624,129 @@ def accum(x: ts["T"], start: "~T" = 0) -> ts["T"]:
     if csp.ticked(x):
         s_accum += x
         return s_accum
+
+
+@node(cppimpl=_cspbaselibimpl.struct_to_record_batches)
+def _struct_to_record_batches(
+    schema_ptr: object,
+    cls: "T",
+    properties: dict,
+    chunk_size: int,
+    data: ts[List["T"]],
+) -> ts[List[Tuple[object, object]]]:
+    raise NotImplementedError("No python implementation of exprtk_impl")
+    return None
+
+
+class _ArrowDummy:
+    def __init__(self, tup):
+        self.tup = tup
+
+    def __arrow_c_array__(self, requested_schema=None):
+        return self.tup
+
+
+@graph
+def struct_to_record_batches(
+    schema_ptr: pa.Schema, cls: "T", properties: dict, chunk_size: int, data: ts[List["T"]]
+) -> ts[List[pa.RecordBatch]]:
+    field_map = properties["field_map"]
+    numpy_dimensions_column_map = properties.get("numpy_dimensions_column_map", {})
+    meta_typed = cls.metadata(typed=True)
+    new_field_map = {}
+    numpy_fields = {}
+    numpy_field_types = {}
+    numpy_dimension_names = {}
+    numpy_dimension_types = {}
+    for struct_field_name, arrow_field_name in field_map.items():
+        field_typ = meta_typed[struct_field_name]
+        if CspTypingUtils.is_numpy_array_type(field_typ):
+            value_type = field_typ.__args__[0]
+            if CspTypingUtils.get_origin(field_typ) is csp.typing.NumpyNDArray:
+                from csp.adapters.output_adapters.parquet import resolve_array_shape_column_name as get_dim_col_name
+
+                array_dimensions_column_name = get_dim_col_name(
+                    arrow_field_name, numpy_dimensions_column_map.get(arrow_field_name, None)
+                )
+                numpy_fields[arrow_field_name] = struct_field_name
+                numpy_field_types[arrow_field_name] = value_type
+                numpy_dimension_names[arrow_field_name] = array_dimensions_column_name
+                numpy_dimension_types[arrow_field_name] = int
+            else:
+                numpy_fields[arrow_field_name] = struct_field_name
+                numpy_field_types[arrow_field_name] = value_type
+        else:
+            new_field_map[arrow_field_name] = struct_field_name
+    properties["field_map"] = new_field_map
+    properties["numpy_fields"] = numpy_fields
+    properties["numpy_field_types"] = numpy_field_types
+    properties["numpy_dimension_names"] = numpy_dimension_names
+    properties["numpy_dimension_types"] = numpy_dimension_types
+
+    tups = _struct_to_record_batches(
+        schema_ptr.__arrow_c_schema__(),
+        cls,
+        properties,
+        chunk_size,
+        data,
+    )
+    return apply(tups, lambda tups: [pa.record_batch(_ArrowDummy(tup)) for tup in tups], List[pa.RecordBatch])
+
+
+@node(cppimpl=_cspbaselibimpl.record_batches_to_struct)
+def _record_batches_to_struct(
+    schema_ptr: object,
+    cls: "T",
+    properties: dict,
+    data: ts[List[Tuple[object, object]]],
+) -> ts[List["T"]]:
+    raise NotImplementedError("No python implementation of exprtk_impl")
+    return None
+
+
+@graph
+def record_batches_to_struct(
+    schema_ptr: pa.Schema, cls: "T", properties: dict, data: ts[List[pa.RecordBatch]]
+) -> ts[List["T"]]:
+    field_map = properties["field_map"]
+    numpy_dimensions_column_map = properties.get("numpy_dimensions_column_map", {})
+    meta_typed = cls.metadata(typed=True)
+    new_field_map = {}
+    numpy_fields = {}
+    numpy_field_types = {}
+    numpy_dimension_names = {}
+    numpy_dimension_types = {}
+    for arrow_field_name, struct_field_name in field_map.items():
+        field_typ = meta_typed[struct_field_name]
+        if CspTypingUtils.is_numpy_array_type(field_typ):
+            value_type = field_typ.__args__[0]
+            if CspTypingUtils.get_origin(field_typ) is csp.typing.NumpyNDArray:
+                from csp.adapters.output_adapters.parquet import resolve_array_shape_column_name as get_dim_col_name
+
+                array_dimensions_column_name = get_dim_col_name(
+                    arrow_field_name, numpy_dimensions_column_map.get(arrow_field_name, None)
+                )
+                numpy_fields[arrow_field_name] = struct_field_name
+                numpy_field_types[arrow_field_name] = value_type
+                numpy_dimension_names[arrow_field_name] = array_dimensions_column_name
+                numpy_dimension_types[arrow_field_name] = int
+            else:
+                numpy_fields[arrow_field_name] = struct_field_name
+                numpy_field_types[arrow_field_name] = value_type
+        else:
+            new_field_map[arrow_field_name] = struct_field_name
+    properties["field_map"] = new_field_map
+    properties["numpy_fields"] = numpy_fields
+    properties["numpy_field_types"] = numpy_field_types
+    properties["numpy_dimension_names"] = numpy_dimension_names
+    properties["numpy_dimension_types"] = numpy_dimension_types
+
+    return _record_batches_to_struct(
+        schema_ptr.__arrow_c_schema__(),
+        cls,
+        properties,
+        apply(data, lambda rbs: [rb.__arrow_c_array__() for rb in rbs], List[Tuple[object, object]]),
+    )
 
 
 @node(cppimpl=_cspbaselibimpl.exprtk_impl)

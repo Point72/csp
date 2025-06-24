@@ -13,8 +13,12 @@
 namespace csp::adapters::parquet
 {
 
+ParquetWriter::ParquetWriter()
+        : m_adapterMgr( nullptr ), m_engine( nullptr ), m_curChunkSize( 0 ), m_writeTimestampColumn( std::optional<bool>{} )
+{}
+
 ParquetWriter::ParquetWriter( ParquetOutputAdapterManager *mgr, std::optional<bool> writeTimestampColumn )
-        : m_adapterMgr( *mgr ), m_engine( mgr -> engine() ), m_curChunkSize( 0 ), m_writeTimestampColumn( writeTimestampColumn )
+        : m_adapterMgr( mgr ), m_engine( mgr -> engine() ), m_curChunkSize( 0 ), m_writeTimestampColumn( writeTimestampColumn )
 {}
 
 ParquetWriter::ParquetWriter( ParquetOutputAdapterManager *mgr, const Dictionary & properties ) : ParquetWriter( mgr, std::optional<bool>{} )
@@ -128,12 +132,12 @@ PushInputAdapter *ParquetWriter::getStatusAdapter()
 void ParquetWriter::start()
 {
     std::vector<std::shared_ptr<arrow::Field>> arrowFields;
-    if( !m_writeTimestampColumn.has_value() && !m_adapterMgr.getTimestampColumnName().empty() )
+    if( !m_writeTimestampColumn.has_value() && !m_adapterMgr -> getTimestampColumnName().empty() )
     {
         m_writeTimestampColumn = true;
-        m_columnBuilders.push_back( std::make_shared<DatetimeArrayBuilder>( m_adapterMgr.getTimestampColumnName(), getChunkSize() ) );
+        m_columnBuilders.push_back( std::make_shared<DatetimeArrayBuilder>( m_adapterMgr -> getTimestampColumnName(), getChunkSize() ) );
         std::shared_ptr<arrow::KeyValueMetadata> colMetaData;
-        auto colMetaIt = m_columnMetaData.find( m_adapterMgr.getTimestampColumnName() );
+        auto colMetaIt = m_columnMetaData.find( m_adapterMgr -> getTimestampColumnName() );
         if( colMetaIt != m_columnMetaData.end() )
         {
             colMetaData = colMetaIt -> second;
@@ -141,7 +145,7 @@ void ParquetWriter::start()
         }
 
         arrowFields.push_back(
-            arrow::field( m_adapterMgr.getTimestampColumnName(), m_columnBuilders.back() -> getDataType(), colMetaData ) );
+            arrow::field( m_adapterMgr -> getTimestampColumnName(), m_columnBuilders.back() -> getDataType(), colMetaData ) );
     }
     else
     {
@@ -194,7 +198,7 @@ void ParquetWriter::onEndCycle()
         if( m_writeTimestampColumn.value() )
         {
             // Set the timestamp value it's always the first
-            now = m_adapterMgr.rootEngine() -> now();
+            now = m_adapterMgr -> rootEngine() -> now();
             static_cast<DatetimeArrayBuilder *>(m_columnBuilders[ 0 ].get()) -> setValue( now );
         }
         for( auto &&columnBuilder:m_columnBuilders )
@@ -221,7 +225,7 @@ void ParquetWriter::onFileNameChange( const std::string &fileName )
     if( !fileName.empty() )
     {
         m_fileWriterWrapperContainer
-                -> open( fileName, m_adapterMgr.getCompression(), m_adapterMgr.isAllowOverwrite() );
+                -> open( fileName, m_adapterMgr -> getCompression(), m_adapterMgr -> isAllowOverwrite() );
     }
 }
 
@@ -245,20 +249,20 @@ StructParquetOutputHandler *ParquetWriter::createStructOutputHandler( CspTypePtr
 
 void ParquetWriter::initFileWriterContainer( std::shared_ptr<arrow::Schema> schema )
 {
-    if( m_adapterMgr.isSplitColumnsToFiles() )
+    if( m_adapterMgr -> isSplitColumnsToFiles() )
     {
         m_fileWriterWrapperContainer = std::make_unique<MultipleFileWriterWrapperContainer>( schema,
-                                                                                             m_adapterMgr.isWriteArrowBinary() );
+                                                                                             m_adapterMgr -> isWriteArrowBinary() );
     }
     else
     {
         m_fileWriterWrapperContainer = std::make_unique<SingleFileWriterWrapperContainer>( schema,
-                                                                                           m_adapterMgr.isWriteArrowBinary() );
+                                                                                           m_adapterMgr -> isWriteArrowBinary() );
     }
-    if( !m_adapterMgr.getFileName().empty() )
+    if( !m_adapterMgr -> getFileName().empty() )
     {
-        m_fileWriterWrapperContainer -> open( m_adapterMgr.getFileName(),
-                                              m_adapterMgr.getCompression(), m_adapterMgr.isAllowOverwrite() );
+        m_fileWriterWrapperContainer -> open( m_adapterMgr -> getFileName(),
+                                              m_adapterMgr -> getCompression(), m_adapterMgr -> isAllowOverwrite() );
     }
 }
 

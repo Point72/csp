@@ -397,6 +397,21 @@ class Variance
         void add( double x )
         {
             m_count++;
+            // Track consecutive same values (pandas approach)
+            if( m_count == 1 )
+            {
+                m_lastValue = x;
+                m_consecutiveSameCount = 1;
+            }
+            else if( x == m_lastValue )
+            {
+                m_consecutiveSameCount++;
+            }
+            else
+            {
+                m_lastValue = x;
+                m_consecutiveSameCount = 1;
+            }
             m_dx = x - m_mean;
             m_mean += m_dx / m_count;
             m_unnormVar += ( x - m_mean ) * m_dx;
@@ -405,11 +420,17 @@ class Variance
         void remove( double x )
         {
             m_count--;
+            // Note: For sliding windows, we cannot accurately track consecutive values
+            // when removing from the beginning, so we reset the consecutive counter
             if( m_count == 0 )
             {
                 m_mean = m_unnormVar = 0;
+                m_consecutiveSameCount = 0;
+                m_lastValue = 0;
                 return;
             }
+            // Reset consecutive tracking since we can't maintain it accurately during removal
+            m_consecutiveSameCount = 0;
             m_dx = x - m_mean;
             m_mean -= m_dx / m_count;
             m_unnormVar -= ( x - m_mean ) * m_dx;
@@ -418,12 +439,19 @@ class Variance
         void reset()
         {
             m_mean = m_unnormVar = m_count = 0;
+            m_consecutiveSameCount = 0;
+            m_lastValue = 0;
         }
 
         double compute() const
         {
             if( m_count > m_ddof )
+            {
+                // Check if all values are identical (pandas approach)
+                if( m_count == 1 || m_consecutiveSameCount >= m_count )
+                    return 0.0;
                 return ( m_unnormVar < 0 ? 0 : m_unnormVar / ( m_count - m_ddof ) );
+            }
 
             return std::numeric_limits<double>::quiet_NaN();
         }
@@ -435,6 +463,8 @@ class Variance
         double m_dx;
         double m_count;
         int64_t m_ddof;
+        double m_lastValue;
+        int64_t m_consecutiveSameCount;
 };
 
 class WeightedVariance
@@ -455,6 +485,22 @@ class WeightedVariance
         {
             if( w <= 0 )
                 return;
+            // Track consecutive same values and observation count
+            m_count++;
+            if( m_count == 1 )
+            {
+                m_lastValue = x;
+                m_consecutiveSameCount = 1;
+            }
+            else if( x == m_lastValue )
+            {
+                m_consecutiveSameCount++;
+            }
+            else
+            {
+                m_lastValue = x;
+                m_consecutiveSameCount = 1;
+            }
             m_wsum += w;
             m_dx = x - m_wmean;
             m_wmean += ( w / m_wsum ) * m_dx;
@@ -463,12 +509,18 @@ class WeightedVariance
 
         void remove( double x, double w )
         {
+            m_count--;
             m_wsum -= w;
             if( m_wsum < EPSILON )
             {
                 m_wsum = m_wmean = m_unnormWVar = 0;
+                m_count = 0;
+                m_consecutiveSameCount = 0;
+                m_lastValue = 0;
                 return;
             }
+            // Reset consecutive tracking since we can't maintain it accurately during removal
+            m_consecutiveSameCount = 0;
             m_dx = x - m_wmean;
             m_wmean -= ( w / m_wsum ) * m_dx;
             m_unnormWVar -= w * ( x - m_wmean ) * m_dx;
@@ -477,12 +529,20 @@ class WeightedVariance
         void reset()
         {
             m_wsum = m_wmean = m_unnormWVar = 0;
+            m_count = 0;
+            m_consecutiveSameCount = 0;
+            m_lastValue = 0;
         }
 
         double compute() const
         {
             if( m_wsum > m_ddof )
+            {
+                // Check if all values are identical (pandas approach)
+                if( m_count == 1 || m_consecutiveSameCount >= m_count )
+                    return 0.0;
                 return ( m_unnormWVar < 0 ? 0 : m_unnormWVar / ( m_wsum - m_ddof ) );
+            }
 
             return std::numeric_limits<double>::quiet_NaN();
         }
@@ -494,6 +554,9 @@ class WeightedVariance
         double m_unnormWVar;
         double m_dx;
         int64_t m_ddof;
+        int64_t m_count;
+        double m_lastValue;
+        int64_t m_consecutiveSameCount;
 };
 
 class Covariance

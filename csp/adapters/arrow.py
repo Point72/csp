@@ -20,8 +20,8 @@ CRecordBatchPullInputAdapter = input_adapter_def(
     _arrowadapterimpl._record_batch_input_adapter_creator,
     ts[List[Tuple[object, object]]],
     ts_col_name=str,
-    c_source=Iterable[Tuple[object, object]],
-    c_schema=object,
+    source=Iterable[Tuple[object, object]],
+    schema=object,
     expect_small_batches=bool,
 )
 """Stream record batches using the PyCapsule C Data interface from an iterator/generator into csp

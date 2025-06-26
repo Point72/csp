@@ -19,6 +19,7 @@ CMAKE_OPTIONS = (
     ("CSP_BUILD_NO_CXX_ABI", "0"),
     ("CSP_BUILD_TESTS", "1"),
     ("CSP_MANYLINUX", "0"),
+    ("CSP_BUILD_ARROW_ADAPTER", "1"),
     ("CSP_BUILD_KAFKA_ADAPTER", "1"),
     ("CSP_BUILD_PARQUET_ADAPTER", "1"),
     ("CSP_BUILD_WS_CLIENT_ADAPTER", "1"),
@@ -94,7 +95,8 @@ if platform.system() == "Windows":
         "14.1": "Visual Studio 15 2017",
         "14.2": "Visual Studio 16 2019",
         "14.3": "Visual Studio 17 2022",
-    }.get(str(dm.get_build_version()), "Visual Studio 15 2017")
+        "14.4": "Visual Studio 17 2022",
+    }.get(str(dm.get_build_version()), "Visual Studio 17 2022")
     cmake_args.extend(
         [
             "-G",
@@ -122,7 +124,7 @@ print(f"CMake Args: {cmake_args}")
 
 setup(
     name="csp",
-    version="0.0.11",
+    version="0.10.1",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,

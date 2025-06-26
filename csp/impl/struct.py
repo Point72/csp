@@ -153,15 +153,19 @@ class StructMeta(_csptypesimpl.PyStructMeta):
 class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
     @classmethod
     def type_adapter(cls):
-        internal_type_adapter = getattr(cls, "_pydantic_type_adapter", None)
+        # We provide a unique name to make sure that child Structs
+        # will get their own type adapters.
+        attr_name = f"_{cls.__name__}__pydantic_type_adapter"
+        internal_type_adapter = getattr(cls, attr_name, None)
         if internal_type_adapter:
             return internal_type_adapter
 
         # Late import to avoid autogen issues
         from pydantic import TypeAdapter
 
-        cls._pydantic_type_adapter = TypeAdapter(cls)
-        return cls._pydantic_type_adapter
+        type_adapter = TypeAdapter(cls)
+        setattr(cls, attr_name, type_adapter)
+        return type_adapter
 
     @classmethod
     def metadata(cls, typed=False):
@@ -256,24 +260,25 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         res = self._obj_to_python(self)
         return res
 
-    @classmethod
-    def postprocess_to_dict(self, obj):
-        """Postprocess hook for to_dict method
+    #  NOTE: Users can implement this method to customize the output of to_dict
+    #  def postprocess_to_dict(self, obj):
+    #      """Postprocess hook for to_dict method
+    #
+    #      This method is invoked by to_dict after converting a struct to a dict
+    #      as an additional hook for users to modify the dict before it is returned
+    #      by the to_dict method
+    #      """
+    #      return obj
 
-        This method is invoked by to_dict after converting a struct to a dict
-        as an additional hook for users to modify the dict before it is returned
-        by the to_dict method
-        """
-        return obj
-
-    def to_dict(self, callback=None):
+    def to_dict(self, callback=None, preserve_enums=False):
         """Create a dictionary representation of the struct
 
         Args:
             callback: Optional function to parse types that are not supported by default in csp and convert them to
                       dicts csp by default can parse Structs, lists, sets, tuples, dicts, datetimes, and primitive types
+            preserve_enums: Optional flag to not convert enums to strings when converting structs into dicts
         """
-        res = super().to_dict(callback)
+        res = super().to_dict(callback, preserve_enums)
         return res
 
     def to_json(self, callback=lambda x: x):

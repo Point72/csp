@@ -21,10 +21,9 @@ void ParquetFileWriterWrapper::openImpl( const std::string &fileName, const std:
     ::parquet::ArrowWriterProperties::Builder arrowBuilder;
     arrowBuilder.store_schema();
 
-    STATUS_OK_OR_THROW_RUNTIME(
-        ::parquet::arrow::FileWriter::Open( *getSchema(), arrow::default_memory_pool(), m_outputStream, builder.build(), arrowBuilder.build(),
-                                            &m_fileWriter ),
-            "Failed to open parquet file writer" );
+    auto res = ::parquet::arrow::FileWriter::Open( *getSchema(), arrow::default_memory_pool(), m_outputStream, builder.build(), arrowBuilder.build() );
+    STATUS_OK_OR_THROW_RUNTIME( res.status(), "Failed to open parquet file writer" );
+    m_fileWriter = res.MoveValueUnsafe();
 }
 
 void ParquetFileWriterWrapper::close()

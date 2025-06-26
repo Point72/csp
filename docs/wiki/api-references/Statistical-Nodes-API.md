@@ -1433,7 +1433,8 @@ cov(
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
-    min_data_points: int = 0
+    min_data_points: int = 0,
+    allow_non_overlapping: bool = False,
 ): → ts[Union[float, np.ndarray]]
 ```
 
@@ -1460,6 +1461,7 @@ Args:
 - **reset**: another optional time-series which, when ticked, will clear all data in the interval and "reset" the calculation
 - **recalc**: another optional time-series which triggers a clean recalculation of the window statistic, and in doing so clears any accumulated floating-point error
 - **min_data_points**: the minimum number of valid (non-nan) data points that must exist in the interval for a calculation to be valid. If there are fewer than min_data_point, NaN is returned.
+- **allow_non_overlapping**: if True, discard any ticks of x and y that occur out-of-sync with one another. If False, raise an exception on any out-of-sync ticks.
 
 Returns:
 
@@ -1483,7 +1485,8 @@ corr(
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
-    min_data_points: int = 0
+    min_data_points: int = 0,
+    allow_non_overlapping: bool = False,
 ): → ts[Union[float, np.ndarray]]
 ```
 
@@ -1509,6 +1512,7 @@ Args:
 - **reset**: another optional time-series which, when ticked, will clear all data in the interval and "reset" the calculation
 - **recalc**: another optional time-series which triggers a clean recalculation of the window statistic, and in doing so clears any accumulated floating-point error
 - **min_data_points**: the minimum number of valid (non-nan) data points that must exist in the interval for a calculation to be valid. If there are fewer than min_data_point, NaN is returned.
+- **allow_non_overlapping**: if True, discard any ticks of x and y that occur out-of-sync with one another. If False, raise an exception on any out-of-sync ticks.
 
 Returns:
 
@@ -1542,7 +1546,7 @@ corr(x, y, interval=3)
 
 ### Skewness
 
-```
+```python
 skew(
     x: ts[Union[float, np.ndarray]],
     interval: Union[timedelta, int] = None,
@@ -1887,7 +1891,7 @@ See Exponential Moving Standard Deviation
 
 ### Exponential Moving Standard Deviation
 
-```
+```python
 ema_std(
     x: ts[Union[float, np.ndarray]],
     min_periods: int = 1,
@@ -1976,7 +1980,8 @@ ema_cov(
     sampler: ts[object] = None,
     reset: ts[object] = None,
     recalc: ts[object] = None,
-    min_data_points: int = 0
+    min_data_points: int = 0,
+    allow_non_overlapping: bool = False,
 ) → ts[Union[float, np.ndarray]]
 ```
 
@@ -2002,6 +2007,7 @@ Args:
 - **recalc**: another optional time-series which triggers a clean recalculation of the EMA, and in doing so clears any accumulated floating-point error.
   - Note: *only valid when a finite-horizon EMA is used*.
 - **min_data_points**: the minimum number of valid (non-nan) data points that must exist in the interval for a calculation to be valid. If there are fewer than min_data_point, NaN is returned.
+- **allow_non_overlapping**: if True, discard any ticks of x and y that occur out-of-sync with one another. If False, raise an exception on any out-of-sync ticks.
 
 Returns:
 

@@ -6,6 +6,7 @@ import pyarrow.parquet as pq
 import csp
 from csp.impl.types.tstype import ts
 from csp.impl.wiring import input_adapter_def
+from csp.lib import _arrowadapterimpl
 
 __all__ = [
     "CRecordBatchPullInputAdapter",
@@ -16,12 +17,12 @@ __all__ = [
 
 CRecordBatchPullInputAdapter = input_adapter_def(
     "CRecordBatchPullInputAdapter",
-    csp.lib._cspimpl._record_batch_input_adapter_creator,
+    _arrowadapterimpl._record_batch_input_adapter_creator,
     ts[List[Tuple[object, object]]],
-    arg1=str,
-    arg2=Iterable[Tuple[object, object]],
-    arg3=object,
-    arg4=bool,
+    ts_col_name=str,
+    c_source=Iterable[Tuple[object, object]],
+    c_schema=object,
+    expect_small_batches=bool,
 )
 """Stream record batches using the PyCapsule C Data interface from an iterator/generator into csp
 
@@ -88,7 +89,7 @@ def write_record_batches(
         batches: The timeseries of list of record batches
         kwargs: additional args to pass to the ParquetWriter
         merge_record_batches: A flag to combine all the record batches in a single tick into a single record batch
-        max_batch_size: the max size of each batch to be written, combine record batches across ticks
+        max_batch_size: the max size of each batch to be written, combine record batches across ticks, does not split record batches. So if a record batch is larger than max_batch_size, it is written as is.
     """
     with csp.state():
         s_writer = None
@@ -99,9 +100,10 @@ def write_record_batches(
         s_prev_batch_size = 0
 
     with csp.stop():
-        if s_prev_batch:
-            s_writer.write_batch(pa.concat_batches(s_prev_batch))
-        s_writer.close()
+        if s_writer:
+            if s_prev_batch:
+                s_writer.write_batch(pa.concat_batches(s_prev_batch))
+            s_writer.close()
 
     if csp.ticked(batches):
         if s_merge_batches:

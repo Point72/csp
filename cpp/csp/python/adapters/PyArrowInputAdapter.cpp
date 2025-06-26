@@ -1,8 +1,9 @@
-#include <csp/python/ArrowInputAdapter.h>
+#include <csp/python/adapters/ArrowInputAdapter.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
 #include <csp/python/PyEngine.h>
 #include <csp/python/PyInputAdapterWrapper.h>
+#include <Python.h>
 
 namespace csp::python
 {
@@ -29,5 +30,31 @@ static InputAdapter * record_batch_input_adapter_creator( csp::AdapterManager * 
 }
 
 REGISTER_INPUT_ADAPTER( _record_batch_input_adapter_creator, record_batch_input_adapter_creator );
+
+static PyModuleDef _arrowadapterimpl_module = {
+        PyModuleDef_HEAD_INIT,
+        "_arrowadapterimpl",
+        "_arrowadapterimpl c++ module",
+        -1,
+        NULL, NULL, NULL, NULL, NULL
+};
+
+PyMODINIT_FUNC PyInit__arrowadapterimpl( void )
+{
+    PyObject *m;
+
+    m = PyModule_Create( &_arrowadapterimpl_module );
+    if( m == NULL )
+    {
+        return NULL;
+    }
+
+    if( !InitHelper::instance().execute( m ) )
+    {
+        return NULL;
+    }
+
+    return m;
+}
 
 }

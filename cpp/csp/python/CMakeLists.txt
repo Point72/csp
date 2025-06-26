@@ -24,34 +24,7 @@ target_compile_definitions(csptypesimpl PUBLIC RAPIDJSON_HAS_STDSTRING=1)
 target_link_libraries(csptypesimpl csp_core csp_types)
 target_compile_definitions(csptypesimpl PRIVATE CSPTYPESIMPL_EXPORTS=1)
 
-find_package(Arrow REQUIRED)
-find_package(Parquet REQUIRED)
-
-if(WIN32)
-   if(CSP_USE_VCPKG)
-     set(ARROW_PACKAGES_TO_LINK Arrow::arrow_static Parquet::parquet_static )
-     target_compile_definitions(csp_parquet_adapter PUBLIC ARROW_STATIC)
-     target_compile_definitions(csp_parquet_adapter PUBLIC PARQUET_STATIC)
-   else()
-     # use dynamic variants
-     # Until we manage to get the fix for ws3_32.dll in arrow-16 into conda, manually fix the error here
-     get_target_property(LINK_LIBS Arrow::arrow_shared INTERFACE_LINK_LIBRARIES)
-     string(REPLACE "ws2_32.dll" "ws2_32" FIXED_LINK_LIBS "${LINK_LIBS}")
-     set_target_properties(Arrow::arrow_shared PROPERTIES INTERFACE_LINK_LIBRARIES "${FIXED_LINK_LIBS}")
-     set(ARROW_PACKAGES_TO_LINK parquet_shared arrow_shared)
-   endif()
-else()
-  if(CSP_USE_VCPKG)
-    # use static variants
-    set(ARROW_PACKAGES_TO_LINK parquet_static arrow_static)
-  else()
-    # use dynamic variants
-    set(ARROW_PACKAGES_TO_LINK parquet arrow)
-  endif()
-endif()
-
 set(CSPIMPL_PUBLIC_HEADERS
-        ArrowInputAdapter.h
         Common.h
         Conversions.h
         Exception.h
@@ -83,7 +56,6 @@ add_library(cspimpl SHARED
         NumpyConversions.cpp
         PyAdapterManager.cpp
         PyAdapterManagerWrapper.cpp
-        PyArrowInputAdapter.cpp
         PyConstAdapter.cpp
         PyCppNode.cpp
         PyEngine.cpp
@@ -111,7 +83,7 @@ add_library(cspimpl SHARED
 
 set_target_properties(cspimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_PUBLIC_HEADERS}")
 
-target_link_libraries(cspimpl csptypesimpl csp_core csp_engine ${ARROW_PACKAGES_TO_LINK} )
+target_link_libraries(cspimpl csptypesimpl csp_core csp_engine )
 
 target_compile_definitions(cspimpl PUBLIC NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
 target_compile_definitions(cspimpl PRIVATE CSPIMPL_EXPORTS=1)

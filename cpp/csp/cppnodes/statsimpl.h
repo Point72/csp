@@ -445,7 +445,7 @@ class Variance
             if( m_count > m_ddof )
             {
                 // Check if all values are identical
-                if( m_consecutiveValueCount >= m_count )
+                if( m_consecutiveValueCount >= m_count [[unlikely]])
                     return 0.0;
                 return ( m_unnormVar < 0 ? 0 : m_unnormVar / ( m_count - m_ddof ) );
             }
@@ -532,8 +532,8 @@ class WeightedVariance
         {
             if( m_wsum > m_ddof )
             {
-                // Check if all values are identical (pandas approach)
-                if( m_count == 1 || m_consecutiveValueCount >= m_count )
+                // Check if all values are identical
+                if( m_consecutiveValueCount >= m_count [[unlikely]])
                     return 0.0;
                 return ( m_unnormWVar < 0 ? 0 : m_unnormWVar / ( m_wsum - m_ddof ) );
             }

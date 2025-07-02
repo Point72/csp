@@ -449,7 +449,7 @@ class Variance
 
         // Below variables are used to eliminate numerical errors when all values in the window are identical
         double m_lastValue;
-        int64_t m_consecutiveValueCount = 0;
+        int64_t m_consecutiveValueCount;
 };
 
 class WeightedVariance
@@ -472,7 +472,7 @@ class WeightedVariance
                 return;
             
             // See comment in Variance::add on handling homogeneous data streams
-            m_consecutiveValueCount = ( m_count && x == m_lastValue ? m_consecutiveValueCount + 1 : 1 );
+            m_consecutiveValueCount = ( m_consecutiveValueCount && x == m_lastValue ? m_consecutiveValueCount + 1 : 1 );
             m_lastValue = x;
 
             m_count++;

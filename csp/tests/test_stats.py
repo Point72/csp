@@ -3721,7 +3721,7 @@ class TestStats(unittest.TestCase):
         @csp.graph
         def graph():
             # Generate data with identical values in each 10 second window, 20 times to get some error accumulated
-            data = csp.curve(float, [(st + timedelta(seconds=i + 1), get_val(i + 1)) for i in range(K * N)])
+            data = csp.curve(float, [(st + timedelta(seconds=i + 1), get_val(i)) for i in range(K * N)])
 
             # Generate random weights
             w = np.random.uniform(low=0.1, high=1.0, size=K * N)

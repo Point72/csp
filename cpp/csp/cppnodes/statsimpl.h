@@ -396,20 +396,12 @@ class Variance
 
         void add( double x )
         {
+            // Track consecutive values to avoid numerical errors when all values are identical
+            // This approach is taken from the pandas rolling variance logic 
+            m_consecutiveValueCount = ( m_consecutiveValueCount && x == m_lastValue ? m_consecutiveValueCount + 1 : 1 );
+            m_lastValue = x;
+
             m_count++;
-            // Track consecutive same values to avoid numerical errors when all values are identical
-            if( m_count == 1 )
-            {
-                m_lastValue = x;
-                m_consecutiveValueCount = 1;
-            }
-            if( x == m_lastValue && m_count > 1)
-                m_consecutiveValueCount++;
-            else
-            {
-                m_lastValue = x;
-                m_consecutiveValueCount = 1;
-            }
             m_dx = x - m_mean;
             m_mean += m_dx / m_count;
             m_unnormVar += ( x - m_mean ) * m_dx;
@@ -418,14 +410,9 @@ class Variance
         void remove( double x )
         {
             m_count--;
-            // Note: For sliding windows, we cannot accurately track consecutive values when removing from the beginning,
-            // and we don't need to. Since we are checking m_consecutiveValueCount >= m_count in compute,
-            // the only events needs reset is a new value comes in at the end.
             if( m_count == 0 )
             {
                 m_mean = m_unnormVar = 0;
-                m_consecutiveValueCount = 0;
-                m_lastValue = 0;
                 return;
             }
             m_dx = x - m_mean;
@@ -437,16 +424,15 @@ class Variance
         {
             m_mean = m_unnormVar = m_count = 0;
             m_consecutiveValueCount = 0;
-            m_lastValue = 0;
         }
 
         double compute() const
         {
             if( m_count > m_ddof )
             {
-                // Check if all values are identical
-                if( m_consecutiveValueCount >= m_count [[unlikely]])
-                    return 0.0;
+                // Special case for homogeneous window, modelled off of pandas impl
+                if( m_consecutiveValueCount >= m_count ) [[unlikely]]
+                    return 0;
                 return ( m_unnormVar < 0 ? 0 : m_unnormVar / ( m_count - m_ddof ) );
             }
 
@@ -460,9 +446,10 @@ class Variance
         double m_dx;
         double m_count;
         int64_t m_ddof;
+
         // Below variables are used to eliminate numerical errors when all values in the window are identical
         double m_lastValue;
-        int64_t m_consecutiveValueCount;
+        int64_t m_consecutiveValueCount = 0;
 };
 
 class WeightedVariance
@@ -483,20 +470,12 @@ class WeightedVariance
         {
             if( w <= 0 )
                 return;
-            // Track consecutive same values and observation count
+            
+            // See comment in Variance::add on handling homogeneous data streams
+            m_consecutiveValueCount = ( m_count && x == m_lastValue ? m_consecutiveValueCount + 1 : 1 );
+            m_lastValue = x;
+
             m_count++;
-            if( m_count == 1 )
-            {
-                m_lastValue = x;
-                m_consecutiveValueCount = 1;
-            }
-            if( x == m_lastValue && m_count > 1 )
-                m_consecutiveValueCount++;
-            else
-            {
-                m_lastValue = x;
-                m_consecutiveValueCount = 1;
-            }
             m_wsum += w;
             m_dx = x - m_wmean;
             m_wmean += ( w / m_wsum ) * m_dx;
@@ -505,14 +484,14 @@ class WeightedVariance
 
         void remove( double x, double w )
         {
+            if( w <= 0 )
+                return;
+            
             m_count--;
             m_wsum -= w;
             if( m_wsum < EPSILON )
             {
                 m_wsum = m_wmean = m_unnormWVar = 0;
-                m_count = 0;
-                m_consecutiveValueCount = 0;
-                m_lastValue = 0;
                 return;
             }
             m_dx = x - m_wmean;
@@ -523,18 +502,16 @@ class WeightedVariance
         void reset()
         {
             m_wsum = m_wmean = m_unnormWVar = 0;
-            m_count = 0;
-            m_consecutiveValueCount = 0;
-            m_lastValue = 0;
+            m_consecutiveValueCount = m_count = 0;
         }
 
         double compute() const
         {
             if( m_wsum > m_ddof )
             {
-                // Check if all values are identical
-                if( m_consecutiveValueCount >= m_count [[unlikely]])
-                    return 0.0;
+                // Special case for homogeneous window, modelled off of pandas impl
+                if( m_consecutiveValueCount >= m_count ) [[unlikely]]
+                    return 0;
                 return ( m_unnormWVar < 0 ? 0 : m_unnormWVar / ( m_wsum - m_ddof ) );
             }
 
@@ -548,6 +525,7 @@ class WeightedVariance
         double m_unnormWVar;
         double m_dx;
         int64_t m_ddof;
+
         // Below variables are used to eliminate numerical errors when all values in the window are identical
         int64_t m_count;
         double m_lastValue;

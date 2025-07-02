@@ -3672,7 +3672,7 @@ class TestStats(unittest.TestCase):
 
         golden_ema_std = np.array(
             [
-                pd.Series(values[max(0, j - horizon + 1): j + 1]).ewm(alpha=alpha, ignore_na=True).std().iloc[-1]
+                pd.Series(values[max(0, j - horizon + 1) : j + 1]).ewm(alpha=alpha, ignore_na=True).std().iloc[-1]
                 for j in range(N)
             ]
         )
@@ -3712,15 +3712,23 @@ class TestStats(unittest.TestCase):
                 else:
                     return -3.0  # Period 3
 
+        K = 10
+        N = 20
+
+        def get_val(u):
+            return float(int(u) // K)
+
         @csp.graph
         def graph():
-            # Generate data with identical values in each 1-minute window
-            data = generate_data()
-            # Generate uniform weights that tick at the same time as data
-            weights = data * 0.0 + 1.0
+            # Generate data with identical values in each 10 second window, 20 times to get some error accumulated
+            data = csp.curve(float, [(st + timedelta(seconds=i + 1), get_val(i + 1)) for i in range(K * N)])
 
-            # Test variance and weighted variance with 1-minute resampling
-            resample_interval = timedelta(seconds=60)
+            # Generate random weights
+            w = np.random.uniform(low=0.1, high=1.0, size=K * N)
+            weights = csp.curve(float, [(st + timedelta(seconds=i + 1), w[i]) for i in range(K * N)])
+
+            # Test variance and weighted variance with 10-second resampling
+            resample_interval = timedelta(seconds=K)
             timer = csp.timer(interval=resample_interval, value=True)
 
             # Regular variance
@@ -3732,22 +3740,13 @@ class TestStats(unittest.TestCase):
             csp.add_graph_output("variance", var_result)
             csp.add_graph_output("weighted_variance", wvar_result)
 
-        end_time = st + timedelta(minutes=3)  # End at 9:03 to avoid 4th minute output
-        results = csp.run(graph, starttime=st, endtime=end_time)
+        results = csp.run(graph, starttime=st, endtime=timedelta(seconds=K * N), output_numpy=True)
 
-        # Convert results to DataFrame
-        df = pd.DataFrame({
-            'variance': [v for _, v in results["variance"]],
-            'weighted_variance': [v for _, v in results["weighted_variance"]]
-        })
+        # Assert 1: all values in results['variance'] should be exactly 0, with no error
+        np.testing.assert_equal(results["variance"][1], np.zeros(shape=(N,)))
 
-        # Assert 1: weighted variance should equal unweighted variance
-        pd.testing.assert_series_equal(df['variance'], df['weighted_variance'], check_names=False)
-
-        # Assert 2: 3rd minute (index 2) should be zero, first two should be non-zero
-        self.assertEqual(df.iloc[2]['variance'], 0.0)  # 3rd minute should be exactly 0
-        self.assertGreater(df.iloc[0]['variance'], 0.0)  # 1st minute should be > 0
-        self.assertGreater(df.iloc[1]['variance'], 0.0)  # 2nd minute should be > 0
+        # Assert 2: weighted variance should equal unweighted variance
+        np.testing.assert_equal(results["variance"], results["weighted_variance"])
 
 
 if __name__ == "__main__":

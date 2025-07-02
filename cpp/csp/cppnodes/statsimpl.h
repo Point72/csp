@@ -396,6 +396,11 @@ class Variance
 
         void add( double x )
         {
+            // Track consecutive values to avoid numerical errors when all values are identical
+            // This approach is taken from the pandas rolling variance logic 
+            m_consecutiveValueCount = ( m_consecutiveValueCount && x == m_lastValue ? m_consecutiveValueCount + 1 : 1 );
+            m_lastValue = x;
+
             m_count++;
             m_dx = x - m_mean;
             m_mean += m_dx / m_count;
@@ -418,12 +423,18 @@ class Variance
         void reset()
         {
             m_mean = m_unnormVar = m_count = 0;
+            m_consecutiveValueCount = 0;
         }
 
         double compute() const
         {
             if( m_count > m_ddof )
+            {
+                // Special case for homogeneous window, modelled off of pandas impl
+                if( m_consecutiveValueCount >= m_count ) [[unlikely]]
+                    return 0;
                 return ( m_unnormVar < 0 ? 0 : m_unnormVar / ( m_count - m_ddof ) );
+            }
 
             return std::numeric_limits<double>::quiet_NaN();
         }
@@ -435,6 +446,10 @@ class Variance
         double m_dx;
         double m_count;
         int64_t m_ddof;
+
+        // Below variables are used to eliminate numerical errors when all values in the window are identical
+        double m_lastValue;
+        int64_t m_consecutiveValueCount;
 };
 
 class WeightedVariance
@@ -455,6 +470,12 @@ class WeightedVariance
         {
             if( w <= 0 )
                 return;
+            
+            // See comment in Variance::add on handling homogeneous data streams
+            m_consecutiveValueCount = ( m_consecutiveValueCount && x == m_lastValue ? m_consecutiveValueCount + 1 : 1 );
+            m_lastValue = x;
+
+            m_count++;
             m_wsum += w;
             m_dx = x - m_wmean;
             m_wmean += ( w / m_wsum ) * m_dx;
@@ -463,6 +484,10 @@ class WeightedVariance
 
         void remove( double x, double w )
         {
+            if( w <= 0 )
+                return;
+            
+            m_count--;
             m_wsum -= w;
             if( m_wsum < EPSILON )
             {
@@ -477,12 +502,18 @@ class WeightedVariance
         void reset()
         {
             m_wsum = m_wmean = m_unnormWVar = 0;
+            m_consecutiveValueCount = m_count = 0;
         }
 
         double compute() const
         {
             if( m_wsum > m_ddof )
+            {
+                // Special case for homogeneous window, modelled off of pandas impl
+                if( m_consecutiveValueCount >= m_count ) [[unlikely]]
+                    return 0;
                 return ( m_unnormWVar < 0 ? 0 : m_unnormWVar / ( m_wsum - m_ddof ) );
+            }
 
             return std::numeric_limits<double>::quiet_NaN();
         }
@@ -494,6 +525,11 @@ class WeightedVariance
         double m_unnormWVar;
         double m_dx;
         int64_t m_ddof;
+
+        // Below variables are used to eliminate numerical errors when all values in the window are identical
+        int64_t m_count;
+        double m_lastValue;
+        int64_t m_consecutiveValueCount;
 };
 
 class Covariance

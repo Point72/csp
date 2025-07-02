@@ -3670,6 +3670,46 @@ class TestStats(unittest.TestCase):
         )
         np.testing.assert_allclose(res["ema_std"][1], golden_ema_std, atol=1e-10)
 
+    def test_identical_values_variance(self):
+        """Test that variance and weighted variance are exactly 0 when all values in window are identical"""
+        st = datetime(2023, 1, 1, 9, 0, 0)
+
+        K = 10
+        N = 20
+
+        def get_val(u):
+            return float(int(u) // K)
+
+        @csp.graph
+        def graph():
+            # Generate data with identical values in each 10 second window, 20 times to get some error accumulated
+            data = csp.curve(float, [(st + timedelta(seconds=i + 1), get_val(i)) for i in range(K * N)])
+
+            # Generate random weights
+            w = np.random.uniform(low=0.1, high=1.0, size=K * N)
+            weights = csp.curve(float, [(st + timedelta(seconds=i + 1), w[i]) for i in range(K * N)])
+
+            # Test variance and weighted variance with 10-second resampling
+            resample_interval = timedelta(seconds=K)
+            timer = csp.timer(interval=resample_interval, value=True)
+
+            # Regular variance
+            var_result = csp.stats.var(data, interval=resample_interval, trigger=timer)
+
+            # Weighted variance (using uniform weights of 1.0)
+            wvar_result = csp.stats.var(data, interval=resample_interval, trigger=timer, weights=weights)
+
+            csp.add_graph_output("variance", var_result)
+            csp.add_graph_output("weighted_variance", wvar_result)
+
+        results = csp.run(graph, starttime=st, endtime=timedelta(seconds=K * N), output_numpy=True)
+
+        # Assert 1: all values in results['variance'] should be exactly 0, with no error
+        np.testing.assert_equal(results["variance"][1], np.zeros(shape=(N,)))
+
+        # Assert 2: weighted variance should equal unweighted variance
+        np.testing.assert_equal(results["variance"], results["weighted_variance"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1411,6 +1411,15 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(str(s12), s12_str_repr)
         self.assertEqual(repr(s12), s12_str_repr)
 
+        class StructWBytes(csp.Struct):
+            x: str
+            y: bytes
+
+        s_bytes = StructWBytes(x="test", y=b"\x9d_@2")
+        s_bytes_repr = "StructWBytes( x=test, y=b'\\x9d_@2' )"
+        self.assertEqual(str(s_bytes), s_bytes_repr)
+        self.assertEqual(repr(s_bytes), s_bytes_repr)
+
     def test_recursive_repr(self):
         class StructB(csp.Struct):
             x: csp.Struct

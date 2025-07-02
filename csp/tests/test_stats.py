@@ -3670,47 +3670,9 @@ class TestStats(unittest.TestCase):
         )
         np.testing.assert_allclose(res["ema_std"][1], golden_ema_std, atol=1e-10)
 
-        golden_ema_std = np.array(
-            [
-                pd.Series(values[max(0, j - horizon + 1) : j + 1]).ewm(alpha=alpha, ignore_na=True).std().iloc[-1]
-                for j in range(N)
-            ]
-        )
-        np.testing.assert_allclose(res["ema_std"][1], golden_ema_std, atol=1e-10)
-
     def test_identical_values_variance(self):
         """Test that variance and weighted variance are exactly 0 when all values in window are identical"""
         st = datetime(2023, 1, 1, 9, 0, 0)
-
-        @csp.node
-        def generate_data() -> csp.ts[float]:
-            """Generate data with periods of identical values"""
-            with csp.alarms():
-                alarm = csp.alarm(bool)
-
-            with csp.start():
-                # Period 1: 5 ticks of -1.0
-                for i in range(5):
-                    csp.schedule_alarm(alarm, timedelta(seconds=i * 10), True)
-
-                # Period 2: 5 ticks of -2.0
-                for i in range(5):
-                    csp.schedule_alarm(alarm, timedelta(minutes=1, seconds=i * 10), True)
-
-                # Period 3: 5 ticks of -3.0
-                for i in range(5):
-                    csp.schedule_alarm(alarm, timedelta(minutes=2, seconds=i * 10), True)
-
-            if csp.ticked(alarm):
-                current_time = csp.now()
-                seconds = (current_time - st).total_seconds()
-
-                if seconds < 60:
-                    return -1.0  # Period 1
-                elif seconds < 120:
-                    return -2.0  # Period 2
-                else:
-                    return -3.0  # Period 3
 
         K = 10
         N = 20

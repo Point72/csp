@@ -541,8 +541,16 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
             format_double( field -> value<double>( struct_ ), tl_repr );
             break;
         case CspType::Type::STRING:
-            tl_repr += field -> value<std::string>( struct_ );
+        {
+            auto const * stringType = static_cast<const CspStringType*>( field -> type().get() );
+            const auto & val = field -> value<std::string>( struct_ );
+            //Use Python's bytes repr for bytes if this is a bytes string
+            if( stringType -> isBytes() )
+                format_pyobject( PyObjectPtr::own( toPython( val, *stringType ) ), tl_repr );
+            else
+                tl_repr += val;
             break;
+        }
         case CspType::Type::STRUCT:
         {
             StructStructField* as_sf = static_cast<StructStructField*>( field.get() );

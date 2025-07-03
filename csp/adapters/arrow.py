@@ -2,6 +2,7 @@ from typing import Iterable, List, Tuple
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+from packaging.version import parse
 
 import csp
 from csp.impl.types.tstype import ts
@@ -13,6 +14,8 @@ __all__ = [
     "RecordBatchPullInputAdapter",
     "write_record_batches",
 ]
+
+_PYARROW_HAS_CONCAT_BATCHES = parse(pa.__version__) >= parse("19.0.0")
 
 
 CRecordBatchPullInputAdapter = input_adapter_def(
@@ -73,6 +76,18 @@ def RecordBatchPullInputAdapter(
     )
 
 
+def _concat_batches(batches: list[pa.RecordBatch]) -> pa.RecordBatch:
+    if _PYARROW_HAS_CONCAT_BATCHES:
+        # pyarrow version 19+ support concat_batches API
+        return pa.concat_batches(batches)
+    else:
+        combined_table = pa.Table.from_batches(batches).combine_chunks()
+        combined_batches = combined_table.to_batches()
+        if len(combined_batches) > 1:
+            raise ValueError("Not able to combine multiple record batches into one record batch")
+        return combined_batches[0]
+
+
 @csp.node
 def write_record_batches(
     where: str,
@@ -102,12 +117,12 @@ def write_record_batches(
     with csp.stop():
         if s_writer:
             if s_prev_batch:
-                s_writer.write_batch(pa.concat_batches(s_prev_batch))
+                s_writer.write_batch(_concat_batches(s_prev_batch))
             s_writer.close()
 
     if csp.ticked(batches):
         if s_merge_batches:
-            batches = [pa.concat_batches(batches)]
+            batches = [_concat_batches(batches)]
 
         for batch in batches:
             if len(batch) == 0:
@@ -118,7 +133,7 @@ def write_record_batches(
                 s_prev_batch = [batch]
                 s_prev_batch_size = len(batch)
             elif s_prev_batch_size + len(batch) > s_max_batch_size:
-                s_writer.write_batch(pa.concat_batches(s_prev_batch))
+                s_writer.write_batch(_concat_batches(s_prev_batch))
                 s_prev_batch = [batch]
                 s_prev_batch_size = len(batch)
             else:

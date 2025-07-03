@@ -22,6 +22,14 @@ def WB(where: str, merge: bool, batch_size: int, batches: csp.ts[[pa.RecordBatch
     data = write_record_batches(where, batches, {}, merge, batch_size)
 
 
+def _concat_batches(batches: list[pa.RecordBatch]) -> pa.RecordBatch:
+    combined_table = pa.Table.from_batches(batches).combine_chunks()
+    combined_batches = combined_table.to_batches()
+    if len(combined_batches) > 1:
+        raise ValueError("Not able to combine multiple record batches into one record batch")
+    return combined_batches[0]
+
+
 class TestArrow:
     def make_record_batch(self, ts_col_name: str, row_size: int, ts: datetime) -> pa.RecordBatch:
         data = {
@@ -29,8 +37,7 @@ class TestArrow:
             "name": pa.array([chr(ord("A") + idx % 26) for idx in range(row_size)]),
         }
         schema = pa.schema([(ts_col_name, pa.timestamp("ms")), ("name", pa.string())])
-        rb = pa.RecordBatch.from_pydict(data)
-        return rb.cast(schema)
+        return pa.RecordBatch.from_pydict(data, schema=schema)
 
     def make_data(self, ts_col_name: str, row_sizes: [int], start: datetime = _STARTTIME, interval: int = 1):
         res = [
@@ -100,7 +107,7 @@ class TestArrow:
         assert [len(r[1][0]) for r in results["data"]] == clean_row_sizes
         assert [r[1][0] for r in results["data"]] == clean_rbs
 
-        results = csp.run(G, "TsCol", schema, [pa.concat_batches(full_rbs)], small_batches, starttime=dt_start - delta)
+        results = csp.run(G, "TsCol", schema, [_concat_batches(full_rbs)], small_batches, starttime=dt_start - delta)
         assert len(results["data"]) == len(clean_row_sizes)
         assert [len(r[1][0]) for r in results["data"]] == clean_row_sizes
         assert [r[1][0] for r in results["data"]] == clean_rbs
@@ -126,7 +133,7 @@ class TestArrow:
         for idx, tup in enumerate(results["data"]):
             assert tup[1] == rbs_indivs[idx]
 
-        results = csp.run(G, "TsCol", schema, [pa.concat_batches(rbs_full)], small_batches, starttime=_STARTTIME)
+        results = csp.run(G, "TsCol", schema, [_concat_batches(rbs_full)], small_batches, starttime=_STARTTIME)
         assert len(results["data"]) == len(rbs_indivs)
         for idx, tup in enumerate(results["data"]):
             assert pa.Table.from_batches(tup[1]) == pa.Table.from_batches(rbs_indivs[idx])
@@ -201,7 +208,7 @@ class TestArrow:
             if not concat:
                 rbs_ts_expected = [rb[0] for rb in rbs_ts]
             else:
-                rbs_ts_expected = [pa.concat_batches(rbs_ts[0])]
+                rbs_ts_expected = [_concat_batches(rbs_ts[0])]
             assert rbs_ts_expected == res.to_batches()
 
     def test_write_record_batches_batch_sizes(self):
@@ -214,7 +221,7 @@ class TestArrow:
             res = pq.read_table(temp_file.name)
             orig = pa.Table.from_batches(rbs)
             assert res.equals(orig)
-            rbs_ts_expected = [pa.concat_batches(rbs[2 * i : 2 * i + 2]) for i in range(5)]
+            rbs_ts_expected = [_concat_batches(rbs[2 * i : 2 * i + 2]) for i in range(5)]
             assert rbs_ts_expected == res.to_batches()
 
         row_sizes = [10] * 10
@@ -226,5 +233,5 @@ class TestArrow:
             res = pq.read_table(temp_file.name)
             orig = pa.Table.from_batches(rbs)
             assert res.equals(orig)
-            rbs_ts_expected = [pa.concat_batches(rbs[3 * i : 3 * i + 3]) for i in range(4)]
+            rbs_ts_expected = [_concat_batches(rbs[3 * i : 3 * i + 3]) for i in range(4)]
             assert rbs_ts_expected == res.to_batches()

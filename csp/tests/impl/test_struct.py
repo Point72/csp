@@ -1411,6 +1411,15 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(str(s12), s12_str_repr)
         self.assertEqual(repr(s12), s12_str_repr)
 
+        class StructWBytes(csp.Struct):
+            x: str
+            y: bytes
+
+        s_bytes = StructWBytes(x="test", y=b"\x9d_@2")
+        s_bytes_repr = "StructWBytes( x=test, y=b'\\x9d_@2' )"
+        self.assertEqual(str(s_bytes), s_bytes_repr)
+        self.assertEqual(repr(s_bytes), s_bytes_repr)
+
     def test_recursive_repr(self):
         class StructB(csp.Struct):
             x: csp.Struct
@@ -1522,20 +1531,27 @@ class TestCspStruct(unittest.TestCase):
         class MySubStruct(csp.Struct):
             i: int = 0
 
-            def postprocess_to_dict(obj):
+            def postprocess_to_dict(self, obj):
                 obj["postprocess_called"] = True
+                obj["postprocess_val"] = self.i
                 return obj
 
         class MyStruct(csp.Struct):
             i: int = 1
             mss: MySubStruct = MySubStruct()
 
-            def postprocess_to_dict(obj):
+            def postprocess_to_dict(self, obj):
                 obj["postprocess_called"] = True
+                obj["postprocess_val"] = self.i
                 return obj
 
-        test_struct = MyStruct()
-        result_dict = {"i": 1, "postprocess_called": True, "mss": {"i": 0, "postprocess_called": True}}
+        test_struct = MyStruct(i=5)
+        result_dict = {
+            "i": 5,
+            "postprocess_called": True,
+            "postprocess_val": 5,
+            "mss": {"i": 0, "postprocess_called": True, "postprocess_val": 0},
+        }
         self.assertEqual(test_struct.to_dict(), result_dict)
 
     def test_to_dict_preserve_enums(self):
@@ -4212,6 +4228,19 @@ class TestCspStruct(unittest.TestCase):
         generic_field = [f for f in metadata_info["fields"] if f["fieldname"] == "generic"][0]
         self.assertEqual(typed_field["type"]["pytype"], BaseNative)
         self.assertEqual(generic_field["type"]["pytype"], None)
+
+    def test_type_adapter_inherited(self):
+        class MyStruct(csp.Struct):
+            x: int
+
+        class MyStructB(MyStruct):
+            y: str
+
+        validated_struct = MyStruct.type_adapter().validate_python(dict(x=11))
+        self.assertEqual(validated_struct, MyStruct(x=11))
+
+        validated_child_struct = MyStructB.type_adapter().validate_python(dict(y="a"))
+        self.assertEqual(validated_child_struct, MyStructB(y="a"))
 
 
 if __name__ == "__main__":

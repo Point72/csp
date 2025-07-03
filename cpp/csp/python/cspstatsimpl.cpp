@@ -7,6 +7,7 @@ REGISTER_CPPNODE( csp::cppnodes,  _time_window_updates );
 REGISTER_CPPNODE( csp::cppnodes,  _cross_sectional_as_list );
 REGISTER_CPPNODE( csp::cppnodes,  _min_hit_by_tick );
 REGISTER_CPPNODE( csp::cppnodes,  _in_sequence_check );
+REGISTER_CPPNODE( csp::cppnodes,  _discard_non_overlapping );
 REGISTER_CPPNODE( csp::cppnodes,  _sync_nan_f );
 
 // Base statistics

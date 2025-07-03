@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
+ - astor
  - bison
  - brotli
  - bump-my-version
@@ -27,7 +28,8 @@ dependencies:
  - mdformat-tables>=1,<1.1
  - ninja
  - numpy<2
- - pandas
+ - pandas<2.3  # [py<310]
+ - pandas      # [py>=310]
  - pillow
  - polars
  - psutil

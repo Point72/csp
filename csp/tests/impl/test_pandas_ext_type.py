@@ -65,7 +65,7 @@ def data(pytype):
 @pytest.fixture
 def data_missing(pytype):
     """Length-2 array with [NA, Valid]"""
-    return TsArray([np.NaN, csp.const(pytype(1))])
+    return TsArray([np.nan, csp.const(pytype(1))])
 
 
 @pytest.fixture(params=["data", "data_missing"])

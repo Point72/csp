@@ -12,6 +12,7 @@
 
 #include <arrow/table.h>
 #include <arrow/type.h>
+#include <arrow/array.h>
 #include <memory>
 #include <optional>
 #include <parquet/arrow/reader.h>
@@ -45,6 +46,8 @@ public:
     virtual CspTypePtr  getContainerValueType() const {CSP_THROW(TypeError, "Trying to get list value on non container type");}
 
     virtual void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) = 0;
+    // NOTE: This API is only defined for ListType Column Adapters
+    virtual void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) = 0;
 
     virtual void dispatchValue( const utils::Symbol *symbol ) = 0;
 
@@ -120,6 +123,7 @@ public:
     using ParquetColumnAdapter::ParquetColumnAdapter;
 
     virtual void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) override {};
+    virtual void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override {};
 
     virtual void dispatchValue( const utils::Symbol *symbol ) override {};
 
@@ -166,7 +170,8 @@ public:
     }
 
     void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) override;
-
+    void addSubscriber( ManagedSimInputAdapter *inputAdapter,
+                        std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override;
     void dispatchValue( const utils::Symbol *symbol ) override;
 
     void ensureType( CspType::Ptr cspType ) override;
@@ -237,20 +242,23 @@ protected:
     void readCurValue() override;
 };
 
-class StringColumnAdapter : public BaseTypedColumnAdapter<std::string, arrow::StringArray>
+template< typename ArrowStringArrayType >
+class StringColumnAdapter : public BaseTypedColumnAdapter<std::string, ArrowStringArrayType>
 {
 public:
-    using BaseTypedColumnAdapter::BaseTypedColumnAdapter;
+    using BaseTypedColumnAdapter<std::string, ArrowStringArrayType>::BaseTypedColumnAdapter;
+    using BaseTypedColumnAdapter<std::string, ArrowStringArrayType>::m_dispatcher;
     void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) override;
     virtual CspTypePtr getNativeCspType() const override {return nullptr;}
 protected:
     void readCurValue() override;
 };
 
-class BytesColumnAdapter : public BaseTypedColumnAdapter<std::string, arrow::BinaryArray>
+template< typename ArrowBytesArrayType >
+class BytesColumnAdapter : public BaseTypedColumnAdapter<std::string, ArrowBytesArrayType>
 {
 public:
-    using BaseTypedColumnAdapter::BaseTypedColumnAdapter;
+    using BaseTypedColumnAdapter<std::string, ArrowBytesArrayType>::BaseTypedColumnAdapter;
     virtual CspTypePtr getNativeCspType() const override {return nullptr;}
 protected:
     void readCurValue() override;
@@ -274,25 +282,45 @@ protected:
     void readCurValue() override;
 };
 
-template<typename ValueArrayType, typename ValueType=typename ValueArrayType::TypeClass::c_type>
-class ListColumnAdapter : public BaseTypedColumnAdapter<DialectGenericType, arrow::ListArray>
+template< typename ArrowListArrayType, typename ValueArrayType, typename ValueType>
+class BaseListColumnAdapter : public BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>
 {
 public:
-    using Base = BaseTypedColumnAdapter<DialectGenericType, arrow::ListArray>;
-    using BaseTypedColumnAdapter::BaseTypedColumnAdapter;
+    using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::BaseTypedColumnAdapter;
+    using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::getColumnName;
     void addSubscriber( ManagedSimInputAdapter *inputAdapter, std::optional<utils::Symbol> symbol = {} ) override;
     void addSubscriber( ManagedSimInputAdapter *inputAdapter,
-                        std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader);
+                        std::optional<utils::Symbol> symbol, const DialectGenericListReaderInterface::Ptr &listReader ) override;
     CspTypePtr getNativeCspType() const override {return nullptr;}
-
     bool isListType() const override{ return true; };
     CspTypePtr getContainerValueType() const override{ return CspType::fromCType<ValueType>::type(); }
 protected:
-    void readCurValue() override;
-private:
     // For now we allow only one subscription for list columns. In the future we might allow multiple subscriptions using different readers.
     // For example we could subscritbe to the same column as a list and as array, we would need to do more book keepting in this case.
     typename TypedDialectGenericListReaderInterface<ValueType>::Ptr m_listReader = nullptr;
+    using BaseTypedColumnAdapter<DialectGenericType, ArrowListArrayType>::m_parquetReader;
+};
+
+template< typename ArrowListArrayType, typename ValueArrayType, typename ValueType=typename ValueArrayType::TypeClass::c_type >
+class NativeListColumnAdapter : public BaseListColumnAdapter<ArrowListArrayType, ValueArrayType, ValueType>
+{
+public:
+    using BaseListColumnAdapter<ArrowListArrayType, ValueArrayType, ValueType>::BaseListColumnAdapter;
+    using BaseListColumnAdapter<ArrowListArrayType, ValueArrayType, ValueType>::addSubscriber;
+protected:
+    using BaseListColumnAdapter<ArrowListArrayType, ValueArrayType, ValueType>::m_listReader;
+    void readCurValue() override;
+};
+
+template< typename ArrowListArrayType, typename ArrowBytesArrayType >
+class BytesListColumnAdapter: public BaseListColumnAdapter<ArrowListArrayType, ArrowBytesArrayType, std::string>
+{
+public:
+    using BaseListColumnAdapter<ArrowListArrayType, ArrowBytesArrayType, std::string>::BaseListColumnAdapter;
+    using BaseListColumnAdapter<ArrowListArrayType, ArrowBytesArrayType, std::string>::addSubscriber;
+protected:
+    using BaseListColumnAdapter<ArrowListArrayType, ArrowBytesArrayType, std::string>::m_listReader;
+    void readCurValue() override;
 };
 
 class StructColumnAdapter : public BaseTypedColumnAdapter<StructPtr, arrow::StructArray, csp::adapters::utils::ValueDispatcher<StructPtr &>>
@@ -301,7 +329,7 @@ public:
     using BASE = BaseTypedColumnAdapter<StructPtr, arrow::StructArray, csp::adapters::utils::ValueDispatcher<StructPtr &>>;
 
     StructColumnAdapter( ParquetReader &parquetReader, const std::shared_ptr<::arrow::StructType> &arrowType,
-                         const std::string& columnName)
+                         const std::string& columnName )
         : BASE( parquetReader, columnName ), m_arrowType( arrowType )
     {
     }
@@ -329,7 +357,7 @@ std::unique_ptr<ParquetColumnAdapter> createColumnAdapter(
         ParquetReader &parquetReader,
         const ::arrow::Field& field,
         const std::string& fileName,
-        const std::map<std::string, std::shared_ptr<StructMeta>>* structMetaByColumnName = nullptr);
+        const std::map<std::string, std::shared_ptr<StructMeta>>* structMetaByColumnName = nullptr );
 
 std::unique_ptr<ParquetColumnAdapter> createMissingColumnAdapter(ParquetReader &parquetReader,const std::string& columnName);
 

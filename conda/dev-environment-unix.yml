@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
+ - astor
  - bison
  - brotli
  - bump-my-version
@@ -16,7 +17,7 @@ dependencies:
  - graphviz
  - gtest
  - httpx>=0.20,<1
- - libarrow=16
+ - libarrow<20
  - libboost>=1.80.0
  - libboost-headers>=1.80.0
  - librdkafka
@@ -27,11 +28,12 @@ dependencies:
  - mdformat-tables>=1,<1.1
  - ninja
  - numpy<2
- - pandas
+ - pandas<2.3  # [py<310]
+ - pandas      # [py>=310]
  - pillow
  - polars
  - psutil
- - pyarrow>=15,<19
+ - pyarrow>=15,<20
  - pydantic>=2
  - pytest
  - pytest-asyncio

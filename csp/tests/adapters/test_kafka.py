@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -17,6 +17,7 @@ class MyData(csp.Struct):
     d: float
     s: str
     dt: datetime
+    date: date
 
 
 class SubData(csp.Struct):
@@ -25,11 +26,13 @@ class SubData(csp.Struct):
     d: float
     s: str
     dt: datetime
+    date: date
     b2: bool
     i2: int
     d2: float
     s2: str
     dt2: datetime
+    date2: date
     prop1: float
     prop2: str
 
@@ -137,11 +140,13 @@ class TestKafka:
             d = csp.count(csp.timer(timedelta(seconds=0.2))) / 2.0
             s = csp.sample(csp.timer(timedelta(seconds=0.4)), csp.const("STRING"))
             dt = curtime(b)
-            struct = MyData.collectts(b=b, i=i, d=d, s=s, dt=dt)
+            date_ts = csp.apply(dt, lambda x: x.date(), date)
+
+            struct = MyData.collectts(b=b, i=i, d=d, s=s, dt=dt, date=date_ts)
 
             msg_mapper = JSONTextMessageMapper(datetime_type=DateTimeType.UINT64_MICROS)
 
-            struct_field_map = {"b": "b2", "i": "i2", "d": "d2", "s": "s2", "dt": "dt2"}
+            struct_field_map = {"b": "b2", "i": "i2", "d": "d2", "s": "s2", "dt": "dt2", "date": "date2"}
 
             done_flags = []
 
@@ -151,11 +156,23 @@ class TestKafka:
                 kafkaadapter.publish(msg_mapper, topic, symbol, d, field_map="d")
                 kafkaadapter.publish(msg_mapper, topic, symbol, s, field_map="s")
                 kafkaadapter.publish(msg_mapper, topic, symbol, dt, field_map="dt")
+                kafkaadapter.publish(msg_mapper, topic, symbol, date_ts, field_map="date")
                 kafkaadapter.publish(msg_mapper, topic, symbol, struct, field_map=struct_field_map)
 
                 # This isnt used to publish just to collect data for comparison at the end
                 pub_data = SubData.collectts(
-                    b=b, i=i, d=d, s=s, dt=dt, b2=struct.b, i2=struct.i, d2=struct.d, s2=struct.s, dt2=struct.dt
+                    b=b,
+                    i=i,
+                    d=d,
+                    s=s,
+                    dt=dt,
+                    date=date_ts,
+                    b2=struct.b,
+                    i2=struct.i,
+                    d2=struct.d,
+                    s2=struct.s,
+                    dt2=struct.dt,
+                    date2=struct.date,
                 )
                 csp.add_graph_output(f"pall_{symbol}", pub_data)
 

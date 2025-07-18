@@ -3599,6 +3599,117 @@ class TestStats(unittest.TestCase):
         self.assertTrue(pd.Series(res["kurt"][1]).isna().all())
         self.assertTrue(pd.Series(res["corr"][1]).isna().all())
 
+    def test_allow_non_overlapping_bivariate(self):
+        st = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g(allow_non_overlapping: bool):
+            x = csp.curve(
+                typ=float,
+                data=[
+                    (datetime(2020, 1, 1), 1),
+                    (datetime(2020, 1, 2), 2),
+                    (datetime(2020, 1, 4), 4),  # discarded
+                    (datetime(2020, 1, 6), 6),  # discarded
+                    (datetime(2020, 1, 7), 7),
+                ],
+            )
+            y = csp.curve(
+                typ=float,
+                data=[
+                    (datetime(2020, 1, 1), 1),
+                    (datetime(2020, 1, 2), 2),
+                    (datetime(2020, 1, 3), -1),  # discarded
+                    (datetime(2020, 1, 5), -2),  # discarded
+                    (datetime(2020, 1, 7), 7),
+                ],
+            )
+            cov = csp.stats.cov(x, y, 5, 1, allow_non_overlapping=allow_non_overlapping)
+            corr = csp.stats.corr(x, y, 5, 1, allow_non_overlapping=allow_non_overlapping)
+            ema_cov = csp.stats.ema_cov(x, y, 1, alpha=0.1, allow_non_overlapping=allow_non_overlapping)
+            csp.add_graph_output("cov", cov)
+            csp.add_graph_output("corr", corr)
+            csp.add_graph_output("ema_cov", ema_cov)
+
+        res = csp.run(g, True, starttime=st, endtime=timedelta(days=8), output_numpy=True)
+        for output in res.values():
+            # Convert expected datetimes to the same type as output
+            expected_dates = pd.to_datetime([datetime(2020, 1, i) for i in (1, 2, 7)])
+            np.testing.assert_array_equal(output[0], expected_dates.values)
+
+        # Additional sanity check is that correlation should be 1 as middle ticks are ignored
+        np.testing.assert_allclose(res["corr"][1], np.array([np.nan, 1.0, 1.0]), equal_nan=True)
+
+    def test_ema_cov_horizon_bug(self):
+        # Bug in finite horizon, adjusted, unbiased EMA covariance with ignore_na=True
+        # Also applies to ema_var/ema_std as well, as they use cov
+        # When the first data points are NaN, after the initial NaN is removed the next value that is removed has the wrong lookback weight applied to it
+
+        st = datetime(2020, 1, 1)
+        N = 15
+        K = 3
+        horizon = 10
+        alpha = 0.1
+        values = [np.nan if i < K else float(i) for i in range(N)]
+
+        @csp.graph
+        def g():
+            x = csp.curve(
+                typ=float, data=[(st + timedelta(seconds=i), values[i]) for i in range(N)]
+            )  # start with some NaNs
+            ema_std = csp.stats.ema_std(x, alpha=alpha, adjust=True, bias=False, ignore_na=True, horizon=horizon)
+            csp.add_graph_output("ema_std", ema_std)
+
+        res = csp.run(g, starttime=st, endtime=timedelta(seconds=N), output_numpy=True)
+
+        golden_ema_std = np.array(
+            [
+                pd.Series(values[max(0, j - horizon + 1) : j + 1]).ewm(alpha=alpha, ignore_na=True).std().iloc[-1]
+                for j in range(N)
+            ]
+        )
+        np.testing.assert_allclose(res["ema_std"][1], golden_ema_std, atol=1e-10)
+
+    def test_identical_values_variance(self):
+        """Test that variance and weighted variance are exactly 0 when all values in window are identical"""
+        st = datetime(2023, 1, 1, 9, 0, 0)
+
+        K = 10
+        N = 20
+
+        def get_val(u):
+            return float(int(u) // K)
+
+        @csp.graph
+        def graph():
+            # Generate data with identical values in each 10 second window, 20 times to get some error accumulated
+            data = csp.curve(float, [(st + timedelta(seconds=i + 1), get_val(i)) for i in range(K * N)])
+
+            # Generate random weights
+            w = np.random.uniform(low=0.1, high=1.0, size=K * N)
+            weights = csp.curve(float, [(st + timedelta(seconds=i + 1), w[i]) for i in range(K * N)])
+
+            # Test variance and weighted variance with 10-second resampling
+            resample_interval = timedelta(seconds=K)
+            timer = csp.timer(interval=resample_interval, value=True)
+
+            # Regular variance
+            var_result = csp.stats.var(data, interval=resample_interval, trigger=timer)
+
+            # Weighted variance (using uniform weights of 1.0)
+            wvar_result = csp.stats.var(data, interval=resample_interval, trigger=timer, weights=weights)
+
+            csp.add_graph_output("variance", var_result)
+            csp.add_graph_output("weighted_variance", wvar_result)
+
+        results = csp.run(graph, starttime=st, endtime=timedelta(seconds=K * N), output_numpy=True)
+
+        # Assert 1: all values in results['variance'] should be exactly 0, with no error
+        np.testing.assert_equal(results["variance"][1], np.zeros(shape=(N,)))
+
+        # Assert 2: weighted variance should equal unweighted variance
+        np.testing.assert_equal(results["variance"], results["weighted_variance"])
+
 
 if __name__ == "__main__":
     unittest.main()

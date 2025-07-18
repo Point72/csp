@@ -692,6 +692,15 @@ class TestCspStruct(unittest.TestCase):
                     for key in blank.metadata().keys():
                         self.assertEqual(getattr(blank, key), getattr(source, key), (typ, typ2, key))
 
+                    # Test other direction ( derived copy from base )
+                    blank = typ2()
+                    source = typ()
+                    for key in typ.metadata().keys():
+                        setattr(source, key, values[key])
+                    blank.copy_from(source)
+                    for key in source.metadata().keys():
+                        self.assertEqual(getattr(blank, key), getattr(source, key), (typ, typ2, key))
+
     def test_copy_from_unsets(self):
         source = DerivedMixed(i=1, f=2.3, i2=4, s2="woodchuck")
         dest1 = DerivedMixed(i=5, b=True, l2=[1, 2, 3])
@@ -711,6 +720,13 @@ class TestCspStruct(unittest.TestCase):
         self.assertTrue(dest2.f == 2.3)  # adds
         self.assertFalse(hasattr(dest2, "s"))  # unsets
         self.assertFalse(hasattr(dest2, "a1"))
+
+        # from base class -> derived
+        dest2 = BaseMixed(i=6, s="banana", a1=[4, 5, 6])
+        dest3 = DerivedMixed(i=5, b=True)
+        dest3.copy_from(dest2)
+        self.assertTrue(dest3.i == 6)  # overrides already set value
+        self.assertFalse(hasattr(dest3, "b"))  # unsets
 
     def test_deepcopy_from(self):
         source = StructWithLists(
@@ -750,6 +766,14 @@ class TestCspStruct(unittest.TestCase):
         self.assertTrue(dest2.f == 2.3)  # adds
         self.assertTrue(dest2.s == "banana")  # no unsets
         self.assertTrue(dest2.a1 == [4, 5, 6])
+
+        # update from base class
+        dest3 = DerivedMixed()
+        dest3.update_from(dest2)
+        self.assertTrue(dest3.i == 1)  # overrides already set value
+        self.assertTrue(dest3.f == 2.3)  # adds
+        self.assertTrue(dest3.s == "banana")  # no unsets
+        self.assertTrue(dest3.a1 == [4, 5, 6])
 
     def test_update(self):
         dest = DerivedMixed(i2=5, b=True, l2=[1, 2, 3], s="foo")
@@ -1387,6 +1411,15 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(str(s12), s12_str_repr)
         self.assertEqual(repr(s12), s12_str_repr)
 
+        class StructWBytes(csp.Struct):
+            x: str
+            y: bytes
+
+        s_bytes = StructWBytes(x="test", y=b"\x9d_@2")
+        s_bytes_repr = "StructWBytes( x=test, y=b'\\x9d_@2' )"
+        self.assertEqual(str(s_bytes), s_bytes_repr)
+        self.assertEqual(repr(s_bytes), s_bytes_repr)
+
     def test_recursive_repr(self):
         class StructB(csp.Struct):
             x: csp.Struct
@@ -1498,21 +1531,141 @@ class TestCspStruct(unittest.TestCase):
         class MySubStruct(csp.Struct):
             i: int = 0
 
-            def postprocess_to_dict(obj):
+            def postprocess_to_dict(self, obj):
                 obj["postprocess_called"] = True
+                obj["postprocess_val"] = self.i
                 return obj
 
         class MyStruct(csp.Struct):
             i: int = 1
             mss: MySubStruct = MySubStruct()
 
-            def postprocess_to_dict(obj):
+            def postprocess_to_dict(self, obj):
                 obj["postprocess_called"] = True
+                obj["postprocess_val"] = self.i
                 return obj
 
-        test_struct = MyStruct()
-        result_dict = {"i": 1, "postprocess_called": True, "mss": {"i": 0, "postprocess_called": True}}
+        test_struct = MyStruct(i=5)
+        result_dict = {
+            "i": 5,
+            "postprocess_called": True,
+            "postprocess_val": 5,
+            "mss": {"i": 0, "postprocess_called": True, "postprocess_val": 0},
+        }
         self.assertEqual(test_struct.to_dict(), result_dict)
+
+    def test_to_dict_preserve_enums(self):
+        class MyEnum(csp.Enum):
+            A = 1
+            B = 2
+            C = 3
+
+        class MySubEnum(csp.Enum):
+            SUB_A = 1
+            SUB_B = 2
+            SUB_C = 3
+
+        class MySubStruct(csp.Struct):
+            a: List[MySubEnum]
+            b: list[MySubEnum]
+            c: list
+            d: set
+            e: tuple
+            f: Dict[str, MySubEnum]
+            g: dict
+            h: MySubEnum
+            i: MyEnum
+
+        class MyStruct(csp.Struct):
+            a: List[MyEnum]
+            b: list[MyEnum]
+            c: list
+            d: set
+            e: tuple
+            f: Dict[str, MyEnum]
+            g: dict
+            h: MySubEnum
+            i: MyEnum
+            j: MySubStruct
+            k: List[MySubStruct]
+
+        test_sub_struct = MySubStruct(
+            a=[MySubEnum.SUB_A, MySubEnum.SUB_B],
+            b=[MySubEnum.SUB_B, MySubEnum.SUB_C],
+            c=[MySubEnum.SUB_C, MySubEnum.SUB_A],
+            d=set([MySubEnum.SUB_A, MySubEnum.SUB_B]),
+            e=(MySubEnum.SUB_B, MySubEnum.SUB_C),
+            f={"3": MySubEnum.SUB_C, "1": MySubEnum.SUB_A},
+            g={"1": MySubEnum.SUB_A, "2": MySubEnum.SUB_B},
+            h=MySubEnum.SUB_A,
+            i=MyEnum.B,
+        )
+        result_sub_dict = {
+            "a": ["SUB_A", "SUB_B"],
+            "b": ["SUB_B", "SUB_C"],
+            "c": ["SUB_C", "SUB_A"],
+            "d": {"SUB_A", "SUB_B"},
+            "e": ("SUB_B", "SUB_C"),
+            "f": {"3": "SUB_C", "1": "SUB_A"},
+            "g": {"1": "SUB_A", "2": "SUB_B"},
+            "h": "SUB_A",
+            "i": "B",
+        }
+        result_sub_dict_preserve_enums = {
+            "a": [MySubEnum.SUB_A, MySubEnum.SUB_B],
+            "b": [MySubEnum.SUB_B, MySubEnum.SUB_C],
+            "c": [MySubEnum.SUB_C, MySubEnum.SUB_A],
+            "d": {MySubEnum.SUB_A, MySubEnum.SUB_B},
+            "e": (MySubEnum.SUB_B, MySubEnum.SUB_C),
+            "f": {"3": MySubEnum.SUB_C, "1": MySubEnum.SUB_A},
+            "g": {"1": MySubEnum.SUB_A, "2": MySubEnum.SUB_B},
+            "h": MySubEnum.SUB_A,
+            "i": MyEnum.B,
+        }
+        self.assertEqual(test_sub_struct.to_dict(), result_sub_dict)
+        self.assertEqual(test_sub_struct.to_dict(preserve_enums=True), result_sub_dict_preserve_enums)
+
+        test_struct = MyStruct(
+            a=[MyEnum.A, MyEnum.B],
+            b=[MyEnum.B, MyEnum.C],
+            c=[MyEnum.C, MyEnum.A],
+            d=set([MyEnum.A, MyEnum.B]),
+            e=(MyEnum.B, MyEnum.C),
+            f={"3": MyEnum.C, "1": MyEnum.A},
+            g={"1": MyEnum.A, "2": MyEnum.B},
+            h=MySubEnum.SUB_A,
+            i=MyEnum.B,
+            j=test_sub_struct,
+            k=[test_sub_struct, test_sub_struct],
+        )
+        result_dict = {
+            "a": ["A", "B"],
+            "b": ["B", "C"],
+            "c": ["C", "A"],
+            "d": {"A", "B"},
+            "e": ("B", "C"),
+            "f": {"3": "C", "1": "A"},
+            "g": {"1": "A", "2": "B"},
+            "h": "SUB_A",
+            "i": "B",
+            "j": result_sub_dict,
+            "k": [result_sub_dict, result_sub_dict],
+        }
+        result_dict_preserve_enums = {
+            "a": [MyEnum.A, MyEnum.B],
+            "b": [MyEnum.B, MyEnum.C],
+            "c": [MyEnum.C, MyEnum.A],
+            "d": {MyEnum.A, MyEnum.B},
+            "e": (MyEnum.B, MyEnum.C),
+            "f": {"3": MyEnum.C, "1": MyEnum.A},
+            "g": {"1": MyEnum.A, "2": MyEnum.B},
+            "h": MySubEnum.SUB_A,
+            "i": MyEnum.B,
+            "j": result_sub_dict_preserve_enums,
+            "k": [result_sub_dict_preserve_enums, result_sub_dict_preserve_enums],
+        }
+        self.assertEqual(test_struct.to_dict(), result_dict)
+        self.assertEqual(test_struct.to_dict(preserve_enums=True), result_dict_preserve_enums)
 
     def test_to_json_primitives(self):
         class MyStruct(csp.Struct):
@@ -4063,6 +4216,31 @@ class TestCspStruct(unittest.TestCase):
             for case in invalid_cases:
                 with self.assertRaises(ValidationError):
                     TypeAdapter(PipeTypesConfig).validate_python(case)
+
+    def test__metadata_info(self):
+        class MyStruct(DerivedMixed):
+            typed: BaseNative
+            generic: csp.Struct
+
+        metadata_info = MyStruct._metadata_info()
+        self.assertEqual(metadata_info["is_native"], False)
+        typed_field = [f for f in metadata_info["fields"] if f["fieldname"] == "typed"][0]
+        generic_field = [f for f in metadata_info["fields"] if f["fieldname"] == "generic"][0]
+        self.assertEqual(typed_field["type"]["pytype"], BaseNative)
+        self.assertEqual(generic_field["type"]["pytype"], None)
+
+    def test_type_adapter_inherited(self):
+        class MyStruct(csp.Struct):
+            x: int
+
+        class MyStructB(MyStruct):
+            y: str
+
+        validated_struct = MyStruct.type_adapter().validate_python(dict(x=11))
+        self.assertEqual(validated_struct, MyStruct(x=11))
+
+        validated_child_struct = MyStructB.type_adapter().validate_python(dict(y="a"))
+        self.assertEqual(validated_child_struct, MyStructB(y="a"))
 
 
 if __name__ == "__main__":

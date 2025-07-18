@@ -109,6 +109,33 @@ DECLARE_CPPNODE( _in_sequence_check )
 EXPORT_CPPNODE( _in_sequence_check );
 
 /*
+@csp.node
+def _discard_non_overlapping(x: ts[float], y: ts[float]):
+*/
+
+DECLARE_CPPNODE( _discard_non_overlapping )
+{
+    TS_INPUT( double, x );
+    TS_INPUT( double, y );
+    
+    TS_NAMED_OUTPUT( double, x_sync );
+    TS_NAMED_OUTPUT( double, y_sync );
+
+    INIT_CPPNODE( _discard_non_overlapping ) { }
+
+    INVOKE()
+    {
+        if( csp.ticked( x ) && csp.ticked( y ) )
+        {
+            x_sync.output( x );
+            y_sync.output( y );
+        }
+    };
+};
+
+EXPORT_CPPNODE( _discard_non_overlapping );
+
+/*
 @csp.node(cppimpl=_cspstatsimpl._sync_nan_f)
 def _sync_nan_f(x: ts[float], y: ts[float]) -> csp.Outputs(x_sync=ts[float], y_sync=ts[float]):
 */

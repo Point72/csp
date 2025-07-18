@@ -14,6 +14,7 @@ import csp.impl.types.instantiation_type_resolver as type_resolver
 from csp import ts
 from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring.runtime import build_graph
+from csp.typing import Numpy1DArray
 
 USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
@@ -1038,6 +1039,93 @@ class TestTypeChecking(unittest.TestCase):
                 msg = r"In function graph_with_pipe_union: Expected str \| int \| None for argument 'value', got .*"
             with self.assertRaisesRegex(TypeError, msg):
                 csp.build_graph(graph_with_pipe_union, 3.14)
+
+    def test_generic_annotation(self):
+        @csp.node
+        def node_with_generic_default(
+            x: ts[int], np_float: ts[Numpy1DArray[float]] = csp.null_ts(Numpy1DArray[float])
+        ) -> ts[Numpy1DArray[float]]:
+            if csp.ticked(x):
+                return np.array([3.0])
+            if csp.ticked(np_float):
+                return np_float
+
+        res = csp.run(
+            node_with_generic_default,
+            x=csp.const(11),
+            starttime=datetime(2020, 2, 7, 9),
+            endtime=datetime(2020, 2, 7, 9, 1),
+        )
+        assert res[0][0][1] == np.array([3.0])
+
+        res = csp.run(
+            node_with_generic_default,
+            x=csp.null_ts(int),
+            np_float=csp.const(np.array([4.0])),
+            starttime=datetime(2020, 2, 7, 9),
+            endtime=datetime(2020, 2, 7, 9, 1),
+        )
+        assert res[0][0][1] == np.array([4.0])
+
+    def test_union_ts_with_scalar_type(self):
+        """Test that Union types mixing timeseries and non-timeseries types are rejected.
+
+        CSP should not allow a Union that contains both a ts[T] and a non-ts type like:
+        Union[ts[int], int] since this mixes event-driven and static types.
+        """
+
+        # Different error patterns based on whether we're using Pydantic or not
+        error_pattern = "Cannot mix TS and non-TS types in a union"
+
+        # Test 1: Node with mixed Union input type
+        with self.assertRaisesRegex(ValueError, error_pattern):
+
+            @csp.node
+            def node_mixed_union(x: Union[ts[int], int]) -> ts[int]:
+                if csp.ticked(x):
+                    return x
+
+        # Test 2: Graph with mixed Union input type
+        with self.assertRaisesRegex(ValueError, error_pattern):
+
+            @csp.graph
+            def graph_mixed_union(x: Union[ts[int], int]) -> ts[int]:
+                # This should fail at definition time
+                return x
+
+        # Test 3: More complex Union with multiple mixed types
+        with self.assertRaisesRegex(ValueError, error_pattern):
+
+            @csp.node
+            def complex_mixed_union(
+                x: Union[ts[int], int, ts[str], float],
+                y: ts[str],
+            ) -> ts[float]:
+                if csp.ticked(x):
+                    if isinstance(x, ts[int]):
+                        return float(x)
+                    else:
+                        return float(len(x))  # For ts[str]
+
+        # Test 4: Union with nested ts in container types
+        with self.assertRaisesRegex(ValueError, error_pattern):
+
+            @csp.node
+            def nested_mixed_union(
+                x: str,
+                y: Union[List[ts[int]], int],
+            ) -> ts[int]:
+                if csp.ticked(y):
+                    return sum(y) if isinstance(y, list) else y
+
+        # Test 5: Optional (should work)
+        @csp.node
+        def nested_optional_union(
+            x: str,
+            y: Optional[ts[int]] = None,
+        ) -> ts[int]:
+            if csp.ticked(y):
+                return sum(y) if isinstance(y, list) else y
 
 
 if __name__ == "__main__":

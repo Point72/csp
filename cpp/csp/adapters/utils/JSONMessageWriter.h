@@ -20,6 +20,7 @@ public:
                                                         csp::CspType::Type::INT32,
                                                         csp::CspType::Type::INT64,
                                                         csp::CspType::Type::DOUBLE,
+                                                        csp::CspType::Type::DATE,
                                                         csp::CspType::Type::DATETIME,
                                                         csp::CspType::Type::ENUM,
                                                         csp::CspType::Type::STRING,

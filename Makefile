@@ -194,17 +194,17 @@ dependencies-mac:  ## install dependencies for mac
 	brew unlink bison flex && brew link --force bison flex
 
 dependencies-debian:  ## install dependencies for linux
-	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip zip
+	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip
 
 dependencies-fedora:  ## install dependencies for linux
-	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip zip
+	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip
 
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
 
 dependencies-win:  ## install dependencies via windows
 	choco install cmake --version=3.31.6 --allow-downgrade
-	choco install curl winflexbison ninja unzip zip --no-progress -y
+	choco install curl winflexbison ninja unzip --no-progress -y
 
 ############################################################################################
 # Thanks to Francoise at marmelab.com for this

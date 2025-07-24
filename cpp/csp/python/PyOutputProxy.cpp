@@ -24,7 +24,7 @@ static void PyOutputProxy_dealloc( PyOutputProxy * self )
     CSP_BEGIN_METHOD;
 
     ( self ) -> ~PyOutputProxy();
-    Py_TYPE( self ) -> tp_free( self ); 
+    PyOutputProxy::PyType.tp_free( self ); 
 
     CSP_RETURN;
 }

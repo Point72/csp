@@ -241,7 +241,7 @@ void PyStructMeta_dealloc( PyStructMeta * m )
 {
     CspTypeFactory::instance().removeCachedType( reinterpret_cast<PyTypeObject*>( m ) );
     m -> ~PyStructMeta();
-    Py_TYPE( m ) -> tp_free( m );
+    PyStructMeta::PyType.tp_free( m );
 }
 
 PyObject * PyStructMeta_layout( PyStructMeta * m )
@@ -768,7 +768,7 @@ void PyStruct_dealloc( PyStruct * self )
     self -> struct_ -> setDialectPtr( nullptr );
 
     self -> ~PyStruct();
-    Py_TYPE( self ) -> tp_free( self );
+    PyStruct::PyType.tp_free( self );
 }
 
 void PyStruct_setattrs( PyStruct * self, PyObject * args, PyObject * kwargs, const char * methodName )

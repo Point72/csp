@@ -20,8 +20,8 @@ class PyObjectStructField final : public DialectGenericStructField
 public:
     using BASE = DialectGenericStructField;
     PyObjectStructField( const std::string & name,
-                         PyTypeObjectPtr pytype ) : DialectGenericStructField( name, sizeof( PyObjectPtr ), alignof( PyObjectPtr ) ),
-                                                    m_pytype( pytype )
+                         PyTypeObjectPtr pytype ) : BASE( name, sizeof( PyObjectPtr ), alignof( PyObjectPtr ) ),
+                                             m_pytype( pytype )
     {}
 
 
@@ -42,8 +42,8 @@ private:
 };
 
 DialectStructMeta::DialectStructMeta( PyTypeObject * pyType, const std::string & name,
-                                      const Fields & flds, std::shared_ptr<StructMeta> base ) :
-    StructMeta( name, flds, base ),
+                                      const Fields & flds, bool isStrict, std::shared_ptr<StructMeta> base ) :
+    StructMeta( name, flds, isStrict, base ),
     m_pyType( pyType )
 {
 }
@@ -110,11 +110,18 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
     {
         PyObject *key, *type;
         Py_ssize_t pos = 0;
+        PyObject *optional_fields = PyDict_GetItemString( dict, "__optional_fields__" );
+
+
         while( PyDict_Next( metadata, &pos, &key, &type ) )
         {
             const char * keystr = PyUnicode_AsUTF8( key );
             if( !keystr )
                 CSP_THROW( PythonPassthrough, "" );
+
+            if (!PySet_Check(optional_fields)) 
+                CSP_THROW( TypeError, "Struct metadata for key " << keystr << " expected a set, got " << PyObjectPtr::incref( optional_fields ) );
+
 
             if( !PyType_Check( type ) && !PyList_Check( type ) )
                 CSP_THROW( TypeError, "Struct metadata for key " << keystr << " expected a type, got " << PyObjectPtr::incref( type ) );
@@ -151,7 +158,7 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                 default:
                     CSP_THROW( ValueError, "Unexpected csp type " << csptype -> type() << " on struct " << name );
             }
-
+            
             fields.emplace_back( field );
         }
     }
@@ -188,7 +195,12 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                                   |                              |
                               PyStruct  --------------------------
     */
-    auto structMeta = std::make_shared<DialectStructMeta>( ( PyTypeObject * ) pymeta, name, fields, metabase );
+    
+    PyObject * strict_enabled = PyDict_GetItemString( dict, "__strict_enabled__" );
+    if( !strict_enabled )
+        CSP_THROW( KeyError, "StructMeta missing __strict_enabled__" );
+    bool isStrict = strict_enabled == Py_True;
+    auto structMeta = std::make_shared<DialectStructMeta>( ( PyTypeObject * ) pymeta, name, fields, isStrict, metabase );
 
     //Setup fast attr dict lookup
     pymeta -> attrDict = PyObjectPtr::own( PyDict_New() );
@@ -347,6 +359,7 @@ static PyObject * PyStructMeta_metadata_info( PyStructMeta * m )
     return out.release();
 }
 
+
 static PyMethodDef PyStructMeta_methods[] = {
     {"_layout",        (PyCFunction) PyStructMeta_layout,        METH_NOARGS,  "debug view of structs internal mem layout"},
     {"_metadata_info", (PyCFunction) PyStructMeta_metadata_info, METH_NOARGS,  "provide detailed information about struct layout"},
@@ -455,6 +468,9 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
 
     if( !field )
         CSP_THROW( AttributeError, "'" << s -> meta() -> name() << "' object has no attribute '" << PyUnicode_AsUTF8( attr ) << "'" );
+
+    if ( s -> meta() -> isStrict() && value == nullptr )
+        CSP_THROW( AttributeError, "Strict struct " << s -> meta() -> name() << " does not allow the deletion of field " << PyUnicode_AsUTF8( attr ) );
 
     try
     {
@@ -795,6 +811,8 @@ int PyStruct_init( PyStruct * self, PyObject * args, PyObject * kwargs )
     CSP_BEGIN_METHOD;
 
     PyStruct_setattrs( self, args, kwargs, "__init__" );
+    if( !self -> struct_ -> validate() )
+        CSP_THROW( ValueError, "Struct " << self -> struct_ -> meta() -> name() << " is not valid; some required fields were not set on init" );
 
     CSP_RETURN_INT;
 }

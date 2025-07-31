@@ -15,7 +15,7 @@ g_YAML = ruamel.yaml.YAML()
 
 
 class StructMeta(_csptypesimpl.PyStructMeta):
-    def __new__(cls, name, bases, dct):
+    def __new__(cls, name, bases, dct, allow_unset=True):
         full_metadata = {}
         full_metadata_typed = {}
         metadata = {}
@@ -29,12 +29,17 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 defaults.update(base.__defaults__)
 
         annotations = dct.get("__annotations__", None)
+        optional_fields = set()
         if annotations:
             for k, v in annotations.items():
                 actual_type = v
                 # Lists need to be normalized too as potentially we need to add a boolean flag to use FastList
                 if v == FastList:
                     raise TypeError(f"{v} annotation is not supported without args")
+                if CspTypingUtils.is_optional_type(v):
+                    if (not allow_unset) and (k not in dct):
+                        raise TypeError(f"Optional field {k} must have a default value")
+                    optional_fields.add(k)
                 if (
                     CspTypingUtils.is_generic_container(v)
                     or CspTypingUtils.is_union_type(v)
@@ -72,6 +77,8 @@ class StructMeta(_csptypesimpl.PyStructMeta):
         dct["__full_metadata_typed__"] = full_metadata_typed
         dct["__metadata__"] = metadata
         dct["__defaults__"] = defaults
+        dct["__optional_fields__"] = optional_fields
+        dct["__strict_enabled__"] = not allow_unset
 
         res = super().__new__(cls, name, bases, dct)
         # This is how we make sure we construct the pydantic schema from the new class
@@ -175,6 +182,14 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
             return cls.__full_metadata__
 
     @classmethod
+    def optional_fields(cls):
+        return cls.__optional_fields__
+
+    @classmethod
+    def is_strict(cls):
+        return cls.__strict_enabled__
+
+    @classmethod
     def fromts(cls, trigger=None, /, **kwargs):
         """convert valid inputs into ts[ struct ]
         trigger - optional position-only argument to control when to sample the inputs and create a struct
@@ -237,12 +252,13 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         elif issubclass(obj_type, Struct):
             if not isinstance(json, dict):
                 raise TypeError("Representation of struct as json is expected to be of dict type")
-            res = obj_type()
+            obj_args = {}
             for k, v in json.items():
                 expected_type = obj_type.__full_metadata_typed__.get(k, None)
                 if expected_type is None:
                     raise KeyError(f"Unexpected key {k} for type {obj_type}")
-                setattr(res, k, cls._obj_from_python(v, expected_type))
+                obj_args[k] = cls._obj_from_python(v, expected_type)
+            res = obj_type(**obj_args)
             return res
         else:
             if isinstance(json, obj_type):

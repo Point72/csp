@@ -113,6 +113,8 @@ void KafkaInputAdapter::processMessage( RdKafka::Message* message, bool live, cs
         if( m_tickTimestampField )
             msgTime = m_tickTimestampField->value<DateTime>(tick.get());
 
+        tick.get() -> validate();
+
         bool pushLive = shouldPushLive(live, msgTime);
         if( shouldProcessMessage( pushLive, msgTime ) )
             pushTick(pushLive, msgTime, std::move(tick), batch);

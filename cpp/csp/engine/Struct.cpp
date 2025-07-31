@@ -1,12 +1,14 @@
 #include <csp/core/System.h>
 #include <csp/engine/Struct.h>
 #include <algorithm>
+#include <ranges>
+#include <string>
 
 namespace csp
 {
 
 StructField::StructField( CspTypePtr type, const std::string & fieldname, 
-                          size_t size, size_t alignment ) :
+                          size_t size, size_t alignment, bool isOptional ) :
     m_fieldname( fieldname ),
     m_offset( 0 ),
     m_size( size ),
@@ -14,7 +16,8 @@ StructField::StructField( CspTypePtr type, const std::string & fieldname,
     m_maskOffset( 0 ),
     m_maskBit( 0 ),
     m_maskBitMask( 0 ),
-    m_type( type )
+    m_type( type ),
+    m_isOptional( isOptional )
 {
 }
 
@@ -33,8 +36,8 @@ and adjustments required for the hidden fields
 
 */
 
-StructMeta::StructMeta( const std::string & name, const Fields & fields,
-                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields( fields ),
+StructMeta::StructMeta( const std::string & name, const Fields & fields, bool isStrict,
+                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_isStrict( isStrict ), m_fields( fields ), 
                                                              m_size( 0 ), m_partialSize( 0 ), m_partialStart( 0 ), m_nativeStart( 0 ), m_basePadding( 0 ),
                                                              m_maskLoc( 0 ), m_maskSize( 0 ), m_firstPartialField( 0 ), m_firstNativePartialField( 0 ),
                                                              m_isPartialNative( true ), m_isFullyNative( true )
@@ -493,6 +496,43 @@ void StructMeta::destroy( Struct * s ) const
     if( m_base )
         m_base -> destroy( s );
 }
+
+void StructMeta::validate( const Struct * s ) const
+{
+    bool encountered_non_strict = false;
+    
+    for( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
+    {
+        encountered_non_strict |= !cur -> isStrict();
+        if( !cur -> isStrict() ) {
+            continue;
+        }
+        
+        // rule 1: a non-strict struct may not inherit (directly or indirectly) from a strict base
+        if (encountered_non_strict)
+                CSP_THROW( ValueError, "Struct '" << s -> meta() -> name() << "' has non-strict inheritance of strict base '" << cur -> name() << "'" );
+
+        // rule 2: all local fields are set
+        std::string missing_fields;
+        for(const auto& field : cur->m_fields) {
+            if(!field->isSet(s)) {
+                if(missing_fields.empty()) {
+                    missing_fields = field->fieldname();
+                } else {
+                    missing_fields += ", " + field->fieldname();
+                }
+            }
+        }
+        
+        // raise error if any fields are missing
+        if (!missing_fields.empty()) {
+            CSP_THROW(ValueError,
+                     "Strict struct '" << cur->name() << "' missing required fields: " << missing_fields);
+        }
+    }
+}
+
+
 
 Struct::Struct( const std::shared_ptr<const StructMeta> & meta )
 {

@@ -84,6 +84,13 @@ class CspTypingUtils39:
         return isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union
 
     @classmethod
+    def is_optional_type(cls, typ):
+        if cls.is_union_type(typ):
+            args = typing.get_args(typ)
+            return type(None) in args
+        return False
+
+    @classmethod
     def is_literal_type(cls, typ):
         return isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Literal
 
@@ -122,6 +129,13 @@ if sys.version_info >= (3, 10):
             return (isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union) or isinstance(
                 typ, types.UnionType
             )
+
+        @classmethod
+        def is_optional_type(cls, typ):
+            if cls.is_union_type(typ):
+                args = typing.get_args(typ)
+                return type(None) in args
+            return False
 
     CspTypingUtils = CspTypingUtils310
 

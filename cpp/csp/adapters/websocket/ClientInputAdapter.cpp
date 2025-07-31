@@ -31,6 +31,7 @@ void ClientInputAdapter::processMessage( void* c, size_t t, PushBatch* batch )
     if( dataType() -> type() == CspType::Type::STRUCT )
     {
         auto tick = m_converter -> asStruct( c, t );
+        tick.get() -> validate();
         pushTick( std::move(tick), batch );
     } else if ( dataType() -> type() == CspType::Type::STRING )
     {

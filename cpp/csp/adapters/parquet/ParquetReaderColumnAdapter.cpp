@@ -520,6 +520,7 @@ void ParquetStructAdapter::dispatchValue( const utils::Symbol *symbol, bool isNu
         {
             fieldSetter( s );
         }
+        s -> validate();
         dispatchedValue = &s;
     }
 

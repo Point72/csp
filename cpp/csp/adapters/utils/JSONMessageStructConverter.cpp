@@ -145,6 +145,8 @@ StructPtr JSONMessageStructConverter::convertJSON( const char * fieldname, const
             } );
     }
 
+    struct_ -> validate();
+
     return struct_;
 }
 
@@ -251,6 +253,7 @@ csp::StructPtr JSONMessageStructConverter::asStruct( void * bytes, size_t size )
             }
         );
     }
+    // root struct validation (validate()) deferred to adapter level
 
     return data;
 }

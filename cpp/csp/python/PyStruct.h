@@ -25,7 +25,7 @@ class CSPTYPESIMPL_EXPORT DialectStructMeta : public StructMeta
 {
 public:
     DialectStructMeta( PyTypeObject * pyType, const std::string & name, 
-                       const Fields & fields, std::shared_ptr<StructMeta> base = nullptr );
+                       const Fields & fields, bool isStrict, std::shared_ptr<StructMeta> base = nullptr );
     ~DialectStructMeta() {}
 
     PyTypeObject * pyType() const { return m_pyType; }

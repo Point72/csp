@@ -705,6 +705,7 @@ DECLARE_CPPNODE( struct_fromts )
                 );
         }
 
+        out.get() -> validate( );
         CSP_OUTPUT( std::move( out ) );
     }
 
@@ -758,7 +759,7 @@ DECLARE_CPPNODE( struct_collectts )
                            }
                 );
         }
-
+        out.get() -> validate( );
         CSP_OUTPUT( std::move( out ) );
     }
 

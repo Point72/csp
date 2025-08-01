@@ -13,7 +13,7 @@ Notes for editors:
 - [Installation](Installation)
 - [First Steps](First-Steps)
 - [More with CSP](More-with-CSP)
-- [Build a Basic App](More-with-CSP)
+- [Build a Basic App](Build-a-Basic-App)
 - [IO with Adapters](IO-with-Adapters)
 
 **Concepts**

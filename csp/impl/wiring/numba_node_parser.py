@@ -64,7 +64,12 @@ class NumbaNodeParser(NodeParser):
         for kwd in call.keywords:
             if kwd.arg not in self._state_types:
                 if isinstance(kwd.value, ast.Constant):
-                    self._state_types[kwd.arg] = type(kwd.value)
+                    if isinstance(kwd.value.value, str):
+                        self._state_types[kwd.arg] = str
+                    elif isinstance(kwd.value.value, bool):
+                        self._state_types[kwd.arg] = bool
+                    else:
+                        self._state_types[kwd.arg] = type(kwd.value.value)
                 else:
                     raise CspParseError(
                         f"Unable to resolve type of state variable {kwd.arg}, explicit type must be provided in numba_node decorator",

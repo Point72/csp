@@ -678,7 +678,9 @@ class NodeParser(BaseParser):
     def _parse_special_blocks(self, body):
         # skip doc string
         for index, node in enumerate(body):
-            if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Constant):
+            if not isinstance(node, ast.Expr) or not (
+                isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+            ):
                 break
 
         last_special_block = None

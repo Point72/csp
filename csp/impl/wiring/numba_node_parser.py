@@ -63,7 +63,7 @@ class NumbaNodeParser(NodeParser):
 
         for kwd in call.keywords:
             if kwd.arg not in self._state_types:
-                if isinstance(kwd.value, ast.Constant):
+                if isinstance(kwd.value, ast.Constant) and isinstance(kwd.value.value, (str, bool, int, float)):
                     if isinstance(kwd.value.value, str):
                         self._state_types[kwd.arg] = str
                     elif isinstance(kwd.value.value, bool):

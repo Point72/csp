@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <csp/core/DynamicBitSet.h>
+
+#include <algorithm>
 #include <unordered_set>
 #include <random>
 #include <vector>

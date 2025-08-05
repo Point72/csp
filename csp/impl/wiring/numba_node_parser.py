@@ -93,7 +93,7 @@ class NumbaNodeParser(NodeParser):
                 ast.Expr(
                     value=ast.Call(
                         func=ast.Name(id=self.get_ts_out_value_return_name(0), ctx=ast.Load()),
-                        args=[ast.Name(id="__csp_node__", ctx=ast.Load()), ast.Num(n=0), return_value],
+                        args=[ast.Name(id="__csp_node__", ctx=ast.Load()), ast.Constant(0), return_value],
                         keywords=[],
                     )
                 )
@@ -116,7 +116,7 @@ class NumbaNodeParser(NodeParser):
         if ts_idx is not None:
             return ast.Call(
                 func=ast.Name(id=self.get_ts_input_value_getter_name(ts_idx), ctx=ast.Load()),
-                args=[ast.Name(id="__csp_node__", ctx=ast.Load()), ast.Num(n=ts_idx)],
+                args=[ast.Name(id="__csp_node__", ctx=ast.Load()), ast.Constant(ts_idx)],
                 keywords=[],
             )
         else:
@@ -150,7 +150,7 @@ class NumbaNodeParser(NodeParser):
         ts_idx = input.ts_idx
         return ast.Call(
             func=ast.Name(id=func, ctx=ast.Load()),
-            args=[ast.Name(id="__csp_node__", ctx=ast.Load()), ast.Num(n=ts_idx)],
+            args=[ast.Name(id="__csp_node__", ctx=ast.Load()), ast.Constant(ts_idx)],
             keywords=[],
         )
 
@@ -351,8 +351,8 @@ class NumbaNodeParser(NodeParser):
                     )
                 ],
                 keywords=[
-                    ast.keyword(arg="cache", value=ast.NameConstant(value=False)),
-                    ast.keyword(arg="debug", value=ast.NameConstant(value=False)),
+                    ast.keyword(arg="cache", value=ast.Constant(value=False)),
+                    ast.keyword(arg="debug", value=ast.Constant(value=False)),
                 ],
             )
         ]
@@ -374,7 +374,7 @@ class NumbaNodeParser(NodeParser):
         if self.has_state():
             state_cls = ast.Name(id=self._state_class_name, ctx=ast.Load())
         else:
-            state_cls = ast.NameConstant(value=None)
+            state_cls = ast.Constant(value=None)
 
         newbody.append(
             ast.Return(

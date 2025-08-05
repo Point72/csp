@@ -791,7 +791,7 @@ class NodeParser(BaseParser):
                         ast.Assign(
                             targets=[ast.Name(id=inp.name, ctx=ast.Store())],
                             value=ast.Tuple(
-                                elts=[ast.Constant(self._INPUT_VAR_VARNAME), ast.Num(n=inp.ts_idx)], ctx=ast.Load()
+                                elts=[ast.Constant(self._INPUT_VAR_VARNAME), ast.Constant(inp.ts_idx)], ctx=ast.Load()
                             ),
                         )
                     )
@@ -826,7 +826,7 @@ class NodeParser(BaseParser):
 
         init_block = node_proxy + ts_in_proxies + ts_out_proxies + ts_vars
         startblock = self._stateblock + self._startblock
-        body = [ast.While(test=ast.NameConstant(value=True), orelse=[], body=innerbody)]
+        body = [ast.While(test=ast.Constant(value=True), orelse=[], body=innerbody)]
 
         if self._stopblock:
             self._stopblock = [self.visit(node) for node in self._stopblock]

@@ -261,7 +261,11 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         lineno = None
         for i, body_item in enumerate(body):
             lineno = body_item.lineno
-            if isinstance(body_item, ast.Expr) and isinstance(body_item.value, ast.Str):
+            if (
+                isinstance(body_item, ast.Expr)
+                and isinstance(body_item.value, ast.Constant)
+                and isinstance(body_item.value.value, str)
+            ):
                 # last_doc_string_item = i
                 continue
             break

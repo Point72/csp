@@ -1696,11 +1696,11 @@ Args:
 - **min_periods**: the minimum allowable number of ticks to use before outputting data. The default is 1 for any EMA function.
 
 - **alpha**: the EMA weight parameter specified directly.
-  If *adjust = True,* EMA is calculated such that
+  If `adjust = True` and `alpha` is specified, then the EMA is calculated such that
 
   $$EMA(t) = \\frac{\\sum\\limits\_{t=-n}^{0} (1-\\alpha)^{-t} x(-t)}{\\sum\\limits\_{t=-n}^{0} (1-\\alpha)^{-t}}$$
 
-  If `adjust = False`, EMA is calculated such that
+  If `adjust = False` and `alpha` is specified, the EMA is calculated such that
 
   $$EMA(t) = (1-\\alpha)EMA(t-1) + \\alpha x(t)$$
   $$EMA(t=0) = x(0)$$
@@ -1717,19 +1717,26 @@ Args:
 
     $$\\alpha = \\frac{1}{1+com}$$
 
-  - **halflife**: Halflife is different from the other parameters. Half-life is a timedelta argument that specifies the half-life of observation weights. Half-life is useful when observations are irregularly spaced and a better estimate is needed to properly weight more recent data. Let $t\_{-1}$ be the time of the last observation.
+  - **halflife**: Halflife is different from the other parameters. Half-life is a timedelta argument that specifies the half-life of observation weights. Half-life is useful when observations are irregularly spaced and a better estimate is needed to properly weight more recent data. Let $$t\_{-1}$$ be the time of the last observation.
 
-    Then:
+    Then, if `adjust = True`:
 
     $$\\lambda(t)  = 1 - \\exp(\\frac{-(t-t\_{-1})\*\\ln(2)}{halflife})$$
+
     $$EMA(t) = \\frac{ \\lambda(t)\*EMA(t-1) + x(t)}{\\text{normalization constant}}$$
+
+    and if `adjust = False`:
+
+    $$EMA(t) = \\lambda(t)EMA(t-1) + (1-\\lambda(t))x(t)$$
+
+    $$EMA(t=0) = x(0)$$
 
     Something to note is that the `ignore_na` flag does not matter if a halflife interval is specified.
     The behavior would be the same in both cases, since an absolute time interval is being used to re-weight the moving average, not a tick interval.
 
     **Exactly one of alpha, span, com, halflife must be given**
 
-- **adjust**: if True, early observations are adjusted to give a more "smoothed" estimate of the EMA. The difference is that if `adjust=True`, then each new observation receives a relative weight of 1. If adjust = False, each new observation receives a relative weight of alpha.
+- **adjust**: if True, early observations are adjusted to give a more "smoothed" estimate of the EMA. The difference is that if `adjust = True`, then each new observation receives a relative weight of 1. If `adjust = False`, each new observation receives a relative weight of `alpha` (if alpha is specified) or $$1-\\lambda(t)$$ (if halflife is specified).
 
   - `adjust=True` means that:
 
@@ -1741,7 +1748,7 @@ Args:
 
   $$\\text{and thus } EMA(t=0) = x(0)$$
 
-  Adjust only applies with tick specified intervals, not time specified intervals. Time specified intervals (i.e. half-life) do not need adjustment as they are, by definition, already adjusted.
+  In the time-specified decay case (halflife), the same equations apply with the replacement of $$1-\\lambda(t)$$ for $$\\alpha$$.
 
 - **horizon**: the maximum number of ticks to use in the computation. For example, if horizon = 10, then only the 10 most recent data points are used. If not specified, all data points for x are used, with early ticks decaying exponentially in weighting. Horizon will be ignored with a half-life (time-based) interval.
 

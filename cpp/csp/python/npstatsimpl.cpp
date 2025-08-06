@@ -681,7 +681,7 @@ EXPORT_TEMPLATE_CPPNODE( _np_rank,              SINGLE_ARG( _npComputeTwoArg<int
 EXPORT_TEMPLATE_CPPNODE( _np_kurt,              SINGLE_ARG( _npComputeTwoArg<bool, Kurtosis> ) );
 EXPORT_TEMPLATE_CPPNODE( _np_ema_compute,       _npComputeEMA<EMA> );
 EXPORT_TEMPLATE_CPPNODE( _np_ema_adjusted,      _npComputeEMA<AdjustedEMA>);
-EXPORT_TEMPLATE_CPPNODE( _np_ema_debias_alpha,  _npComputeEMA<AlphaDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_alpha_debias,  _npComputeEMA<AlphaDebiasEMA> );
 
 // Bivariate
 template<typename C>
@@ -914,10 +914,12 @@ EXPORT_CPPNODE ( _np_quantile );
 
 // C: computation class
 template<typename C>
-DECLARE_CPPNODE( _np_exp_timewise )
+DECLARE_CPPNODE( _np_exp_halflife )
 {
     TS_INPUT( PyObjectPtr, x );
     SCALAR_INPUT( TimeDelta, halflife );
+    SCALAR_INPUT( bool, adjust );
+
     TS_INPUT( Generic, trigger );
     TS_INPUT( Generic, sampler );
     TS_INPUT( Generic, reset );
@@ -929,7 +931,7 @@ DECLARE_CPPNODE( _np_exp_timewise )
 
     TS_OUTPUT( PyObjectPtr );
 
-    INIT_CPPNODE( _np_exp_timewise ) { }
+    INIT_CPPNODE( _np_exp_halflife ) { }
 
     INVOKE()
     {
@@ -948,7 +950,7 @@ DECLARE_CPPNODE( _np_exp_timewise )
                 s_elem.reserve( s_shp.m_n );
                 for( int64_t j = 0; j < s_shp.m_n; j++ )
                 {
-                    s_elem.emplace_back( DataValidator<C>( min_data_points, true, halflife, now() - TimeDelta::fromMicroseconds( 1 ) ) );
+                    s_elem.emplace_back( DataValidator<C>( min_data_points, true, halflife, now() - TimeDelta::fromMicroseconds( 1 ), adjust ) );
                 }
                 s_first = false;
             }
@@ -964,8 +966,9 @@ DECLARE_CPPNODE( _np_exp_timewise )
     }
 };
 
-EXPORT_TEMPLATE_CPPNODE( _np_ema_timewise, _np_exp_timewise<HalflifeEMA> );
-EXPORT_TEMPLATE_CPPNODE( _np_ema_debias_halflife, _np_exp_timewise<HalflifeDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_halflife,          _np_exp_halflife<HalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_halflife_adjusted, _np_exp_halflife<AdjustedHalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_halflife_debias,   _np_exp_halflife<HalflifeDebiasEMA> );
 
 template<typename C>
 DECLARE_CPPNODE( _np_matrix_compute )

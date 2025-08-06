@@ -1628,11 +1628,6 @@ class AlphaDebiasEMA
             m_adjust = adjust;
             reset();
         }
-
-        AlphaDebiasEMA( AlphaDebiasEMA && rhs ) = default;
-
-        AlphaDebiasEMA & operator=( AlphaDebiasEMA && rhs ) = default;
-
         
         void add( double x )
         {
@@ -1725,30 +1720,63 @@ class AlphaDebiasEMA
 
 class HalflifeEMA
 {
-    public:
-        HalflifeEMA() = default;
+public:
+    HalflifeEMA() = default;
 
-        HalflifeEMA( TimeDelta halflife, DateTime start )
+    HalflifeEMA( TimeDelta halflife, DateTime start, bool )
+    {
+        m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
+        reset();
+    }
+
+    void add( double x, DateTime now )
+    {
+        if( unlikely( m_last_tick.isNone() ) )
+            m_ema = x;
+        else
+        {
+            double decay = 1 - exp( m_decay_factor * ( now - m_last_tick ).asNanoseconds() );
+            m_ema += decay * ( x - m_ema );
+        }
+        m_last_tick = now;
+    }
+
+    void reset()
+    {
+        m_ema = std::numeric_limits<double>::quiet_NaN();
+        m_last_tick = DateTime::NONE();
+    }
+
+    double compute() const
+    {
+        return m_ema;
+    }
+
+private:
+    double    m_ema;
+    double    m_decay_factor;
+    DateTime  m_last_tick;
+};
+
+class AdjustedHalflifeEMA
+{
+    public:
+        AdjustedHalflifeEMA() = default;
+
+        AdjustedHalflifeEMA( TimeDelta halflife, DateTime start, bool )
         {
             m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
             m_last_tick = start;
             reset();
         }
 
-        HalflifeEMA( HalflifeEMA && rhs ) = default;
-
-        HalflifeEMA & operator=( HalflifeEMA && rhs ) = default;
-
         void add( double x, DateTime now )
         {
-            if( likely( !isnan( x ) ) )
-            {
-                TimeDelta delta_t = now - m_last_tick;
-                double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
-                m_ema = decay * m_ema + x;
-                m_norm = decay * m_norm + 1.0;
-                m_last_tick = now;
-            }
+            TimeDelta delta_t = now - m_last_tick;
+            double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
+            m_ema = decay * m_ema + x;
+            m_norm = decay * m_norm + 1.0;
+            m_last_tick = now;
         }
 
         void reset()
@@ -1758,7 +1786,7 @@ class HalflifeEMA
 
         double compute() const
         {
-            return m_ema / m_norm;
+            return likely( m_norm > 0 ) ? ( m_ema / m_norm ) : std::numeric_limits<double>::quiet_NaN();
         }
 
     private:
@@ -1767,7 +1795,6 @@ class HalflifeEMA
         double m_norm;
         double m_decay_factor;
         DateTime m_last_tick;
-
 };
 
 class HalflifeDebiasEMA
@@ -1775,27 +1802,30 @@ class HalflifeDebiasEMA
     public:
         HalflifeDebiasEMA() = default;
 
-        HalflifeDebiasEMA( TimeDelta halflife, DateTime start )
+        HalflifeDebiasEMA( TimeDelta halflife, DateTime start, bool adjust )
         {
-            m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
+            m_decay = log( 0.5 ) / halflife.asNanoseconds();
             m_last_tick = start;
+            m_adjust = adjust;
             reset();
         }
 
-        HalflifeDebiasEMA( HalflifeDebiasEMA && rhs ) = default;
-
-        HalflifeDebiasEMA & operator=( HalflifeDebiasEMA && rhs ) = default;
-
         void add( double x, DateTime now )
         {
-            if( likely( !isnan( x ) ) )
-            {
-                TimeDelta delta_t = now - m_last_tick;
-                double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
-                m_sqsum = decay * decay * m_sqsum + 1.0;
-                m_wsum = decay * m_wsum + 1.0;
-                m_last_tick = now;
-            }
+            TimeDelta delta_t = now - m_last_tick;
+            double decay_factor = exp( m_decay * delta_t.asNanoseconds() );
+            m_sqsum *= decay_factor * decay_factor;
+            m_wsum *= decay_factor;
+
+            double w0;
+            if( m_adjust )
+                w0 = 1.0;
+            else
+                w0 = 1 - m_decay;
+            m_sqsum += w0 * w0;
+            m_wsum += w0;
+
+            m_last_tick = now;
         }
 
         void reset()
@@ -1816,7 +1846,8 @@ class HalflifeDebiasEMA
 
         double m_wsum;
         double m_sqsum;
-        double m_decay_factor;
+        double m_decay;
+        bool   m_adjust;
         DateTime m_last_tick;
 };
 
@@ -1841,10 +1872,22 @@ struct NanCheck
     }
 };
 
+template <typename T, typename... Types>
+struct is_any_of : std::false_type {};
+
+template <typename T, typename First, typename... Rest>
+struct is_any_of<T, First, Rest...> { static constexpr bool value = std::is_same_v<T, First> || is_any_of<T, Rest...>::value; };
+
+template <typename T, typename... Types>
+inline constexpr bool is_any_of_v = is_any_of<T, Types...>::value;
+
 // Validates min_data_points and takes care of NaN handling
 template<typename T>
 class DataValidator
 {
+    static constexpr bool PROCESS_NA    = is_any_of_v<T, EMA, AdjustedEMA, AlphaDebiasEMA, Rank>;
+    static constexpr bool CONSIDER_NA   = is_any_of_v<T, First, Last>;
+
     public:
         DataValidator() = default;
 
@@ -1865,7 +1908,7 @@ class DataValidator
             if( isnan( x ) )
             {
                 m_nans++;
-                if( m_process_na || ( m_consider_na && !m_igna ) )
+                if( PROCESS_NA || ( CONSIDER_NA && !m_igna ) )
                     m_stat.add( x );
             }
             else
@@ -1893,7 +1936,7 @@ class DataValidator
             if( NanCheck::any_nan( args...) )
             {
                 m_nans--;
-                if( m_process_na || ( m_consider_na && !m_igna ) )
+                if( PROCESS_NA || ( CONSIDER_NA && !m_igna ) )
                     m_stat.remove( args... );
             }
             else
@@ -1906,7 +1949,7 @@ class DataValidator
         template<typename ...V>
         double compute( V... args )
         {
-            if( ( !m_igna && (m_nans > 0  && !m_consider_na ) ) || m_points < m_mdp )
+            if( ( !m_igna && (m_nans > 0  && !CONSIDER_NA ) ) || m_points < m_mdp )
                 return std::numeric_limits<double>::quiet_NaN();
 
             return m_stat.compute( args... );
@@ -1933,9 +1976,6 @@ class DataValidator
         int64_t m_mdp = 0;
         bool m_igna = false;
         T m_stat;
-        static constexpr bool m_process_na = ( std::is_same<T,EMA>::value || std::is_same<T,AdjustedEMA>::value || std::is_same<T,AlphaDebiasEMA>::value
-                        || std::is_same<T,HalflifeEMA>::value || std::is_same<T,HalflifeDebiasEMA>::value || std::is_same<T,Rank>::value );
-        static constexpr bool m_consider_na = ( std::is_same<T,First>::value || std::is_same<T,Last>::value );
 };
 
 

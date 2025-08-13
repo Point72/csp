@@ -47,6 +47,11 @@ public:
         m_maskBitMask = 1 << bit;
     }
 
+    void setRequired()
+    {
+        m_isOptional = false;
+    }
+
     bool isSet( const Struct * s ) const
     {
         const uint8_t * m = reinterpret_cast<const uint8_t *>( s ) + m_maskOffset;
@@ -77,7 +82,7 @@ public:
 protected:
 
     StructField( CspTypePtr type, const std::string & fieldname,
-                 size_t size, size_t alignment, bool isOptional );
+                 size_t size, size_t alignment );
 
     void setIsSet( Struct * s ) const
     {
@@ -110,7 +115,7 @@ private:
     uint8_t      m_maskBit;
     uint8_t      m_maskBitMask;
     CspTypePtr   m_type;
-    const bool   m_isOptional;
+    bool         m_isOptional;
 };
 
 using StructFieldPtr = std::shared_ptr<StructField>;
@@ -123,7 +128,7 @@ class NativeStructField : public StructField
 
 public:
     NativeStructField() {}
-    NativeStructField( const std::string & fieldname, bool isOptional ) : NativeStructField( CspType::fromCType<T>::type(), fieldname, isOptional )
+    NativeStructField( const std::string & fieldname ) : NativeStructField( CspType::fromCType<T>::type(), fieldname )
     {
     }
 
@@ -160,7 +165,7 @@ public:
     }
 
 protected:
-    NativeStructField( CspTypePtr type, const std::string & fieldname, bool isOptional ) : StructField( type, fieldname, sizeof( T ), alignof( T ), isOptional )
+    NativeStructField( CspTypePtr type, const std::string & fieldname ) : StructField( type, fieldname, sizeof( T ), alignof( T ) )
     {}
 };
 
@@ -182,7 +187,7 @@ using TimeStructField      = NativeStructField<Time>;
 class CspEnumStructField final : public NativeStructField<CspEnum>
 {
 public:
-    CspEnumStructField( CspTypePtr type, const std::string & fieldname, bool isOptional ) : NativeStructField( type, fieldname, isOptional )
+    CspEnumStructField( CspTypePtr type, const std::string & fieldname ) : NativeStructField( type, fieldname )
     {}
 };
 
@@ -221,8 +226,8 @@ public:
 class NonNativeStructField : public StructField
 {
 public:
-    NonNativeStructField( CspTypePtr type, const std::string &fieldname, size_t size, size_t alignment, bool isOptional ) :
-        StructField( type, fieldname, size, alignment, isOptional )
+    NonNativeStructField( CspTypePtr type, const std::string &fieldname, size_t size, size_t alignment ) :
+        StructField( type, fieldname, size, alignment )
     {}
 
     virtual void initialize( Struct * s ) const = 0;
@@ -247,8 +252,8 @@ class StringStructField final : public NonNativeStructField
 public:
     using CType = csp::CspType::StringCType;
 
-    StringStructField( CspTypePtr type, const std::string & fieldname, bool isOptional ) :
-        NonNativeStructField( type, fieldname, sizeof( CType ), alignof( CType ), isOptional )
+    StringStructField( CspTypePtr type, const std::string & fieldname ) :
+        NonNativeStructField( type, fieldname, sizeof( CType ), alignof( CType ) )
     {}
 
     void initialize( Struct * s ) const override
@@ -346,8 +351,8 @@ class ArrayStructField : public NonNativeStructField
     }
 
 public:
-    ArrayStructField( CspTypePtr arrayType, const std::string & fieldname, bool isOptional ) :
-        NonNativeStructField( arrayType, fieldname, sizeof( CType ), alignof( CType ), isOptional )
+    ArrayStructField( CspTypePtr arrayType, const std::string & fieldname ) :
+        NonNativeStructField( arrayType, fieldname, sizeof( CType ), alignof( CType ) )
     {}
 
     const CType & value( const Struct * s ) const
@@ -424,8 +429,8 @@ private:
 class DialectGenericStructField : public NonNativeStructField
 {
 public:
-    DialectGenericStructField( const std::string & fieldname, size_t size, size_t alignment, bool isOptional ) :
-        NonNativeStructField( CspType::DIALECT_GENERIC(), fieldname, size, alignment, isOptional )
+    DialectGenericStructField( const std::string & fieldname, size_t size, size_t alignment ) :
+        NonNativeStructField( CspType::DIALECT_GENERIC(), fieldname, size, alignment )
     {}
 
     const DialectGenericType & value( const Struct * s ) const
@@ -834,8 +839,8 @@ bool TypedStructPtr<T>::operator==( const TypedStructPtr<T> & rhs ) const
 class StructStructField final : public NonNativeStructField
 {
 public:
-    StructStructField( CspTypePtr cspType, const std::string &fieldname, bool isOptional ) :
-        NonNativeStructField( cspType, fieldname, sizeof( StructPtr ), alignof( StructPtr ), isOptional )
+    StructStructField( CspTypePtr cspType, const std::string &fieldname ) :
+        NonNativeStructField( cspType, fieldname, sizeof( StructPtr ), alignof( StructPtr ) )
     {
         CSP_ASSERT( cspType -> type() == CspType::Type::STRUCT );
         m_meta = std::static_pointer_cast<const CspStructType>( cspType ) -> meta();

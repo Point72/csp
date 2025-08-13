@@ -8,7 +8,7 @@ namespace csp
 {
 
 StructField::StructField( CspTypePtr type, const std::string & fieldname, 
-                          size_t size, size_t alignment, bool isOptional ) :
+                          size_t size, size_t alignment ) :
     m_fieldname( fieldname ),
     m_offset( 0 ),
     m_size( size ),
@@ -17,7 +17,7 @@ StructField::StructField( CspTypePtr type, const std::string & fieldname,
     m_maskBit( 0 ),
     m_maskBitMask( 0 ),
     m_type( type ),
-    m_isOptional( isOptional )
+    m_isOptional( 1 )
 {
 }
 

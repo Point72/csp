@@ -250,13 +250,13 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         elif issubclass(obj_type, Struct):
             if not isinstance(json, dict):
                 raise TypeError("Representation of struct as json is expected to be of dict type")
-            res = obj_type._unvalidated__call__()
+            obj_args = {}
             for k, v in json.items():
                 expected_type = obj_type.__full_metadata_typed__.get(k, None)
                 if expected_type is None:
                     raise KeyError(f"Unexpected key {k} for type {obj_type}")
-                setattr(res, k, cls._obj_from_python(v, expected_type))
-            res.validate()
+                obj_args[k] = cls._obj_from_python(v, expected_type)
+            res = obj_type(**obj_args)
             return res
         else:
             if isinstance(json, obj_type):

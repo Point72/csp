@@ -131,6 +131,18 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
         if( !rv.second )
             CSP_THROW( ValueError, "csp Struct " << name << " attempted to add existing field " << m_fields[ idx ] -> fieldname() );
     }
+    
+    // A non-strict struct may not inherit (directly or indirectly) from a strict base
+    bool encountered_non_strict = false;
+    for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
+    {
+        encountered_non_strict |= !cur -> isStrict();
+        if ( encountered_non_strict && cur -> isStrict() )
+            CSP_THROW( ValueError, 
+                    "Strict '" << m_name 
+                    << "' has non-strict inheritance of strict base '" 
+                    << cur -> name() << "'" );
+    }
 }
 
 StructMeta::~StructMeta()
@@ -498,40 +510,29 @@ void StructMeta::destroy( Struct * s ) const
 }
 
 void StructMeta::validate( const Struct * s ) const
-{
-    bool encountered_non_strict = false;
-    
+{    
     for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
     {
-        encountered_non_strict |= !cur -> isStrict();
         if ( !cur -> isStrict() )
             continue;
-        
-        // Rule 1: A non-strict struct may not inherit (directly or indirectly) from a strict base
-        if ( encountered_non_strict )
-            CSP_THROW( ValueError, 
-                    "Struct '" << s -> meta() -> name() 
-                    << "' has non-strict inheritance of strict base '" 
-                    << cur -> name() << "'" );
 
-        // Rule 2: All local fields are set
-        std::string missing_fields;
-        for ( const auto & field : cur -> m_fields )
+        if ( !cur -> allFieldsSet( s ) )
         {
-            if ( !field -> isSet( s ) )
+            std::string missing_fields;
+            for ( const auto & field : cur -> m_fields )
             {
-                if ( missing_fields.empty() )
-                    missing_fields = field -> fieldname();
-                else
-                    missing_fields += ", " + field -> fieldname();
+                if ( !field -> isSet( s ) )
+                {
+                    if ( missing_fields.empty() )
+                        missing_fields = field -> fieldname();
+                    else
+                        missing_fields += ", " + field -> fieldname();
+                }
             }
-        }
-        
-        // Raise error if any fields are missing
-        if ( !missing_fields.empty() )
             CSP_THROW( ValueError, 
-                    "Strict struct '" << cur -> name() 
+                    "Strict struct '" << s -> meta() -> name() 
                     << "' missing required fields: " << missing_fields );
+        }
     }
 }
 

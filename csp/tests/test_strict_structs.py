@@ -142,7 +142,7 @@ class TestStrictStructs(unittest.TestCase):
 
         with self.assertRaisesRegex(
             AttributeError,
-            "Cannot access optional field 'opt_str' on object 'MyStrictStruct' at graph time",
+            "Cannot access optional field 'opt_str' on strict struct object 'MyStrictStruct' at graph time",
         ):
             csp.run(g_fail, starttime=datetime(2023, 1, 1))
 
@@ -264,23 +264,10 @@ class TestStrictStructs(unittest.TestCase):
         class StrictBase(csp.Struct, allow_unset=False):
             base_val: int
 
-        class NonStrictChild1(StrictBase, allow_unset=True):
-            child_val1: Optional[int] = None
-
-        class NonStrictChild2(NonStrictChild1, allow_unset=True):
-            child_val2: Optional[int] = None
-
-        class NonStrictChild3(NonStrictChild2, allow_unset=True):
-            child_val3: Optional[int] = None
-
         with self.assertRaisesRegex(ValueError, "non-strict inheritance of strict base"):
-            NonStrictChild1(base_val=1, child_val1=2)
 
-        with self.assertRaisesRegex(ValueError, "non-strict inheritance of strict base"):
-            NonStrictChild2(base_val=3, child_val1=4, child_val2=5)
-
-        with self.assertRaisesRegex(ValueError, "non-strict inheritance of strict base"):
-            NonStrictChild3(base_val=6, child_val1=7, child_val2=8, child_val3=9)
+            class NonStrictChild1(StrictBase, allow_unset=True):
+                child_val1: Optional[int] = None
 
     def test_nonstrict_strict_nonstrict_inheritance_order(self):
         """inheritance order NonStrict -> Strict -> NonStrict raises an error"""
@@ -291,11 +278,10 @@ class TestStrictStructs(unittest.TestCase):
         class StrictMiddle(NonStrictBase, allow_unset=False):
             middle_val: int
 
-        class NonStrictChild(StrictMiddle, allow_unset=True):
-            child_val: Optional[int] = None
-
         with self.assertRaisesRegex(ValueError, "non-strict inheritance of strict base"):
-            NonStrictChild(base_val=1, middle_val=2, child_val=3)
+
+            class NonStrictChild(StrictMiddle, allow_unset=True):
+                child_val: Optional[int] = None
 
     def test_nested_struct_serialization(self):
         """to_dict / from_dict work with nested strict & non-strict structs"""
@@ -344,7 +330,7 @@ class TestStrictStructs(unittest.TestCase):
             csp.print("", res)
 
         with self.assertRaisesRegex(
-            AttributeError, "Cannot access optional field 'is_active' on object 'Test' at graph time"
+            AttributeError, "Cannot access optional field 'is_active' on strict struct object 'Test' at graph time"
         ):
             csp.build_graph(main_graph)
 

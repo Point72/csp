@@ -52,7 +52,6 @@ class NumPyIterator
         NumPyIterator()
         {
             m_nd = 0;
-            m_size = 0;
             m_index = 0;
             m_data = nullptr;
             m_strides = nullptr;
@@ -131,15 +130,10 @@ class NumPyIterator
             for( int i = 0; i < m_nd; ++i )
                 m_stridedDimensions.emplace_back( m_strides[i] * ( m_dims[i] - 1 ) );
             m_data = reinterpret_cast<char*>( PyArray_DATA( arr ) );
-            if( m_nd == 0 )
-                m_size = 0;
-            else
-                m_size = std::accumulate( m_dims, m_dims + m_nd, 1, std::multiplies<int64_t>() );
-            m_valid = ( m_size > 0 );
+            m_valid = ( PyArray_SIZE( arr ) > 0 );
         }
 
         int64_t m_nd;
-        int64_t m_size;
         int64_t m_index;
         char* m_data;
         npy_intp* m_strides;
@@ -164,10 +158,7 @@ struct PyShape
         npy_intp* dims = PyArray_DIMS( arr );
         for( int64_t j = 0; j < nd; j++ )
             m_dims.emplace_back( dims[j] );
-        if( nd == 0 )
-            m_n = 0;
-        else
-            m_n = std::accumulate( std::begin( m_dims ), std::end( m_dims ), 1, std::multiplies<int64_t>() );
+        m_n = PyArray_SIZE( arr );
     }
 
     PyShape( PyObject* arr ) : PyShape( ( PyArrayObject* ) arr ) { }

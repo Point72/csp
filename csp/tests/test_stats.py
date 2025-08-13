@@ -3783,6 +3783,33 @@ class TestStats(unittest.TestCase):
                 check_names=False,
             )
 
+    def test_scalar_arrays(self):
+        # np scalar arrays have no dimensions i.e. shape=(), but do contain a valid value
+        def scalar_graph():
+            raw_data = csp.count(csp.timer(timedelta(seconds=1), True))
+            zero_dim_array_data = csp.apply(raw_data, lambda x: np.array(float(x)), np.ndarray)
+            ema = csp.stats.ema(zero_dim_array_data, halflife=timedelta(seconds=10))
+            sum = csp.stats.sum(zero_dim_array_data, interval=10, min_window=1)
+
+            csp.add_graph_output("ema", ema)
+            csp.add_graph_output("sum", sum)
+
+        N_DATA_POINTS = 50
+        res = csp.run(
+            scalar_graph, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=N_DATA_POINTS), output_numpy=True
+        )
+        data = pd.Series(range(1, 51))
+
+        self.assertTrue(res["ema"][1][0].shape == tuple())  # 0-dimension shape is preserved
+        self.assertTrue(res["sum"][1][0].shape == tuple())  # 0-dimension shape is preserved
+        assert_series_equal(
+            pd.Series([res["ema"][1][k].item() for k in range(N_DATA_POINTS)]), data.ewm(halflife=10).mean()
+        )
+        assert_series_equal(
+            pd.Series([res["sum"][1][k].item() for k in range(N_DATA_POINTS)]),
+            data.rolling(window=10, min_periods=1).sum(),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

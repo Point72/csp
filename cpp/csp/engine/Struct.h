@@ -182,8 +182,7 @@ using TimeStructField      = NativeStructField<Time>;
 class CspEnumStructField final : public NativeStructField<CspEnum>
 {
 public:
-    CspEnumStructField( CspTypePtr type, const std::string & fieldname, bool isOptional ) : NativeStructField( type, 
-    fieldname, isOptional )
+    CspEnumStructField( CspTypePtr type, const std::string & fieldname, bool isOptional ) : NativeStructField( type, fieldname, isOptional )
     {}
 };
 

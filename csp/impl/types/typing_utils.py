@@ -130,13 +130,6 @@ if sys.version_info >= (3, 10):
                 typ, types.UnionType
             )
 
-        @classmethod
-        def is_optional_type(cls, typ):
-            if cls.is_union_type(typ):
-                args = typing.get_args(typ)
-                return type(None) in args
-            return False
-
     CspTypingUtils = CspTypingUtils310
 
 

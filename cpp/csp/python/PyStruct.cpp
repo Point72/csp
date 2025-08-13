@@ -20,9 +20,9 @@ class PyObjectStructField final : public DialectGenericStructField
 public:
     using BASE = DialectGenericStructField;
     PyObjectStructField( const std::string & name,
-                        PyTypeObjectPtr pytype,
-                        bool isOptional ) : BASE( name, sizeof( PyObjectPtr ), alignof( PyObjectPtr ), isOptional ),
-                                          m_pytype( pytype )
+                         PyTypeObjectPtr pytype,
+                         bool isOptional ) : BASE( name, sizeof( PyObjectPtr ), alignof( PyObjectPtr ), isOptional ),
+                                             m_pytype( pytype )
     {}
 
 
@@ -493,7 +493,7 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
     if( !field )
         CSP_THROW( AttributeError, "'" << s -> meta() -> name() << "' object has no attribute '" << PyUnicode_AsUTF8( attr ) << "'" );
 
-    if( (s -> meta() -> isStrict()) && (value == nullptr) )
+    if ( s -> meta() -> isStrict() && value == nullptr )
         CSP_THROW( AttributeError, "Strict struct " << s -> meta() -> name() << " does not allow the deletion of field " << PyUnicode_AsUTF8( attr ) );
 
     try

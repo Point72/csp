@@ -26,8 +26,20 @@ function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OU
         set(CSP_AUTOGEN_PYTHONPATH ${PROJECT_BINARY_DIR}/lib:${CMAKE_SOURCE_DIR}:$$PYTHONPATH)
     endif()
 
+    if(CSP_ENABLE_ASAN)
+        execute_process(
+            COMMAND gcc -print-file-name=libasan.so
+            OUTPUT_VARIABLE ASAN_LIB_PATH
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        # Turn off leak checks as we are using PyMalloc when we run autogen
+        set(ASAN_PRELOAD_CMD "ASAN_OPTIONS=detect_leaks=0" "LD_PRELOAD=${ASAN_LIB_PATH}")
+    else()
+        set(ASAN_PRELOAD_CMD "")
+    endif()
+
     add_custom_command(OUTPUT "${CSP_AUTOGEN_CPP_OUT}" "${CSP_AUTOGEN_H_OUT}"
-        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CSP_AUTOGEN_PYTHONPATH}" ${Python_EXECUTABLE} ${CSP_AUTOGEN_MODULE_PATH} -m ${MODULE_NAME} -d ${CSP_AUTOGEN_DESTINATION_FOLDER} -o ${DEST_FILENAME} ${CSP_AUTOGEN_EXTRA_ARGS}
+        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CSP_AUTOGEN_PYTHONPATH}" ${ASAN_PRELOAD_CMD} ${Python_EXECUTABLE} ${CSP_AUTOGEN_MODULE_PATH} -m ${MODULE_NAME} -d ${CSP_AUTOGEN_DESTINATION_FOLDER} -o ${DEST_FILENAME} ${CSP_AUTOGEN_EXTRA_ARGS}
         COMMENT "generating csp c++ types from module ${MODULE_NAME}"
         DEPENDS mkdir_autogen_${MODULE_TARGETNAME} 
                     ${CSP_AUTOGEN_MODULE_PATH}

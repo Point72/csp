@@ -20,11 +20,17 @@ develop: requirements  ## install dependencies and build library
 build:  ## build the library
 	python setup.py build build_ext --inplace
 
+build-sanitizer:  ## build the library with ASAN and UBSAN enabled
+	CSP_ENABLE_ASAN=1 CSP_ENABLE_UBSAN=1 python setup.py build build_ext --inplace
+
 build-debug:  ## build the library ( DEBUG ) - May need a make clean when switching from regular build to build-debug and vice versa
 	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
 
 build-conda:  ## build the library in Conda
 	python setup.py build build_ext --csp-no-vcpkg --inplace
+
+build-conda-sanitizer:  ## build the library in Conda with ASAN and UBSAN enabled
+	CSP_ENABLE_ASAN=1 CSP_ENABLE_UBSAN=1 python setup.py build build_ext --csp-no-vcpkg --inplace
 
 install:  ## install library
 	python -m pip install .
@@ -82,6 +88,10 @@ checks: check
 
 TEST_ARGS :=
 test-py: ## Clean and Make unit tests
+	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
+
+test-py-sanitizer: ## Clean and Make unit tests with sanitizers enabled
+	ASAN_OPTIONS=detect_leaks=0,detect_stack_use_after_return=true,use_odr_indicator=1,strict_init_order=true,strict_string_checks=true LD_PRELOAD=$$(gcc -print-file-name=libasan.so) \
 	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
 
 test-cpp: ## Make C++ unit tests

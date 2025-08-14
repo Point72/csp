@@ -98,4 +98,8 @@ TEST( TickBufferTest, test_flatten )
         ASSERT_EQ( values_wrap[ i ], i + 3 );
         ASSERT_EQ( values_nowrap[ i ], i );
     }
+
+    free( values_wrap );
+    free( values_nowrap );
+    free( values_single );
 }

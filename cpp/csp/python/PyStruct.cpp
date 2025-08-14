@@ -122,7 +122,6 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
             if (!PySet_Check(optional_fields)) 
                 CSP_THROW( TypeError, "Struct metadata for key " << keystr << " expected a set, got " << PyObjectPtr::incref( optional_fields ) );
 
-            bool isOptional = PySet_Contains( optional_fields, key ) == 1;
 
             if( !PyType_Check( type ) && !PyList_Check( type ) )
                 CSP_THROW( TypeError, "Struct metadata for key " << keystr << " expected a type, got " << PyObjectPtr::incref( type ) );
@@ -160,9 +159,6 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                     CSP_THROW( ValueError, "Unexpected csp type " << csptype -> type() << " on struct " << name );
             }
             
-            if ( !isOptional )
-                field -> setRequired( );
-
             fields.emplace_back( field );
         }
     }

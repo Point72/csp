@@ -33,7 +33,7 @@ class TestStrictStructs(unittest.TestCase):
 
         class MyStrictStruct(csp.Struct, allow_unset=False):
             req_int: int
-            opt_str: Optional[str]
+            opt_str: Optional[str] = None
             def_int: int = 123
             opt_str_2: Optional[str] = None
 
@@ -43,17 +43,6 @@ class TestStrictStructs(unittest.TestCase):
         self.assertEqual(s1.opt_str, "hello")
         self.assertEqual(s1.def_int, 123)
         self.assertIsNone(s1.opt_str_2)
-
-        # Error on missing required fields
-        with self.assertRaisesRegex(
-            ValueError, "Struct MyStrictStruct is not valid; some required fields were not set on init"
-        ):
-            MyStrictStruct(opt_str="world")
-
-        with self.assertRaisesRegex(
-            ValueError, "Struct MyStrictStruct is not valid; some required fields were not set on init"
-        ):
-            MyStrictStruct(req_int=1)
 
         with self.assertRaisesRegex(
             ValueError, "Struct MyStrictStruct is not valid; some required fields were not set on init"
@@ -65,7 +54,7 @@ class TestStrictStructs(unittest.TestCase):
 
         class MyStrictStruct1(csp.Struct, allow_unset=False):
             req_int: int
-            opt_str: Optional[str]
+            opt_str: Optional[str] = None
 
         class MyStrictStruct2(csp.Struct, allow_unset=False):
             req_int: int
@@ -98,7 +87,7 @@ class TestStrictStructs(unittest.TestCase):
             req_int: int
             opt_str: Optional[str] = None
             def_int: int = 100
-            req_opt_str: Optional[str]
+            req_opt_str: Optional[str] = None
 
         s = MyStrictStruct(req_int=50, req_opt_str="NoneStr")
         expected_dict = {"req_int": 50, "opt_str": None, "def_int": 100, "req_opt_str": "NoneStr"}
@@ -337,7 +326,7 @@ class TestStrictStructs(unittest.TestCase):
         class Test(csp.Struct, allow_unset=False):
             name: str
             age: int
-            is_active: Optional[bool]
+            is_active: Optional[bool] = None
 
             def greet(self):
                 return f"Hello, my name is {self.name} and I am {self.age} years old."
@@ -355,6 +344,15 @@ class TestStrictStructs(unittest.TestCase):
             AttributeError, "Cannot access optional field 'is_active' on strict struct object 'Test' at graph time"
         ):
             csp.build_graph(main_graph)
+
+    def test_strict_struct_optional_field_validation_no_default(self):
+        """test that strict structs cannot have Optional fields without defaults"""
+
+        with self.assertRaisesRegex(TypeError, "Optional field bad_field must have a default value"):
+
+            class InvalidStrictStruct(csp.Struct, allow_unset=False):
+                req_field: int
+                bad_field: Optional[str]
 
 
 if __name__ == "__main__":

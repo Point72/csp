@@ -35,8 +35,6 @@ public:
 
     bool isNative() const                 { return m_type -> type() <= CspType::Type::MAX_NATIVE_TYPE; }
 
-    bool isOptional() const               { return m_isOptional; }
-
     void setOffset( size_t off )          { m_offset = off; }
     void setMaskOffset( size_t off, uint8_t bit  )
     {
@@ -45,11 +43,6 @@ public:
         m_maskOffset  = off;
         m_maskBit     = bit;
         m_maskBitMask = 1 << bit;
-    }
-
-    void setRequired()
-    {
-        m_isOptional = false;
     }
 
     bool isSet( const Struct * s ) const
@@ -115,7 +108,6 @@ private:
     uint8_t      m_maskBit;
     uint8_t      m_maskBitMask;
     CspTypePtr   m_type;
-    bool         m_isOptional;
 };
 
 using StructFieldPtr = std::shared_ptr<StructField>;

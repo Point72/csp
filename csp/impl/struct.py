@@ -37,6 +37,8 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 if v == FastList:
                     raise TypeError(f"{v} annotation is not supported without args")
                 if CspTypingUtils.is_optional_type(v):
+                    if (not allow_unset) and (k not in dct):
+                        raise TypeError(f"Optional field {k} must have a default value")
                     optional_fields.add(k)
                 if (
                     CspTypingUtils.is_generic_container(v)

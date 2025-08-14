@@ -16,8 +16,7 @@ StructField::StructField( CspTypePtr type, const std::string & fieldname,
     m_maskOffset( 0 ),
     m_maskBit( 0 ),
     m_maskBitMask( 0 ),
-    m_type( type ),
-    m_isOptional( 1 )
+    m_type( type )
 {
 }
 

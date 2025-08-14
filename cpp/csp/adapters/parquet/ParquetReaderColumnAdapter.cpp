@@ -520,7 +520,8 @@ void ParquetStructAdapter::dispatchValue( const utils::Symbol *symbol, bool isNu
         {
             fieldSetter( s );
         }
-        s -> validate();
+        if (!s -> validate())
+            CSP_THROW( ValueError, "Struct validation failed for Parquet message, some fields are missing" );
         dispatchedValue = &s;
     }
 

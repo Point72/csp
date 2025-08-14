@@ -509,31 +509,20 @@ void StructMeta::destroy( Struct * s ) const
         m_base -> destroy( s );
 }
 
-void StructMeta::validate( const Struct * s ) const
+[[nodiscard]] bool StructMeta::validate( const Struct * s ) const
 {    
     for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
     {
         if ( !cur -> isStrict() )
             continue;
 
+        // Note that we do not recursively validate nested struct.
+        // We assume after any creation on the C++ side, these structs 
+        // are validated properly prior to being set as field values 
         if ( !cur -> allFieldsSet( s ) )
-        {
-            std::string missing_fields;
-            for ( const auto & field : cur -> m_fields )
-            {
-                if ( !field -> isSet( s ) )
-                {
-                    if ( missing_fields.empty() )
-                        missing_fields = field -> fieldname();
-                    else
-                        missing_fields += ", " + field -> fieldname();
-                }
-            }
-            CSP_THROW( ValueError, 
-                    "Strict struct '" << s -> meta() -> name() 
-                    << "' missing required fields: " << missing_fields );
-        }
+            return false;
     }
+    return true;
 }
 
 

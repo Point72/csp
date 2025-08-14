@@ -810,18 +810,13 @@ void PyStruct_setattrs( PyStruct * self, PyObject * args, PyObject * kwargs, con
     }
 }
 
-PyObject * PyStruct_validate( PyStruct * self ) {
-    CSP_BEGIN_METHOD
-    self -> struct_ -> validate();
-    CSP_RETURN_NONE;
-}
-
 int PyStruct_init( PyStruct * self, PyObject * args, PyObject * kwargs )
 {
     CSP_BEGIN_METHOD;
 
     PyStruct_setattrs( self, args, kwargs, "__init__" );
-    self -> struct_ -> validate();
+    if( !self -> struct_ -> validate() )
+        CSP_THROW( ValueError, "Struct " << self -> struct_ -> meta() -> name() << " is not valid; some required fields were not set on init" );
 
     CSP_RETURN_INT;
 }

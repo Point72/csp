@@ -611,7 +611,7 @@ public:
     size_t maskLoc() const                    { return m_maskLoc; }
     size_t maskSize() const                   { return m_maskSize; }
 
-    void validate( const Struct * s ) const;
+    [[nodiscard]] bool validate( const Struct * s ) const;
 
     const StructFieldPtr & field( const char * name ) const
     {
@@ -750,9 +750,9 @@ public:
         return meta() -> allFieldsSet( this );
     }
 
-    void validate() const
+    [[nodiscard]] bool validate() const
     {
-        meta() -> validate( this );
+        return meta() -> validate( this );
     }
 
 

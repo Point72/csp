@@ -45,14 +45,18 @@ class TestStrictStructs(unittest.TestCase):
         self.assertIsNone(s1.opt_str_2)
 
         # Error on missing required fields
-        with self.assertRaisesRegex(ValueError, "Strict struct 'MyStrictStruct' missing required fields: req_int"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct MyStrictStruct is not valid; some required fields were not set on init"
+        ):
             MyStrictStruct(opt_str="world")
 
-        with self.assertRaisesRegex(ValueError, "Strict struct 'MyStrictStruct' missing required fields: opt_str"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct MyStrictStruct is not valid; some required fields were not set on init"
+        ):
             MyStrictStruct(req_int=1)
 
         with self.assertRaisesRegex(
-            ValueError, "Strict struct 'MyStrictStruct' missing required fields: opt_str, req_int"
+            ValueError, "Struct MyStrictStruct is not valid; some required fields were not set on init"
         ):
             MyStrictStruct()
 
@@ -101,7 +105,7 @@ class TestStrictStructs(unittest.TestCase):
         self.assertEqual(s.to_dict(), expected_dict)
 
         with self.assertRaisesRegex(
-            ValueError, "Strict struct 'MyStrictStruct' missing required fields: req_opt_str, req_int"
+            ValueError, "Struct MyStrictStruct is not valid; some required fields were not set on init"
         ):
             MyStrictStruct.from_dict({"opt_str": "hello", "def_int": 13})
 
@@ -169,7 +173,9 @@ class TestStrictStructs(unittest.TestCase):
             s_ts = MyStrictStruct.fromts(req_int1=ts1, req_int2=ts2)
             csp.add_graph_output("output", s_ts)
 
-        with self.assertRaisesRegex(ValueError, "Strict struct 'MyStrictStruct' missing required fields: req_int2"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct MyStrictStruct is not valid; some required fields did not tick"
+        ):
             csp.run(g, starttime=datetime(2023, 1, 1))
 
         @csp.graph
@@ -208,9 +214,13 @@ class TestStrictStructs(unittest.TestCase):
         self.assertEqual(d_ok.base_req, 1)
         self.assertEqual(d_ok.derived_req, 2)
 
-        with self.assertRaisesRegex(ValueError, "Strict struct 'DerivedStrict' missing required fields: derived_req"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct DerivedStrict is not valid; some required fields were not set on init"
+        ):
             DerivedStrict(base_req=10)
-        with self.assertRaisesRegex(ValueError, "Strict struct 'DerivedStrict' missing required fields: base_req"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct DerivedStrict is not valid; some required fields were not set on init"
+        ):
             DerivedStrict(derived_req=20)
 
         # loose base & strict child:
@@ -224,12 +234,16 @@ class TestStrictStructs(unittest.TestCase):
         self.assertEqual(sc_ok.child_req, 5)
 
         with self.assertRaisesRegex(
-            ValueError, "Strict struct 'StrictChild' missing required fields: loose_req, child_req"
+            ValueError, "Struct StrictChild is not valid; some required fields were not set on init"
         ):
             StrictChild()
-        with self.assertRaisesRegex(ValueError, "Strict struct 'StrictChild' missing required fields: child_req"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct StrictChild is not valid; some required fields were not set on init"
+        ):
             StrictChild(loose_req=10)
-        with self.assertRaisesRegex(ValueError, "Strict struct 'StrictChild' missing required fields: loose_req"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct StrictChild is not valid; some required fields were not set on init"
+        ):
             StrictChild(child_req=5)
 
         # nested struct fields:
@@ -242,7 +256,9 @@ class TestStrictStructs(unittest.TestCase):
         os_ok = OuterStrict(inner=InnerStrict(val=42))
         self.assertEqual(os_ok.inner.val, 42)
 
-        with self.assertRaisesRegex(ValueError, "Strict struct 'InnerStrict' missing required fields: val"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct InnerStrict is not valid; some required fields were not set on init"
+        ):
             OuterStrict(inner=InnerStrict())
 
         # nested loose struct inside strict:
@@ -255,7 +271,9 @@ class TestStrictStructs(unittest.TestCase):
         ol_ok = OuterStrict2(inner=InnerLoose())
         self.assertIsInstance(ol_ok.inner, InnerLoose)
 
-        with self.assertRaisesRegex(ValueError, "Strict struct 'OuterStrict2' missing required fields: inner"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct OuterStrict2 is not valid; some required fields were not set on init"
+        ):
             OuterStrict2()
 
     def test_nonstrict_cannot_inherit_strict(self):
@@ -305,10 +323,14 @@ class TestStrictStructs(unittest.TestCase):
         self.assertIsNotNone(o2.loose_inner)
         self.assertEqual(o2.loose_inner.y, 20)
 
-        with self.assertRaisesRegex(ValueError, "Strict struct 'OuterStruct' missing required fields: strict_inner"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct OuterStruct is not valid; some required fields were not set on init"
+        ):
             OuterStruct.from_dict({"loose_inner": {"y": 1}})
 
-        with self.assertRaisesRegex(ValueError, "Strict struct 'InnerStrict' missing required fields: x"):
+        with self.assertRaisesRegex(
+            ValueError, "Struct InnerStrict is not valid; some required fields were not set on init"
+        ):
             OuterStruct.from_dict({"strict_inner": {}, "loose_inner": {"y": None}})
 
     def test_strict_struct_wiring_access_2(self):

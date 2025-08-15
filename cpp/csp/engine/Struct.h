@@ -587,7 +587,7 @@ public:
     using FieldNames = std::vector<std::string>;
 
     //Fields will be re-arranged and assigned their offsets in StructMeta for optimal performance
-    StructMeta( const std::string & name, const Fields & fields, std::shared_ptr<StructMeta> base = nullptr );
+    StructMeta( const std::string & name, const Fields & fields, bool isStrict, std::shared_ptr<StructMeta> base = nullptr );
     virtual ~StructMeta();
 
     const std::string & name() const          { return m_name; }
@@ -595,12 +595,15 @@ public:
     size_t partialSize() const                { return m_partialSize; }
 
     bool isNative() const                     { return m_isFullyNative; }
+    bool isStrict() const                     { return m_isStrict; }
 
     const Fields & fields() const             { return m_fields; }
     const FieldNames & fieldNames() const     { return m_fieldnames; }
 
     size_t maskLoc() const                    { return m_maskLoc; }
     size_t maskSize() const                   { return m_maskSize; }
+
+    [[nodiscard]] bool validate( const Struct * s ) const;
 
     const StructFieldPtr & field( const char * name ) const
     {
@@ -652,7 +655,8 @@ private:
     std::shared_ptr<StructMeta> m_base;
     StructPtr                   m_default;
     FieldMap                    m_fieldMap;
-
+    bool                        m_isStrict;          
+    
     //fields in order, memory owners of field objects which in turn own the key memory
     //m_fields includes all base fields as well. m_fieldnames maintains the proper iteration order of fields
     Fields                      m_fields;
@@ -736,6 +740,11 @@ public:
     bool allFieldsSet() const
     {
         return meta() -> allFieldsSet( this );
+    }
+
+    [[nodiscard]] bool validate() const
+    {
+        return meta() -> validate( this );
     }
 
 

@@ -1,6 +1,8 @@
 #include <csp/core/System.h>
 #include <csp/engine/Struct.h>
 #include <algorithm>
+#include <ranges>
+#include <string>
 
 namespace csp
 {
@@ -33,8 +35,8 @@ and adjustments required for the hidden fields
 
 */
 
-StructMeta::StructMeta( const std::string & name, const Fields & fields,
-                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields( fields ),
+StructMeta::StructMeta( const std::string & name, const Fields & fields, bool isStrict,
+                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_isStrict( isStrict ), m_fields( fields ), 
                                                              m_size( 0 ), m_partialSize( 0 ), m_partialStart( 0 ), m_nativeStart( 0 ), m_basePadding( 0 ),
                                                              m_maskLoc( 0 ), m_maskSize( 0 ), m_firstPartialField( 0 ), m_firstNativePartialField( 0 ),
                                                              m_isPartialNative( true ), m_isFullyNative( true )
@@ -127,6 +129,18 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields,
         auto rv = m_fieldMap.emplace( m_fields[ idx ] -> fieldname().c_str(), m_fields[ idx ] );
         if( !rv.second )
             CSP_THROW( ValueError, "csp Struct " << name << " attempted to add existing field " << m_fields[ idx ] -> fieldname() );
+    }
+    
+    // A non-strict struct may not inherit (directly or indirectly) from a strict base
+    bool encountered_non_strict = false;
+    for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
+    {
+        encountered_non_strict |= !cur -> isStrict();
+        if ( encountered_non_strict && cur -> isStrict() )
+            CSP_THROW( ValueError, 
+                    "Strict '" << m_name 
+                    << "' has non-strict inheritance of strict base '" 
+                    << cur -> name() << "'" );
     }
 }
 
@@ -493,6 +507,24 @@ void StructMeta::destroy( Struct * s ) const
     if( m_base )
         m_base -> destroy( s );
 }
+
+[[nodiscard]] bool StructMeta::validate( const Struct * s ) const
+{    
+    for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
+    {
+        if ( !cur -> isStrict() )
+            continue;
+
+        // Note that we do not recursively validate nested struct.
+        // We assume after any creation on the C++ side, these structs 
+        // are validated properly prior to being set as field values 
+        if ( !cur -> allFieldsSet( s ) )
+            return false;
+    }
+    return true;
+}
+
+
 
 Struct::Struct( const std::shared_ptr<const StructMeta> & meta )
 {

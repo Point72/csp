@@ -34,7 +34,7 @@ static void printBacktrace( char ** messages, int size, std::ostream & dest )
     {
         char *begin_name = 0, *begin_offset = 0;
         char tmp[1024];
-        strncpy( tmp, messages[i], sizeof(tmp) );
+        strncpy( tmp, messages[i], sizeof(tmp) - 1 );
         tmp[ sizeof( tmp ) - 1 ] = 0;
 
         // find parentheses and +address offset surrounding the mangled name:

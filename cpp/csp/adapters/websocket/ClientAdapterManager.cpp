@@ -52,8 +52,15 @@ void ClientAdapterManager::start( DateTime starttime, DateTime endtime )
     if( m_inputAdapter ) {
         m_endpoint -> setOnMessage(
             [ this ]( void* c, size_t t ) {
-                PushBatch batch( m_engine -> rootEngine() );
-                m_inputAdapter -> processMessage( c, t, &batch );
+                try
+                {
+                    PushBatch batch( m_engine -> rootEngine() );
+                    m_inputAdapter -> processMessage( c, t, &batch );
+                }
+                catch( csp::Exception & err )
+                {
+                    pushStatus( StatusLevel::ERROR, ClientStatusType::GENERIC_ERROR, err.what() );
+                }
             }
         );
     } else {

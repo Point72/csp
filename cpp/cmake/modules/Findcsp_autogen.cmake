@@ -27,13 +27,25 @@ function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OU
     endif()
 
     if(CSP_ENABLE_ASAN)
-        execute_process(
-            COMMAND gcc -print-file-name=libasan.so
-            OUTPUT_VARIABLE ASAN_LIB_PATH
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        # Turn off leak checks as we are using PyMalloc when we run autogen
-        set(ASAN_PRELOAD_CMD "ASAN_OPTIONS=detect_leaks=0" "LD_PRELOAD=${ASAN_LIB_PATH}")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            # Clang - use DYLD_INSERT_LIBRARIES
+            execute_process(
+                COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libclang_rt.asan_osx_dynamic.dylib
+                OUTPUT_VARIABLE ASAN_LIB_PATH
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
+            set(PRELOAD_CMD "DYLD_INSERT_LIBRARIES=${ASAN_LIB_PATH}")
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+            # GCC - use LD_PRELOAD
+            execute_process(
+                COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libasan.so
+                OUTPUT_VARIABLE ASAN_LIB_PATH
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
+            set(PRELOAD_CMD "LD_PRELOAD=${ASAN_LIB_PATH}")
+        endif()
+        # Turn off leak checks as we are using PyMalloc when we run autogen 
+        set(ASAN_PRELOAD_CMD "ASAN_OPTIONS=detect_leaks=0" ${PRELOAD_CMD})
     else()
         set(ASAN_PRELOAD_CMD "")
     endif()

@@ -145,6 +145,9 @@ StructPtr JSONMessageStructConverter::convertJSON( const char * fieldname, const
             } );
     }
 
+    if( !struct_ -> validate() )
+        CSP_THROW( ValueError, "JSON conversion of struct " << sType.meta() -> name() << " failed; some required fields were not set" );
+
     return struct_;
 }
 
@@ -251,6 +254,7 @@ csp::StructPtr JSONMessageStructConverter::asStruct( void * bytes, size_t size )
             }
         );
     }
+    // root struct validation (validate()) deferred to adapter level
 
     return data;
 }

@@ -180,7 +180,7 @@ class TsTypeValidator:
             )
         self._last_value_type = None
         # Use a weak reference to the last validation context to avoid
-        # keeping TVarValidationContext instances alive via the global cache
+        # keeping TVarValidationContext instances alive
         self._last_context_ref = None
 
     def validate(self, value_type, info=None):
@@ -197,11 +197,7 @@ class TsTypeValidator:
             return value_type
         self._last_value_type = value_type
         if info is not None and info.context is not None:
-            try:
-                self._last_context_ref = weakref.ref(info.context)
-            except TypeError:
-                # Context object not weak-referenceable; drop caching to avoid leaks
-                self._last_context_ref = None
+            self._last_context_ref = weakref.ref(info.context)
         else:
             self._last_context_ref = None
 

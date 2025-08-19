@@ -44,7 +44,7 @@ private:
 DialectStructMeta::DialectStructMeta( PyTypeObject * pyType, const std::string & name,
                                       const Fields & flds, std::shared_ptr<StructMeta> base ) :
     StructMeta( name, flds, base ),
-    m_pyType( pyType )
+    m_pyType( PyTypeObjectPtr::incref( pyType ) )
 {
 }
 
@@ -173,12 +173,13 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
     }
 
     /*back reference to the struct type that will be accessible on the csp struct -> meta()
-      DialectStructMeta will hold a borrowed reference to the type to avoid a circular dep
+      DialectStructMeta needs a strong reference to the type.  This creates a known strong circular dep
+      whiech effectively will keep the struct type instances around beyond their need
 
       This is the layout of references between all these types
                               StructMeta (shared_ptr) <-------- strong ref
                                   |                              |
-                           DialectStructMeta ---> weak ref to PyStructMeta ( the PyType )
+                           DialectStructMeta --> strong ref to PyStructMeta ( the PyType )
                                  /\                              /\
                                   |                              |
                                   | (strong ref )                |

@@ -425,6 +425,26 @@ class TestEngine(unittest.TestCase):
         result = csp.run(stop, csp.timer(timedelta(seconds=1)), starttime=datetime(2020, 5, 19))[0]
         self.assertEqual(len(result), 5)
 
+    def test_tvar_validation_context_lifetime(self):
+        import gc
+
+        from csp.impl.types.pydantic_type_resolver import TVarValidationContext
+
+        def count_contexts():
+            return sum(1 for o in gc.get_objects() if type(o) is TVarValidationContext)
+
+        @csp.node
+        def echo(x: ts[int]) -> ts[int]:
+            return x
+
+        gc.collect(0)
+        before = count_contexts()
+        csp.build_graph(echo, realtime=False, x=csp.const(1))
+        gc.collect(0)
+        after = count_contexts()
+
+        self.assertEqual(before, after)
+
     def test_class_member_node(self):
         class ClassWithNodes:
             def __init__(self):

@@ -5,6 +5,9 @@ EXTRA_ARGS :=
 #########
 .PHONY: requirements develop build build-debug build-conda install
 
+ASAN :=
+UBSAN :=
+
 requirements:  ## install python dev and runtime dependencies
 ifeq ($(OS),Windows_NT)
 	Powershell.exe -executionpolicy bypass -noprofile .\ci\scripts\windows\make_requirements.ps1
@@ -18,19 +21,13 @@ develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
 build:  ## build the library
-	python setup.py build build_ext --inplace
-
-build-sanitizer:  ## build the library with ASAN and UBSAN enabled
-	CSP_ENABLE_ASAN=1 CSP_ENABLE_UBSAN=1 python setup.py build build_ext --inplace
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) python setup.py build build_ext --inplace
 
 build-debug:  ## build the library ( DEBUG ) - May need a make clean when switching from regular build to build-debug and vice versa
-	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
 
 build-conda:  ## build the library in Conda
-	python setup.py build build_ext --csp-no-vcpkg --inplace
-
-build-conda-sanitizer:  ## build the library in Conda with ASAN and UBSAN enabled
-	CSP_ENABLE_ASAN=1 CSP_ENABLE_UBSAN=1 python setup.py build build_ext --csp-no-vcpkg --inplace
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) python setup.py build build_ext --csp-no-vcpkg --inplace
 
 install:  ## install library
 	python -m pip install .
@@ -84,7 +81,7 @@ checks: check
 #########
 # TESTS #
 #########
-.PHONY: test-py test-cpp coverage-py test tests
+.PHONY: test-py test-cpp test-py-sanitizer coverage-py test test-sanitizer tests
 
 TEST_ARGS :=
 test-py: ## Clean and Make unit tests
@@ -115,6 +112,8 @@ coverage-py:
 	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
 
 test: test-cpp test-py  ## run the tests
+
+test-sanitizer: test-cpp test-py-sanitizer  ## run the tests
 
 # Alias
 tests: test

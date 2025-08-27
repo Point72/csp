@@ -1,5 +1,8 @@
 name: Conda End-to-end Test
 
+env:
+  SANITIZER_CI_SCHEDULE: '25 6 * * 5'
+
 on:
   push:
     branches:
@@ -18,9 +21,16 @@ on:
       - README.md
       - "docs/**"
   workflow_dispatch:
+    inputs:
+      sanitizer:
+        description: "Run sanitized build"
+        required: false
+        type: boolean
+        default: false
   schedule:
     # Run conda CI on Monday and Thursday at 1:25am EST (06:25 UTC)
-    - cron: '25 6 * * 1,4'
+    # Run conda sanitized builds on Fridays at 1:25 am EST (06:25 UTC)
+    - cron: '25 6 * * 1,4,5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -31,7 +41,32 @@ permissions:
   checks: write
 
 jobs:
+    initialize:
+      runs-on: ubuntu-24.04
+      outputs:
+        SANITIZER: ${{ steps.setupmanual.outputs.SANITIZER || steps.setupschedule.outputs.SANITIZER }}
+      steps:
+        - name: Display and Setup Build Args (Manual)
+          id: setupmanual
+          run: |
+            echo "Sanitizer: $SANITIZER"
+            echo "SANITIZER=$SANITIZER" >> $GITHUB_OUTPUT
+          env:
+            SANITIZER: ${{ github.event.inputs.sanitizer }}
+          if: ${{ github.event_name == 'workflow_dispatch' }}
+
+        - name: Display and Setup Build Args (Schedule)
+          id: setupschedule
+          run: |
+            echo "Sanitizer: $SANITIZER"
+            echo "SANITIZER=$SANITIZER" >> $GITHUB_OUTPUT
+          env:
+            SANITIZER: ${{ github.event.schedule == env.SANITIZER_CI_SCHEDULE }}
+          if: ${{ github.event_name == 'schedule' }}
+    
     build:
+      needs:
+          - initialize
       strategy:
         matrix:
           os:
@@ -80,7 +115,7 @@ jobs:
           if: ${{ runner.os == 'Windows' }}
 
         - name: Python Build Steps
-          run: make build-conda
+          run: make build-conda ${{ needs.initialize.outputs.SANITIZER && 'ASAN="ON" UBSAN="ON"' || '' }}
           shell: micromamba-shell {0}
           if: ${{ runner.os != 'Windows' }}
 
@@ -94,7 +129,12 @@ jobs:
         - name: Python Test Steps
           run: make test
           shell: micromamba-shell {0}
-          if: ${{ runner.os != 'Windows' }}
+          if: ${{ runner.os != 'Windows' && needs.initialize.outputs.SANITIZER == 'false' }}
+
+        - name: Python Test Steps (Sanitizer)
+          run: make test-sanitizer
+          shell: micromamba-shell {0}
+          if: ${{ runner.os != 'Windows' && needs.initialize.outputs.SANITIZER == 'true' }}
 
         - name: Python Test Steps ( Windows )
           run: make test

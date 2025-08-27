@@ -122,8 +122,10 @@ jobs:
           run: |
             echo "Commit Message: $COMMIT_MSG"
             echo "Full Run: $FULL_RUN"
+            echo "Sanitizer: $SANITIZER"
             echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
             echo "FULL_RUN=$FULL_RUN" >> $GITHUB_OUTPUT
+            echo "SANITIZER=$SANITIZER" >> $GITHUB_OUTPUT
           env:
             FULL_RUN: ${{ github.event.inputs.ci-full }}
             SANITIZER: ${{ github.event.inputs.sanitizer }}
@@ -134,8 +136,10 @@ jobs:
           run: |
             echo "Commit Message: $COMMIT_MSG"
             echo "Full Run: $FULL_RUN"
+            echo "Sanitizer: $SANITIZER"
             echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
             echo "FULL_RUN=$FULL_RUN" >> $GITHUB_OUTPUT
+            echo "SANITIZER=$SANITIZER" >> $GITHUB_OUTPUT
           env:
             FULL_RUN: ${{ github.event.schedule == env.FULL_CI_SCHEDULE }}
             SANITIZER: ${{ github.event.schedule == env.SANITIZER_CI_SCHEDULE }}

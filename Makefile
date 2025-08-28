@@ -190,7 +190,7 @@ endif
 .PHONY: dependencies-mac dependencies-debian dependencies-fedora dependencies-vcpkg dependencies-win
 
 dependencies-mac:  ## install dependencies for mac
-	HOMEBREW_NO_AUTO_UPDATE=1 brew install autoconf autoconf-archive automake bison cmake flex libtool make ninja pkg-config
+	HOMEBREW_NO_AUTO_UPDATE=1 brew bundle install
 	brew unlink bison flex && brew link --force bison flex
 
 dependencies-debian:  ## install dependencies for linux

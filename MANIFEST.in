@@ -16,6 +16,7 @@ prune _skbuild
 # Dependency management
 include vcpkg.json
 prune vcpkg
+exclude Brewfile
 
 # IDE / VCS / docs files
 prune .git

@@ -90,6 +90,7 @@ test-py: ## Clean and Make unit tests
 test-py-sanitizer: ## Clean and Make unit tests with sanitizers enabled
 	@if [ "$$(uname -s)" = "Darwin" ]; then \
 		ASAN_OPTIONS=detect_leaks=0,detect_stack_use_after_return=true,use_odr_indicator=1,strict_init_order=true,strict_string_checks=true \
+		DYLD_FORCE_FLAT_NAMESPACE=1 \
 		DYLD_INSERT_LIBRARIES=$$($(CXX) -print-file-name=libclang_rt.asan_osx_dynamic.dylib) \
 		python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS); \
 	elif [ "$$(uname -s)" = "Linux" ]; then \

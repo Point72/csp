@@ -14,6 +14,7 @@ from typing import Callable, Dict, List
 
 import numpy as np
 import psutil
+import pytest
 
 import csp
 from csp import PushMode, ts
@@ -1195,6 +1196,10 @@ class TestEngine(unittest.TestCase):
         rv = csp.run(list_comprehension_bug_graph, starttime=datetime(2020, 1, 1))["Bucket"]
         self.assertEqual([v[1][0] for v in rv[10:]], list(range(20)))
 
+    @unittest.skipIf(
+        os.environ.get("ASAN_OPTIONS") is not None,
+        reason="Test skipped when AddressSanitizer is enabled, RSS usage is much larger than usual",
+    )
     def test_alarm_leak(self):
         """this was a leak in Scheduler.cpp"""
 

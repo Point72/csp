@@ -42,18 +42,6 @@ if CSP_USE_VCPKG:
         subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
     if not os.path.exists("vcpkg/ports"):
         subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
-    if not os.path.exists("vcpkg/buildtrees"):
-        subprocess.call(["git", "pull"], cwd="vcpkg")
-        args = ["install"]
-        if VCPKG_TRIPLET is not None:
-            args.append(f"--triplet={VCPKG_TRIPLET}")
-
-        if os.name == "nt":
-            subprocess.call(["bootstrap-vcpkg.bat"], cwd="vcpkg", shell=True)
-            subprocess.call(["vcpkg.bat"] + args, cwd="vcpkg", shell=True)
-        else:
-            subprocess.call(["./bootstrap-vcpkg.sh"], cwd="vcpkg")
-            subprocess.call(["./vcpkg"] + args, cwd="vcpkg")
 
 
 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"

@@ -200,7 +200,7 @@ dependencies-fedora:  ## install dependencies for linux
 	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip
 
 dependencies-vcpkg:  ## install dependencies via vcpkg
-	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
+	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install --overlay-ports=../vcpkg-overlays/ports
 
 dependencies-win:  ## install dependencies via windows
 	choco install cmake --version=3.31.6 --allow-downgrade

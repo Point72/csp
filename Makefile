@@ -193,11 +193,11 @@ dependencies-mac:  ## install dependencies for mac
 	HOMEBREW_NO_AUTO_UPDATE=1 brew bundle install
 	brew unlink bison flex && brew link --force bison flex
 
-dependencies-debian:  ## install dependencies for linux
-	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip
+dependencies-debian:  ## install dependencies for linux - note that zip is needed by bootstrap_vcpkg.sh, do not remove
+	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip zip
 
-dependencies-fedora:  ## install dependencies for linux
-	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip
+dependencies-fedora:  ## install dependencies for linux - note that zip is needed by bootstrap_vcpkg.sh, do not remove
+	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip zip
 
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install

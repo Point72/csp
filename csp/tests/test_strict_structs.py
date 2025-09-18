@@ -52,16 +52,12 @@ class TestStrictStructs(unittest.TestCase):
     def test_strict_struct_hasattr_delattr(self):
         """test hasattr and delattr behavior for strict structs"""
 
-        class MyStrictStruct1(csp.Struct, allow_unset=False):
+        class MyStrictStruct(csp.Struct, allow_unset=False):
             req_int: int
             opt_str: Optional[str] = None
 
-        class MyStrictStruct2(csp.Struct, allow_unset=False):
-            req_int: int
-            opt_str: Optional[str] = None
-
-        s = MyStrictStruct1(req_int=10, opt_str="hello")
-        r = MyStrictStruct2(req_int=5)
+        s = MyStrictStruct(req_int=10, opt_str="hello")
+        r = MyStrictStruct(req_int=5)
 
         # hasattr will always be True for all defined fields
         self.assertTrue(hasattr(s, "req_int"))
@@ -71,12 +67,12 @@ class TestStrictStructs(unittest.TestCase):
 
         # delattr is forbidden
         with self.assertRaisesRegex(
-            AttributeError, "Strict struct MyStrictStruct1 does not allow the deletion of field req_int"
+            AttributeError, "Strict struct MyStrictStruct does not allow the deletion of field req_int"
         ):
             del s.req_int
 
         with self.assertRaisesRegex(
-            AttributeError, "Strict struct MyStrictStruct1 does not allow the deletion of field opt_str"
+            AttributeError, "Strict struct MyStrictStruct does not allow the deletion of field opt_str"
         ):
             del s.opt_str
 
@@ -348,11 +344,16 @@ class TestStrictStructs(unittest.TestCase):
     def test_strict_struct_optional_field_validation_no_default(self):
         """test that strict structs cannot have Optional fields without defaults"""
 
-        with self.assertRaisesRegex(TypeError, "Optional field bad_field must have a default value"):
+        class MyStruct(csp.Struct, allow_unset=False):
+            req_field: int
+            opt_field: Optional[str]
 
-            class InvalidStrictStruct(csp.Struct, allow_unset=False):
-                req_field: int
-                bad_field: Optional[str]
+        with self.assertRaisesRegex(TypeError, "Struct MyStruct is not valid; some required fields were not set on init"):
+            MyStruct(req_field=42)
+
+        x = MyStruct(req_field=42, bad_field=None)
+        self.assertEqual(x.req_field, 42)
+        self.assertIsNone(x.opt_field)
 
 
 if __name__ == "__main__":

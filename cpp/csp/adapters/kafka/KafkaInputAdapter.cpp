@@ -113,10 +113,6 @@ void KafkaInputAdapter::processMessage( RdKafka::Message* message, bool live, cs
         if( m_tickTimestampField )
             msgTime = m_tickTimestampField->value<DateTime>(tick.get());
 
-        if (!tick.get() -> validate())
-            CSP_THROW( ValueError, "Struct validation failed for Kafka message, fields missing" );
-        
-
         bool pushLive = shouldPushLive(live, msgTime);
         if( shouldProcessMessage( pushLive, msgTime ) )
             pushTick(pushLive, msgTime, std::move(tick), batch);

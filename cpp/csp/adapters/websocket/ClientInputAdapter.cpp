@@ -31,8 +31,6 @@ void ClientInputAdapter::processMessage( void* c, size_t t, PushBatch* batch )
     if( dataType() -> type() == CspType::Type::STRUCT )
     {
         auto tick = m_converter -> asStruct( c, t );
-        if (!tick.get() -> validate())
-            CSP_THROW( ValueError, "Struct validation failed for WebSocket message, fields missing" );
         pushTick( std::move(tick), batch );
     } else if ( dataType() -> type() == CspType::Type::STRING )
     {

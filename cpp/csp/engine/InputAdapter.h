@@ -4,6 +4,7 @@
 #include <csp/core/Time.h>
 #include <csp/engine/Enums.h>
 #include <csp/engine/RootEngine.h>
+#include <csp/engine/Struct.h>
 #include <csp/engine/TimeSeriesProvider.h>
 
 namespace csp
@@ -55,6 +56,12 @@ protected:
 template<typename T>
 bool InputAdapter::consumeTick( const T & value )
 {
+    if constexpr( CspType::Type::fromCType<T>::type == CspType::TypeTraits::STRUCT )
+    {
+        if( unlikely( !( value -> validate() ) ) )
+            CSP_THROW( ValueError, "Struct " << value -> meta() -> name() << " is not valid; some required fields were not set on init" );
+    }
+    
     switch( pushMode() )
     {
         case PushMode::LAST_VALUE:

@@ -209,7 +209,6 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
-            - macos-13 # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
@@ -284,9 +283,6 @@ jobs:
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-13
-
-            - is-full-run: false
               os: macos-14
               python-version: "3.9"
 
@@ -335,15 +331,6 @@ jobs:
 
         ########
         # Macos
-        - name: Python Build Steps (Macos x86)
-          run: make dist-py-cibw
-          env:
-            CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
-            CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
-            CIBW_ARCHS_MACOS: x86_64
-            CIBW_BUILD_VERBOSITY: 3
-          if: ${{ matrix.os == 'macos-13' }}
-
         - name: Python Build Steps (Macos arm)
           run: make dist-py-cibw
           env:
@@ -462,7 +449,6 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04
-            - macos-13
             - macos-14
             - windows-2022
           python-version:
@@ -500,9 +486,6 @@ jobs:
               os: windows-2022
 
             # avoid unnecessary use of mac resources
-            - is-full-run: false
-              os: macos-13
-
             - is-full-run: false
               os: macos-14
               python-version: "3.9"

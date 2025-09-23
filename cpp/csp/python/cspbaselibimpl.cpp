@@ -1,9 +1,10 @@
+#include <exprtk.hpp>
+#include <numpy/ndarrayobject.h>
+
 #include <csp/python/Common.h>
 #include <csp/python/PyCppNode.h>
 #include <csp/engine/CppNode.h>
 #include <csp/python/Conversions.h>
-#include <exprtk.hpp>
-#include <numpy/ndarrayobject.h>
 
 static void * init_nparray()
 {
@@ -364,6 +365,7 @@ PyMODINIT_FUNC PyInit__cspbaselibimpl(void)
     PyObject* m;
 
     m = PyModule_Create( &_cspbaselibimpl_module);
+
     if( m == NULL )
         return NULL;
 

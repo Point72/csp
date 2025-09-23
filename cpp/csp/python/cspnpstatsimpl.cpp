@@ -1,3 +1,4 @@
+#include <numpy/ndarrayobject.h>
 #include <csp/engine/CppNode.h>
 #include <csp/python/PyCppNode.h>
 
@@ -66,6 +67,7 @@ PyMODINIT_FUNC PyInit__cspnpstatsimpl(void)
     PyObject* m;
 
     m = PyModule_Create( &_cspnpstatsimpl_module);
+
     if( m == NULL )
         return NULL;
 

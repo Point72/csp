@@ -2,7 +2,7 @@
 requires = [
     "cmake<3.27",
     "deprecated",  # Because used in csp.impl.struct, which is used in autogen
-    "oldest-supported-numpy",
+    "numpy>=2,<2.1",  # oldest numpy 2 we can
     "pyarrow>=15,<20",
     "ruamel.yaml",
     "scikit-build",
@@ -21,7 +21,7 @@ requires-python = ">=3.9"
 
 dependencies = [
     "deprecated",
-    "numpy<2",
+    "numpy>=1",
     "packaging",
     "pandas<2.3; python_version<'3.10'",
     "pandas; python_version>='3.10'",

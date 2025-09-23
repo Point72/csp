@@ -5,6 +5,7 @@
 #include <csp/python/PyNode.h>
 #include <frameobject.h>
 #include <traceback.h>
+
 namespace csp::python
 {
 
@@ -140,6 +141,7 @@ PyMODINIT_FUNC PyInit__cspimpl(void)
     PyObject* m;
 
     m = PyModule_Create( &_cspimpl_module);
+
     if( m == NULL )
         return NULL;
 

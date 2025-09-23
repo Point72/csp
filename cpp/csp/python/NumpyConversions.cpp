@@ -1,5 +1,6 @@
 //this is included first so that we do include without NO_IMPORT_ARRAY defined, which is done in NumpyConversions.h
 #include <numpy/ndarrayobject.h>
+#include <numpy/npy_2_compat.h>
 
 
 #include <csp/core/Time.h>
@@ -8,21 +9,21 @@
 #include <locale>
 #include <codecvt>
 
+static void * init_nparray()
+{
+    csp::python::AcquireGIL gil;
+    import_array();
+    return nullptr;
+}
+static void * s_init_array = init_nparray();
+
 namespace csp::python
 {
-
-static bool numpy_initialized = false;
 
 PyObject * valuesAtIndexToNumpy( ValueType valueType, const csp::TimeSeriesProvider * ts, int32_t startIndex, int32_t endIndex,
                                  autogen::TimeIndexPolicy startPolicy, autogen::TimeIndexPolicy endPolicy,
                                  DateTime startDt, DateTime endDt )
 {
-    if( !numpy_initialized )
-    {
-        import_array()
-        numpy_initialized = true;
-    }
-
     return switchCspType( ts -> type(),
                           [ valueType, ts, startIndex, endIndex, startPolicy, endPolicy, startDt, endDt ]( auto tag )
                           {
@@ -35,32 +36,69 @@ int64_t scalingFromNumpyDtUnit( NPY_DATETIMEUNIT base )
 {
     switch( base )
     {
-        case NPY_FR_ns:
-            return 1;
-        case NPY_FR_us:
-            return csp::TimeDelta::fromMicroseconds(1).asNanoseconds();
-        case NPY_FR_ms:
-            return csp::TimeDelta::fromMilliseconds(1).asNanoseconds();
-        case NPY_FR_s:
-            return csp::TimeDelta::fromSeconds(1).asNanoseconds();
-        case NPY_FR_m:
-            return csp::TimeDelta::fromMinutes(1).asNanoseconds();
-        case NPY_FR_h:
-            return csp::TimeDelta::fromHours(1).asNanoseconds();
-        case NPY_FR_D:
-            return csp::TimeDelta::fromDays(1).asNanoseconds();
+        // https://github.com/numpy/numpy/blob/v2.0.0/numpy/__init__.pxd#L794
+        case NPY_FR_Y:
+            return csp::TimeDelta::fromDays(365).asNanoseconds();
+        case NPY_FR_M:
+            return csp::TimeDelta::fromDays(30).asNanoseconds();
         case NPY_FR_W:
             return csp::TimeDelta::fromDays(7).asNanoseconds();
+#ifdef NPY_FR_B
+        case NPY_FR_B:
+            return csp::TimeDelta::fromDays(5).asNanoseconds();
+#endif
+        case NPY_FR_D:
+            return csp::TimeDelta::fromDays(1).asNanoseconds();
+        case NPY_FR_h:
+            return csp::TimeDelta::fromHours(1).asNanoseconds();
+        case NPY_FR_m:
+            return csp::TimeDelta::fromMinutes(1).asNanoseconds();
+        case NPY_FR_s:
+            return csp::TimeDelta::fromSeconds(1).asNanoseconds();
+        case NPY_FR_ms:
+            return csp::TimeDelta::fromMilliseconds(1).asNanoseconds();
+        case NPY_FR_us:
+            return csp::TimeDelta::fromMicroseconds(1).asNanoseconds();
+        case NPY_FR_ns:
+            return 1;
+        // unsupported or invalid units
+        // enumerated here for clarity in error messages
+        case NPY_FR_ps:
+            CSP_THROW(csp::NotImplemented, "datetime resolution not supported or invalid - saw NPY_DATETIMEUNIT value NPY_FR_ps" );
+            return 0;
+        case NPY_FR_fs:
+            CSP_THROW(csp::NotImplemented, "datetime resolution not supported or invalid - saw NPY_DATETIMEUNIT value NPY_FR_fs" );
+            return 0;
+        case NPY_FR_GENERIC:
+            CSP_THROW(csp::NotImplemented, "datetime resolution not supported or invalid - saw NPY_DATETIMEUNIT value NPY_FR_generic" );
+            return 0;
+        case NPY_FR_ERROR:
+            CSP_THROW(csp::NotImplemented, "datetime resolution not supported or invalid - saw NPY_DATETIMEUNIT value NPY_FR_error" );
+            return 0;
         default:
-            CSP_THROW(csp::NotImplemented, "datetime resolution not supported or invalid - saw NPY_DATETIMEUNIT value " << base );
-            return 0;  // never reached, but keeps compiler happy
+            if(static_cast<int>(base) == 3) {
+                // NPY_FR_B was removed in numpy 1.20
+                return csp::TimeDelta::fromDays(5).asNanoseconds();
+            }
+            CSP_THROW(csp::NotImplemented, "datetime resolution not supported or invalid - saw NPY_DATETIMEUNIT value " << static_cast<int32_t>(base) );
+            return 0;
     }
 }
 
 NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr )
 {
-    PyArray_DatetimeDTypeMetaData* dtypeMeta = (PyArray_DatetimeDTypeMetaData*)(descr -> c_metadata);
-    PyArray_DatetimeMetaData* dtMeta = &(dtypeMeta -> meta);
+    PyArray_DatetimeDTypeMetaData* dtypeMeta;
+    if (PyArray_RUNTIME_VERSION >= NPY_2_0_API_VERSION)
+    {
+        // NumPy 2.x way
+        dtypeMeta = ( PyArray_DatetimeDTypeMetaData * ) ( ( (_PyArray_LegacyDescr *) descr ) -> c_metadata );
+    }
+    else
+    {
+        // NumPy 1.x way
+        dtypeMeta = ( PyArray_DatetimeDTypeMetaData * ) ( ( (PyArray_DescrProto *) descr ) -> c_metadata );
+    }
+    PyArray_DatetimeMetaData* dtMeta = &( dtypeMeta -> meta );
     return dtMeta -> base;
 }
 
@@ -68,7 +106,7 @@ static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> wstr_converte
 
 void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem_size_bytes )
 {
-    // strings from numpy arrays are fixed width and zero filled.  
+    // strings from numpy arrays are fixed width and zero filled.
     // if the last char is 0, can treat as null terminated, else use full width
 
     if( numpy_type == NPY_UNICODELTR)
@@ -87,7 +125,7 @@ void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem
             out = wstr_converter.to_bytes( wstr );
         }
     }
-    else if( numpy_type == NPY_STRINGLTR || numpy_type == NPY_STRINGLTR2 )
+    else if( numpy_type == NPY_STRINGLTR )
     {
         const char * const raw_value = (const char *) data;
 
@@ -120,13 +158,13 @@ void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char )
         case NPY_INTLTR:
         case NPY_UINTLTR:
         case NPY_LONGLTR:
+        case NPY_LONGLONGLTR:
             if( cspType != csp::CspType::Type::INT64 )
                 CSP_THROW( ValueError, "numpy type " << numpy_type_char << " requires int output type" );
             break;
         case NPY_ULONGLTR:
-        case NPY_LONGLONGLTR:
         case NPY_ULONGLONGLTR:
-            CSP_THROW( ValueError, "numpy type " << numpy_type_char << " (int type that can't cleanly convert to long) not supported" );
+            CSP_THROW( ValueError, "numpy type " << numpy_type_char << " (int type that can't cleanly convert to int64) not supported" );
         case NPY_HALFLTR:
             CSP_THROW( ValueError, "numpy type " << numpy_type_char << " (numpy half float) not supported" );
         case NPY_FLOATLTR:
@@ -144,7 +182,6 @@ void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char )
             // everything works as object
             break;
         case NPY_STRINGLTR:
-        case NPY_STRINGLTR2:
         case NPY_UNICODELTR:
         case NPY_CHARLTR:
             if( cspType != csp::CspType::Type::STRING )

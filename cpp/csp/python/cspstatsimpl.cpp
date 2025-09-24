@@ -40,9 +40,10 @@ REGISTER_CPPNODE( csp::cppnodes,  _weighted_kurt );
 // EMA nodes
 REGISTER_CPPNODE( csp::cppnodes,  _ema_compute );
 REGISTER_CPPNODE( csp::cppnodes,  _ema_adjusted );
-REGISTER_CPPNODE( csp::cppnodes,  _ema_timewise );
-REGISTER_CPPNODE( csp::cppnodes,  _ema_debias_alpha );
-REGISTER_CPPNODE( csp::cppnodes,  _ema_debias_halflife );
+REGISTER_CPPNODE( csp::cppnodes,  _ema_halflife );
+REGISTER_CPPNODE( csp::cppnodes,  _ema_halflife_adjusted );
+REGISTER_CPPNODE( csp::cppnodes,  _ema_alpha_debias );
+REGISTER_CPPNODE( csp::cppnodes,  _ema_halflife_debias );
 
 static PyModuleDef _cspstatsimpl_module = {
     PyModuleDef_HEAD_INIT,

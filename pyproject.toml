@@ -2,7 +2,7 @@
 requires = [
     "cmake<3.27",
     "deprecated",  # Because used in csp.impl.struct, which is used in autogen
-    "oldest-supported-numpy",
+    "numpy>=2,<2.1",  # oldest numpy 2 we can
     "pyarrow>=15,<20",
     "ruamel.yaml",
     "scikit-build",
@@ -16,12 +16,12 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.11.1"
+version = "0.11.3"
 requires-python = ">=3.9"
 
 dependencies = [
     "deprecated",
-    "numpy<2",
+    "numpy>=1",
     "packaging",
     "pandas<2.3; python_version<'3.10'",
     "pandas; python_version>='3.10'",
@@ -68,7 +68,7 @@ develop = [
     "codespell>=2.4,<2.5",
     "mdformat>=0.7.19,<0.8",
     "mdformat-tables>=1,<1.1",
-    "ruff>=0.9,<0.10",
+    "ruff>=0.9,<0.13",
     # test
     "pytest",
     "pytest-asyncio",
@@ -121,7 +121,7 @@ slack = [
 ]
 
 [tool.bumpversion]
-current_version = "0.11.1"
+current_version = "0.11.3"
 commit = false
 tag = false
 commit_args = "-s"

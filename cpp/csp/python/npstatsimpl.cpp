@@ -26,8 +26,6 @@ template<> struct NPY_TYPE<double>   { static const int value = NPY_DOUBLE; };
 
 using namespace csp::cppnodes;
 
-// NumPy specific statistic functions
-
 static void * init_nparray()
 {
     csp::python::AcquireGIL gil;
@@ -52,7 +50,6 @@ class NumPyIterator
         NumPyIterator()
         {
             m_nd = 0;
-            m_size = 0;
             m_index = 0;
             m_data = nullptr;
             m_strides = nullptr;
@@ -131,15 +128,10 @@ class NumPyIterator
             for( int i = 0; i < m_nd; ++i )
                 m_stridedDimensions.emplace_back( m_strides[i] * ( m_dims[i] - 1 ) );
             m_data = reinterpret_cast<char*>( PyArray_DATA( arr ) );
-            if( m_nd == 0 )
-                m_size = 0;
-            else
-                m_size = std::accumulate( m_dims, m_dims + m_nd, 1, std::multiplies<int64_t>() );
-            m_valid = ( m_size > 0 );
+            m_valid = ( PyArray_SIZE( arr ) > 0 );
         }
 
         int64_t m_nd;
-        int64_t m_size;
         int64_t m_index;
         char* m_data;
         npy_intp* m_strides;
@@ -164,10 +156,7 @@ struct PyShape
         npy_intp* dims = PyArray_DIMS( arr );
         for( int64_t j = 0; j < nd; j++ )
             m_dims.emplace_back( dims[j] );
-        if( nd == 0 )
-            m_n = 0;
-        else
-            m_n = std::accumulate( std::begin( m_dims ), std::end( m_dims ), 1, std::multiplies<int64_t>() );
+        m_n = PyArray_SIZE( arr );
     }
 
     PyShape( PyObject* arr ) : PyShape( ( PyArrayObject* ) arr ) { }
@@ -681,7 +670,7 @@ EXPORT_TEMPLATE_CPPNODE( _np_rank,              SINGLE_ARG( _npComputeTwoArg<int
 EXPORT_TEMPLATE_CPPNODE( _np_kurt,              SINGLE_ARG( _npComputeTwoArg<bool, Kurtosis> ) );
 EXPORT_TEMPLATE_CPPNODE( _np_ema_compute,       _npComputeEMA<EMA> );
 EXPORT_TEMPLATE_CPPNODE( _np_ema_adjusted,      _npComputeEMA<AdjustedEMA>);
-EXPORT_TEMPLATE_CPPNODE( _np_ema_debias_alpha,  _npComputeEMA<AlphaDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_alpha_debias,  _npComputeEMA<AlphaDebiasEMA> );
 
 // Bivariate
 template<typename C>
@@ -914,10 +903,12 @@ EXPORT_CPPNODE ( _np_quantile );
 
 // C: computation class
 template<typename C>
-DECLARE_CPPNODE( _np_exp_timewise )
+DECLARE_CPPNODE( _np_exp_halflife )
 {
     TS_INPUT( PyObjectPtr, x );
     SCALAR_INPUT( TimeDelta, halflife );
+    SCALAR_INPUT( bool, adjust );
+
     TS_INPUT( Generic, trigger );
     TS_INPUT( Generic, sampler );
     TS_INPUT( Generic, reset );
@@ -929,7 +920,7 @@ DECLARE_CPPNODE( _np_exp_timewise )
 
     TS_OUTPUT( PyObjectPtr );
 
-    INIT_CPPNODE( _np_exp_timewise ) { }
+    INIT_CPPNODE( _np_exp_halflife ) { }
 
     INVOKE()
     {
@@ -948,7 +939,7 @@ DECLARE_CPPNODE( _np_exp_timewise )
                 s_elem.reserve( s_shp.m_n );
                 for( int64_t j = 0; j < s_shp.m_n; j++ )
                 {
-                    s_elem.emplace_back( DataValidator<C>( min_data_points, true, halflife, now() - TimeDelta::fromMicroseconds( 1 ) ) );
+                    s_elem.emplace_back( DataValidator<C>( min_data_points, true, halflife, now() - TimeDelta::fromMicroseconds( 1 ), adjust ) );
                 }
                 s_first = false;
             }
@@ -964,8 +955,9 @@ DECLARE_CPPNODE( _np_exp_timewise )
     }
 };
 
-EXPORT_TEMPLATE_CPPNODE( _np_ema_timewise, _np_exp_timewise<HalflifeEMA> );
-EXPORT_TEMPLATE_CPPNODE( _np_ema_debias_halflife, _np_exp_timewise<HalflifeDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_halflife,          _np_exp_halflife<HalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_halflife_adjusted, _np_exp_halflife<AdjustedHalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_halflife_debias,   _np_exp_halflife<HalflifeDebiasEMA> );
 
 template<typename C>
 DECLARE_CPPNODE( _np_matrix_compute )

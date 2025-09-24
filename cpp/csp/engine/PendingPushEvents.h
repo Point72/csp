@@ -38,6 +38,8 @@ private:
     //backed up input ( if we merged adaptrers into one list we would have to rescan every cycle )
     using UngroupedEvents = std::unordered_map<PushInputAdapter*,EventList>;
 
+    void deleteEvent( PushEvent * event );
+    
     UngroupedEvents m_ungroupedEvents;
     GroupEvents     m_groupedEvents;
 };

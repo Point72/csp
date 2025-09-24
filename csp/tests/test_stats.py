@@ -6,10 +6,11 @@ from datetime import datetime, timedelta
 import numpy as np
 import numpy.testing
 import pandas as pd
+from pandas.testing import assert_series_equal
 
 import csp
 from csp.stats import _window_updates
-from csp.typing import Numpy1DArray, NumpyNDArray
+from csp.typing import Numpy1DArray
 
 
 def list_nparr_to_matrix(x):
@@ -18,6 +19,25 @@ def list_nparr_to_matrix(x):
 
 def aae(exp, act):
     np.testing.assert_almost_equal(np.array(exp, dtype=object)[:, 1], np.array(act, dtype=object)[:, 1], decimal=7)
+
+
+def generate_random_data(n, mu, sigma, pnan):
+    orig_state = np.random.get_state()
+    np.random.seed(42)  # for reproducibility
+    times = np.empty(n, dtype=object)
+    values = np.random.normal(mu, sigma, size=n)
+    deltas = np.random.uniform(low=0.0, high=10.0, size=n)
+
+    times[0] = datetime(2020, 1, 1)
+    for i in range(1, n):
+        times[i] = times[i - 1] + timedelta(seconds=deltas[i])
+        if np.random.random() > (1 - pnan):
+            values[i] = float("nan")
+    np.random.set_state(orig_state)
+
+    if pnan:
+        values[0] = float("nan")  # force edge condition
+    return times, values
 
 
 class TestStats(unittest.TestCase):
@@ -3709,6 +3729,86 @@ class TestStats(unittest.TestCase):
 
         # Assert 2: weighted variance should equal unweighted variance
         np.testing.assert_equal(results["variance"], results["weighted_variance"])
+
+    def test_unadjusted_ewm_halflife(self):
+        import polars as pl
+
+        N_DATA_POINTS = 100
+        N_ELEM_NP = 3
+        # polars does not ignore nan's in its ewm_mean_by (so need to generate data w/o nans)
+        times, values = generate_random_data(N_DATA_POINTS, mu=0, sigma=1, pnan=0)
+
+        @csp.graph
+        def graph():
+            test_data_float = csp.curve(typ=float, data=(times, values))
+            test_data_np = csp.curve(
+                typ=np.ndarray,
+                data=(times, np.array([np.array([values[k] for j in range(N_ELEM_NP)]) for k in range(N_DATA_POINTS)])),
+            )
+
+            # EMA: float/np
+            float_ema = csp.stats.ema(test_data_float, halflife=timedelta(seconds=5), adjust=False)
+            np_ema = csp.stats.ema(test_data_np, halflife=timedelta(seconds=5), adjust=False)
+            csp.add_graph_output("float_ema", float_ema)
+            csp.add_graph_output("np_ema", np_ema)
+
+            # EMA var (debiased): float/np
+            float_ema_var = csp.stats.ema_var(test_data_float, halflife=timedelta(seconds=20), adjust=False)
+            float_ema_var_adjusted = csp.stats.ema_var(test_data_float, halflife=timedelta(seconds=20), adjust=True)
+            np_ema_var = csp.stats.ema_var(test_data_np, halflife=timedelta(seconds=20), adjust=False)
+            csp.add_graph_output("float_ema_var", float_ema_var)
+            csp.add_graph_output("np_ema_var", np_ema_var)
+            csp.add_graph_output("float_ema_var_adjusted", float_ema_var_adjusted)
+
+        res = csp.run(graph, starttime=times[0] - timedelta(seconds=1), endtime=times[-1], output_numpy=True)
+
+        golden = (
+            pl.Series(values=values)
+            .ewm_mean_by(by=pl.Series(values=list(times)), half_life=timedelta(seconds=5))
+            .to_pandas()
+        )
+        assert_series_equal(golden, pd.Series(res["float_ema"][1]), check_names=False)
+        for element in range(N_ELEM_NP):
+            assert_series_equal(golden, pd.Series(np.stack(res["np_ema"][1])[:, element]), check_names=False)
+
+        # sanity check for variance (no open-source impl to compare to)
+        with self.assertRaises(AssertionError):
+            assert_series_equal(
+                pd.Series(res["float_ema_var"][1]), pd.Series(res["float_ema_var_adjusted"][1]), check_names=False
+            )
+        for element in range(N_ELEM_NP):
+            assert_series_equal(
+                pd.Series(res["float_ema_var"][1]),
+                pd.Series(np.stack(res["np_ema_var"][1])[:, element]),
+                check_names=False,
+            )
+
+    def test_scalar_arrays(self):
+        # np scalar arrays have no dimensions i.e. shape=(), but do contain a valid value
+        def scalar_graph():
+            raw_data = csp.count(csp.timer(timedelta(seconds=1), True))
+            zero_dim_array_data = csp.apply(raw_data, lambda x: np.array(float(x)), np.ndarray)
+            ema = csp.stats.ema(zero_dim_array_data, halflife=timedelta(seconds=10))
+            sum = csp.stats.sum(zero_dim_array_data, interval=10, min_window=1)
+
+            csp.add_graph_output("ema", ema)
+            csp.add_graph_output("sum", sum)
+
+        N_DATA_POINTS = 50
+        res = csp.run(
+            scalar_graph, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=N_DATA_POINTS), output_numpy=True
+        )
+        data = pd.Series(range(1, 51))
+
+        self.assertTrue(res["ema"][1][0].shape == tuple())  # 0-dimension shape is preserved
+        self.assertTrue(res["sum"][1][0].shape == tuple())  # 0-dimension shape is preserved
+        assert_series_equal(
+            pd.Series([res["ema"][1][k].item() for k in range(N_DATA_POINTS)]), data.ewm(halflife=10).mean()
+        )
+        assert_series_equal(
+            pd.Series([res["sum"][1][k].item() for k in range(N_DATA_POINTS)]),
+            data.rolling(window=10, min_periods=1).sum(),
+        )
 
 
 if __name__ == "__main__":

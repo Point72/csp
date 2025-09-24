@@ -12,6 +12,7 @@ dependencies:
  - compilers
  - cyrus-sasl
  - deprecated
+ - docutils<0.22.1
  - exprtk
  - flex
  - graphviz
@@ -27,7 +28,7 @@ dependencies:
  - mdformat>=0.7.19,<0.8
  - mdformat-tables>=1,<1.1
  - ninja
- - numpy<2
+ - numpy>=2
  - pandas<2.3  # [py<310]
  - pandas      # [py>=310]
  - pillow

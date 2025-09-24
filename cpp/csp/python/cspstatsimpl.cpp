@@ -7,6 +7,7 @@ REGISTER_CPPNODE( csp::cppnodes,  _time_window_updates );
 REGISTER_CPPNODE( csp::cppnodes,  _cross_sectional_as_list );
 REGISTER_CPPNODE( csp::cppnodes,  _min_hit_by_tick );
 REGISTER_CPPNODE( csp::cppnodes,  _in_sequence_check );
+REGISTER_CPPNODE( csp::cppnodes,  _discard_non_overlapping );
 REGISTER_CPPNODE( csp::cppnodes,  _sync_nan_f );
 
 // Base statistics
@@ -39,9 +40,10 @@ REGISTER_CPPNODE( csp::cppnodes,  _weighted_kurt );
 // EMA nodes
 REGISTER_CPPNODE( csp::cppnodes,  _ema_compute );
 REGISTER_CPPNODE( csp::cppnodes,  _ema_adjusted );
-REGISTER_CPPNODE( csp::cppnodes,  _ema_timewise );
-REGISTER_CPPNODE( csp::cppnodes,  _ema_debias_alpha );
-REGISTER_CPPNODE( csp::cppnodes,  _ema_debias_halflife );
+REGISTER_CPPNODE( csp::cppnodes,  _ema_halflife );
+REGISTER_CPPNODE( csp::cppnodes,  _ema_halflife_adjusted );
+REGISTER_CPPNODE( csp::cppnodes,  _ema_alpha_debias );
+REGISTER_CPPNODE( csp::cppnodes,  _ema_halflife_debias );
 
 static PyModuleDef _cspstatsimpl_module = {
     PyModuleDef_HEAD_INIT,

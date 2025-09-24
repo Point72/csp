@@ -151,6 +151,12 @@ def _in_sequence_check(x: ts["T"], y: ts["T"]):
     raise NotImplementedError("_in_sequence_check only implemented in C++")
 
 
+@csp.node(cppimpl=_cspstatsimpl._discard_non_overlapping)
+def _discard_non_overlapping(x: ts[float], y: ts[float]) -> csp.Outputs(x_sync=ts[float], y_sync=ts[float]):
+    raise NotImplementedError("_discard_non_overlapping only implemented in C++")
+    return csp.output(x_sync=0, y_sync=0)
+
+
 @csp.node(cppimpl=_cspstatsimpl._sync_nan_f)
 def _sync_nan_f(x: ts[float], y: ts[float]) -> csp.Outputs(x_sync=ts[float], y_sync=ts[float]):
     raise NotImplementedError("_sync_nan_f only implemented in C++")
@@ -168,12 +174,6 @@ def _sync_nan(x: ts[Union[float, np.ndarray]], y: ts[Union[float, np.ndarray]]) 
     x_sync=ts[Union[float, np.ndarray]], y_sync=ts[Union[float, np.ndarray]]
 ):
     return _sync_nan_f(x, y) if x.tstype.typ is float else _sync_nan_np(x, y)
-
-
-@csp.node
-def _combine_signal(x: ts["T"], y: ts["U"]) -> ts[bool]:
-    if csp.ticked(x, y):
-        return True
 
 
 @csp.node
@@ -280,20 +280,30 @@ def _setup(x, interval, min_window, trigger, sampler, reset, weights=None, ignor
     return series, interval, min_window, trigger, min_hit, updates, sampler, reset, weights, recalc, clear_stat
 
 
+def _synchronize_bivariate(x, y, allow_non_overlapping):
+    """
+    If allow_non_overlapping=True, discard any out-of-sync ticks between and y. Else, raise an exception when this occurs.
+    """
+    if x is not y:
+        if allow_non_overlapping:
+            sync = _discard_non_overlapping(x, y)
+            x, y = sync.x_sync, sync.y_sync
+        else:
+            _in_sequence_check(x, y)
+    return x, y
+
+
 def _bivariate_setup(
-    x, y, interval, min_window, trigger, sampler, reset, weights=None, ignore_weights=False, recalc=None
+    x, y, interval, min_window, trigger, sampler, reset, weights=None, recalc=None, allow_non_overlapping=False
 ):
     """
     Sets up time-series window updates and triggers for a bivariate stats calculation
     """
+    x, y = _synchronize_bivariate(x, y, allow_non_overlapping)
     x_upd = _setup(x, interval, min_window, trigger, sampler, reset, weights, False, recalc)[5]
     series, interval, min_window, trigger, min_hit, y_upd, sampler, reset, weights, recalc, clear_stat = _setup(
         y, interval, min_window, trigger, sampler, reset, weights, False, recalc
     )
-
-    in_seq = None
-    if x is not y:
-        in_seq = _in_sequence_check(x, y)
 
     return (
         series,
@@ -308,7 +318,6 @@ def _bivariate_setup(
         weights,
         recalc,
         clear_stat,
-        in_seq,
     )
 
 
@@ -1219,50 +1228,92 @@ def _np_ema_adjusted(
     return 0
 
 
-@csp.node(cppimpl=_cspstatsimpl._ema_timewise)
-def _ema_timewise(
-    x: ts[float], halflife: timedelta, trigger: ts[object], sampler: ts[object], reset: ts[object], min_data_points: int
+@csp.node(cppimpl=_cspstatsimpl._ema_halflife)
+def _ema_halflife(
+    x: ts[float],
+    halflife: timedelta,
+    adjust: bool,
+    trigger: ts[object],
+    sampler: ts[object],
+    reset: ts[object],
+    min_data_points: int,
 ) -> ts[float]:
-    raise NotImplementedError("_ema_timewise only implemented in C++")
+    raise NotImplementedError("_ema_halflife only implemented in C++")
     return 0
 
 
-@csp.node(cppimpl=_cspnpstatsimpl._np_ema_timewise)
-def _np_ema_timewise(
+@csp.node(cppimpl=_cspstatsimpl._ema_halflife_adjusted)
+def _ema_halflife_adjusted(
+    x: ts[float],
+    halflife: timedelta,
+    adjust: bool,
+    trigger: ts[object],
+    sampler: ts[object],
+    reset: ts[object],
+    min_data_points: int,
+) -> ts[float]:
+    raise NotImplementedError("_ema_halflife_adjusted only implemented in C++")
+    return 0
+
+
+@csp.node(cppimpl=_cspnpstatsimpl._np_ema_halflife)
+def _np_ema_halflife(
     x: ts[np.ndarray],
     halflife: timedelta,
+    adjust: bool,
     trigger: ts[object],
     sampler: ts[object],
     reset: ts[object],
     min_data_points: int,
 ) -> ts[np.ndarray]:
-    raise NotImplementedError("_np_ema_timewise only implemented in C++")
+    raise NotImplementedError("_np_ema_halflife only implemented in C++")
     return 0
 
 
-@csp.node(cppimpl=_cspstatsimpl._ema_debias_halflife)
-def _ema_debias_halflife(
-    x: ts[float], halflife: timedelta, trigger: ts[object], sampler: ts[object], reset: ts[object], min_data_points: int
-) -> ts[float]:
-    raise NotImplementedError("_ema_debias_halflife only implemented in C++")
-    return 0
-
-
-@csp.node(cppimpl=_cspnpstatsimpl._np_ema_debias_halflife)
-def _np_ema_debias_halflife(
+@csp.node(cppimpl=_cspnpstatsimpl._np_ema_halflife_adjusted)
+def _np_ema_halflife_adjusted(
     x: ts[np.ndarray],
     halflife: timedelta,
+    adjust: bool,
     trigger: ts[object],
     sampler: ts[object],
     reset: ts[object],
     min_data_points: int,
 ) -> ts[np.ndarray]:
-    raise NotImplementedError("_np_ema_debias_halflife only implemented in C++")
+    raise NotImplementedError("_np_ema_halflife_adjusted only implemented in C++")
     return 0
 
 
-@csp.node(cppimpl=_cspstatsimpl._ema_debias_alpha)
-def _ema_debias_alpha(
+@csp.node(cppimpl=_cspstatsimpl._ema_halflife_debias)
+def _ema_halflife_debias(
+    x: ts[float],
+    halflife: timedelta,
+    adjust: bool,
+    trigger: ts[object],
+    sampler: ts[object],
+    reset: ts[object],
+    min_data_points: int,
+) -> ts[float]:
+    raise NotImplementedError("_ema_halflife_debias only implemented in C++")
+    return 0
+
+
+@csp.node(cppimpl=_cspnpstatsimpl._np_ema_halflife_debias)
+def _np_ema_halflife_debias(
+    x: ts[np.ndarray],
+    halflife: timedelta,
+    adjust: bool,
+    trigger: ts[object],
+    sampler: ts[object],
+    reset: ts[object],
+    min_data_points: int,
+) -> ts[np.ndarray]:
+    raise NotImplementedError("_np_ema_halflife_debias only implemented in C++")
+    return 0
+
+
+@csp.node(cppimpl=_cspstatsimpl._ema_alpha_debias)
+def _ema_alpha_debias(
     additions: ts[List[float]],
     removals: ts[List[float]],
     alpha: float,
@@ -1273,12 +1324,12 @@ def _ema_debias_alpha(
     reset: ts[object],
     min_data_points: int,
 ) -> ts[float]:
-    raise NotImplementedError("_ema_debias_alpha only implemented in C++")
+    raise NotImplementedError("_ema_alpha_debias only implemented in C++")
     return 0
 
 
-@csp.node(cppimpl=_cspnpstatsimpl._np_ema_debias_alpha)
-def _np_ema_debias_alpha(
+@csp.node(cppimpl=_cspnpstatsimpl._np_ema_alpha_debias)
+def _np_ema_alpha_debias(
     additions: ts[List[np.ndarray]],
     removals: ts[List[np.ndarray]],
     alpha: float,
@@ -1289,7 +1340,7 @@ def _np_ema_debias_alpha(
     reset: ts[object],
     min_data_points: int,
 ) -> ts[np.ndarray]:
-    raise NotImplementedError("_np_ema_debias_alpha only implemented in C++")
+    raise NotImplementedError("_np_ema_alpha_debias only implemented in C++")
     return 0
 
 
@@ -1312,18 +1363,18 @@ def _ema_debias(
         if not horizon:
             horizon = 0
         if x.tstype.typ is float:
-            return _ema_debias_alpha(
+            return _ema_alpha_debias(
                 additions, removals, alpha, ignore_na, horizon, adjust, trigger, reset, min_data_points
             )
         else:
-            return _np_ema_debias_alpha(
+            return _np_ema_alpha_debias(
                 additions, removals, alpha, ignore_na, horizon, adjust, trigger, reset, min_data_points
             )
 
     if x.tstype.typ is float:
-        return _ema_debias_halflife(x, halflife, trigger, sampler, reset, min_data_points)
+        return _ema_halflife_debias(x, halflife, adjust, trigger, sampler, reset, min_data_points)
 
-    return _np_ema_debias_halflife(x, halflife, trigger, sampler, reset, min_data_points)
+    return _np_ema_halflife_debias(x, halflife, adjust, trigger, sampler, reset, min_data_points)
 
 
 @csp.node(cppimpl=_cspstatsimpl._cross_sectional_as_list)
@@ -2181,25 +2232,27 @@ def cov(
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
+    allow_non_overlapping: bool = False,
 ) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the covariance between two in-sequence time-series within the given window. If the time-series are of type np.ndarray, the covariance is calculated elementwise.
 
     Inputs
-    x:              time series data, of type float or np.ndarray
-    y:              time series data, of type float or np.ndarray, which ticks at the same time as x
-    interval:       the window interval (either time or tick specified)
-    min_window:     the minimum window (either time or tick specified) before statistics are returned. Must be the same type as interval
-    ddof:           delta degrees of freedom
-    ignore_na:      if True, will treat NaN values as missing data. If False, a NaN present in the window will make the computed statistic NaN as well
-    trigger:        another time-series which specifies when you want to recalculate the statistic
-    weights:        another time-series which specifies the weights to use on each x value, if a weighted covariance is desired
-    sampler:        another time-series which specifies when x should tick. If x ticks when sampler does not, the data is ignored. If sampler ticks when x does not,
-                    the data point is treated as NaN
-    reset:          another time-series which will clear the data in the window when it ticks
-    recalc:         another time-series which triggers a clean recalculation of the window statistic, and in doing so clears any accumulated floating-point error
-    min_data_points: minimum number of current ticks in the interval needed for a valid computation. If there are fewer ticks, NaN is returned.
+    x:                      time series data, of type float or np.ndarray
+    y:                      time series data, of type float or np.ndarray, which ticks at the same time as x
+    interval:               the window interval (either time or tick specified)
+    min_window:             the minimum window (either time or tick specified) before statistics are returned. Must be the same type as interval
+    ddof:                   delta degrees of freedom
+    ignore_na:              if True, will treat NaN values as missing data. If False, a NaN present in the window will make the computed statistic NaN as well
+    trigger:                another time-series which specifies when you want to recalculate the statistic
+    weights:                another time-series which specifies the weights to use on each x value, if a weighted covariance is desired
+    sampler:                another time-series which specifies when x should tick. If x ticks when sampler does not, the data is ignored. If sampler ticks when x does not,
+                            the data point is treated as NaN
+    reset:                  another time-series which will clear the data in the window when it ticks
+    recalc:                 another time-series which triggers a clean recalculation of the window statistic, and in doing so clears any accumulated floating-point error
+    min_data_points:        minimum number of current ticks in the interval needed for a valid computation. If there are fewer ticks, NaN is returned.
+    allow_non_overlapping:  if True, discard any ticks of x and y that occur out-of-sync with one another. If False, raise an exception on any out-of-sync ticks.
 
     """
 
@@ -2216,8 +2269,7 @@ def cov(
         weights,
         recalc,
         clear_stat,
-        in_seq,
-    ) = _bivariate_setup(x, y, interval, min_window, trigger, sampler, reset, weights, True, recalc)
+    ) = _bivariate_setup(x, y, interval, min_window, trigger, sampler, reset, weights, recalc, allow_non_overlapping)
 
     # Use same "debiasing" for weighted/non-weighted
     edge = None
@@ -2543,24 +2595,26 @@ def corr(
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
+    allow_non_overlapping: bool = False,
 ) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the correlation between x and y within the given window. If the time-series are of type np.ndarray, the correlation is calculated elementwise.
 
     Inputs
-    x:              time series data, of type float or np.ndarray
-    y:              time series data, of type float or np.ndarray, which ticks at the same time x ticks
-    interval:       the window interval (either time or tick specified)
-    min_window:     the minimum window (either time or tick specified) before statistics are returned. Must be the same type as interval
-    ignore_na:      if True, will treat NaN values as missing data. If False, a NaN present in the window will make the computed statistic NaN as well
-    trigger:        another time-series which specifies when you want to recalculate the statistic
-    weights:        another time-series which specifies the weights to use on each x value, if a weighted correlation is desired
-    sampler:        another time-series which specifies when x should tick. If x ticks when sampler does not, the data is ignored. If sampler ticks when x does not,
-                    the data point is treated as NaN
-    reset:          another time-series which will clear the data in the window when it ticks
-    recalc:         another time-series which triggers a clean recalculation of the window statistic, and in doing so clears any accumulated floating-point error
-    min_data_points: minimum number of current ticks in the interval needed for a valid computation. If there are fewer ticks, NaN is returned.
+    x:                      time series data, of type float or np.ndarray
+    y:                      time series data, of type float or np.ndarray, which ticks at the same time x ticks
+    interval:               the window interval (either time or tick specified)
+    min_window:             the minimum window (either time or tick specified) before statistics are returned. Must be the same type as interval
+    ignore_na:              if True, will treat NaN values as missing data. If False, a NaN present in the window will make the computed statistic NaN as well
+    trigger:                another time-series which specifies when you want to recalculate the statistic
+    weights:                another time-series which specifies the weights to use on each x value, if a weighted correlation is desired
+    sampler:                another time-series which specifies when x should tick. If x ticks when sampler does not, the data is ignored. If sampler ticks when x does not,
+                            the data point is treated as NaN
+    reset:                  another time-series which will clear the data in the window when it ticks
+    recalc:                 another time-series which triggers a clean recalculation of the window statistic, and in doing so clears any accumulated floating-point error
+    min_data_points:        minimum number of current ticks in the interval needed for a valid computation. If there are fewer ticks, NaN is returned.
+    allow_non_overlapping:  if True, discard any ticks of x and y that occur out-of-sync with one another. If False, raise an exception on any out-of-sync ticks.
 
     """
     (
@@ -2576,8 +2630,7 @@ def corr(
         weights,
         recalc,
         clear_stat,
-        in_seq,
-    ) = _bivariate_setup(x, y, interval, min_window, trigger, sampler, reset, weights, True, recalc)
+    ) = _bivariate_setup(x, y, interval, min_window, trigger, sampler, reset, weights, recalc, allow_non_overlapping)
 
     if series.tstype.typ is float:
         if weights is not None:
@@ -2901,9 +2954,11 @@ def ema(
     edge = None
     if series.tstype.typ is float:
         if halflife:
-            edge = _ema_timewise(
-                series, halflife, trigger, sampler, reset, min_data_points
-            )  # ignore na does not matter, same functionality for this case
+            # ignore na does not matter for the halflife case; adjust parameter does not need to be passed here either, set as False
+            if adjust:
+                edge = _ema_halflife_adjusted(series, halflife, False, trigger, sampler, reset, min_data_points)
+            else:
+                edge = _ema_halflife(series, halflife, False, trigger, sampler, reset, min_data_points)
         elif adjust:
             edge = _ema_adjusted(
                 updates.additions,
@@ -2922,7 +2977,10 @@ def ema(
             )
     elif series.tstype.typ in [Numpy1DArray[float], NumpyNDArray[float]]:
         if halflife:
-            edge = _np_ema_timewise(series, halflife, trigger, sampler, reset, min_data_points)
+            if adjust:
+                edge = _np_ema_halflife_adjusted(series, halflife, False, trigger, sampler, reset, min_data_points)
+            else:
+                edge = _np_ema_halflife(series, halflife, False, trigger, sampler, reset, min_data_points)
         elif adjust:
             edge = _np_ema_adjusted(
                 updates.additions,
@@ -2965,29 +3023,31 @@ def ema_cov(
     reset: ts[object] = None,
     recalc: ts[object] = None,
     min_data_points: int = 0,
+    allow_non_overlapping: bool = False,
 ) -> ts[Union[float, np.ndarray]]:
     """
 
     Returns the exponential moving covariance between two time series.
 
     Inputs
-    x:              time series data, of type float or np.ndarray
-    y:              time series data, of type float or np.ndarray, which ticks at the same time as x
-    min_periods:    the minimum number of data points before statistics are returned
-    alpha:          specify the decay parameter in terms of alpha
-    span:           specify the decay parameter in terms of span
-    com:            specify the decay parameter in terms of com
-    halflife:       specify the decay parameter in terms of halflife
-    adjust:         if True, an adjusted EMA will be computed. If False, a standard (unadjusted) EMA will be computed
-    horizon:        if specified, values that are older than the horizon will be removed entirely from the computation (essentially making EMA a window computation)
-    bias:           if True, a biased EMA covariance is computed. If False, the covariance estimate is unbiased
-    ignore_na:      if True, NaNs will be ignored and have no effect on the computation. If False, a NaN will shift the observation window once new non-NaN data comes in
-    trigger:        another time-series which specifies when you want to recalculate the statistic
-    sampler:        another time-series which specifies when x should tick. If x ticks when sampler does not, the data is ignored. If sampler ticks when x does not,
-                    the data point is treated as NaN
-    reset:          another time-series which will clear the data in the window when it ticks
-    recalc:         only valid when a finite-horizon EMA is used. Another time-series which triggers a clean recalculation of the window statistic, and in doing so clears any accumulated floating-point error
-    min_data_points: minimum number of current ticks in the interval needed for a valid computation. If there are fewer ticks, NaN is returned.
+    x:                      time series data, of type float or np.ndarray
+    y:                      time series data, of type float or np.ndarray, which ticks at the same time as x
+    min_periods:            the minimum number of data points before statistics are returned
+    alpha:                  specify the decay parameter in terms of alpha
+    span:                   specify the decay parameter in terms of span
+    com:                    specify the decay parameter in terms of com
+    halflife:               specify the decay parameter in terms of halflife
+    adjust:                 if True, an adjusted EMA will be computed. If False, a standard (unadjusted) EMA will be computed
+    horizon:                if specified, values that are older than the horizon will be removed entirely from the computation (essentially making EMA a window computation)
+    bias:                   if True, a biased EMA covariance is computed. If False, the covariance estimate is unbiased
+    ignore_na:              if True, NaNs will be ignored and have no effect on the computation. If False, a NaN will shift the observation window once new non-NaN data comes in
+    trigger:                another time-series which specifies when you want to recalculate the statistic
+    sampler:                another time-series which specifies when x should tick. If x ticks when sampler does not, the data is ignored. If sampler ticks when x does not,
+                            the data point is treated as NaN
+    reset:                  another time-series which will clear the data in the window when it ticks
+    recalc:                 only valid when a finite-horizon EMA is used. Another time-series which triggers a clean recalculation of the window statistic, and in doing so clears any accumulated floating-point error
+    min_data_points:        minimum number of current ticks in the interval needed for a valid computation. If there are fewer ticks, NaN is returned.
+    allow_non_overlapping:  if True, discard any ticks of x and y that occur out-of-sync with one another. If False, raise an exception on any out-of-sync ticks.
 
     """
 
@@ -2995,8 +3055,8 @@ def ema_cov(
         alpha, span, com, halflife, adjust, horizon, recalc
     )
 
+    x, y = _synchronize_bivariate(x, y, allow_non_overlapping)
     if x is not y:
-        _in_sequence_check(x, y)
         sync = _sync_nan(x, y)
         x, y = sync.x_sync, sync.y_sync
 

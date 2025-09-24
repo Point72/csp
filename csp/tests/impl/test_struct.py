@@ -1,7 +1,7 @@
 import enum
 import json
 import pickle
-import typing
+import sys
 import unittest
 from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
@@ -34,6 +34,7 @@ class StructNoDefaults(csp.Struct):
     a2: List[str]
     a3: FastList[object]
     a4: List[bytes]
+    a5: Numpy1DArray[float]
 
 
 class StructWithDefaults(csp.Struct):
@@ -691,6 +692,15 @@ class TestCspStruct(unittest.TestCase):
                     for key in blank.metadata().keys():
                         self.assertEqual(getattr(blank, key), getattr(source, key), (typ, typ2, key))
 
+                    # Test other direction ( derived copy from base )
+                    blank = typ2()
+                    source = typ()
+                    for key in typ.metadata().keys():
+                        setattr(source, key, values[key])
+                    blank.copy_from(source)
+                    for key in source.metadata().keys():
+                        self.assertEqual(getattr(blank, key), getattr(source, key), (typ, typ2, key))
+
     def test_copy_from_unsets(self):
         source = DerivedMixed(i=1, f=2.3, i2=4, s2="woodchuck")
         dest1 = DerivedMixed(i=5, b=True, l2=[1, 2, 3])
@@ -710,6 +720,13 @@ class TestCspStruct(unittest.TestCase):
         self.assertTrue(dest2.f == 2.3)  # adds
         self.assertFalse(hasattr(dest2, "s"))  # unsets
         self.assertFalse(hasattr(dest2, "a1"))
+
+        # from base class -> derived
+        dest2 = BaseMixed(i=6, s="banana", a1=[4, 5, 6])
+        dest3 = DerivedMixed(i=5, b=True)
+        dest3.copy_from(dest2)
+        self.assertTrue(dest3.i == 6)  # overrides already set value
+        self.assertFalse(hasattr(dest3, "b"))  # unsets
 
     def test_deepcopy_from(self):
         source = StructWithLists(
@@ -749,6 +766,14 @@ class TestCspStruct(unittest.TestCase):
         self.assertTrue(dest2.f == 2.3)  # adds
         self.assertTrue(dest2.s == "banana")  # no unsets
         self.assertTrue(dest2.a1 == [4, 5, 6])
+
+        # update from base class
+        dest3 = DerivedMixed()
+        dest3.update_from(dest2)
+        self.assertTrue(dest3.i == 1)  # overrides already set value
+        self.assertTrue(dest3.f == 2.3)  # adds
+        self.assertTrue(dest3.s == "banana")  # no unsets
+        self.assertTrue(dest3.a1 == [4, 5, 6])
 
     def test_update(self):
         dest = DerivedMixed(i2=5, b=True, l2=[1, 2, 3], s="foo")
@@ -796,6 +821,8 @@ class TestCspStruct(unittest.TestCase):
     def test_from_dict_with_enum(self):
         struct = StructWithDefaults.from_dict({"e": MyEnum.A})
         self.assertEqual(MyEnum.A, getattr(struct, "e"))
+        struct = StructWithDefaults.from_dict({"e": MyEnum.A}, use_pydantic=True)
+        self.assertEqual(MyEnum.A, getattr(struct, "e"))
 
     def test_from_dict_with_list_derived_type(self):
         class ListDerivedType(list):
@@ -809,32 +836,62 @@ class TestCspStruct(unittest.TestCase):
         self.assertTrue(isinstance(s1.to_dict()["ldt"], ListDerivedType))
         s2 = StructWithListDerivedType.from_dict(s1.to_dict())
         self.assertEqual(s1, s2)
+        s3 = StructWithListDerivedType.from_dict(s1.to_dict(), use_pydantic=True)
+        self.assertEqual(s1, s3)
 
     def test_from_dict_loop_no_defaults(self):
         looped = StructNoDefaults.from_dict(StructNoDefaults(a1=[9, 10]).to_dict())
         self.assertEqual(looped, StructNoDefaults(a1=[9, 10]))
+        looped = StructNoDefaults.from_dict(StructNoDefaults(a1=[9, 10]).to_dict(), use_pydantic=True)
+        self.assertEqual(looped, StructNoDefaults(a1=[9, 10]))
 
     def test_from_dict_loop_with_defaults(self):
-        looped = StructWithDefaults.from_dict(StructWithDefaults().to_dict())
-        # Note that we cant compare numpy arrays, so we check them independently
-        comp = StructWithDefaults()
-        self.assertTrue(np.array_equal(looped.np_arr, comp.np_arr))
+        for use_pydantic in [True, False]:
+            looped = StructWithDefaults.from_dict(StructWithDefaults().to_dict(), use_pydantic=use_pydantic)
+            # Note that we cant compare numpy arrays, so we check them independently
+            comp = StructWithDefaults()
+            self.assertTrue(np.array_equal(looped.np_arr, comp.np_arr))
 
-        del looped.np_arr
-        del comp.np_arr
-        self.assertEqual(looped, comp)
+            del looped.np_arr
+            del comp.np_arr
+            self.assertEqual(looped, comp)
+
+    def test_to_json_loop_with_no_defaults(self):
+        for use_pydantic in [True, False]:
+            base_struct = StructNoDefaults(
+                a1=[9, 10],
+                a5=np.array([1, 2, 3]),
+                bt=b"ab\001\000c",
+            )
+            if not use_pydantic:
+                # Need the callback to handle the numpy array type
+                looped = StructNoDefaults.type_adapter().validate_json(base_struct.to_json(lambda x: x.tolist()))
+            else:
+                looped = StructNoDefaults.type_adapter().validate_json(
+                    StructNoDefaults.type_adapter().dump_json(base_struct)
+                )
+            # Note that we cant compare numpy arrays, so we check them independently
+            self.assertTrue(np.array_equal(looped.a5, base_struct.a5))
+
+            del looped.a5
+            del base_struct.a5
+            self.assertEqual(looped, base_struct)
+            self.assertFalse(isinstance(looped.a1, list))
 
     def test_from_dict_loop_with_generic_typing(self):
         class MyStruct(csp.Struct):
             foo: Set[int]
-            bar: Tuple[str]
+            bar: Tuple[str, ...]
             np_arr: csp.typing.NumpyNDArray[float]
 
-        looped = MyStruct.from_dict(MyStruct(foo=set((9, 10)), bar=("a", "b"), np_arr=np.array([1, 3])).to_dict())
-        expected = MyStruct(foo=set((9, 10)), bar=("a", "b"), np_arr=np.array([1, 3]))
-        self.assertEqual(looped.foo, expected.foo)
-        self.assertEqual(looped.bar, expected.bar)
-        self.assertTrue(np.all(looped.np_arr == expected.np_arr))
+        for use_pydantic in [True, False]:
+            looped = MyStruct.from_dict(
+                MyStruct(foo=set((9, 10)), bar=("a", "b"), np_arr=np.array([1, 3])).to_dict(), use_pydantic=use_pydantic
+            )
+            expected = MyStruct(foo=set((9, 10)), bar=("a", "b"), np_arr=np.array([1, 3]))
+            self.assertEqual(looped.foo, expected.foo)
+            self.assertEqual(looped.bar, expected.bar)
+            self.assertTrue(np.all(looped.np_arr == expected.np_arr))
 
     def test_struct_yaml_serialization(self):
         class S1(csp.Struct):
@@ -1354,6 +1411,15 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(str(s12), s12_str_repr)
         self.assertEqual(repr(s12), s12_str_repr)
 
+        class StructWBytes(csp.Struct):
+            x: str
+            y: bytes
+
+        s_bytes = StructWBytes(x="test", y=b"\x9d_@2")
+        s_bytes_repr = "StructWBytes( x=test, y=b'\\x9d_@2' )"
+        self.assertEqual(str(s_bytes), s_bytes_repr)
+        self.assertEqual(repr(s_bytes), s_bytes_repr)
+
     def test_recursive_repr(self):
         class StructB(csp.Struct):
             x: csp.Struct
@@ -1465,21 +1531,141 @@ class TestCspStruct(unittest.TestCase):
         class MySubStruct(csp.Struct):
             i: int = 0
 
-            def postprocess_to_dict(obj):
+            def postprocess_to_dict(self, obj):
                 obj["postprocess_called"] = True
+                obj["postprocess_val"] = self.i
                 return obj
 
         class MyStruct(csp.Struct):
             i: int = 1
             mss: MySubStruct = MySubStruct()
 
-            def postprocess_to_dict(obj):
+            def postprocess_to_dict(self, obj):
                 obj["postprocess_called"] = True
+                obj["postprocess_val"] = self.i
                 return obj
 
-        test_struct = MyStruct()
-        result_dict = {"i": 1, "postprocess_called": True, "mss": {"i": 0, "postprocess_called": True}}
+        test_struct = MyStruct(i=5)
+        result_dict = {
+            "i": 5,
+            "postprocess_called": True,
+            "postprocess_val": 5,
+            "mss": {"i": 0, "postprocess_called": True, "postprocess_val": 0},
+        }
         self.assertEqual(test_struct.to_dict(), result_dict)
+
+    def test_to_dict_preserve_enums(self):
+        class MyEnum(csp.Enum):
+            A = 1
+            B = 2
+            C = 3
+
+        class MySubEnum(csp.Enum):
+            SUB_A = 1
+            SUB_B = 2
+            SUB_C = 3
+
+        class MySubStruct(csp.Struct):
+            a: List[MySubEnum]
+            b: list[MySubEnum]
+            c: list
+            d: set
+            e: tuple
+            f: Dict[str, MySubEnum]
+            g: dict
+            h: MySubEnum
+            i: MyEnum
+
+        class MyStruct(csp.Struct):
+            a: List[MyEnum]
+            b: list[MyEnum]
+            c: list
+            d: set
+            e: tuple
+            f: Dict[str, MyEnum]
+            g: dict
+            h: MySubEnum
+            i: MyEnum
+            j: MySubStruct
+            k: List[MySubStruct]
+
+        test_sub_struct = MySubStruct(
+            a=[MySubEnum.SUB_A, MySubEnum.SUB_B],
+            b=[MySubEnum.SUB_B, MySubEnum.SUB_C],
+            c=[MySubEnum.SUB_C, MySubEnum.SUB_A],
+            d=set([MySubEnum.SUB_A, MySubEnum.SUB_B]),
+            e=(MySubEnum.SUB_B, MySubEnum.SUB_C),
+            f={"3": MySubEnum.SUB_C, "1": MySubEnum.SUB_A},
+            g={"1": MySubEnum.SUB_A, "2": MySubEnum.SUB_B},
+            h=MySubEnum.SUB_A,
+            i=MyEnum.B,
+        )
+        result_sub_dict = {
+            "a": ["SUB_A", "SUB_B"],
+            "b": ["SUB_B", "SUB_C"],
+            "c": ["SUB_C", "SUB_A"],
+            "d": {"SUB_A", "SUB_B"},
+            "e": ("SUB_B", "SUB_C"),
+            "f": {"3": "SUB_C", "1": "SUB_A"},
+            "g": {"1": "SUB_A", "2": "SUB_B"},
+            "h": "SUB_A",
+            "i": "B",
+        }
+        result_sub_dict_preserve_enums = {
+            "a": [MySubEnum.SUB_A, MySubEnum.SUB_B],
+            "b": [MySubEnum.SUB_B, MySubEnum.SUB_C],
+            "c": [MySubEnum.SUB_C, MySubEnum.SUB_A],
+            "d": {MySubEnum.SUB_A, MySubEnum.SUB_B},
+            "e": (MySubEnum.SUB_B, MySubEnum.SUB_C),
+            "f": {"3": MySubEnum.SUB_C, "1": MySubEnum.SUB_A},
+            "g": {"1": MySubEnum.SUB_A, "2": MySubEnum.SUB_B},
+            "h": MySubEnum.SUB_A,
+            "i": MyEnum.B,
+        }
+        self.assertEqual(test_sub_struct.to_dict(), result_sub_dict)
+        self.assertEqual(test_sub_struct.to_dict(preserve_enums=True), result_sub_dict_preserve_enums)
+
+        test_struct = MyStruct(
+            a=[MyEnum.A, MyEnum.B],
+            b=[MyEnum.B, MyEnum.C],
+            c=[MyEnum.C, MyEnum.A],
+            d=set([MyEnum.A, MyEnum.B]),
+            e=(MyEnum.B, MyEnum.C),
+            f={"3": MyEnum.C, "1": MyEnum.A},
+            g={"1": MyEnum.A, "2": MyEnum.B},
+            h=MySubEnum.SUB_A,
+            i=MyEnum.B,
+            j=test_sub_struct,
+            k=[test_sub_struct, test_sub_struct],
+        )
+        result_dict = {
+            "a": ["A", "B"],
+            "b": ["B", "C"],
+            "c": ["C", "A"],
+            "d": {"A", "B"},
+            "e": ("B", "C"),
+            "f": {"3": "C", "1": "A"},
+            "g": {"1": "A", "2": "B"},
+            "h": "SUB_A",
+            "i": "B",
+            "j": result_sub_dict,
+            "k": [result_sub_dict, result_sub_dict],
+        }
+        result_dict_preserve_enums = {
+            "a": [MyEnum.A, MyEnum.B],
+            "b": [MyEnum.B, MyEnum.C],
+            "c": [MyEnum.C, MyEnum.A],
+            "d": {MyEnum.A, MyEnum.B},
+            "e": (MyEnum.B, MyEnum.C),
+            "f": {"3": MyEnum.C, "1": MyEnum.A},
+            "g": {"1": MyEnum.A, "2": MyEnum.B},
+            "h": MySubEnum.SUB_A,
+            "i": MyEnum.B,
+            "j": result_sub_dict_preserve_enums,
+            "k": [result_sub_dict_preserve_enums, result_sub_dict_preserve_enums],
+        }
+        self.assertEqual(test_struct.to_dict(), result_dict)
+        self.assertEqual(test_struct.to_dict(preserve_enums=True), result_dict_preserve_enums)
 
     def test_to_json_primitives(self):
         class MyStruct(csp.Struct):
@@ -3010,7 +3196,7 @@ class TestCspStruct(unittest.TestCase):
 
         # Valid data
         valid_data = {"value": 11, "name": "ya", "scores": [1.1, 2.2, 3.3]}
-        result = TypeAdapter(SimpleStruct).validate_python(valid_data)
+        result = SimpleStruct.from_dict(valid_data, use_pydantic=True)
         self.assertIsInstance(result, SimpleStruct)
         self.assertEqual(result.value, 11)
         self.assertEqual(result.name, "ya")
@@ -3019,11 +3205,11 @@ class TestCspStruct(unittest.TestCase):
         invalid_data = valid_data.copy()
         invalid_data["missing"] = False
         with self.assertRaises(ValidationError):
-            TypeAdapter(SimpleStruct).validate_python(invalid_data)  # extra fields throw an error
+            SimpleStruct.from_dict(invalid_data, use_pydantic=True)  # extra fields throw an error
 
         # Test that we can validate existing structs
         existing = SimpleStruct(value=1, scores=[1])
-        new = TypeAdapter(SimpleStruct).validate_python(existing)
+        new = SimpleStruct.from_dict(existing, use_pydantic=True)
         self.assertTrue(existing is new)  # we do not revalidate
         self.assertEqual(existing.value, 1)
 
@@ -3032,7 +3218,7 @@ class TestCspStruct(unittest.TestCase):
             "value": "42",  # string should convert to int
             "scores": ["1.1", 2, "3.3"],  # mixed types should convert to float
         }
-        result = TypeAdapter(SimpleStruct).validate_python(coercion_data)
+        result = SimpleStruct.from_dict(coercion_data, use_pydantic=True)
         self.assertEqual(result.value, 42)
         self.assertEqual(result.scores, [1.1, 2.0, 3.3])
 
@@ -3042,7 +3228,7 @@ class TestCspStruct(unittest.TestCase):
             tags: List[str]
 
         nested_data = {"simple": {"value": 11, "name": "ya", "scores": [1.1, 2.2, 3.3]}, "tags": ["test1", "test2"]}
-        result = TypeAdapter(NestedStruct).validate_python(nested_data)
+        result = NestedStruct.from_dict(nested_data, use_pydantic=True)
         self.assertIsInstance(result, NestedStruct)
         self.assertIsInstance(result.simple, SimpleStruct)
         self.assertEqual(result.simple.value, 11)
@@ -3050,7 +3236,7 @@ class TestCspStruct(unittest.TestCase):
 
         # 3. Test validation errors
         with self.assertRaises(ValidationError) as exc_info:
-            TypeAdapter(SimpleStruct).validate_python({"value": "not an integer", "scores": [1.1, 2.2, "invalid"]})
+            SimpleStruct.from_dict({"value": "not an integer", "scores": [1.1, 2.2, "invalid"]}, use_pydantic=True)
         self.assertIn("Input should be a valid integer", str(exc_info.exception))
 
         # 4. Test with complex types
@@ -3063,7 +3249,7 @@ class TestCspStruct(unittest.TestCase):
             "dates": ["2023-01-01", "2023-01-02"],  # strings should convert to datetime
             "mapping": {"a": "1.1", "b": 2.2},  # mixed types should convert to float
         }
-        result = TypeAdapter(ComplexStruct).validate_python(complex_data)
+        result = ComplexStruct.from_dict(complex_data, use_pydantic=True)
         self.assertIsInstance(result.dates[0], datetime)
         self.assertEqual(result.mapping, {"a": 1.1, "b": 2.2})
 
@@ -3077,7 +3263,7 @@ class TestCspStruct(unittest.TestCase):
             enum_list: List[MyEnum]
 
         enum_data = {"enum_field": "A", "enum_list": ["A", "B", "A"]}
-        result = TypeAdapter(EnumStruct).validate_python(enum_data)
+        result = EnumStruct.from_dict(enum_data, use_pydantic=True)
         self.assertEqual(result.enum_field, MyEnum.A)
         self.assertEqual(result.enum_list, [MyEnum.A, MyEnum.B, MyEnum.A])
 
@@ -3095,7 +3281,7 @@ class TestCspStruct(unittest.TestCase):
 
         val = DummyBlankClass()
         struct_as_dict = dict(x=12, y=val, z=[val], z1={val: val}, z2=None)
-        new_struct = TypeAdapter(StructWithDummy).validate_python(struct_as_dict)
+        new_struct = StructWithDummy.from_dict(struct_as_dict, use_pydantic=True)
         self.assertTrue(new_struct.y is val)
         self.assertTrue(new_struct.z[0] is val)
         self.assertTrue(new_struct.z1[val] is val)
@@ -3113,7 +3299,7 @@ class TestCspStruct(unittest.TestCase):
                 z3=z3_val,
                 z4=z3_val,
             )
-            new_struct = TypeAdapter(StructWithDummy).validate_python(struct_as_dict)
+            new_struct = StructWithDummy.from_dict(struct_as_dict, use_pydantic=True)
             self.assertTrue(new_struct.y is val)
             self.assertTrue(new_struct.z[0] is val)
             self.assertTrue(new_struct.z1[val] is val)
@@ -3206,7 +3392,7 @@ class TestCspStruct(unittest.TestCase):
         }
 
         # 1. Test validation
-        result = TypeAdapter(ProjectStruct).validate_python(project_data)
+        result = ProjectStruct.from_dict(project_data, use_pydantic=True)
 
         # Verify the structure
         self.assertIsInstance(result, ProjectStruct)
@@ -3249,14 +3435,14 @@ class TestCspStruct(unittest.TestCase):
         invalid_data["task_statuses"][99] = []  # Invalid enum value
 
         with self.assertRaises(ValidationError) as exc_info:
-            TypeAdapter(ProjectStruct).validate_python(invalid_data)
+            ProjectStruct.from_dict(invalid_data, use_pydantic=True)
 
         # 4. Test validation errors with invalid nested types
         invalid_task_data = project_data.copy()
         invalid_task_data["task_statuses"][1][0]["metadata"]["priority"] = 99  # Invalid priority
 
         with self.assertRaises(ValidationError) as exc_info:
-            TypeAdapter(ProjectStruct).validate_python(invalid_task_data)
+            ProjectStruct.from_dict(invalid_task_data, use_pydantic=True)
 
     def test_pydantic_models_with_csp_structs(self):
         """Test Pydantic BaseModels containing CSP Structs as attributes"""
@@ -3405,13 +3591,13 @@ class TestCspStruct(unittest.TestCase):
             inner: Annotated[InnerStruct, WrapValidator(struct_validator)]
 
         # Test simple value validation
-        inner = TypeAdapter(InnerStruct).validate_python({"value": "21"})
+        inner = InnerStruct.from_dict({"value": "21"}, use_pydantic=True)
         self.assertEqual(inner.value, 42)  # "21" -> 21 -> 42
         self.assertEqual(inner.description, "default")
         self.assertFalse(hasattr(inner, "z"))
 
         # test existing instance
-        inner_new = TypeAdapter(InnerStruct).validate_python(inner)
+        inner_new = InnerStruct.from_dict(inner, use_pydantic=True)
         self.assertTrue(inner is inner_new)
         # No revalidation
         self.assertEqual(inner_new.value, 42)
@@ -3419,26 +3605,26 @@ class TestCspStruct(unittest.TestCase):
         # Test validation with invalid value in existing instance
         inner.value = -5  # Set invalid value
         # No revalidation, no error
-        self.assertTrue(inner is TypeAdapter(InnerStruct).validate_python(inner))
+        self.assertTrue(inner is InnerStruct.from_dict(inner, use_pydantic=True))
         with self.assertRaises(ValidationError) as cm:
-            TypeAdapter(InnerStruct).validate_python(inner.to_dict())
+            InnerStruct.from_dict(inner.to_dict(), use_pydantic=True)
         self.assertIn("value must be positive", str(cm.exception))
 
         # Test simple value validation
-        inner = TypeAdapter(InnerStruct).validate_python({"value": "21", "z": 17})
+        inner = InnerStruct.from_dict({"value": "21", "z": 17}, use_pydantic=True)
         self.assertEqual(inner.value, 42)  # "21" -> 21 -> 42
         self.assertEqual(inner.description, "default")
         self.assertEqual(inner.z, 17)
 
         # Test struct validation with expansion
-        outer = TypeAdapter(OuterStruct).validate_python({"name": "test", "inner": {"value": 10, "z": 12}})
+        outer = OuterStruct.from_dict({"name": "test", "inner": {"value": 10, "z": 12}}, use_pydantic=True)
         self.assertEqual(outer.inner.value, 20)  # 10 -> 20 (doubled)
         self.assertEqual(outer.inner.description, "auto_generated")
         self.assertEqual(outer.inner.z, 12)
 
         # Test normal full structure still works
-        outer = TypeAdapter(OuterStruct).validate_python(
-            {"name": "test", "inner": {"value": "5", "description": "custom"}}
+        outer = OuterStruct.from_dict(
+            {"name": "test", "inner": {"value": "5", "description": "custom"}}, use_pydantic=True
         )
         self.assertEqual(outer.inner.value, 10)  # "5" -> 5 -> 10 (doubled)
         self.assertEqual(outer.inner.description, "custom")
@@ -3457,50 +3643,55 @@ class TestCspStruct(unittest.TestCase):
             tags: Union[str, List[str]] = "default"
 
         # Test with different value types
-        metric1 = TypeAdapter(MetricStruct).validate_python(
+        metric1 = MetricStruct.from_dict(
             {
                 "value": 42,  # int
-            }
+            },
+            use_pydantic=True,
         )
         self.assertEqual(metric1.value, 42)
         self.assertIsNone(metric1.name)
         self.assertEqual(metric1.tags, "default")
 
-        metric2 = TypeAdapter(MetricStruct).validate_python(
+        metric2 = MetricStruct.from_dict(
             {
                 "value": 42.5,  # float
                 "name": "test",
                 "tags": ["tag1", "tag2"],
-            }
+            },
+            use_pydantic=True,
         )
         self.assertEqual(metric2.value, 42.5)
         self.assertEqual(metric2.name, "test")
         self.assertEqual(metric2.tags, ["tag1", "tag2"])
 
         # Test with string that should convert to float
-        metric3 = TypeAdapter(MetricStruct).validate_python(
+        metric3 = MetricStruct.from_dict(
             {
                 "value": "42.5",  # should convert to float
                 "tags": "single_tag",  # single string tag
-            }
+            },
+            use_pydantic=True,
         )
         self.assertEqual(metric3.value, 42.5)
         self.assertEqual(metric3.tags, "single_tag")
 
         # Test validation error with invalid type
         with self.assertRaises(ValidationError) as exc_info:
-            TypeAdapter(MetricStruct).validate_python(
+            MetricStruct.from_dict(
                 {
                     "value": "not a number",
-                }
+                },
+                use_pydantic=True,
             )
         self.assertIn("Input should be a valid number", str(exc_info.exception))
 
         # Test with string that should convert to float
-        metric3 = TypeAdapter(MetricStruct).validate_python(
+        metric3 = MetricStruct.from_dict(
             {
                 "tags": "single_tag"  # single string tag
-            }
+            },
+            use_pydantic=True,
         )
         self.assertFalse(hasattr(metric3, "value"))
         self.assertEqual(metric3.tags, "single_tag")
@@ -3527,7 +3718,7 @@ class TestCspStruct(unittest.TestCase):
 
         # Test with MetricStruct
         metric_data = {"id": "metric-1", "data": {"value": 42.5, "unit": "celsius"}}
-        result = TypeAdapter(DataPoint).validate_python(metric_data)
+        result = DataPoint.from_dict(metric_data, use_pydantic=True)
         self.assertIsInstance(result.data, MetricStruct)
         self.assertEqual(result.data.value, 42.5)
         self.assertEqual(result.data.unit, "celsius")
@@ -3541,14 +3732,14 @@ class TestCspStruct(unittest.TestCase):
                 {"name": "previous_event", "timestamp": "2023-01-01T11:00:00"},
             ],
         }
-        result = TypeAdapter(DataPoint).validate_python(event_data)
+        result = DataPoint.from_dict(event_data, use_pydantic=True)
         self.assertIsInstance(result.data, EventStruct)
         self.assertEqual(result.data.name, "system_start")
         self.assertIsInstance(result.history[0], MetricStruct)
         self.assertIsInstance(result.history[1], EventStruct)
 
         # Test serialization and deserialization
-        result = TypeAdapter(DataPoint).validate_python(event_data)
+        result = DataPoint.from_dict(event_data, use_pydantic=True)
         json_data = result.to_json()
         restored = TypeAdapter(DataPoint).validate_json(json_data)
 
@@ -3589,14 +3780,14 @@ class TestCspStruct(unittest.TestCase):
                 "precision": 1,  # specific to TemperatureMetric
             },
         }
-        result = TypeAdapter(DataPoint).validate_python(temp_data)
+        result = DataPoint.from_dict(temp_data, use_pydantic=True)
         self.assertIsInstance(result.metric, TemperatureMetric)  # Should be TemperatureMetric, not BaseMetric
         self.assertEqual(result.metric.unit, "celsius")
         self.assertEqual(result.metric.precision, 1)
 
         # Test with PressureMetric data
         pressure_data = {"id": "pressure-1", "metric": {"name": "pressure", "value": 101.325, "altitude": 0.0}}
-        result = TypeAdapter(DataPoint).validate_python(pressure_data)
+        result = DataPoint.from_dict(pressure_data, use_pydantic=True)
         self.assertIsInstance(result.metric, PressureMetric)  # Should be PressureMetric, not BaseMetric
         self.assertEqual(result.metric.unit, "pascal")
         self.assertEqual(result.metric.altitude, 0.0)
@@ -3617,7 +3808,7 @@ class TestCspStruct(unittest.TestCase):
                 },
             ],
         }
-        result = TypeAdapter(DataPoint).validate_python(mixed_data)
+        result = DataPoint.from_dict(mixed_data, use_pydantic=True)
         self.assertIsInstance(result.metric, BaseMetric)  # Should be base metric
         self.assertIsInstance(result.history[0], TemperatureMetric)  # Should be temperature
         self.assertIsInstance(result.history[1], PressureMetric)  # Should be pressure
@@ -3782,7 +3973,7 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(enum_as_enum.name, enum_as_str)
 
         self.assertEqual(
-            nested, TypeAdapter(NestedStruct).validate_python(TypeAdapter(NestedStruct).dump_python(nested))
+            nested, NestedStruct.from_dict(TypeAdapter(NestedStruct).dump_python(nested), use_pydantic=True)
         )
 
         json_native = nested.to_json()
@@ -3802,7 +3993,7 @@ class TestCspStruct(unittest.TestCase):
 
         NPStruct(arr=np.array([1, 3, "ab"]))  # No error, even though the types are wrong
         with self.assertRaises(ValidationError) as exc_info:
-            TypeAdapter(NPStruct).validate_python(dict(arr=[1, 3, "ab"]))
+            NPStruct.from_dict(dict(arr=[1, 3, "ab"]), use_pydantic=True)
         self.assertIn("could not convert string to float", str(exc_info.exception))
         # We should be able to generate the json_schema
         TypeAdapter(NPStruct).json_schema()
@@ -3851,7 +4042,7 @@ class TestCspStruct(unittest.TestCase):
             },
         }
 
-        result = TypeAdapter(DataPoint).validate_python(metric_data)
+        result = DataPoint.from_dict(metric_data, use_pydantic=True)
 
         # Verify private fields are properly set including inherited ones
         self.assertEqual(result._last_updated, datetime(2023, 1, 1, 12, 0))
@@ -3893,7 +4084,7 @@ class TestCspStruct(unittest.TestCase):
             },
         }
 
-        result = TypeAdapter(DataPoint).validate_python(event_data)
+        result = DataPoint.from_dict(event_data, use_pydantic=True)
 
         # Verify private fields are set but excluded from serialization
         self.assertEqual(result._last_updated, datetime(2023, 1, 1, 12, 0))
@@ -3902,6 +4093,175 @@ class TestCspStruct(unittest.TestCase):
         json_data = json.loads(TypeAdapter(DataPoint).dump_json(result))
         self.assertNotIn("_last_updated", json_data)
         self.assertNotIn("_source", json_data["data"])
+
+    def test_literal_types_validation(self):
+        """Test that Literal type annotations correctly validate input values in CSP Structs"""
+
+        # Define a simple class with various Literal types
+        class StructWithLiterals(csp.Struct):
+            # String literals
+            color: Literal["red", "green", "blue"]
+            # Integer literals
+            size: Literal[1, 2, 3]
+            # Mixed type literals
+            status: Literal["on", "off", 0, 1, True, False]
+            # Optional literal with default
+            mode: Optional[Literal["fast", "slow"]] = "fast"
+
+        # Test valid assignments
+        s1 = StructWithLiterals(color="red", size=2, status="on")
+        self.assertEqual(s1.color, "red")
+        self.assertEqual(s1.size, 2)
+        self.assertEqual(s1.status, "on")
+        self.assertEqual(s1.mode, "fast")  # Default value
+
+        s2 = StructWithLiterals.from_dict(dict(color="blue", size=1, status=True, mode="slow"))
+        s2_dump = s2.to_json()
+        s2_looped = TypeAdapter(StructWithLiterals).validate_json(s2_dump)
+        self.assertEqual(s2, s2_looped)
+        s2_dict = s2.to_dict()
+        s2_looped_dict = s2.from_dict(s2_dict)
+        self.assertEqual(s2_looped_dict, s2)
+
+        # Invalid color, but from_dict still accepts
+        StructWithLiterals.from_dict(dict(color="yellow", size=1, status="on"))
+
+        # Invalid size but from_dict still accepts
+        StructWithLiterals.from_dict(dict(color="red", size=4, status="on"))
+
+        # Invalid status but from_dict still accepts
+        StructWithLiterals.from_dict(dict(color="red", size=1, status="standby"))
+
+        # Invalid mode but from_dict still accepts
+        StructWithLiterals.from_dict(dict(color="red", size=1, mode=12))
+
+        # Invalid size and since the literals are all the same type
+        # If we give an incorrect type, we catch the error
+        with self.assertRaises(ValueError) as exc_info:
+            StructWithLiterals.from_dict(dict(color="red", size="adasd", mode=12))
+        self.assertIn("Expected type <class 'int'> received <class 'str'>", str(exc_info.exception))
+
+        # Test valid values
+        result = TypeAdapter(StructWithLiterals).validate_python({"color": "green", "size": 3, "status": 0})
+        self.assertEqual(result.color, "green")
+        self.assertEqual(result.size, 3)
+        self.assertEqual(result.status, 0)
+
+        # Test invalid color with Pydantic validation
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(StructWithLiterals).validate_python({"color": "yellow", "size": 1, "status": "on"})
+        self.assertIn("1 validation error for", str(exc_info.exception))
+        self.assertIn("color", str(exc_info.exception))
+
+        # Test invalid size with Pydantic validation
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(StructWithLiterals).validate_python({"color": "red", "size": 4, "status": "on"})
+        self.assertIn("1 validation error for", str(exc_info.exception))
+        self.assertIn("size", str(exc_info.exception))
+
+        # Test invalid status with Pydantic validation
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(StructWithLiterals).validate_python({"color": "red", "size": 1, "status": "standby"})
+        self.assertIn("1 validation error for", str(exc_info.exception))
+        self.assertIn("status", str(exc_info.exception))
+
+        # Test invalid mode with Pydantic validation
+        with self.assertRaises(ValidationError) as exc_info:
+            TypeAdapter(StructWithLiterals).validate_python(
+                {"color": "red", "size": 1, "status": "on", "mode": "medium"}
+            )
+        self.assertIn("1 validation error for", str(exc_info.exception))
+        self.assertIn("mode", str(exc_info.exception))
+
+    def test_pipe_operator_types(self):
+        """Test using the pipe operator for union types in Python 3.10+"""
+        if sys.version_info >= (3, 10):  # Only run on Python 3.10+
+            # Define a class using various pipe operator combinations
+            class PipeTypesConfig(csp.Struct):
+                # Basic primitive types with pipe
+                id_field: str | int
+                # Pipe with None (similar to Optional)
+                description: str | None = None
+                # Multiple types with pipe
+                value: str | int | float | bool
+                # Container with pipe
+                tags: List[str] | Dict[str, str] | None = None
+                # Pipe with literal for comparison
+                status: Literal["active", "inactive"] | None = "active"
+
+            # Test all valid types
+            valid_cases = [
+                {"id_field": "string_id", "value": "string_value"},
+                {"id_field": 42, "value": 123},
+                {"id_field": "mixed", "value": 3.14},
+                {"id_field": 999, "value": True},
+                {"id_field": "with_desc", "value": 1, "description": "Description"},
+                {"id_field": "with_dict", "value": 1, "tags": None},
+            ]
+
+            for case in valid_cases:
+                result = PipeTypesConfig.from_dict(case)
+                # use the other route to get back the result
+                result_to_dict_loop = TypeAdapter(PipeTypesConfig).validate_python(result.to_dict())
+                self.assertEqual(result, result_to_dict_loop)
+
+            # Test invalid values
+            invalid_cases = [
+                {"id_field": 3.14, "value": 1},  # Float for id_field
+                {"id_field": None, "value": 1},  # None for required id_field
+                {"id_field": "test", "value": {}},  # Dict for value
+                {"id_field": "test", "value": None},  # None for required value
+                {"id_field": "test", "value": 1, "status": "unknown"},  # Invalid literal
+            ]
+            for case in invalid_cases:
+                with self.assertRaises(ValidationError):
+                    TypeAdapter(PipeTypesConfig).validate_python(case)
+
+    def test__metadata_info(self):
+        class MyStruct(DerivedMixed):
+            typed: BaseNative
+            generic: csp.Struct
+
+        metadata_info = MyStruct._metadata_info()
+        self.assertEqual(metadata_info["is_native"], False)
+        typed_field = [f for f in metadata_info["fields"] if f["fieldname"] == "typed"][0]
+        generic_field = [f for f in metadata_info["fields"] if f["fieldname"] == "generic"][0]
+        self.assertEqual(typed_field["type"]["pytype"], BaseNative)
+        self.assertEqual(generic_field["type"]["pytype"], None)
+
+    def test_type_adapter_inherited(self):
+        class MyStruct(csp.Struct):
+            x: int
+
+        class MyStructB(MyStruct):
+            y: str
+
+        validated_struct = MyStruct.type_adapter().validate_python(dict(x=11))
+        self.assertEqual(validated_struct, MyStruct(x=11))
+
+        validated_child_struct = MyStructB.type_adapter().validate_python(dict(y="a"))
+        self.assertEqual(validated_child_struct, MyStructB(y="a"))
+
+    def test_struct_type_lifetime(self):
+        """Was a crashing bug: https://github.com/Point72/csp/issues/579"""
+        import gc
+
+        class T(csp.Struct):
+            s: csp.Struct
+
+        def foo2():
+            meta = {"A": str, "B": int}
+            DynStruct = defineStruct("DynStruct", meta)
+            t = T(s=DynStruct(A="testing"))
+            del DynStruct
+            gc.collect(0)
+            return t
+
+        s = foo2()
+        self.assertEqual(s.s.A, "testing")
+        del s.s
+        del s
+        gc.collect(0)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 [build-system]
 requires = [
-    "cmake",
+    "cmake<3.27",
     "deprecated",  # Because used in csp.impl.struct, which is used in autogen
-    "oldest-supported-numpy",
-    "pyarrow>=15,<19",
+    "numpy>=2,<2.1",  # oldest numpy 2 we can
+    "pyarrow>=15,<20",
     "ruamel.yaml",
     "scikit-build",
     "setuptools>=69,<74",
@@ -16,15 +16,15 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.0.11"
+version = "0.11.3"
 requires-python = ">=3.9"
 
 dependencies = [
     "deprecated",
-    "numpy<2",
+    "numpy>=1",
     "packaging",
     "psutil",
-    "pyarrow>=15,<19",
+    "pyarrow>=15,<20",
     "pydantic>=2",
     "pytz",
     "ruamel.yaml",
@@ -64,7 +64,7 @@ develop = [
     "codespell>=2.4,<2.5",
     "mdformat>=0.7.19,<0.8",
     "mdformat-tables>=1,<1.1",
-    "ruff>=0.9,<0.10",
+    "ruff>=0.9,<0.13",
     # test
     "pytest",
     "pytest-asyncio",
@@ -77,7 +77,8 @@ develop = [
     "httpx>=0.20,<1",  # kafka
     "perspective-python>=2",  # perspective
     "ipywidgets",  # perspective
-    "pandas",  # pandas extension
+    "pandas<2.3; python_version<'3.10'",  # pandas extension
+    "pandas; python_version>='3.10'",  # pandas extension
     "polars",  # parquet
     "psutil",  # test_engine/test_history
     "sqlalchemy",  # db
@@ -97,7 +98,7 @@ slack = [
 ]
 
 [tool.bumpversion]
-current_version = "0.0.11"
+current_version = "0.11.3"
 commit = false
 tag = false
 commit_args = "-s"

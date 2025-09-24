@@ -116,7 +116,7 @@ void PyCspEnumMeta_dealloc( PyCspEnumMeta * m )
 {
     CspTypeFactory::instance().removeCachedType( reinterpret_cast<PyTypeObject*>( m ) );
     m -> ~PyCspEnumMeta();
-    Py_TYPE( m ) -> tp_free( m );
+    PyCspEnumMeta::PyType.tp_free( m );
 }
 
 PyObject * PyCspEnumMeta_subscript( PyCspEnumMeta * self, PyObject * key )
@@ -187,7 +187,7 @@ PyTypeObject PyCspEnumMeta::PyType = {
 void PyCspEnum_dealloc( PyCspEnum * self )
 {
     self -> ~PyCspEnum();
-    Py_TYPE( self ) -> tp_free( self );
+    PyCspEnum::PyType.tp_free( self );
 }
 
 PyObject * PyCspEnum_new( PyTypeObject * type, PyObject *args, PyObject *kwds )

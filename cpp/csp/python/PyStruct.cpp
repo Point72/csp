@@ -44,7 +44,7 @@ private:
 DialectStructMeta::DialectStructMeta( PyTypeObject * pyType, const std::string & name,
                                       const Fields & flds, std::shared_ptr<StructMeta> base ) :
     StructMeta( name, flds, base ),
-    m_pyType( pyType )
+    m_pyType( PyTypeObjectPtr::incref( pyType ) )
 {
 }
 
@@ -173,12 +173,13 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
     }
 
     /*back reference to the struct type that will be accessible on the csp struct -> meta()
-      DialectStructMeta will hold a borrowed reference to the type to avoid a circular dep
+      DialectStructMeta needs a strong reference to the type.  This creates a known strong circular dep
+      whiech effectively will keep the struct type instances around beyond their need
 
       This is the layout of references between all these types
                               StructMeta (shared_ptr) <-------- strong ref
                                   |                              |
-                           DialectStructMeta ---> weak ref to PyStructMeta ( the PyType )
+                           DialectStructMeta --> strong ref to PyStructMeta ( the PyType )
                                  /\                              /\
                                   |                              |
                                   | (strong ref )                |
@@ -241,7 +242,7 @@ void PyStructMeta_dealloc( PyStructMeta * m )
 {
     CspTypeFactory::instance().removeCachedType( reinterpret_cast<PyTypeObject*>( m ) );
     m -> ~PyStructMeta();
-    Py_TYPE( m ) -> tp_free( m );
+    PyStructMeta::PyType.tp_free( m );
 }
 
 PyObject * PyStructMeta_layout( PyStructMeta * m )
@@ -272,7 +273,8 @@ static PyObjectPtr PyStructMeta_typeinfo( const CspType * type )
     {
         auto const * structType = static_cast<const CspStructType*>( type );
         auto const * structMeta = static_cast<const DialectStructMeta*>( structType -> meta().get() );
-        if( PyDict_SetItemString( out.get(), "pytype", ( PyObject * ) structMeta -> pyType() ) < 0 )
+        PyObject * pyType = structMeta ? ( PyObject * ) structMeta -> pyType() : Py_None;
+        if( PyDict_SetItemString( out.get(), "pytype", pyType ) < 0 )
             CSP_THROW( PythonPassthrough, "" );
     }
     else if( type -> type() == CspType::Type::ARRAY )
@@ -540,8 +542,16 @@ void repr_field( const Struct * struct_, const StructFieldPtr & field, std::stri
             format_double( field -> value<double>( struct_ ), tl_repr );
             break;
         case CspType::Type::STRING:
-            tl_repr += field -> value<std::string>( struct_ );
+        {
+            auto const * stringType = static_cast<const CspStringType*>( field -> type().get() );
+            const auto & val = field -> value<std::string>( struct_ );
+            //Use Python's bytes repr for bytes if this is a bytes string
+            if( stringType -> isBytes() )
+                format_pyobject( PyObjectPtr::own( toPython( val, *stringType ) ), tl_repr );
+            else
+                tl_repr += val;
             break;
+        }
         case CspType::Type::STRUCT:
         {
             StructStructField* as_sf = static_cast<StructStructField*>( field.get() );
@@ -759,7 +769,7 @@ void PyStruct_dealloc( PyStruct * self )
     self -> struct_ -> setDialectPtr( nullptr );
 
     self -> ~PyStruct();
-    Py_TYPE( self ) -> tp_free( self );
+    PyStruct::PyType.tp_free( self );
 }
 
 void PyStruct_setattrs( PyStruct * self, PyObject * args, PyObject * kwargs, const char * methodName )
@@ -943,7 +953,8 @@ PyObject * PyStruct_to_dict( PyStruct * self, PyObject * args, PyObject * kwargs
 
     // NOTE: Consider grouping customization properties into a dictionary
     PyObject * callable = nullptr;
-    if( PyArg_ParseTuple( args, "O:to_dict", &callable ) )
+    int preserve_enums = 0;
+    if( PyArg_ParseTuple( args, "Op:to_dict", &callable, &preserve_enums ) )
     {
         if( ( callable != Py_None ) && !PyCallable_Check( callable ) )
         {
@@ -953,7 +964,7 @@ PyObject * PyStruct_to_dict( PyStruct * self, PyObject * args, PyObject * kwargs
     if( callable == Py_None )
         callable = nullptr;
     auto struct_ptr = self -> struct_;
-    auto pyobj_ptr = structToDict( struct_ptr, callable );
+    auto pyobj_ptr = structToDict( struct_ptr, callable, ( preserve_enums != 0 ) );
     return pyobj_ptr.release();
 
     CSP_RETURN_NULL;

@@ -6,10 +6,11 @@ from datetime import datetime, timedelta
 import numpy as np
 import numpy.testing
 import pandas as pd
+from pandas.testing import assert_series_equal
 
 import csp
 from csp.stats import _window_updates
-from csp.typing import Numpy1DArray, NumpyNDArray
+from csp.typing import Numpy1DArray
 
 
 def list_nparr_to_matrix(x):
@@ -18,6 +19,25 @@ def list_nparr_to_matrix(x):
 
 def aae(exp, act):
     np.testing.assert_almost_equal(np.array(exp, dtype=object)[:, 1], np.array(act, dtype=object)[:, 1], decimal=7)
+
+
+def generate_random_data(n, mu, sigma, pnan):
+    orig_state = np.random.get_state()
+    np.random.seed(42)  # for reproducibility
+    times = np.empty(n, dtype=object)
+    values = np.random.normal(mu, sigma, size=n)
+    deltas = np.random.uniform(low=0.0, high=10.0, size=n)
+
+    times[0] = datetime(2020, 1, 1)
+    for i in range(1, n):
+        times[i] = times[i - 1] + timedelta(seconds=deltas[i])
+        if np.random.random() > (1 - pnan):
+            values[i] = float("nan")
+    np.random.set_state(orig_state)
+
+    if pnan:
+        values[0] = float("nan")  # force edge condition
+    return times, values
 
 
 class TestStats(unittest.TestCase):
@@ -3598,6 +3618,197 @@ class TestStats(unittest.TestCase):
         self.assertTrue(pd.Series(res["skew"][1]).isna().all())
         self.assertTrue(pd.Series(res["kurt"][1]).isna().all())
         self.assertTrue(pd.Series(res["corr"][1]).isna().all())
+
+    def test_allow_non_overlapping_bivariate(self):
+        st = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g(allow_non_overlapping: bool):
+            x = csp.curve(
+                typ=float,
+                data=[
+                    (datetime(2020, 1, 1), 1),
+                    (datetime(2020, 1, 2), 2),
+                    (datetime(2020, 1, 4), 4),  # discarded
+                    (datetime(2020, 1, 6), 6),  # discarded
+                    (datetime(2020, 1, 7), 7),
+                ],
+            )
+            y = csp.curve(
+                typ=float,
+                data=[
+                    (datetime(2020, 1, 1), 1),
+                    (datetime(2020, 1, 2), 2),
+                    (datetime(2020, 1, 3), -1),  # discarded
+                    (datetime(2020, 1, 5), -2),  # discarded
+                    (datetime(2020, 1, 7), 7),
+                ],
+            )
+            cov = csp.stats.cov(x, y, 5, 1, allow_non_overlapping=allow_non_overlapping)
+            corr = csp.stats.corr(x, y, 5, 1, allow_non_overlapping=allow_non_overlapping)
+            ema_cov = csp.stats.ema_cov(x, y, 1, alpha=0.1, allow_non_overlapping=allow_non_overlapping)
+            csp.add_graph_output("cov", cov)
+            csp.add_graph_output("corr", corr)
+            csp.add_graph_output("ema_cov", ema_cov)
+
+        res = csp.run(g, True, starttime=st, endtime=timedelta(days=8), output_numpy=True)
+        for output in res.values():
+            # Convert expected datetimes to the same type as output
+            expected_dates = pd.to_datetime([datetime(2020, 1, i) for i in (1, 2, 7)])
+            np.testing.assert_array_equal(output[0], expected_dates.values)
+
+        # Additional sanity check is that correlation should be 1 as middle ticks are ignored
+        np.testing.assert_allclose(res["corr"][1], np.array([np.nan, 1.0, 1.0]), equal_nan=True)
+
+    def test_ema_cov_horizon_bug(self):
+        # Bug in finite horizon, adjusted, unbiased EMA covariance with ignore_na=True
+        # Also applies to ema_var/ema_std as well, as they use cov
+        # When the first data points are NaN, after the initial NaN is removed the next value that is removed has the wrong lookback weight applied to it
+
+        st = datetime(2020, 1, 1)
+        N = 15
+        K = 3
+        horizon = 10
+        alpha = 0.1
+        values = [np.nan if i < K else float(i) for i in range(N)]
+
+        @csp.graph
+        def g():
+            x = csp.curve(
+                typ=float, data=[(st + timedelta(seconds=i), values[i]) for i in range(N)]
+            )  # start with some NaNs
+            ema_std = csp.stats.ema_std(x, alpha=alpha, adjust=True, bias=False, ignore_na=True, horizon=horizon)
+            csp.add_graph_output("ema_std", ema_std)
+
+        res = csp.run(g, starttime=st, endtime=timedelta(seconds=N), output_numpy=True)
+
+        golden_ema_std = np.array(
+            [
+                pd.Series(values[max(0, j - horizon + 1) : j + 1]).ewm(alpha=alpha, ignore_na=True).std().iloc[-1]
+                for j in range(N)
+            ]
+        )
+        np.testing.assert_allclose(res["ema_std"][1], golden_ema_std, atol=1e-10)
+
+    def test_identical_values_variance(self):
+        """Test that variance and weighted variance are exactly 0 when all values in window are identical"""
+        st = datetime(2023, 1, 1, 9, 0, 0)
+
+        K = 10
+        N = 20
+
+        def get_val(u):
+            return float(int(u) // K)
+
+        @csp.graph
+        def graph():
+            # Generate data with identical values in each 10 second window, 20 times to get some error accumulated
+            data = csp.curve(float, [(st + timedelta(seconds=i + 1), get_val(i)) for i in range(K * N)])
+
+            # Generate random weights
+            w = np.random.uniform(low=0.1, high=1.0, size=K * N)
+            weights = csp.curve(float, [(st + timedelta(seconds=i + 1), w[i]) for i in range(K * N)])
+
+            # Test variance and weighted variance with 10-second resampling
+            resample_interval = timedelta(seconds=K)
+            timer = csp.timer(interval=resample_interval, value=True)
+
+            # Regular variance
+            var_result = csp.stats.var(data, interval=resample_interval, trigger=timer)
+
+            # Weighted variance (using uniform weights of 1.0)
+            wvar_result = csp.stats.var(data, interval=resample_interval, trigger=timer, weights=weights)
+
+            csp.add_graph_output("variance", var_result)
+            csp.add_graph_output("weighted_variance", wvar_result)
+
+        results = csp.run(graph, starttime=st, endtime=timedelta(seconds=K * N), output_numpy=True)
+
+        # Assert 1: all values in results['variance'] should be exactly 0, with no error
+        np.testing.assert_equal(results["variance"][1], np.zeros(shape=(N,)))
+
+        # Assert 2: weighted variance should equal unweighted variance
+        np.testing.assert_equal(results["variance"], results["weighted_variance"])
+
+    def test_unadjusted_ewm_halflife(self):
+        import polars as pl
+
+        N_DATA_POINTS = 100
+        N_ELEM_NP = 3
+        # polars does not ignore nan's in its ewm_mean_by (so need to generate data w/o nans)
+        times, values = generate_random_data(N_DATA_POINTS, mu=0, sigma=1, pnan=0)
+
+        @csp.graph
+        def graph():
+            test_data_float = csp.curve(typ=float, data=(times, values))
+            test_data_np = csp.curve(
+                typ=np.ndarray,
+                data=(times, np.array([np.array([values[k] for j in range(N_ELEM_NP)]) for k in range(N_DATA_POINTS)])),
+            )
+
+            # EMA: float/np
+            float_ema = csp.stats.ema(test_data_float, halflife=timedelta(seconds=5), adjust=False)
+            np_ema = csp.stats.ema(test_data_np, halflife=timedelta(seconds=5), adjust=False)
+            csp.add_graph_output("float_ema", float_ema)
+            csp.add_graph_output("np_ema", np_ema)
+
+            # EMA var (debiased): float/np
+            float_ema_var = csp.stats.ema_var(test_data_float, halflife=timedelta(seconds=20), adjust=False)
+            float_ema_var_adjusted = csp.stats.ema_var(test_data_float, halflife=timedelta(seconds=20), adjust=True)
+            np_ema_var = csp.stats.ema_var(test_data_np, halflife=timedelta(seconds=20), adjust=False)
+            csp.add_graph_output("float_ema_var", float_ema_var)
+            csp.add_graph_output("np_ema_var", np_ema_var)
+            csp.add_graph_output("float_ema_var_adjusted", float_ema_var_adjusted)
+
+        res = csp.run(graph, starttime=times[0] - timedelta(seconds=1), endtime=times[-1], output_numpy=True)
+
+        golden = (
+            pl.Series(values=values)
+            .ewm_mean_by(by=pl.Series(values=list(times)), half_life=timedelta(seconds=5))
+            .to_pandas()
+        )
+        assert_series_equal(golden, pd.Series(res["float_ema"][1]), check_names=False)
+        for element in range(N_ELEM_NP):
+            assert_series_equal(golden, pd.Series(np.stack(res["np_ema"][1])[:, element]), check_names=False)
+
+        # sanity check for variance (no open-source impl to compare to)
+        with self.assertRaises(AssertionError):
+            assert_series_equal(
+                pd.Series(res["float_ema_var"][1]), pd.Series(res["float_ema_var_adjusted"][1]), check_names=False
+            )
+        for element in range(N_ELEM_NP):
+            assert_series_equal(
+                pd.Series(res["float_ema_var"][1]),
+                pd.Series(np.stack(res["np_ema_var"][1])[:, element]),
+                check_names=False,
+            )
+
+    def test_scalar_arrays(self):
+        # np scalar arrays have no dimensions i.e. shape=(), but do contain a valid value
+        def scalar_graph():
+            raw_data = csp.count(csp.timer(timedelta(seconds=1), True))
+            zero_dim_array_data = csp.apply(raw_data, lambda x: np.array(float(x)), np.ndarray)
+            ema = csp.stats.ema(zero_dim_array_data, halflife=timedelta(seconds=10))
+            sum = csp.stats.sum(zero_dim_array_data, interval=10, min_window=1)
+
+            csp.add_graph_output("ema", ema)
+            csp.add_graph_output("sum", sum)
+
+        N_DATA_POINTS = 50
+        res = csp.run(
+            scalar_graph, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=N_DATA_POINTS), output_numpy=True
+        )
+        data = pd.Series(range(1, 51))
+
+        self.assertTrue(res["ema"][1][0].shape == tuple())  # 0-dimension shape is preserved
+        self.assertTrue(res["sum"][1][0].shape == tuple())  # 0-dimension shape is preserved
+        assert_series_equal(
+            pd.Series([res["ema"][1][k].item() for k in range(N_DATA_POINTS)]), data.ewm(halflife=10).mean()
+        )
+        assert_series_equal(
+            pd.Series([res["sum"][1][k].item() for k in range(N_DATA_POINTS)]),
+            data.rolling(window=10, min_periods=1).sum(),
+        )
 
 
 if __name__ == "__main__":

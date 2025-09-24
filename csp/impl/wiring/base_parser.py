@@ -135,6 +135,16 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
                     if tstype.isTsType(typ.__args__[0]):
                         return ArgKind.DYNAMIC_BASKET_TS, BasketKind.DYNAMIC_DICT
                     return ArgKind.BASKET_TS, BasketKind.DICT
+        elif CspTypingUtils.is_union_type(typ):
+            args = [arg for arg in typing.get_args(typ) if arg is not None and arg is not type(None)]
+            args_ts_status = [
+                argkind.is_any_ts() for argkind, _basket_kind in [cls._resolve_input_type_kind(arg) for arg in args]
+            ]
+            if all(args_ts_status):
+                return ArgKind.TS, None
+            elif not any(args_ts_status):
+                return ArgKind.SCALAR, None
+            raise ValueError(f"Cannot mix TS and non-TS types in a union {typ}")
         return ArgKind.SCALAR, None
 
     @staticmethod
@@ -251,7 +261,11 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         lineno = None
         for i, body_item in enumerate(body):
             lineno = body_item.lineno
-            if isinstance(body_item, ast.Expr) and isinstance(body_item.value, ast.Str):
+            if (
+                isinstance(body_item, ast.Expr)
+                and isinstance(body_item.value, ast.Constant)
+                and isinstance(body_item.value.value, str)
+            ):
                 # last_doc_string_item = i
                 continue
             break

@@ -2,7 +2,7 @@
 # Project Configuration #
 #########################
 cmake_minimum_required(VERSION 3.20.0)
-project(csp VERSION "0.0.11")
+project(csp VERSION "0.11.3")
 set(CMAKE_CXX_STANDARD 20)
 
 ###################################################################################################################################################
@@ -70,6 +70,7 @@ option(CSP_USE_LD_CLASSIC_MAC "On macOS, link with ld_classic" OFF)
 
 # Extension options
 option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" ON)
+option(CSP_BUILD_ARROW_ADAPTER "Build arrow adapter" ON)
 option(CSP_BUILD_PARQUET_ADAPTER "Build parquet adapter" ON)
 option(CSP_BUILD_WS_CLIENT_ADAPTER "Build ws client adapter" ON)
 
@@ -238,6 +239,10 @@ find_package(csp_autogen REQUIRED)
 find_package(DepsBase REQUIRED)
 
 # Adapter dependencies
+if(CSP_BUILD_ARROW_ADAPTER)
+    find_package(DepsArrowAdapter REQUIRED)
+endif()
+
 if(CSP_BUILD_KAFKA_ADAPTER)
     find_package(DepsKafkaAdapter REQUIRED)
 endif()

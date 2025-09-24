@@ -3,6 +3,7 @@ import collections
 import sys
 import types
 import typing
+import weakref
 
 import numpy
 
@@ -15,6 +16,33 @@ class FastList(typing.List, typing.Generic[T]):  # Need to inherit from Generic[
     def __init__(self):
         raise NotImplementedError("Can not init FastList class")
 
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        from pydantic_core import core_schema
+
+        # Late import to not interfere with autogen
+        args = typing.get_args(source_type)
+        if args:
+            inner_type = args[0]
+            list_schema = handler.generate_schema(typing.List[inner_type])
+        else:
+            list_schema = handler.generate_schema(typing.List)
+
+        def create_instance(raw_data, validator):
+            if isinstance(raw_data, FastList):
+                return raw_data
+            return validator(raw_data)  # just return a list
+
+        return core_schema.no_info_wrap_validator_function(
+            function=create_instance,
+            schema=list_schema,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda val: list(v for v in val),
+                return_schema=list_schema,
+                when_used="json",
+            ),
+        )
+
 
 class CspTypingUtils39:
     _ORIGIN_COMPAT_MAP = {list: typing.List, set: typing.Set, dict: typing.Dict, tuple: typing.Tuple}
@@ -23,7 +51,7 @@ class CspTypingUtils39:
 
     @classmethod
     def is_generic_container(cls, typ):
-        return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ is not typing.Union
+        return isinstance(typ, cls._GENERIC_ALIASES) and typ.__origin__ not in (typing.Union, typing.Literal)
 
     @classmethod
     def is_type_spec(cls, val):
@@ -55,6 +83,10 @@ class CspTypingUtils39:
     @classmethod
     def is_union_type(cls, typ):
         return isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union
+
+    @classmethod
+    def is_literal_type(cls, typ):
+        return isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Literal
 
     @classmethod
     def is_forward_ref(cls, typ):
@@ -147,7 +179,9 @@ class TsTypeValidator:
                 f"Argument to ts must either be: a type, ForwardRef or TypeVar. Got {source_type} which is an instance of {type(source_type)}."
             )
         self._last_value_type = None
-        self._last_context = None
+        # Use a weak reference to the last validation context to avoid
+        # keeping TVarValidationContext instances alive
+        self._last_context_ref = None
 
     def validate(self, value_type, info=None):
         """Run the validation against a proposed input type"""
@@ -158,10 +192,14 @@ class TsTypeValidator:
         # is equal to the last value_type, and if so, skip validation (as any errors would already have been thrown)
         # We also don't test equality on info, assuming that the same validation info object is used
         # for a given validation run.
-        if value_type == self._last_value_type and info is not None and self._last_context is info.context:
+        last_context = None if self._last_context_ref is None else self._last_context_ref()
+        if value_type == self._last_value_type and info is not None and last_context is info.context:
             return value_type
         self._last_value_type = value_type
-        self._last_context = info.context if info is not None else None
+        if info is not None and info.context is not None:
+            self._last_context_ref = weakref.ref(info.context)
+        else:
+            self._last_context_ref = None
 
         if value_type is typing.Any:
             # https://docs.python.org/3/library/typing.html#the-any-type

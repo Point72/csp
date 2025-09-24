@@ -1,3 +1,32 @@
+if(CSP_BUILD_ARROW_ADAPTER)
+    add_library(arrowadapterimpl SHARED PyArrowInputAdapter.cpp ArrowInputAdapter.h)
+
+    if(WIN32)
+        if(CSP_USE_VCPKG)
+            set(ARROW_PACKAGES_TO_LINK Arrow::arrow_static)
+            target_compile_definitions(arrowadapterimpl PUBLIC ARROW_STATIC)
+        else()
+            # use dynamic variants
+            # Until we manage to get the fix for ws3_32.dll in arrow-16 into conda, manually fix the error here
+            get_target_property(LINK_LIBS Arrow::arrow_shared INTERFACE_LINK_LIBRARIES)
+            string(REPLACE "ws2_32.dll" "ws2_32" FIXED_LINK_LIBS "${LINK_LIBS}")
+            set_target_properties(Arrow::arrow_shared PROPERTIES INTERFACE_LINK_LIBRARIES "${FIXED_LINK_LIBS}")
+            set(ARROW_PACKAGES_TO_LINK arrow_shared)
+        endif()
+    else()
+        if(CSP_USE_VCPKG)
+            # use static variants
+            set(ARROW_PACKAGES_TO_LINK arrow_static)
+        else()
+            # use dynamic variants
+            set(ARROW_PACKAGES_TO_LINK arrow)
+        endif()
+    endif()
+
+    target_link_libraries(arrowadapterimpl csp_core csp_engine cspimpl ${ARROW_PACKAGES_TO_LINK})
+    target_include_directories(arrowadapterimpl PUBLIC ${ARROW_INCLUDE_DIR})
+    install(TARGETS arrowadapterimpl RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR} )
+endif()
 
 if(CSP_BUILD_KAFKA_ADAPTER)
     add_library(kafkaadapterimpl SHARED kafkaadapterimpl.cpp)
@@ -6,36 +35,9 @@ if(CSP_BUILD_KAFKA_ADAPTER)
 endif()
 
 if(CSP_BUILD_PARQUET_ADAPTER)
-    set(VENDORED_PYARROW_ROOT "${CMAKE_SOURCE_DIR}/cpp/csp/python/adapters/vendored/pyarrow-16.0.0/")
-    set(ARROW_PYTHON_SRCS
-        ${VENDORED_PYARROW_ROOT}/arrow/python/arrow_to_pandas.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/benchmark.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/common.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/datetime.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/decimal.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/deserialize.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/extension_type.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/gdb.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/helpers.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/inference.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/init.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/io.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/ipc.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/numpy_convert.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/numpy_to_arrow.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/python_to_arrow.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/pyarrow.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/serialize.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/csv.cc
-        ${VENDORED_PYARROW_ROOT}/arrow/python/filesystem.cc)
-    add_library(parquetadapterimpl SHARED parquetadapterimpl.cpp ${ARROW_PYTHON_SRCS})
-    # Ignore warning regarding static datetime API initialization coming from vendored Arrow code
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        set_target_properties(parquetadapterimpl PROPERTIES COMPILE_OPTIONS "-Wno-unused-variable")
-    endif()
+    add_library(parquetadapterimpl SHARED parquetadapterimpl.cpp)
     target_link_libraries(parquetadapterimpl csp_core csp_engine cspimpl csp_parquet_adapter)
-    target_include_directories(parquetadapterimpl PUBLIC ${ARROW_INCLUDE_DIR} ${PARQUET_INCLUDE_DIR} "${VENDORED_PYARROW_ROOT}")
-    target_compile_definitions(parquetadapterimpl PUBLIC ARROW_PYTHON_STATIC)
+    target_include_directories(parquetadapterimpl PUBLIC ${ARROW_INCLUDE_DIR} ${PARQUET_INCLUDE_DIR})
     install(TARGETS parquetadapterimpl RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR} )
 endif()
 

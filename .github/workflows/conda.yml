@@ -37,30 +37,31 @@ jobs:
           os:
             - ubuntu-24.04
             - macos-14
-            - macos-13
-            - windows-2019
+            - windows-2022
       runs-on: ${{ matrix.os }}
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
 
-        - uses: mamba-org/setup-micromamba@v1
+        - uses: mamba-org/setup-micromamba@v2
           with:
-            micromamba-version: '1.5.7-0'
+            micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-unix.yml
             init-shell: >-
               bash
             cache-environment: true
+            cache-downloads: true
             post-cleanup: 'all'
           if: ${{ runner.os != 'Windows' }}
 
-        - uses: mamba-org/setup-micromamba@v1
+        - uses: mamba-org/setup-micromamba@v2
           with:
-            micromamba-version: '1.5.7-0'
+            micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-win.yml
             init-shell: >-
               cmd.exe
             cache-environment: true
+            cache-downloads: true
             post-cleanup: 'all'
           if: ${{ runner.os == 'Windows' }}
 
@@ -86,7 +87,7 @@ jobs:
 
         - name: Python Build Steps ( Windows )
           env:
-            CSP_GENERATOR: "Visual Studio 16 2019"
+            CSP_GENERATOR: "Visual Studio 17 2022"
           run: make build-conda
           shell: cmd /C call {0}
           if: ${{ runner.os == 'Windows' }}

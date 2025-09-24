@@ -109,6 +109,33 @@ DECLARE_CPPNODE( _in_sequence_check )
 EXPORT_CPPNODE( _in_sequence_check );
 
 /*
+@csp.node
+def _discard_non_overlapping(x: ts[float], y: ts[float]):
+*/
+
+DECLARE_CPPNODE( _discard_non_overlapping )
+{
+    TS_INPUT( double, x );
+    TS_INPUT( double, y );
+    
+    TS_NAMED_OUTPUT( double, x_sync );
+    TS_NAMED_OUTPUT( double, y_sync );
+
+    INIT_CPPNODE( _discard_non_overlapping ) { }
+
+    INVOKE()
+    {
+        if( csp.ticked( x ) && csp.ticked( y ) )
+        {
+            x_sync.output( x );
+            y_sync.output( y );
+        }
+    };
+};
+
+EXPORT_CPPNODE( _discard_non_overlapping );
+
+/*
 @csp.node(cppimpl=_cspstatsimpl._sync_nan_f)
 def _sync_nan_f(x: ts[float], y: ts[float]) -> csp.Outputs(x_sync=ts[float], y_sync=ts[float]):
 */
@@ -272,7 +299,7 @@ EXPORT_TEMPLATE_CPPNODE( _rank,             SINGLE_ARG( _computeTwoArg<int64_t, 
 EXPORT_TEMPLATE_CPPNODE( _kurt,             SINGLE_ARG( _computeTwoArg<bool, Kurtosis> ) );
 EXPORT_TEMPLATE_CPPNODE( _ema_compute,      _computeEMA<EMA> );
 EXPORT_TEMPLATE_CPPNODE( _ema_adjusted,     _computeEMA<AdjustedEMA>);
-EXPORT_TEMPLATE_CPPNODE( _ema_debias_alpha, _computeEMA<AlphaDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_alpha_debias, _computeEMA<AlphaDebiasEMA> );
 
 
 // The following nodes are written independently from _compute
@@ -506,10 +533,12 @@ DECLARE_CPPNODE ( _quantile )
 EXPORT_CPPNODE ( _quantile );
 
 template<typename C>
-DECLARE_CPPNODE( _exp_timewise )
+DECLARE_CPPNODE( _exp_halflife )
 {
     TS_INPUT( double, x );
     SCALAR_INPUT( TimeDelta, halflife );
+    SCALAR_INPUT( bool, adjust );
+
     TS_INPUT( Generic, trigger );
     TS_INPUT( Generic, sampler );
     TS_INPUT( Generic, reset );
@@ -518,11 +547,11 @@ DECLARE_CPPNODE( _exp_timewise )
     STATE_VAR( DataValidator<C>, s_computation );
     TS_OUTPUT( double );
 
-    INIT_CPPNODE( _exp_timewise ) { }
+    INIT_CPPNODE( _exp_halflife ) { }
 
     START()
     {
-        s_computation = DataValidator<C>( min_data_points, true, halflife, now() );
+        s_computation = DataValidator<C>( min_data_points, true, halflife, now(), adjust );
     }
 
     INVOKE()
@@ -544,8 +573,9 @@ DECLARE_CPPNODE( _exp_timewise )
     }
 };
 
-EXPORT_TEMPLATE_CPPNODE( _ema_timewise,         _exp_timewise<HalflifeEMA> );
-EXPORT_TEMPLATE_CPPNODE( _ema_debias_halflife,  _exp_timewise<HalflifeDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_halflife,             _exp_halflife<HalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_halflife_adjusted,    _exp_halflife<AdjustedHalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_halflife_debias,      _exp_halflife<HalflifeDebiasEMA> );
 
 DECLARE_CPPNODE( _arg_min_max )
 {

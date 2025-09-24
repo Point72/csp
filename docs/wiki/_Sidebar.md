@@ -13,7 +13,7 @@ Notes for editors:
 - [Installation](Installation)
 - [First Steps](First-Steps)
 - [More with CSP](More-with-CSP)
-- [Build a Basic App](More-with-CSP)
+- [Build a Basic App](Build-a-Basic-App)
 - [IO with Adapters](IO-with-Adapters)
 
 **Concepts**
@@ -41,6 +41,7 @@ Notes for editors:
 - API Reference
   - [Base Nodes API](Base-Nodes-API)
   - [Base Adapters API](Base-Adapters-API)
+  - [Basket Nodes API](Basket-Nodes-API)
   - [Graph Utilities API](Graph-Utilities-API)
   - [Math and Logic Nodes API](Math-and-Logic-Nodes-API)
   - [Statistical Nodes API](Statistical-Nodes-API)

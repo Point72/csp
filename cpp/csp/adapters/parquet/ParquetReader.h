@@ -221,28 +221,7 @@ public:
     {
         if( symbol )
             validateSymbolType( symbol.value() );
-
-        auto columnAdapterReference = (*this)[column];
-
-        if(columnAdapterReference->getContainerValueType()->type() == csp::CspType::Type::STRING)
-        {
-            auto &listAdapter = dynamic_cast<ListColumnAdapter<arrow::StringArray, std::string> &>(*columnAdapterReference);
-            listAdapter.addSubscriber( inputAdapter, symbol,
-                                         listReaderInterface );
-        }
-        else
-        {
-            PartialSwitchCspType<csp::CspType::Type::BOOL, csp::CspType::Type::INT64, csp::CspType::Type::DOUBLE>::invoke(
-                    columnAdapterReference -> getContainerValueType().get(),
-                    [ &columnAdapterReference, &listReaderInterface, &symbol, &inputAdapter ]( auto tag )
-                    {
-                        using T = typename decltype(tag)::type;
-                        using ArrowArrayType = typename arrow::TypeTraits<typename arrow::CTypeTraits<T>::ArrowType>::ArrayType;
-                        auto &listAdapter = dynamic_cast<ListColumnAdapter<ArrowArrayType> &>(*columnAdapterReference);
-                        listAdapter.addSubscriber( inputAdapter, symbol,
-                                                     listReaderInterface );
-                    } );
-        }
+        (*this)[column]->addSubscriber( inputAdapter, symbol, listReaderInterface );
     }
 
     /**

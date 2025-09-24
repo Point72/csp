@@ -1,6 +1,6 @@
 import sys
 from inspect import isclass
-from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union, get_args, get_origin
+from typing import Any, Callable, Dict, Generic, List, Literal, Optional, Type, TypeVar, Union, get_args, get_origin
 from unittest import TestCase
 
 import csp
@@ -135,9 +135,23 @@ class TestAdjustAnnotations(TestCase):
         container = Dict[ts[str], ts[float]]
         self.assertAnnotationsEqual(adjust_annotations(container), DynamicBasketPydantic[str, float])
 
-    def test_output_basket(self):
+    def test_output_basket_list(self):
         container = OutputBasketContainer(List[ts["T"]], shape=5, eval_type=OutputBasketContainer.EvalType.WITH_SHAPE)
-        self.assertAnnotationsEqual(adjust_annotations(container), OutputBasket(typ=List[ts[CspTypeVarType[T]]]))
+        output = OutputBasket(typ=List[ts[CspTypeVarType[T]]])
+        self.assertAnnotationsEqual(adjust_annotations(container), output)
+        self.assertAnnotationsEqual(
+            adjust_annotations(output, forced_tvars={"T": float}), OutputBasket(typ=List[ts[float]])
+        )
+
+    def test_output_basket_dict(self):
+        container = OutputBasketContainer(
+            Dict["K", ts["T"]], shape=5, eval_type=OutputBasketContainer.EvalType.WITH_SHAPE
+        )
+        output = OutputBasket(typ=Dict[CspTypeVar[K], ts[CspTypeVarType[T]]])
+        self.assertAnnotationsEqual(adjust_annotations(container), output)
+        self.assertAnnotationsEqual(
+            adjust_annotations(output, forced_tvars={"K": int, "T": float}), OutputBasket(typ=Dict[int, ts[float]])
+        )
 
     def test_other(self):
         self.assertAnnotationsEqual(adjust_annotations(List[str]), List[str])
@@ -160,3 +174,12 @@ class TestAdjustAnnotations(TestCase):
         self.assertAnnotationsEqual(
             adjust_annotations(CspTypeVarType[T], forced_tvars={"T": float}), Union[Type[float], Type[int]]
         )
+
+    def test_literal(self):
+        self.assertAnnotationsEqual(adjust_annotations(Literal["a", "b"]), Literal["a", "b"])
+        self.assertAnnotationsEqual(
+            adjust_annotations(Literal["a", "b"], make_optional=True), Optional[Literal["a", "b"]]
+        )
+        self.assertAnnotationsEqual(adjust_annotations(Literal[123, "a"]), Literal[123, "a"])
+        self.assertAnnotationsEqual(adjust_annotations(Literal[123, None]), Literal[123, None])
+        self.assertAnnotationsEqual(adjust_annotations(ts[Literal[123, None]]), ts[Literal[123, None]])

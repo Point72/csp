@@ -172,7 +172,7 @@ before-all ="""
 make dependencies-mac
 export ACLOCAL_PATH="$(brew --prefix autoconf-archive)/share/aclocal:$(printenv ACLOCAL_PATH)"
 """
-archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
+archs = "arm64"
 
 [tool.cibuildwheel.windows]
 before-all = "make dependencies-win"

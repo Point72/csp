@@ -2,6 +2,7 @@
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <parquet/arrow/reader.h>
 #include <arrow/io/file.h>
+#include <arrow/util/config.h>
 
 namespace csp::adapters::parquet
 {
@@ -16,9 +17,15 @@ void ParquetFileReaderWrapper::open( const std::string &fileName )
 
     try
     {
+#if ARROW_VERSION_MAJOR == 20 || ARROW_VERSION_MAJOR == 21
+        auto res = ::parquet::arrow::OpenFile(m_inputFile, arrow::default_memory_pool());
+        STATUS_OK_OR_THROW_RUNTIME(res.status(), "Failed to open parquet file " << fileName );
+        m_fileReader = res.MoveValueUnsafe();
+#else
         STATUS_OK_OR_THROW_RUNTIME(
                 ::parquet::arrow::OpenFile( m_inputFile, arrow::default_memory_pool(), &m_fileReader ),
                 "Failed to open parquet file " << fileName );
+#endif
     }
     catch( ... )
     {

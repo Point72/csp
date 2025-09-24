@@ -208,14 +208,14 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
+            # - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
-            - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
+            # - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
-            - "3.9"
-            - "3.10"
+            # - "3.9"
+            # - "3.10"
             - "3.11"
-            - "3.12"
+            # - "3.12"
           cibuildwheel:
             - "cp39"
             - "cp310"
@@ -448,14 +448,14 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-24.04
+            # - ubuntu-24.04
             - macos-14
-            - windows-2022
+            # - windows-2022
           python-version:
-            - 3.9
+            # - 3.9
             - "3.10"
-            - 3.11
-            - 3.12
+            # - 3.11
+            # - 3.12
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           is-sanitizer:

@@ -23,15 +23,11 @@ dependencies = [
     "deprecated",
     "numpy>=1",
     "packaging",
-    "pandas<2.3; python_version<'3.10'",
-    "pandas; python_version>='3.10'",
     "psutil",
     "pyarrow>=15,<20",
     "pydantic>=2",
     "pytz",
     "ruamel.yaml",
-    "sqlalchemy",
-    "typing-extensions",
 ]
 
 classifiers = [
@@ -81,6 +77,8 @@ develop = [
     "httpx>=0.20,<1",  # kafka
     "perspective-python>=2",  # perspective
     "ipywidgets",  # perspective
+    "pandas<2.3; python_version<'3.10'",  # pandas extension
+    "pandas; python_version>='3.10'",  # pandas extension
     "polars",  # parquet
     "psutil",  # test_engine/test_history
     "sqlalchemy",  # db
@@ -91,23 +89,6 @@ develop = [
 showgraph = [
     "graphviz",
     "pillow",
-]
-test = [
-    "graphviz",
-    "pillow",
-    "pytest",
-    "pytest-asyncio",
-    "pytest-cov",
-    "pytest-sugar",
-    "httpx>=0.20,<1",
-    "perspective-python",
-    "polars",
-    "psutil",
-    "requests",
-    "slack-sdk>=3",
-    "sqlalchemy",
-    "threadpoolctl",
-    "tornado",
 ]
 symphony = [
     "csp-adapter-symphony",

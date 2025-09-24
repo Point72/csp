@@ -277,10 +277,14 @@ jobs:
               os: windows-2022
               python-version: "3.11"
 
-            # No sanitizer support for msvc yet (no UBSAN)
+            # msvc: no sanitizer support yet
             - is-sanitizer: true
               os: windows-2022
 
+            # clang: sanitized build fails on csp_autogen
+            - is-sanitizer: true
+              os: macos-14
+            
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14

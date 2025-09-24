@@ -40,7 +40,7 @@
   "overrides": [
     {
       "name": "arrow",
-      "version": "19.0.1"
+      "version": "21.0.0"
     }
   ],
   "builtin-baseline": "b94ade01f19e4436d8c8a16a5c52e8c802ef67dd"

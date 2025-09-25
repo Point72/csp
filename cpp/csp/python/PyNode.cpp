@@ -16,8 +16,14 @@
 #include <frameobject.h>
 
 #if !IS_PRE_PYTHON_3_11
+    #if !IS_PRE_PYTHON_3_13
+        #define Py_BUILD_CORE
+    #endif
 #include <internal/pycore_code.h>
 #include <internal/pycore_frame.h>
+    #if !IS_PRE_PYTHON_3_13
+        #undef Py_BUILD_CORE
+    #endif
 #endif
 
 namespace csp::python
@@ -85,7 +91,7 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
 //PY311+ changes
 #else
     _PyInterpreterFrame * frame = ( _PyInterpreterFrame * ) pygen -> gi_iframe;
-    PyCodeObject * code = frame -> f_code;
+    PyCodeObject * code = PyGen_GetCode( ( PyGenObject * ) pygen );
     int localPlusIndex = 0;
     for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocalsplus; ++stackloc, ++localPlusIndex )
     {

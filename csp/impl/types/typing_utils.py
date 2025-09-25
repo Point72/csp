@@ -1,6 +1,5 @@
 # utils for dealing with typing types
 import collections
-import sys
 import types
 import typing
 import weakref
@@ -114,17 +113,16 @@ class CspTypingUtils39:
 CspTypingUtils = CspTypingUtils39
 
 
-if sys.version_info >= (3, 10):
+class CspTypingUtils310(CspTypingUtils39):
+    # To support PEP 604
+    @classmethod
+    def is_union_type(cls, typ):
+        return (isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union) or isinstance(
+            typ, types.UnionType
+        )
 
-    class CspTypingUtils310(CspTypingUtils39):
-        # To support PEP 604
-        @classmethod
-        def is_union_type(cls, typ):
-            return (isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union) or isinstance(
-                typ, types.UnionType
-            )
 
-    CspTypingUtils = CspTypingUtils310
+CspTypingUtils = CspTypingUtils310
 
 
 class TsTypeValidator:

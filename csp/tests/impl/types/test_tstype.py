@@ -34,10 +34,7 @@ class TestTsTypeValidation(TestCase):
         self.assertRaises(Exception, ta.validate_python, "foo")
 
     def test_not_edge(self):
-        if sys.version_info >= (3, 10):
-            self.assertRaises(TypeError, TypeAdapter, TsType[0])
-        else:  # On 3.9 it checks that the generic arg was a type
-            self.assertRaises(Exception, lambda: TsType[0])
+        self.assertRaises(TypeError, TypeAdapter, TsType[0])
 
     def test_nested_ts_type(self):
         self.assertRaises(TypeError, TypeAdapter, TsType[TsType[float]])

@@ -152,7 +152,7 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - 3.9
+            - 3.11
 
       runs-on: ${{ matrix.os }}
 
@@ -197,15 +197,15 @@ jobs:
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
-            - "3.9"
             - "3.10"
             - "3.11"
             - "3.12"
+            - "3.13"
           cibuildwheel:
-            - "cp39"
             - "cp310"
             - "cp311"
             - "cp312"
+            - "cp313"
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -214,44 +214,36 @@ jobs:
             ############################
             # Skip when cibuildwheel != python version
             # to avoid duplication
-            - python-version: "3.9"
-              cibuildwheel: "cp310"
-            - python-version: "3.9"
-              cibuildwheel: "cp311"
-            - python-version: "3.9"
-              cibuildwheel: "cp312"
-            - python-version: "3.10"
-              cibuildwheel: "cp39"
             - python-version: "3.10"
               cibuildwheel: "cp311"
             - python-version: "3.10"
               cibuildwheel: "cp312"
-            - python-version: "3.11"
-              cibuildwheel: "cp39"
+            - python-version: "3.10"
+              cibuildwheel: "cp313"
             - python-version: "3.11"
               cibuildwheel: "cp310"
             - python-version: "3.11"
               cibuildwheel: "cp312"
-            - python-version: "3.12"
-              cibuildwheel: "cp39"
+            - python-version: "3.11"
+              cibuildwheel: "cp313"
             - python-version: "3.12"
               cibuildwheel: "cp310"
             - python-version: "3.12"
               cibuildwheel: "cp311"
+            - python-version: "3.12"
+              cibuildwheel: "cp313"
+            - python-version: "3.13"
+              cibuildwheel: "cp310"
+            - python-version: "3.13"
+              cibuildwheel: "cp311"
+            - python-version: "3.13"
+              cibuildwheel: "cp312"
 
 
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
-            # mac arm builds support py3.10+
-            - os: macos-14
-              python-version: "3.9"
-
             # Avoid extra resources for windows build
-            - is-full-run: false
-              os: windows-2022
-              python-version: "3.9"
-
             - is-full-run: false
               os: windows-2022
               python-version: "3.10"
@@ -260,14 +252,18 @@ jobs:
               os: windows-2022
               python-version: "3.11"
 
+            - is-full-run: false
+              os: windows-2022
+              python-version: "3.12"
+
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
-              python-version: "3.9"
+              python-version: "3.10"
 
             - is-full-run: false
               os: macos-14
-              python-version: "3.10"
+              python-version: "3.11"
 
       runs-on: ${{ matrix.os }}
 
@@ -366,7 +362,7 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - 3.9
+            - "3.10"
 
       runs-on: ${{ matrix.os }}
 
@@ -421,25 +417,17 @@ jobs:
             - macos-14
             - windows-2022
           python-version:
-            - 3.9
             - "3.10"
             - 3.11
             - 3.12
+            - 3.13
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
-            # mac arm builds support py3.10+
-            - os: macos-14
-              python-version: "3.9"
-
             # Avoid extra resources for windows build
-            - is-full-run: false
-              os: windows-2022
-              python-version: "3.9"
-
             - is-full-run: false
               os: windows-2022
               python-version: "3.10"
@@ -448,14 +436,18 @@ jobs:
               os: windows-2022
               python-version: "3.11"
 
+            - is-full-run: false
+              os: windows-2022
+              python-version: "3.12"
+
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
-              python-version: "3.9"
+              python-version: "3.10"
 
             - is-full-run: false
               os: macos-14
-              python-version: "3.10"
+              python-version: "3.11"
 
       runs-on: ${{ matrix.os }}
 
@@ -558,7 +550,7 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - 3.9
+            - "3.10"
 
       runs-on: ${{ matrix.os }}
 
@@ -635,7 +627,7 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - 3.9
+            - "3.10"
           package:
             - sqlalchemy<2
             - perspective-python<3

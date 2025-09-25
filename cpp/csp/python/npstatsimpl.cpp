@@ -1301,12 +1301,12 @@ DECLARE_CPPNODE( _np_arg_min_max )
             PyArray_Descr *descr;
             PyArray_DescrConverter( date_type, &descr );
             Py_XDECREF( date_type );
-            DateTime * values = new DateTime[s_elem.size()];
+            
+            PyObject * out = PyArray_NewFromDescr( &PyArray_Type, descr, s_shp.m_dims.size(), &s_shp.m_dims[0], NULL, NULL, 0, NULL );
+            DateTime * values = static_cast<DateTime *>( PyArray_DATA( ( PyArrayObject * )out ) );
             for( size_t i = 0; i < s_elem.size(); ++i )
                 values[i] = s_elem[i].compute_dt();
-
-            PyObject * out = PyArray_NewFromDescr( &PyArray_Type, descr, s_shp.m_dims.size(), &s_shp.m_dims[0], NULL, values, 0, NULL );
-            PyArray_ENABLEFLAGS( ( PyArrayObject * ) out, NPY_ARRAY_OWNDATA );
+            
             RETURN( PyObjectPtr::own( out ) );
         }
     }

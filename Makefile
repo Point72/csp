@@ -5,6 +5,9 @@ EXTRA_ARGS :=
 #########
 .PHONY: requirements develop build build-debug build-conda install
 
+ASAN :=
+UBSAN :=
+
 requirements:  ## install python dev and runtime dependencies
 ifeq ($(OS),Windows_NT)
 	Powershell.exe -executionpolicy bypass -noprofile .\ci\scripts\windows\make_requirements.ps1
@@ -18,13 +21,13 @@ develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
 build:  ## build the library
-	python setup.py build build_ext --inplace
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) python setup.py build build_ext --inplace
 
 build-debug:  ## build the library ( DEBUG ) - May need a make clean when switching from regular build to build-debug and vice versa
-	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
 
 build-conda:  ## build the library in Conda
-	python setup.py build build_ext --csp-no-vcpkg --inplace
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) python setup.py build build_ext --csp-no-vcpkg --inplace
 
 install:  ## install library
 	python -m pip install .
@@ -78,11 +81,25 @@ checks: check
 #########
 # TESTS #
 #########
-.PHONY: test-py test-cpp coverage-py test tests
+.PHONY: test-py test-cpp test-py-sanitizer coverage-py test test-sanitizer tests
 
 TEST_ARGS :=
 test-py: ## Clean and Make unit tests
 	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
+
+test-py-sanitizer: ## Clean and Make unit tests with sanitizers enabled
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+		ASAN_OPTIONS=detect_leaks=0,detect_stack_use_after_return=true,use_odr_indicator=1,strict_init_order=true,strict_string_checks=true \
+		DYLD_INSERT_LIBRARIES=$$($(CXX) -print-file-name=libclang_rt.asan_osx_dynamic.dylib) \
+		python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS); \
+	elif [ "$$(uname -s)" = "Linux" ]; then \
+		ASAN_OPTIONS=detect_leaks=0,detect_stack_use_after_return=true,use_odr_indicator=1,strict_init_order=true,strict_string_checks=true \
+		LD_PRELOAD=$$($(CXX) -print-file-name=libasan.so) \
+		python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS); \
+	else \
+		echo "Unsupported platform: $$(uname -s)"; \
+		exit 1; \
+	fi
 
 test-cpp: ## Make C++ unit tests
 ifneq ($(OS),Windows_NT)
@@ -95,6 +112,8 @@ coverage-py:
 	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
 
 test: test-cpp test-py  ## run the tests
+
+test-sanitizer: test-cpp test-py-sanitizer  ## run the tests
 
 # Alias
 tests: test

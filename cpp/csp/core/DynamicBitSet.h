@@ -141,7 +141,8 @@ public:
         {
             node_type * old = m_nodes;
             m_nodes = new node_type[ newNodes ];
-            memcpy( m_nodes, old, m_numNodes * sizeof( node_type ) );
+            if( likely( m_numNodes > 0 ) )
+                memcpy( m_nodes, old, m_numNodes * sizeof( node_type ) );
             memset( m_nodes + m_numNodes, 0, ( newNodes - m_numNodes ) * sizeof( node_type ) );
 
             m_numNodes = newNodes;

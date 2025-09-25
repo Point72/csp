@@ -68,9 +68,8 @@ jobs:
       runs-on: ubuntu-24.04
 
       outputs:
-        COMMIT_MESSAGE: ${{ steps.setup.outputs.COMMIT_MSG }}
+        COMMIT_MESSAGE: ${{ steps.getcommitpush.outputs.COMMIT_MSG || steps.getcommitpr.outputs.COMMIT_MSG }}
         FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN || steps.setupschedule.outputs.FULL_RUN }}
-
       steps:
         - name: Checkout
           uses: actions/checkout@v5
@@ -79,11 +78,13 @@ jobs:
             fetch-depth: 2
 
         - name: Get Commit Message
-          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD | tr '\n' ' ')" >> $GITHUB_ENV
+          id: getcommitpush
+          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD | tr '\n' ' ')" >> $GITHUB_OUTPUT
           if: ${{ github.event_name == 'push' }}
 
         - name: Get Commit Message
-          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD^2 | tr '\n' ' ')" >> $GITHUB_ENV
+          id: getcommitpr
+          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD^2 | tr '\n' ' ')" >> $GITHUB_OUTPUT
           if: ${{ github.event_name == 'pull_request' }}
 
         - name: Display and Setup Build Args (Push)

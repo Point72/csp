@@ -6,8 +6,6 @@ env:
   # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule
   # GitHub Actions schedules can sometimes delay by up to 15 minutes due to platform load
   FULL_CI_SCHEDULE: '25 8 * * 1,4'
-  # Run sanitized builds (MacOS/Linux) on Friday at 3:25am EST (08:25 UTC)
-  SANITIZER_CI_SCHEDULE: '25 8 * * 5'
 
 on:
   push:
@@ -35,13 +33,8 @@ on:
         required: false
         type: boolean
         default: false
-      sanitizer:
-        description: "Run sanitized build"
-        required: false
-        type: boolean
-        default: false
   schedule:
-    - cron: '25 8 * * 1,4,5'
+    - cron: '25 8 * * 1,4'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -77,7 +70,6 @@ jobs:
       outputs:
         COMMIT_MESSAGE: ${{ steps.getcommitpush.outputs.COMMIT_MSG || steps.getcommitpr.outputs.COMMIT_MSG }}
         FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN || steps.setupschedule.outputs.FULL_RUN }}
-        SANITIZER: ${{ steps.setupmanual.outputs.SANITIZER || steps.setupschedule.outputs.SANITIZER }}
       steps:
         - name: Checkout
           uses: actions/checkout@v5
@@ -122,13 +114,10 @@ jobs:
           run: |
             echo "Commit Message: $COMMIT_MSG"
             echo "Full Run: $FULL_RUN"
-            echo "Sanitizer: $SANITIZER"
             echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
             echo "FULL_RUN=$FULL_RUN" >> $GITHUB_OUTPUT
-            echo "SANITIZER=$SANITIZER" >> $GITHUB_OUTPUT
           env:
             FULL_RUN: ${{ github.event.inputs.ci-full }}
-            SANITIZER: ${{ github.event.inputs.sanitizer }}
           if: ${{ github.event_name == 'workflow_dispatch' }}
         
         - name: Display and Setup Build Args (Schedule)
@@ -136,13 +125,10 @@ jobs:
           run: |
             echo "Commit Message: $COMMIT_MSG"
             echo "Full Run: $FULL_RUN"
-            echo "Sanitizer: $SANITIZER"
             echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
             echo "FULL_RUN=$FULL_RUN" >> $GITHUB_OUTPUT
-            echo "SANITIZER=$SANITIZER" >> $GITHUB_OUTPUT
           env:
             FULL_RUN: ${{ github.event.schedule == env.FULL_CI_SCHEDULE }}
-            SANITIZER: ${{ github.event.schedule == env.SANITIZER_CI_SCHEDULE }}
           if: ${{ github.event_name == 'schedule' }}
 
     ########################################################
@@ -223,8 +209,6 @@ jobs:
             - "cp312"
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
-          is-sanitizer:
-            - ${{ needs.initialize.outputs.SANITIZER == 'true' }}
           exclude:
             ############################
             # Things to always exclude #
@@ -277,14 +261,6 @@ jobs:
               os: windows-2022
               python-version: "3.11"
 
-            # msvc: no sanitizer support yet
-            - is-sanitizer: true
-              os: windows-2022
-
-            # clang: sanitized build fails on csp_autogen
-            - is-sanitizer: true
-              os: macos-14
-            
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
@@ -323,13 +299,7 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
-            CIBW_ENVIRONMENT_LINUX: >-
-              ACLOCAL_PATH="/usr/share/aclocal"
-              CSP_MANYLINUX="ON"
-              ${{ needs.initialize.outputs.SANITIZER == 'true' && 'CSP_ENABLE_ASAN="ON" CSP_ENABLE_UBSAN="ON"' || '' }}
-              CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache"
-              VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}"
-              VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ENVIRONMENT_LINUX: ACLOCAL_PATH="/usr/share/aclocal" CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
             CIBW_BUILD_VERBOSITY: 3
           if: ${{ runner.os == 'Linux' }}
 
@@ -339,11 +309,7 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
-            CIBW_ENVIRONMENT_MACOS: >-
-              ${{ needs.initialize.outputs.SANITIZER == 'true' && 'CSP_ENABLE_ASAN="ON" CSP_ENABLE_UBSAN="ON"' || '' }}
-              CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" 
-              VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" 
-              VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: arm64
             CIBW_BUILD_VERBOSITY: 3
           if: ${{ matrix.os == 'macos-14' }}
@@ -462,8 +428,6 @@ jobs:
             - 3.12
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
-          is-sanitizer:
-            - ${{ needs.initialize.outputs.SANITIZER == 'true' }}
           exclude:
             ##############################################
             # Things to exclude if not a full matrix run #
@@ -484,10 +448,6 @@ jobs:
             - is-full-run: false
               os: windows-2022
               python-version: "3.11"
-
-            # No sanitizer support for msvc yet (no UBSAN)
-            - is-sanitizer: true
-              os: windows-2022
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
@@ -567,11 +527,6 @@ jobs:
         # Common
         - name: Python Test Steps
           run: make test
-          if: ${{ needs.initialize.outputs.SANITIZER == 'false' }}
-
-        - name: Python Test Steps (Sanitizer)
-          run: make test-sanitizer
-          if: ${{ needs.initialize.outputs.SANITIZER == 'true' }}
 
     ################################################################
     #..............................................................#

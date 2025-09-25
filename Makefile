@@ -213,12 +213,10 @@ dependencies-mac:  ## install dependencies for mac
 	brew unlink bison flex && brew link --force bison flex
 
 dependencies-debian:  ## install dependencies for linux - note that zip is needed by bootstrap_vcpkg.sh, do not remove
-	apt-get update
-	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip zip gcc libasan8 libubsan1
+	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip zip
 
 dependencies-fedora:  ## install dependencies for linux - note that zip is needed by bootstrap_vcpkg.sh, do not remove
-	yum check-update
-	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip zip gcc libasan libubsan
+	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip zip
 
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install

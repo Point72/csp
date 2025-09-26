@@ -94,7 +94,7 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
 #if IS_PRE_PYTHON_3_12
     PyCodeObject * code = frame -> f_code;
 #else
-    PyCodeObject * code = PyGen_GetCode( ( PyGenObject * ) pygen );
+    PyPtr<PyCodeObject> code = PyPtr<PyCodeObject>::own( PyGen_GetCode( ( PyGenObject * ) pygen ) );
 #endif
     int localPlusIndex = 0;
     for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocalsplus; ++stackloc, ++localPlusIndex )

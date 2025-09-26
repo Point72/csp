@@ -67,11 +67,12 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
     m_localVars = ( PyObject *** ) calloc( numInputs(), sizeof( PyObject ** ) );
 
     //printf( "Starting %s slots: %ld rank: %d\n", name(), slots, rank() );
+    PyPtr<PyCodeObject> codeObj;
 #if IS_PRE_PYTHON_3_11
-    PyCodeObject * code = ( PyCodeObject * ) pygen -> gi_code;
-    Py_ssize_t numCells = PyTuple_GET_SIZE( code -> co_cellvars );
+    PyPtr<PyCodeObject>::incref( ( PyCodeObject * ) pygen -> gi_code );
+    Py_ssize_t numCells = PyTuple_GET_SIZE( codeObj.ptr() -> co_cellvars );
     size_t cell2argIdx = 0;
-    for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocals + numCells; ++stackloc )
+    for( int stackloc = codeObj.ptr() -> co_argcount; stackloc < codeObj.ptr() -> co_nlocals + numCells; ++stackloc )
     {
         PyObject **var = &pygen -> gi_frame -> f_localsplus[stackloc];
 
@@ -83,8 +84,8 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
         if( isCell )
         {
             //might be a scalar argument cell
-            if( code -> co_cell2arg &&
-                code -> co_cell2arg[ cell2argIdx++ ] != CO_CELL_NOT_AN_ARG )
+            if( codeObj.ptr() -> co_cell2arg &&
+                codeObj.ptr() -> co_cell2arg[ cell2argIdx++ ] != CO_CELL_NOT_AN_ARG )
                 continue;
             var = &( ( ( PyCellObject * ) *var ) -> ob_ref );
         }
@@ -92,16 +93,16 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
 #else
     _PyInterpreterFrame * frame = ( _PyInterpreterFrame * ) pygen -> gi_iframe;
 #if IS_PRE_PYTHON_3_12
-    PyCodeObject * code = frame -> f_code;
+    codeObj = PyPtr<PyCodeObject>::incref( frame -> f_code );
 #else
-    PyCodeObject * code = PyGen_GetCode( ( PyGenObject * ) pygen );
+    codeObj = PyPtr<PyCodeObject>::own( PyGen_GetCode( ( PyGenObject * ) pygen ) );
 #endif
     int localPlusIndex = 0;
-    for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocalsplus; ++stackloc, ++localPlusIndex )
+    for( int stackloc = codeObj.ptr() -> co_argcount; stackloc < codeObj.ptr() -> co_nlocalsplus; ++stackloc, ++localPlusIndex )
     {
         PyObject **var = &frame -> localsplus[stackloc];
 
-        auto kind = _PyLocals_GetKind(code -> co_localspluskinds, localPlusIndex );
+        auto kind = _PyLocals_GetKind(codeObj.ptr() -> co_localspluskinds, localPlusIndex );
         bool isCell = *var && PyCell_Check(*var);
 
         //printf( "RBA: stack: %d idx: %d var: ", stackloc, localPlusIndex );

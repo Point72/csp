@@ -67,9 +67,8 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
     m_localVars = ( PyObject *** ) calloc( numInputs(), sizeof( PyObject ** ) );
 
     //printf( "Starting %s slots: %ld rank: %d\n", name(), slots, rank() );
-    PyCodeObject * code;
 #if IS_PRE_PYTHON_3_11
-    code = ( PyCodeObject * ) pygen -> gi_code;
+    PyCodeObject * code = ( PyCodeObject * ) pygen -> gi_code;
     Py_ssize_t numCells = PyTuple_GET_SIZE( code -> co_cellvars );
     size_t cell2argIdx = 0;
     for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocals + numCells; ++stackloc )
@@ -93,10 +92,9 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
 #else
     _PyInterpreterFrame * frame = ( _PyInterpreterFrame * ) pygen -> gi_iframe;
 #if IS_PRE_PYTHON_3_12
-    code = frame -> f_code;
+    PyCodeObject * code = frame -> f_code;
 #else
-    PyPtr<PyCodeObject> codeObj = PyPtr<PyCodeObject>::own( PyGen_GetCode( ( PyGenObject * ) pygen ) );
-    code = codeObj.ptr();
+    PyPtr<PyCodeObject> code = PyPtr<PyCodeObject>::own( PyGen_GetCode( ( PyGenObject * ) pygen ) );
 #endif
     int localPlusIndex = 0;
     for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocalsplus; ++stackloc, ++localPlusIndex )

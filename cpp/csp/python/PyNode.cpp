@@ -15,8 +15,8 @@
 #include <limits>
 #include <frameobject.h>
 
-#if !IS_LT_PYTHON_3_11
-#if IS_GE_PYTHON_3_13
+#if !IS_PRE_PYTHON_3_11
+#if !IS_PRE_PYTHON_3_13
 #    define Py_BUILD_CORE 1
 #endif
 #include <internal/pycore_code.h>
@@ -64,7 +64,7 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
     m_localVars = ( PyObject *** ) calloc( numInputs(), sizeof( PyObject ** ) );
 
     //printf( "Starting %s slots: %ld rank: %d\n", name(), slots, rank() );
-#if IS_LT_PYTHON_3_11
+#if IS_PRE_PYTHON_3_11
     PyCodeObject * code = ( PyCodeObject * ) pygen -> gi_code;
     Py_ssize_t numCells = PyTuple_GET_SIZE( code -> co_cellvars );
     size_t cell2argIdx = 0;
@@ -88,13 +88,7 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
 //PY311+ changes
 #else
     _PyInterpreterFrame * frame = ( _PyInterpreterFrame * ) pygen -> gi_iframe;
-    PyCodeObject * code;
-
-#if IS_GE_PYTHON_3_13
-    code = (PyCodeObject *)PyUnstable_InterpreterFrame_GetCode(frame);
-#else
-    code = frame -> f_code;
-#endif
+    PyCodeObject * code = PyGen_GetCode( ( PyGenObject * ) pygen );
     int localPlusIndex = 0;
     for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocalsplus; ++stackloc, ++localPlusIndex )
     {

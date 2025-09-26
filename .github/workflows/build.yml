@@ -330,7 +330,6 @@ jobs:
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
             CIBW_ENVIRONMENT_LINUX: ACLOCAL_PATH="/usr/share/aclocal" CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
-            CIBW_BUILD_VERBOSITY: 3
           if: ${{ runner.os == 'Linux' }}
 
         ########
@@ -341,7 +340,6 @@ jobs:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
             CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: arm64
-            CIBW_BUILD_VERBOSITY: 3
           if: ${{ matrix.os == 'macos-14' }}
 
         ##########

@@ -119,7 +119,7 @@ jobs:
           env:
             FULL_RUN: ${{ github.event.inputs.ci-full }}
           if: ${{ github.event_name == 'workflow_dispatch' }}
-        
+
         - name: Display and Setup Build Args (Schedule)
           id: setupschedule
           run: |
@@ -202,11 +202,13 @@ jobs:
             - "3.10"
             - "3.11"
             - "3.12"
+            - "3.13"
           cibuildwheel:
             - "cp39"
             - "cp310"
             - "cp311"
             - "cp312"
+            - "cp313"
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -221,24 +223,40 @@ jobs:
               cibuildwheel: "cp311"
             - python-version: "3.9"
               cibuildwheel: "cp312"
+            - python-version: "3.9"
+              cibuildwheel: "cp313"
             - python-version: "3.10"
               cibuildwheel: "cp39"
             - python-version: "3.10"
               cibuildwheel: "cp311"
             - python-version: "3.10"
               cibuildwheel: "cp312"
+            - python-version: "3.10"
+              cibuildwheel: "cp313"
             - python-version: "3.11"
               cibuildwheel: "cp39"
             - python-version: "3.11"
               cibuildwheel: "cp310"
             - python-version: "3.11"
               cibuildwheel: "cp312"
+            - python-version: "3.11"
+              cibuildwheel: "cp313"
             - python-version: "3.12"
               cibuildwheel: "cp39"
             - python-version: "3.12"
               cibuildwheel: "cp310"
             - python-version: "3.12"
               cibuildwheel: "cp311"
+            - python-version: "3.12"
+              cibuildwheel: "cp313"
+            - python-version: "3.13"
+              cibuildwheel: "cp39"
+            - python-version: "3.13"
+              cibuildwheel: "cp310"
+            - python-version: "3.13"
+              cibuildwheel: "cp311"
+            - python-version: "3.13"
+              cibuildwheel: "cp312"
 
 
             ##############################################
@@ -261,6 +279,10 @@ jobs:
               os: windows-2022
               python-version: "3.11"
 
+            - is-full-run: false
+              os: windows-2022
+              python-version: "3.13"
+
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
@@ -269,6 +291,14 @@ jobs:
             - is-full-run: false
               os: macos-14
               python-version: "3.10"
+
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.11"
+
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.13"
 
       runs-on: ${{ matrix.os }}
 
@@ -300,7 +330,6 @@ jobs:
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
             CIBW_ENVIRONMENT_LINUX: ACLOCAL_PATH="/usr/share/aclocal" CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
-            CIBW_BUILD_VERBOSITY: 3
           if: ${{ runner.os == 'Linux' }}
 
         ########
@@ -311,7 +340,6 @@ jobs:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
             CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: arm64
-            CIBW_BUILD_VERBOSITY: 3
           if: ${{ matrix.os == 'macos-14' }}
 
         ##########
@@ -426,6 +454,7 @@ jobs:
             - "3.10"
             - 3.11
             - 3.12
+            - 3.13
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -449,6 +478,10 @@ jobs:
               os: windows-2022
               python-version: "3.11"
 
+            - is-full-run: false
+              os: windows-2022
+              python-version: "3.13"
+
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
@@ -457,6 +490,14 @@ jobs:
             - is-full-run: false
               os: macos-14
               python-version: "3.10"
+
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.11"
+
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.13"
 
       runs-on: ${{ matrix.os }}
 
@@ -581,9 +622,9 @@ jobs:
 
         - name: Install python dependencies
           run: make requirements
-          
+
         - name: Install requirements
-          run: sudo make dependencies-debian 
+          run: sudo make dependencies-debian
 
         - uses: actions/download-artifact@v5
           with:

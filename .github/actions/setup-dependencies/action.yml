@@ -11,6 +11,7 @@ inputs:
       - 'cp310'
       - 'cp311'
       - 'cp312'
+      - 'cp313'
     default: 'cp39'
 
 runs:

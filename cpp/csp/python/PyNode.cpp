@@ -15,7 +15,10 @@
 #include <limits>
 #include <frameobject.h>
 
-#if !IS_PRE_PYTHON_3_11
+#if !IS_LT_PYTHON_3_11
+#if IS_GE_PYTHON_3_13
+#    define Py_BUILD_CORE 1
+#endif
 #include <internal/pycore_code.h>
 #include <internal/pycore_frame.h>
 #endif
@@ -48,7 +51,7 @@ PyNode::~PyNode()
 void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
 {
     PyGenObject * pygen = ( PyGenObject * ) m_gen.ptr();
-    
+
     //call gen first yield to setup locals
     call_gen();
 
@@ -61,7 +64,7 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
     m_localVars = ( PyObject *** ) calloc( numInputs(), sizeof( PyObject ** ) );
 
     //printf( "Starting %s slots: %ld rank: %d\n", name(), slots, rank() );
-#if IS_PRE_PYTHON_3_11
+#if IS_LT_PYTHON_3_11
     PyCodeObject * code = ( PyCodeObject * ) pygen -> gi_code;
     Py_ssize_t numCells = PyTuple_GET_SIZE( code -> co_cellvars );
     size_t cell2argIdx = 0;
@@ -85,7 +88,13 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
 //PY311+ changes
 #else
     _PyInterpreterFrame * frame = ( _PyInterpreterFrame * ) pygen -> gi_iframe;
-    PyCodeObject * code = frame -> f_code;
+    PyCodeObject * code;
+
+#if IS_GE_PYTHON_3_13
+    code = (PyCodeObject *)PyUnstable_InterpreterFrame_GetCode(frame);
+#else
+    code = frame -> f_code;
+#endif
     int localPlusIndex = 0;
     for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocalsplus; ++stackloc, ++localPlusIndex )
     {
@@ -102,7 +111,7 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
             var = &( ( ( PyCellObject * ) *var ) -> ob_ref );
         else if( kind == CO_FAST_CELL )
             continue;
-#endif  
+#endif
         //null var indicates a stack slot for a local state variable ( state hasnt initialized yet )
         //we can skip those
         if( !*var )
@@ -119,7 +128,7 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
             CSP_ASSERT( !isInputBasket( index ) );
 
             m_localVars[ index ] = var;
-            //These vars will be "deleted" from the python stack after start 
+            //These vars will be "deleted" from the python stack after start
             continue;
         }
 
@@ -215,7 +224,7 @@ void PyNode::stop()
     if( this -> rootEngine() -> interrupted() && PyErr_CheckSignals() == -1 )
     {
         // When an interrupt occurs a KeyboardInterrupt exception is raised in Python, which we need to clear
-        // before calling "close" on the generator. Else, the close method will fail due to the unhandled 
+        // before calling "close" on the generator. Else, the close method will fail due to the unhandled
         // exception, and we lose the state of the generator before the "finally" block that calls stop() is executed.
         PyErr_Clear();
     }
@@ -230,15 +239,15 @@ PyNode * PyNode::create( PyEngine * pyengine, PyObject * inputs, PyObject * outp
     //parse inputs/outputs, create outputs time series, etc
     Py_ssize_t numInputs = PyTuple_GET_SIZE( inputs );
     Py_ssize_t numOutputs = PyTuple_GET_SIZE( outputs );
-    
+
     if( size_t( numInputs ) >= InputId::maxId() )
         CSP_THROW( ValueError, "number of inputs exceeds limit of " << InputId::maxBasketElements() );
 
     if( size_t( numOutputs ) > OutputId::maxId() )
         CSP_THROW( ValueError, "number of outputs exceeds limit of " << OutputId::maxBasketElements() );
 
-    return pyengine -> engine() -> createOwnedObject<PyNode>( PyObjectPtr::incref( gen ), 
-                                                              PyObjectPtr::incref( inputs ), 
+    return pyengine -> engine() -> createOwnedObject<PyNode>( PyObjectPtr::incref( gen ),
+                                                              PyObjectPtr::incref( inputs ),
                                                               PyObjectPtr::incref( outputs ),
                                                               NodeDef( numInputs, numOutputs ) );
 }
@@ -317,10 +326,10 @@ static PyObject * PyNode_create( PyObject * module, PyObject * args )
     PyObject * outputs;
     PyObject * gen;
 
-    if( !PyArg_ParseTuple( args, "O!O!O!O!", 
-                           &PyEngine::PyType, &engine, 
-                           &PyTuple_Type, &inputs, 
-                           &PyTuple_Type, &outputs, 
+    if( !PyArg_ParseTuple( args, "O!O!O!O!",
+                           &PyEngine::PyType, &engine,
+                           &PyTuple_Type, &inputs,
+                           &PyTuple_Type, &outputs,
                            &PyGen_Type, &gen ) )
         CSP_THROW( PythonPassthrough, "" );
 

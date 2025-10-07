@@ -76,11 +76,11 @@ class Signature:
                 for defn in outputs
             }
 
-            def validate_tvars(cls, values, info: ValidationInfo):
+            def validate_tvars(self, info: ValidationInfo):
                 if not isinstance(info.context, TVarValidationContext):
                     raise TypeError("Validation context is not a TVarValidationContext")
                 info.context.resolve_tvars()
-                return info.context.revalidate(values)
+                return info.context.revalidate(self)
 
             def track_fields(cls, v, info):
                 if not isinstance(info.context, TVarValidationContext):

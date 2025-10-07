@@ -9,13 +9,7 @@ ASAN :=
 UBSAN :=
 
 requirements:  ## install python dev and runtime dependencies
-ifeq ($(OS),Windows_NT)
-	Powershell.exe -executionpolicy bypass -noprofile .\ci\scripts\windows\make_requirements.ps1
-else
-	python -m pip install toml
-	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["build-system"]["requires"]))'`
-	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["project"]["optional-dependencies"]["develop"]))'`
-endif
+	python ci/scripts/requirements.py
 
 develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]

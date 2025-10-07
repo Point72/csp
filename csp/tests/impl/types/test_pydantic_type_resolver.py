@@ -208,9 +208,9 @@ class MyModel(BaseModel):
     ts_2: TsType[CspTypeVarType[T]]
 
     @model_validator(mode="after")
-    def validate_tvars(cls, values, info: ValidationInfo):
+    def validate_tvars(self, info: ValidationInfo):
         info.context.resolve_tvars()
-        return info.context.revalidate(values)
+        return info.context.revalidate(self)
 
     @field_validator("*", mode="before")
     @classmethod

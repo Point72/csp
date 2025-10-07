@@ -63,7 +63,7 @@ jobs:
           env:
             SANITIZER: ${{ github.event.schedule == env.SANITIZER_CI_SCHEDULE }}
           if: ${{ github.event_name == 'schedule' }}
-    
+
     build:
       needs:
           - initialize
@@ -116,9 +116,9 @@ jobs:
           if: ${{ runner.os == 'Windows' }}
 
         - name: Python Build Steps
-          run: make build-conda ${{ needs.initialize.outputs.SANITIZER && 'ASAN="ON" UBSAN="ON"' || '' }}
+          run: make build-conda ${{ needs.initialize.outputs.SANITIZER == 'true' && 'ASAN="ON" UBSAN="ON"' || '' }}
           shell: micromamba-shell {0}
-          if: ${{ runner.os != 'Windows' }}
+          if: ${{ runner.os == 'Linux' }}
 
         - name: Python Build Steps ( Windows )
           env:

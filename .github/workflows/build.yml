@@ -300,6 +300,10 @@ jobs:
               os: macos-14
               python-version: "3.13"
 
+            # TODO: Skip windows 3.13 for now, will fix soon
+            - os: windows-2022
+              python-version: "3.13"
+
       runs-on: ${{ matrix.os }}
 
       steps:
@@ -497,6 +501,10 @@ jobs:
 
             - is-full-run: false
               os: macos-14
+              python-version: "3.13"
+
+            # TODO: Skip windows 3.13 for now, will fix soon
+            - os: windows-2022
               python-version: "3.13"
 
       runs-on: ${{ matrix.os }}

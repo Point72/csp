@@ -199,8 +199,6 @@ jobs:
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
             - "3.11"
-            - "3.12"
-            - "3.13"
           cibuildwheel:
             - "cp39"
             - "cp310"
@@ -210,54 +208,33 @@ jobs:
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
-            ############################
-            # Things to always exclude #
-            ############################
-            # Skip extra platforms when
-            # we can match cibuildwheel
-            # and python version
-            # to avoid duplication
-            - python-version: "3.11"
-              cibuildwheel: "cp312"
-            - python-version: "3.11"
-              cibuildwheel: "cp313"
-            - python-version: "3.12"
-              cibuildwheel: "cp39"
-            - python-version: "3.12"
-              cibuildwheel: "cp310"
-            - python-version: "3.12"
-              cibuildwheel: "cp311"
-            - python-version: "3.12"
-              cibuildwheel: "cp313"
-            - python-version: "3.13"
-              cibuildwheel: "cp39"
-            - python-version: "3.13"
-              cibuildwheel: "cp310"
-            - python-version: "3.13"
-              cibuildwheel: "cp311"
-            - python-version: "3.13"
-              cibuildwheel: "cp312"
-
-
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
             - is-full-run: false
               os: windows-2022
-              python-version: "3.11"
+              cibuildwheel: "cp310"
 
             - is-full-run: false
               os: windows-2022
-              python-version: "3.12"
+              cibuildwheel: "cp311"
+
+            - is-full-run: false
+              os: windows-2022
+              cibuildwheel: "cp312"
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
-              python-version: "3.11"
+              cibuildwheel: "cp310"
 
             - is-full-run: false
               os: macos-14
-              python-version: "3.12"
+              cibuildwheel: "cp311"
+
+            - is-full-run: false
+              os: macos-14
+              cibuildwheel: "cp312"
 
       runs-on: ${{ matrix.os }}
 
@@ -321,13 +298,6 @@ jobs:
         - name: Upload Wheel
           uses: actions/upload-artifact@v4
           with:
-            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
-            path: dist/*.whl
-          if: ${{ matrix.cibuildwheel != 'cp39' && matrix.cibuildwheel != 'cp310' }}
-
-        - name: Upload Wheel
-          uses: actions/upload-artifact@v4
-          with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.9
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp39' }}
@@ -338,6 +308,27 @@ jobs:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.10
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp310' }}
+
+        - name: Upload Wheel
+          uses: actions/upload-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.11
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp311' }}
+
+        - name: Upload Wheel
+          uses: actions/upload-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.12
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp312' }}
+
+        - name: Upload Wheel
+          uses: actions/upload-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.13
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp313' }}
 
     ################################################################
     #..............................................................#

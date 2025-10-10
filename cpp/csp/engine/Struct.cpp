@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <ranges>
 #include <string>
+#include <sstream>
 
 namespace csp
 {
@@ -486,8 +487,34 @@ bool StructMeta::allFieldsSet( const Struct * s ) const
         if( ( *m & bitmask ) != bitmask )
             return false;
     }
+    return true;
+}
 
-    return m_base ? m_base -> allFieldsSet( s ) : true;
+std::string StructMeta::formatAllUnsetStrictFields( const Struct * s ) const
+{
+    bool first = true;
+    std::stringstream ss;
+    ss << "["; 
+
+    for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
+    {
+        if ( !cur -> isStrict() )
+            continue;
+    
+        for( size_t i = cur -> m_firstPartialField; i < cur -> m_fields.size(); ++i )
+        {
+            if( !cur -> m_fields[ i ] -> isSet( s ) )
+            {
+                if( !first )
+                    ss << ", ";
+                else
+                    first = false;
+                ss << cur -> m_fields[ i ] -> fieldname();
+            }
+        }
+    }
+    ss << "]";
+    return ss.str();
 }
 
 void StructMeta::destroy( Struct * s ) const
@@ -523,8 +550,6 @@ void StructMeta::destroy( Struct * s ) const
     }
     return true;
 }
-
-
 
 Struct::Struct( const std::shared_ptr<const StructMeta> & meta )
 {

@@ -112,7 +112,6 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
         Py_ssize_t pos = 0;
         PyObject *optional_fields = PyDict_GetItemString( dict, "__optional_fields__" );
 
-
         while( PyDict_Next( metadata, &pos, &key, &type ) )
         {
             const char * keystr = PyUnicode_AsUTF8( key );
@@ -158,7 +157,7 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                 default:
                     CSP_THROW( ValueError, "Unexpected csp type " << csptype -> type() << " on struct " << name );
             }
-            
+
             fields.emplace_back( field );
         }
     }
@@ -359,7 +358,6 @@ static PyObject * PyStructMeta_metadata_info( PyStructMeta * m )
 
     return out.release();
 }
-
 
 static PyMethodDef PyStructMeta_methods[] = {
     {"_layout",        (PyCFunction) PyStructMeta_layout,        METH_NOARGS,  "debug view of structs internal mem layout"},
@@ -812,8 +810,8 @@ int PyStruct_init( PyStruct * self, PyObject * args, PyObject * kwargs )
     CSP_BEGIN_METHOD;
 
     PyStruct_setattrs( self, args, kwargs, "__init__" );
-    if( !self -> struct_ -> validate() )
-        CSP_THROW( ValueError, "Struct " << self -> struct_ -> meta() -> name() << " is not valid; some required fields were not set on init" );
+    if( unlikely( !self -> struct_ -> validate() ) )
+        CSP_THROW( ValueError, "Struct " << self -> struct_ -> meta() -> name() << " is not valid; required fields " << self -> struct_ -> formatAllUnsetStrictFields() << " were not set on init" );
 
     CSP_RETURN_INT;
 }

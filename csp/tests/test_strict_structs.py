@@ -33,7 +33,7 @@ class TestStrictStructs(unittest.TestCase):
 
         class MyStrictStruct(csp.Struct, allow_unset=False):
             req_int: int
-            opt_str: Optional[str] = None
+            opt_str: str | None = None
             def_int: int = 123
             opt_str_2: Optional[str] = None
 
@@ -45,7 +45,7 @@ class TestStrictStructs(unittest.TestCase):
         self.assertIsNone(s1.opt_str_2)
 
         with self.assertRaisesRegex(
-            ValueError, "Struct MyStrictStruct is not valid; some required fields were not set on init"
+            ValueError, r"Struct MyStrictStruct is not valid; required fields \[req_int\] were not set on init"
         ):
             MyStrictStruct()
 
@@ -83,22 +83,22 @@ class TestStrictStructs(unittest.TestCase):
             req_int: int
             opt_str: Optional[str] = None
             def_int: int = 100
-            req_opt_str: Optional[str] = None
+            opt_str2: Optional[str] = None
 
-        s = MyStrictStruct(req_int=50, req_opt_str="NoneStr")
-        expected_dict = {"req_int": 50, "opt_str": None, "def_int": 100, "req_opt_str": "NoneStr"}
+        s = MyStrictStruct(req_int=50, opt_str2="NoneStr")
+        expected_dict = {"req_int": 50, "opt_str": None, "def_int": 100, "opt_str2": "NoneStr"}
         self.assertEqual(s.to_dict(), expected_dict)
 
         with self.assertRaisesRegex(
-            ValueError, "Struct MyStrictStruct is not valid; some required fields were not set on init"
+            ValueError, r"Struct MyStrictStruct is not valid; required fields \[req_int\] were not set on init"
         ):
             MyStrictStruct.from_dict({"opt_str": "hello", "def_int": 13})
 
-        MyStrictStruct.from_dict({"req_int": 60, "opt_str": None, "req_opt_str": None})
-        s2 = MyStrictStruct.from_dict({"req_int": 60, "req_opt_str": None})
+        MyStrictStruct.from_dict({"req_int": 60, "opt_str": None, "opt_str2": None})
+        s2 = MyStrictStruct.from_dict({"def_int": 72, "req_int": 60, "opt_str2": None})
         self.assertEqual(s2.req_int, 60)
         self.assertIsNone(s2.opt_str)
-        self.assertEqual(s2.def_int, 100)
+        self.assertEqual(s2.def_int, 72)
 
     def test_strict_struct_wiring_access_1(self):
         """test accessing fields on a time series at graph wiring time"""
@@ -159,7 +159,7 @@ class TestStrictStructs(unittest.TestCase):
             csp.add_graph_output("output", s_ts)
 
         with self.assertRaisesRegex(
-            ValueError, "Struct MyStrictStruct is not valid; some required fields did not tick"
+            ValueError, r"Struct MyStrictStruct is not valid; required fields \[req_int2\] did not tick"
         ):
             csp.run(g, starttime=datetime(2023, 1, 1))
 
@@ -200,11 +200,11 @@ class TestStrictStructs(unittest.TestCase):
         self.assertEqual(d_ok.derived_req, 2)
 
         with self.assertRaisesRegex(
-            ValueError, "Struct DerivedStrict is not valid; some required fields were not set on init"
+            ValueError, r"Struct DerivedStrict is not valid; required fields \[derived_req\] were not set on init"
         ):
             DerivedStrict(base_req=10)
         with self.assertRaisesRegex(
-            ValueError, "Struct DerivedStrict is not valid; some required fields were not set on init"
+            ValueError, r"Struct DerivedStrict is not valid; required fields \[base_req\] were not set on init"
         ):
             DerivedStrict(derived_req=20)
 
@@ -219,32 +219,36 @@ class TestStrictStructs(unittest.TestCase):
         self.assertEqual(sc_ok.child_req, 5)
 
         with self.assertRaisesRegex(
-            ValueError, "Struct StrictChild is not valid; some required fields were not set on init"
+            ValueError, r"Struct StrictChild is not valid; required fields \[child_req\] were not set on init"
         ):
             StrictChild()
         with self.assertRaisesRegex(
-            ValueError, "Struct StrictChild is not valid; some required fields were not set on init"
+            ValueError, r"Struct StrictChild is not valid; required fields \[child_req\] were not set on init"
         ):
             StrictChild(loose_req=10)
-        with self.assertRaisesRegex(
-            ValueError, "Struct StrictChild is not valid; some required fields were not set on init"
-        ):
-            StrictChild(child_req=5)
+
+        StrictChild(child_req=5)
 
         # nested struct fields:
         class InnerStrict(csp.Struct, allow_unset=False):
             val: int
+            val2: float
 
         class OuterStrict(csp.Struct, allow_unset=False):
             inner: InnerStrict
 
-        os_ok = OuterStrict(inner=InnerStrict(val=42))
+        os_ok = OuterStrict(inner=InnerStrict(val=42, val2=43))
         self.assertEqual(os_ok.inner.val, 42)
+        self.assertEqual(os_ok.inner.val2, 43)
 
         with self.assertRaisesRegex(
-            ValueError, "Struct InnerStrict is not valid; some required fields were not set on init"
+            ValueError, r"Struct InnerStrict is not valid; required fields \[val, val2\] were not set on init"
         ):
             OuterStrict(inner=InnerStrict())
+        with self.assertRaisesRegex(
+            ValueError, r"Struct InnerStrict is not valid; required fields \[val2\] were not set on init"
+        ):
+            OuterStrict(inner=InnerStrict(val=42))
 
         # nested loose struct inside strict:
         class InnerLoose(csp.Struct, allow_unset=True):
@@ -257,7 +261,7 @@ class TestStrictStructs(unittest.TestCase):
         self.assertIsInstance(ol_ok.inner, InnerLoose)
 
         with self.assertRaisesRegex(
-            ValueError, "Struct OuterStrict2 is not valid; some required fields were not set on init"
+            ValueError, r"Struct OuterStrict2 is not valid; required fields \[inner\] were not set on init"
         ):
             OuterStrict2()
 
@@ -309,12 +313,12 @@ class TestStrictStructs(unittest.TestCase):
         self.assertEqual(o2.loose_inner.y, 20)
 
         with self.assertRaisesRegex(
-            ValueError, "Struct OuterStruct is not valid; some required fields were not set on init"
+            ValueError, r"Struct OuterStruct is not valid; required fields \[strict_inner\] were not set on init"
         ):
             OuterStruct.from_dict({"loose_inner": {"y": 1}})
 
         with self.assertRaisesRegex(
-            ValueError, "Struct InnerStrict is not valid; some required fields were not set on init"
+            ValueError, r"Struct InnerStrict is not valid; required fields \[x\] were not set on init"
         ):
             OuterStruct.from_dict({"strict_inner": {}, "loose_inner": {"y": None}})
 
@@ -322,7 +326,7 @@ class TestStrictStructs(unittest.TestCase):
         class Test(csp.Struct, allow_unset=False):
             name: str
             age: int
-            is_active: Optional[bool] = None
+            is_active: bool | None = None
 
             def greet(self):
                 return f"Hello, my name is {self.name} and I am {self.age} years old."
@@ -342,18 +346,11 @@ class TestStrictStructs(unittest.TestCase):
             csp.build_graph(main_graph)
 
     def test_strict_struct_optional_field_validation_no_default(self):
-        """test that strict structs cannot have Optional fields without defaults"""
+        with self.assertRaisesRegex(TypeError, "Optional field bad_field must have a default value"):
 
-        class MyStruct(csp.Struct, allow_unset=False):
-            req_field: int
-            opt_field: Optional[str]
-
-        with self.assertRaisesRegex(TypeError, "Struct MyStruct is not valid; some required fields were not set on init"):
-            MyStruct(req_field=42)
-
-        x = MyStruct(req_field=42, bad_field=None)
-        self.assertEqual(x.req_field, 42)
-        self.assertIsNone(x.opt_field)
+            class InvalidStrictStruct(csp.Struct, allow_unset=False):
+                req_field: int
+                bad_field: Optional[str]
 
 
 if __name__ == "__main__":

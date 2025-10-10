@@ -632,6 +632,9 @@ public:
     void   clear( Struct * s ) const;
     bool   allFieldsSet( const Struct * s ) const;
 
+    // used for error messages / debugging
+    std::string formatAllUnsetStrictFields( const Struct * s ) const;
+
     //for debugging layout of types
     std::string layout() const;
 
@@ -745,6 +748,11 @@ public:
     [[nodiscard]] bool validate() const
     {
         return meta() -> validate( this );
+    }
+
+    std::string formatAllUnsetStrictFields() const
+    {
+        return meta() -> formatAllUnsetStrictFields( this );
     }
 
 

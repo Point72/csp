@@ -161,8 +161,6 @@ void DynamicOutputBasketInfo::addShapeChange( const DialectGenericType & key, bo
     {
         auto events = autogen::DynamicBasketEvents::create();
         events -> set_events( {} );
-        if( !events -> validate() )
-            CSP_THROW( ValueError, "DynamicBasketEvents struct is not valid; some required fields were not set" );
         m_shapeTs.outputTickTyped<StructPtr>( m_parentNode -> rootEngine() -> cycleCount(), 
                                               m_parentNode -> rootEngine() -> now(), 
                                               events, false );
@@ -173,8 +171,6 @@ void DynamicOutputBasketInfo::addShapeChange( const DialectGenericType & key, bo
     auto event = autogen::DynamicBasketEvent::create();
     event -> set_key( key );
     event -> set_added( added );
-    if( !event -> validate() )
-        CSP_THROW( ValueError, "DynamicBasketEvent struct is not valid; some required fields were not set" );
 
     const_cast<std::vector<autogen::DynamicBasketEvent::Ptr> &>( events ).emplace_back( event );
 }

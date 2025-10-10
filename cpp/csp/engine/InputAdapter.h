@@ -59,7 +59,7 @@ bool InputAdapter::consumeTick( const T & value )
     if constexpr( CspType::Type::fromCType<T>::type == CspType::TypeTraits::STRUCT )
     {
         if( unlikely( !( value -> validate() ) ) )
-            CSP_THROW( ValueError, "Struct " << value -> meta() -> name() << " is not valid; some required fields were not set on init" );
+            CSP_THROW( ValueError, "Struct " << value -> meta() -> name() << " is not valid; required fields " << value -> formatAllUnsetStrictFields() << " were not set on init" );
     }
     
     switch( pushMode() )

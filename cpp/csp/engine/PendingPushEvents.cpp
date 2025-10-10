@@ -17,7 +17,7 @@ PendingPushEvents::~PendingPushEvents()
         while( e )
         {
             PushEvent * next = e -> next;
-            delete e;
+            deleteEvent( e );
             e = next;
         }
     }
@@ -28,10 +28,19 @@ PendingPushEvents::~PendingPushEvents()
         while( e )
         {
             PushEvent * next = e -> next;
-            delete e;
+            deleteEvent( e );
             e = next;
         }
     }
+}
+
+void PendingPushEvents::deleteEvent( PushEvent * event )
+{
+    switchCspType( event -> adapter() -> dataType(),
+                   [ event ]( auto tag ) {
+                       using T = typename decltype(tag)::type;
+                       delete static_cast<TypedPushEvent<T> *>( event );
+                   } );
 }
 
 void PendingPushEvents::addPendingEvent( PushEvent * event )

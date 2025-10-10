@@ -12,12 +12,13 @@ dependencies:
  - compilers
  - cyrus-sasl
  - deprecated
+ - docutils<0.22.1
  - exprtk
  - flex
  - graphviz
  - gtest
  - httpx>=0.20,<1
- - libarrow<20
+ - libarrow<22
  - libboost>=1.80.0
  - libboost-headers>=1.80.0
  - librdkafka
@@ -27,19 +28,19 @@ dependencies:
  - mdformat>=0.7.19,<0.8
  - mdformat-tables>=1,<1.1
  - ninja
- - numpy<2
+ - numpy>=2
  - pandas<2.3  # [py<310]
  - pandas      # [py>=310]
  - pillow
  - polars
  - psutil
- - pyarrow>=15,<20
+ - pyarrow>=15,<22
  - pydantic>=2
  - pytest
  - pytest-asyncio
  - pytest-cov
  - pytest-sugar
- - python<3.13
+ - python<3.14
  - python-build
  - python-graphviz
  - python-rapidjson

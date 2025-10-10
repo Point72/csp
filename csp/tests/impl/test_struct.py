@@ -4242,6 +4242,27 @@ class TestCspStruct(unittest.TestCase):
         validated_child_struct = MyStructB.type_adapter().validate_python(dict(y="a"))
         self.assertEqual(validated_child_struct, MyStructB(y="a"))
 
+    def test_struct_type_lifetime(self):
+        """Was a crashing bug: https://github.com/Point72/csp/issues/579"""
+        import gc
+
+        class T(csp.Struct):
+            s: csp.Struct
+
+        def foo2():
+            meta = {"A": str, "B": int}
+            DynStruct = defineStruct("DynStruct", meta)
+            t = T(s=DynStruct(A="testing"))
+            del DynStruct
+            gc.collect(0)
+            return t
+
+        s = foo2()
+        self.assertEqual(s.s.A, "testing")
+        del s.s
+        del s
+        gc.collect(0)
+
 
 if __name__ == "__main__":
     unittest.main()

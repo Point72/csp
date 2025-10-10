@@ -68,22 +68,23 @@ jobs:
       runs-on: ubuntu-24.04
 
       outputs:
-        COMMIT_MESSAGE: ${{ steps.setup.outputs.COMMIT_MSG }}
+        COMMIT_MESSAGE: ${{ steps.getcommitpush.outputs.COMMIT_MSG || steps.getcommitpr.outputs.COMMIT_MSG }}
         FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN || steps.setupschedule.outputs.FULL_RUN }}
-
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
             # for pull_request so we can do HEAD^2
             fetch-depth: 2
 
         - name: Get Commit Message
-          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD | tr '\n' ' ')" >> $GITHUB_ENV
+          id: getcommitpush
+          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD | tr '\n' ' ')" >> $GITHUB_OUTPUT
           if: ${{ github.event_name == 'push' }}
 
         - name: Get Commit Message
-          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD^2 | tr '\n' ' ')" >> $GITHUB_ENV
+          id: getcommitpr
+          run: echo "COMMIT_MSG=$(git log -1 --pretty=%B HEAD^2 | tr '\n' ' ')" >> $GITHUB_OUTPUT
           if: ${{ github.event_name == 'pull_request' }}
 
         - name: Display and Setup Build Args (Push)
@@ -118,7 +119,7 @@ jobs:
           env:
             FULL_RUN: ${{ github.event.inputs.ci-full }}
           if: ${{ github.event_name == 'workflow_dispatch' }}
-        
+
         - name: Display and Setup Build Args (Schedule)
           id: setupschedule
           run: |
@@ -158,7 +159,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
             submodules: recursive
 
@@ -194,7 +195,6 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
-            - macos-13 # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
@@ -202,11 +202,13 @@ jobs:
             - "3.10"
             - "3.11"
             - "3.12"
+            - "3.13"
           cibuildwheel:
             - "cp39"
             - "cp310"
             - "cp311"
             - "cp312"
+            - "cp313"
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -221,24 +223,40 @@ jobs:
               cibuildwheel: "cp311"
             - python-version: "3.9"
               cibuildwheel: "cp312"
+            - python-version: "3.9"
+              cibuildwheel: "cp313"
             - python-version: "3.10"
               cibuildwheel: "cp39"
             - python-version: "3.10"
               cibuildwheel: "cp311"
             - python-version: "3.10"
               cibuildwheel: "cp312"
+            - python-version: "3.10"
+              cibuildwheel: "cp313"
             - python-version: "3.11"
               cibuildwheel: "cp39"
             - python-version: "3.11"
               cibuildwheel: "cp310"
             - python-version: "3.11"
               cibuildwheel: "cp312"
+            - python-version: "3.11"
+              cibuildwheel: "cp313"
             - python-version: "3.12"
               cibuildwheel: "cp39"
             - python-version: "3.12"
               cibuildwheel: "cp310"
             - python-version: "3.12"
               cibuildwheel: "cp311"
+            - python-version: "3.12"
+              cibuildwheel: "cp313"
+            - python-version: "3.13"
+              cibuildwheel: "cp39"
+            - python-version: "3.13"
+              cibuildwheel: "cp310"
+            - python-version: "3.13"
+              cibuildwheel: "cp311"
+            - python-version: "3.13"
+              cibuildwheel: "cp312"
 
 
             ##############################################
@@ -261,10 +279,11 @@ jobs:
               os: windows-2022
               python-version: "3.11"
 
-            # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-13
+              os: windows-2022
+              python-version: "3.13"
 
+            # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
               python-version: "3.9"
@@ -273,11 +292,19 @@ jobs:
               os: macos-14
               python-version: "3.10"
 
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.11"
+
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.13"
+
       runs-on: ${{ matrix.os }}
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
             submodules: recursive
             fetch-depth: 0
@@ -303,27 +330,16 @@ jobs:
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-manylinux*"
             CIBW_ENVIRONMENT_LINUX: ACLOCAL_PATH="/usr/share/aclocal" CSP_MANYLINUX="ON" CCACHE_DIR="/host/home/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="/host${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="/host${{ env.VCPKG_DOWNLOADS }}"
-            CIBW_BUILD_VERBOSITY: 3
           if: ${{ runner.os == 'Linux' }}
 
         ########
         # Macos
-        - name: Python Build Steps (Macos x86)
-          run: make dist-py-cibw
-          env:
-            CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
-            CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
-            CIBW_ARCHS_MACOS: x86_64
-            CIBW_BUILD_VERBOSITY: 3
-          if: ${{ matrix.os == 'macos-13' }}
-
         - name: Python Build Steps (Macos arm)
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
             CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: arm64
-            CIBW_BUILD_VERBOSITY: 3
           if: ${{ matrix.os == 'macos-14' }}
 
         ##########
@@ -385,7 +401,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
             submodules: recursive
 
@@ -431,7 +447,6 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04
-            - macos-13
             - macos-14
             - windows-2022
           python-version:
@@ -439,6 +454,7 @@ jobs:
             - "3.10"
             - 3.11
             - 3.12
+            - 3.13
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -462,10 +478,11 @@ jobs:
               os: windows-2022
               python-version: "3.11"
 
-            # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-13
+              os: windows-2022
+              python-version: "3.13"
 
+            # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
               python-version: "3.9"
@@ -474,11 +491,19 @@ jobs:
               os: macos-14
               python-version: "3.10"
 
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.11"
+
+            - is-full-run: false
+              os: macos-14
+              python-version: "3.13"
+
       runs-on: ${{ matrix.os }}
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
               submodules: recursive
 
@@ -491,7 +516,7 @@ jobs:
           run: make requirements
 
         - name: Download wheel
-          uses: actions/download-artifact@v4
+          uses: actions/download-artifact@v5
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -583,7 +608,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
             submodules: recursive
 
@@ -597,11 +622,11 @@ jobs:
 
         - name: Install python dependencies
           run: make requirements
-          
-        - name: Install requirements
-          run: sudo make dependencies-debian 
 
-        - uses: actions/download-artifact@v4
+        - name: Install requirements
+          run: sudo make dependencies-debian
+
+        - uses: actions/download-artifact@v5
           with:
             name: csp-sdist
             path: dist/
@@ -654,17 +679,19 @@ jobs:
           python-version:
             - 3.9
           package:
-            - "sqlalchemy<2"
-            - "numpy==1.22.4"  # Min supported version of pandas 2.2
-            - "perspective-python<3"
+            - sqlalchemy<2
+            - perspective-python<3
+            # Min supported version of pandas 2.2
+            - numpy==1.22.4
 
       runs-on: ${{ matrix.os }}
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
               submodules: recursive
+              fetch-depth: 0
 
         - name: Set up Python ${{ matrix.python-version }}
           uses: ./.github/actions/setup-python
@@ -679,7 +706,7 @@ jobs:
           run: sudo apt-get install graphviz
 
         - name: Download wheel
-          uses: actions/download-artifact@v4
+          uses: actions/download-artifact@v5
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -688,13 +715,15 @@ jobs:
             python -m pip install -U *manylinux*.whl
             python -m pip install -U --no-deps *manylinux*.whl --target .
 
-        - name: Install package - ${{ matrix.package }}
+        - name: Install packages - ${{ matrix.package }}
           run: python -m pip install -U "${{ matrix.package }}"
 
+        # Run tests to check dependencies
         - name: Python Test Steps
           run: make test TEST_ARGS="-k TestDBReader"
           if: ${{ contains( matrix.package, 'sqlalchemy' )}}
 
+        # For e.g. numpy dep changes, run all tests
         - name: Python Test Steps
           run: make test
           if: ${{ contains( matrix.package, 'numpy' )}}
@@ -757,7 +786,7 @@ jobs:
 
       steps:
         - name: Download wheels and sdist
-          uses: actions/download-artifact@v4
+          uses: actions/download-artifact@v5
           with:
             name:
             merge-multiple: true

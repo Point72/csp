@@ -28,18 +28,18 @@ public:
                        const Fields & fields, bool isStrict, std::shared_ptr<StructMeta> base = nullptr );
     ~DialectStructMeta() {}
 
-    PyTypeObject * pyType() const { return m_pyType; }
+    PyTypeObject * pyType() const { return m_pyType.get(); }
 
     const StructField * field( PyObject * attr ) const
     {
-        PyObject * field = PyDict_GetItem( ( ( PyStructMeta * ) m_pyType ) -> attrDict.get(), attr );
+        PyObject * field = PyDict_GetItem( ( ( PyStructMeta * ) m_pyType.get() ) -> attrDict.get(), attr );
         if( likely( field != nullptr ) )
             return ( StructField * ) PyCapsule_GetPointer( field, nullptr );
         return nullptr;
     }
 
 private:
-    PyTypeObject * m_pyType;   //borrowed reference from type that is holding this instance
+    PyTypeObjectPtr m_pyType;
 };
 
 

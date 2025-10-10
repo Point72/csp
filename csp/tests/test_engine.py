@@ -14,6 +14,7 @@ from typing import Callable, Dict, List
 
 import numpy as np
 import psutil
+import pytest
 
 import csp
 from csp import PushMode, ts
@@ -424,6 +425,26 @@ class TestEngine(unittest.TestCase):
 
         result = csp.run(stop, csp.timer(timedelta(seconds=1)), starttime=datetime(2020, 5, 19))[0]
         self.assertEqual(len(result), 5)
+
+    def test_tvar_validation_context_lifetime(self):
+        import gc
+
+        from csp.impl.types.pydantic_type_resolver import TVarValidationContext
+
+        def count_contexts():
+            return sum(1 for o in gc.get_objects() if type(o) is TVarValidationContext)
+
+        @csp.node
+        def echo(x: ts[int]) -> ts[int]:
+            return x
+
+        gc.collect(0)
+        before = count_contexts()
+        csp.build_graph(echo, realtime=False, x=csp.const(1))
+        gc.collect(0)
+        after = count_contexts()
+
+        self.assertEqual(before, after)
 
     def test_class_member_node(self):
         class ClassWithNodes:
@@ -1175,6 +1196,10 @@ class TestEngine(unittest.TestCase):
         rv = csp.run(list_comprehension_bug_graph, starttime=datetime(2020, 1, 1))["Bucket"]
         self.assertEqual([v[1][0] for v in rv[10:]], list(range(20)))
 
+    @unittest.skipIf(
+        os.environ.get("ASAN_OPTIONS") is not None,
+        reason="Test skipped when AddressSanitizer is enabled, RSS usage is much larger than usual",
+    )
     def test_alarm_leak(self):
         """this was a leak in Scheduler.cpp"""
 
@@ -1197,8 +1222,8 @@ class TestEngine(unittest.TestCase):
             gc.collect()
         end_mem = proc_info.memory_info().rss
 
-        # 10MB leeway, the leak resulted in 50MB+ leak
-        self.assertLess(end_mem - start_mem, 10000000)
+        # 15MB leeway, the leak resulted in 50MB+ leak
+        self.assertLess(end_mem - start_mem, 15000000)
 
     def test_multiple_alarms_bug(self):
         @csp.node

@@ -1,9 +1,10 @@
+#include <exprtk.hpp>
+#include <numpy/ndarrayobject.h>
+
 #include <csp/python/Common.h>
 #include <csp/python/PyCppNode.h>
 #include <csp/engine/CppNode.h>
 #include <csp/python/Conversions.h>
-#include <exprtk.hpp>
-#include <numpy/ndarrayobject.h>
 
 static void * init_nparray()
 {
@@ -273,6 +274,14 @@ DECLARE_CPPNODE( exprtk_impl )
             csp.make_passive( inputs );
     }
 
+    virtual ~exprtk_impl() 
+    {
+        // Need to release the expression before clearing values/symbol table
+        // https://github.com/ArashPartow/exprtk/blob/cc1b800c2bd1ac3ac260478c915d2aec6f4eb41c/readme.txt#L909
+        s_expr.release();
+        s_valuesContainer.clear();
+    }
+
     INVOKE()
     {
         if( use_trigger )
@@ -364,6 +373,7 @@ PyMODINIT_FUNC PyInit__cspbaselibimpl(void)
     PyObject* m;
 
     m = PyModule_Create( &_cspbaselibimpl_module);
+
     if( m == NULL )
         return NULL;
 

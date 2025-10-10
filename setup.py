@@ -23,6 +23,8 @@ CMAKE_OPTIONS = (
     ("CSP_BUILD_KAFKA_ADAPTER", "1"),
     ("CSP_BUILD_PARQUET_ADAPTER", "1"),
     ("CSP_BUILD_WS_CLIENT_ADAPTER", "1"),
+    ("CSP_ENABLE_ASAN", "0"),
+    ("CSP_ENABLE_UBSAN", "0"),
     # NOTE:
     # - omit vcpkg, need to test for presence
     # - omit ccache, need to test for presence
@@ -124,7 +126,7 @@ print(f"CMake Args: {cmake_args}")
 
 setup(
     name="csp",
-    version="0.11.1",
+    version="0.11.3",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,

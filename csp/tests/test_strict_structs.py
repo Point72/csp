@@ -1,3 +1,4 @@
+import sys
 import unittest
 from datetime import datetime, timedelta
 from typing import Optional
@@ -33,7 +34,7 @@ class TestStrictStructs(unittest.TestCase):
 
         class MyStrictStruct(csp.Struct, allow_unset=False):
             req_int: int
-            opt_str: str | None = None
+            opt_str: Optional[str] = None
             def_int: int = 123
             opt_str_2: Optional[str] = None
 
@@ -48,6 +49,24 @@ class TestStrictStructs(unittest.TestCase):
             ValueError, r"Struct MyStrictStruct is not valid; required fields \[req_int\] were not set on init"
         ):
             MyStrictStruct()
+
+        # test 3.10+ | operator
+        if sys.version_info >= (3, 10):
+
+            class MyStrictStruct(csp.Struct, allow_unset=False):
+                req_int: int
+                opt_str: str | None = None
+
+            s1 = MyStrictStruct(req_int=42, opt_str="hola")
+            self.assertEqual(s1.req_int, 42)
+            self.assertEqual(s1.opt_str, "hola")
+            with self.assertRaisesRegex(
+                ValueError, r"Struct MyStrictStruct is not valid; required fields \[req_int\] were not set on init"
+            ):
+                MyStrictStruct(opt_str="bonjour")
+            s2 = MyStrictStruct(req_int=43)
+            self.assertEqual(s2.req_int, 43)
+            self.assertIsNone(s2.opt_str)
 
     def test_strict_struct_hasattr_delattr(self):
         """test hasattr and delattr behavior for strict structs"""
@@ -326,7 +345,7 @@ class TestStrictStructs(unittest.TestCase):
         class Test(csp.Struct, allow_unset=False):
             name: str
             age: int
-            is_active: bool | None = None
+            is_active: Optional[bool] = None
 
             def greet(self):
                 return f"Hello, my name is {self.name} and I am {self.age} years old."

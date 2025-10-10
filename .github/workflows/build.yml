@@ -153,7 +153,7 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - 3.9
+            - 3.11
 
       runs-on: ${{ matrix.os }}
 
@@ -198,11 +198,7 @@ jobs:
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
-            - "3.9"
-            - "3.10"
             - "3.11"
-            - "3.12"
-            - "3.13"
           cibuildwheel:
             - "cp39"
             - "cp310"
@@ -212,93 +208,33 @@ jobs:
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
-            ############################
-            # Things to always exclude #
-            ############################
-            # Skip when cibuildwheel != python version
-            # to avoid duplication
-            - python-version: "3.9"
-              cibuildwheel: "cp310"
-            - python-version: "3.9"
-              cibuildwheel: "cp311"
-            - python-version: "3.9"
-              cibuildwheel: "cp312"
-            - python-version: "3.9"
-              cibuildwheel: "cp313"
-            - python-version: "3.10"
-              cibuildwheel: "cp39"
-            - python-version: "3.10"
-              cibuildwheel: "cp311"
-            - python-version: "3.10"
-              cibuildwheel: "cp312"
-            - python-version: "3.10"
-              cibuildwheel: "cp313"
-            - python-version: "3.11"
-              cibuildwheel: "cp39"
-            - python-version: "3.11"
-              cibuildwheel: "cp310"
-            - python-version: "3.11"
-              cibuildwheel: "cp312"
-            - python-version: "3.11"
-              cibuildwheel: "cp313"
-            - python-version: "3.12"
-              cibuildwheel: "cp39"
-            - python-version: "3.12"
-              cibuildwheel: "cp310"
-            - python-version: "3.12"
-              cibuildwheel: "cp311"
-            - python-version: "3.12"
-              cibuildwheel: "cp313"
-            - python-version: "3.13"
-              cibuildwheel: "cp39"
-            - python-version: "3.13"
-              cibuildwheel: "cp310"
-            - python-version: "3.13"
-              cibuildwheel: "cp311"
-            - python-version: "3.13"
-              cibuildwheel: "cp312"
-
-
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
-            # mac arm builds support py3.10+
-            - os: macos-14
-              python-version: "3.9"
-
-            # Avoid extra resources for windows build
             - is-full-run: false
               os: windows-2022
-              python-version: "3.9"
+              cibuildwheel: "cp310"
 
             - is-full-run: false
               os: windows-2022
-              python-version: "3.10"
+              cibuildwheel: "cp311"
 
             - is-full-run: false
               os: windows-2022
-              python-version: "3.11"
-
-            - is-full-run: false
-              os: windows-2022
-              python-version: "3.13"
+              cibuildwheel: "cp312"
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
-              python-version: "3.9"
+              cibuildwheel: "cp310"
 
             - is-full-run: false
               os: macos-14
-              python-version: "3.10"
+              cibuildwheel: "cp311"
 
             - is-full-run: false
               os: macos-14
-              python-version: "3.11"
-
-            - is-full-run: false
-              os: macos-14
-              python-version: "3.13"
+              cibuildwheel: "cp312"
 
       runs-on: ${{ matrix.os }}
 
@@ -349,6 +285,7 @@ jobs:
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-win_amd64"
             CSP_GENERATOR: "Visual Studio 17 2022"
+            CIBW_ENVIRONMENT_WINDOWS: VCPKG_DEFAULT_TRIPLET="x64-windows-static-md" VCPKG_PLATFORM_TOOLSET="v143"
             VCPKG_DEFAULT_BINARY_CACHE: C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_cache
             VCPKG_DOWNLOADS: C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_download_cache
           if: ${{ matrix.os == 'windows-2022' }}
@@ -361,9 +298,37 @@ jobs:
         - name: Upload Wheel
           uses: actions/upload-artifact@v4
           with:
-            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.9
             path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp39' }}
 
+        - name: Upload Wheel
+          uses: actions/upload-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.10
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp310' }}
+
+        - name: Upload Wheel
+          uses: actions/upload-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.11
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp311' }}
+
+        - name: Upload Wheel
+          uses: actions/upload-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.12
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp312' }}
+
+        - name: Upload Wheel
+          uses: actions/upload-artifact@v4
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.13
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp313' }}
 
     ################################################################
     #..............................................................#
@@ -395,7 +360,7 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - 3.9
+            - 3.11
 
       runs-on: ${{ matrix.os }}
 
@@ -480,7 +445,7 @@ jobs:
 
             - is-full-run: false
               os: windows-2022
-              python-version: "3.13"
+              python-version: "3.12"
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
@@ -497,7 +462,7 @@ jobs:
 
             - is-full-run: false
               os: macos-14
-              python-version: "3.13"
+              python-version: "3.12"
 
       runs-on: ${{ matrix.os }}
 
@@ -511,6 +476,7 @@ jobs:
           uses: ./.github/actions/setup-python
           with:
             version: '${{ matrix.python-version }}'
+            cibuildwheel: false
 
         - name: Install python dependencies
           run: make requirements
@@ -616,6 +582,7 @@ jobs:
           uses: ./.github/actions/setup-python
           with:
             version: '${{ matrix.python-version }}'
+            cibuildwheel: false
 
         - name: Set up Caches
           uses: ./.github/actions/setup-caches
@@ -697,6 +664,7 @@ jobs:
           uses: ./.github/actions/setup-python
           with:
             version: '${{ matrix.python-version }}'
+            cibuildwheel: false
 
         - name: Install python dependencies
           run: make requirements

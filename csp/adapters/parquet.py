@@ -15,7 +15,12 @@ from csp.impl.types.tstype import ts
 from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring import input_adapter_def, status_adapter_def
 from csp.impl.wiring.node import node
-from csp.lib import _parquetadapterimpl
+
+try:
+    from csp.lib import _parquetadapterimpl
+except ImportError:
+    raise ImportError("csp's parquet adapter requires the C++ csp extension to be built, but it could not be imported")
+
 
 __all__ = [
     "ParquetOutputConfig",

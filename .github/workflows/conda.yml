@@ -110,17 +110,22 @@ jobs:
           shell: micromamba-shell {0}
           if: ${{ runner.os != 'Windows' }}
 
-        - name: Python Lint Steps ( Windows )
+        - name: Python Lint Steps (Windows)
           run: make lint
           shell: cmd /C call {0}
           if: ${{ runner.os == 'Windows' }}
 
-        - name: Python Build Steps
+        - name: Python Build Steps (Linux)
           run: make build-conda ${{ needs.initialize.outputs.SANITIZER == 'true' && 'ASAN="ON" UBSAN="ON"' || '' }}
           shell: micromamba-shell {0}
           if: ${{ runner.os == 'Linux' }}
 
-        - name: Python Build Steps ( Windows )
+        - name: Python Build Steps (macOS)
+          run: make build-conda
+          shell: micromamba-shell {0}
+          if: ${{ runner.os == 'macOS' }}
+
+        - name: Python Build Steps (Windows)
           env:
             CSP_GENERATOR: "Visual Studio 17 2022"
           run: make build-conda

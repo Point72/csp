@@ -29,8 +29,7 @@ dependencies:
  - mdformat-tables>=1,<1.1
  - ninja
  - numpy>=2
- - pandas<2.3  # [py<310]
- - pandas      # [py>=310]
+ - pandas
  - pillow
  - polars
  - psutil
@@ -40,7 +39,7 @@ dependencies:
  - pytest-asyncio
  - pytest-cov
  - pytest-sugar
- - python<3.14
+ - python>=3.10,<3.14
  - python-build
  - python-graphviz
  - python-rapidjson

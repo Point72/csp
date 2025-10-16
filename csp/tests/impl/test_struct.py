@@ -4175,47 +4175,47 @@ class TestCspStruct(unittest.TestCase):
 
     def test_pipe_operator_types(self):
         """Test using the pipe operator for union types in Python 3.10+"""
-        if sys.version_info >= (3, 10):  # Only run on Python 3.10+
-            # Define a class using various pipe operator combinations
-            class PipeTypesConfig(csp.Struct):
-                # Basic primitive types with pipe
-                id_field: str | int
-                # Pipe with None (similar to Optional)
-                description: str | None = None
-                # Multiple types with pipe
-                value: str | int | float | bool
-                # Container with pipe
-                tags: List[str] | Dict[str, str] | None = None
-                # Pipe with literal for comparison
-                status: Literal["active", "inactive"] | None = "active"
 
-            # Test all valid types
-            valid_cases = [
-                {"id_field": "string_id", "value": "string_value"},
-                {"id_field": 42, "value": 123},
-                {"id_field": "mixed", "value": 3.14},
-                {"id_field": 999, "value": True},
-                {"id_field": "with_desc", "value": 1, "description": "Description"},
-                {"id_field": "with_dict", "value": 1, "tags": None},
-            ]
+        # Define a class using various pipe operator combinations
+        class PipeTypesConfig(csp.Struct):
+            # Basic primitive types with pipe
+            id_field: str | int
+            # Pipe with None (similar to Optional)
+            description: str | None = None
+            # Multiple types with pipe
+            value: str | int | float | bool
+            # Container with pipe
+            tags: List[str] | Dict[str, str] | None = None
+            # Pipe with literal for comparison
+            status: Literal["active", "inactive"] | None = "active"
 
-            for case in valid_cases:
-                result = PipeTypesConfig.from_dict(case)
-                # use the other route to get back the result
-                result_to_dict_loop = TypeAdapter(PipeTypesConfig).validate_python(result.to_dict())
-                self.assertEqual(result, result_to_dict_loop)
+        # Test all valid types
+        valid_cases = [
+            {"id_field": "string_id", "value": "string_value"},
+            {"id_field": 42, "value": 123},
+            {"id_field": "mixed", "value": 3.14},
+            {"id_field": 999, "value": True},
+            {"id_field": "with_desc", "value": 1, "description": "Description"},
+            {"id_field": "with_dict", "value": 1, "tags": None},
+        ]
 
-            # Test invalid values
-            invalid_cases = [
-                {"id_field": 3.14, "value": 1},  # Float for id_field
-                {"id_field": None, "value": 1},  # None for required id_field
-                {"id_field": "test", "value": {}},  # Dict for value
-                {"id_field": "test", "value": None},  # None for required value
-                {"id_field": "test", "value": 1, "status": "unknown"},  # Invalid literal
-            ]
-            for case in invalid_cases:
-                with self.assertRaises(ValidationError):
-                    TypeAdapter(PipeTypesConfig).validate_python(case)
+        for case in valid_cases:
+            result = PipeTypesConfig.from_dict(case)
+            # use the other route to get back the result
+            result_to_dict_loop = TypeAdapter(PipeTypesConfig).validate_python(result.to_dict())
+            self.assertEqual(result, result_to_dict_loop)
+
+        # Test invalid values
+        invalid_cases = [
+            {"id_field": 3.14, "value": 1},  # Float for id_field
+            {"id_field": None, "value": 1},  # None for required id_field
+            {"id_field": "test", "value": {}},  # Dict for value
+            {"id_field": "test", "value": None},  # None for required value
+            {"id_field": "test", "value": 1, "status": "unknown"},  # Invalid literal
+        ]
+        for case in invalid_cases:
+            with self.assertRaises(ValidationError):
+                TypeAdapter(PipeTypesConfig).validate_python(case)
 
     def test__metadata_info(self):
         class MyStruct(DerivedMixed):

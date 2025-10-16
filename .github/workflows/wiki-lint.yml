@@ -24,7 +24,7 @@ jobs:
         os:
           - ubuntu-24.04
         python-version:
-          - 3.9
+          - 3.11
 
     runs-on: ${{ matrix.os }}
 

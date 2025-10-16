@@ -1,4 +1,3 @@
-import sys
 import types
 import typing
 from inspect import isclass
@@ -181,7 +180,7 @@ def adjust_annotations(
         ).typ
         return DynamicBasketPydantic[annotation_key, annotation_value]
     elif origin and args:
-        if sys.version_info >= (3, 10) and origin is types.UnionType:  # For PEP604, i.e. x|y
+        if origin is types.UnionType:  # For PEP604, i.e. x|y
             origin = typing.Union
         if origin is TsType:
             return TsType[

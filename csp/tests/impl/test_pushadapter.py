@@ -296,6 +296,84 @@ class TestPushAdapter(unittest.TestCase):
         self.assertEqual(sig.parameters["push_mode"].annotation, PushMode)
         self.assertEqual(sig.parameters["push_group"].annotation, object)
 
+    def test_annotation_arguments_preserved(self):
+        """
+        Test for issue #569: Push adapter arguments with type annotations should be preserved.
+        Previously, type arguments like Dict[str, int] were being normalized to dict before
+        being passed to the adapter implementation. This test ensures type annotations are
+        preserved and not normalized.
+        """
+        from typing import Dict, TypeVar, List
+
+        T = TypeVar("T")
+
+        received_args = {}
+
+        class TestAdapterImpl(PushInputAdapter):
+            def __init__(self, typ_arg: T):
+                # Store the received type argument for assertion
+                received_args["typ_arg"] = typ_arg
+
+            def start(self, starttime: datetime, endtime: datetime):
+                pass
+
+            def stop(self):
+                pass
+
+        TestAdapterDef = py_push_adapter_def(
+            "test_annotation",
+            TestAdapterImpl,
+            ts[T],
+            typ_arg=T,
+        )
+
+        @csp.graph
+        def graph_with_dict_annotation() -> ts[Dict[str, int]]:
+            return TestAdapterDef(typ_arg=Dict[str, int])
+
+        @csp.graph
+        def graph_with_list_annotation() -> ts[List[int]]:
+            return TestAdapterDef(typ_arg=List[int])
+
+        # Test with Dict[str, int] - should NOT be normalized to dict
+        csp.run(graph_with_dict_annotation, starttime=datetime.utcnow(), endtime=timedelta())
+        # Get the origin type from typing generics to compare
+        from csp.impl.types.typing_utils import CspTypingUtils
+        received_type = received_args.get("typ_arg")
+        # Check that we received Dict, not dict
+        if hasattr(received_type, "__origin__"):
+            # It's a typing generic
+            self.assertEqual(
+                CspTypingUtils.get_origin(received_type),
+                dict,
+                f"Expected Dict[str, int] generic type but got {received_type}",
+            )
+        else:
+            # It should NOT be the plain dict class
+            self.assertNotEqual(
+                received_type,
+                dict,
+                f"Type annotation was improperly normalized to plain dict. Received: {received_type}",
+            )
+
+        # Test with List[int] - should NOT be normalized to list
+        csp.run(graph_with_list_annotation, starttime=datetime.utcnow(), endtime=timedelta())
+        received_type = received_args.get("typ_arg")
+        if hasattr(received_type, "__origin__"):
+            # It's a typing generic
+            self.assertEqual(
+                CspTypingUtils.get_origin(received_type),
+                list,
+                f"Expected List[int] generic type but got {received_type}",
+            )
+        else:
+            # It should NOT be the plain list class
+            self.assertNotEqual(
+                received_type,
+                list,
+                f"Type annotation was improperly normalized to plain list. Received: {received_type}",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

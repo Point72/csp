@@ -106,7 +106,7 @@ class InputAdapterDef(AdapterDef):
             engine,
             ContainerTypeNormalizer.normalized_type_to_actual_python_type(self._output_def.typ.typ),
             self._push_mode,
-            tuple(ContainerTypeNormalizer.normalized_type_to_actual_python_type(s) for s in self._scalars),
+            tuple(self._scalars),
         )
 
     def set_output_def(self, output_def):

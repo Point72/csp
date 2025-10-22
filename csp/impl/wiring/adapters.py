@@ -92,6 +92,9 @@ class InputAdapterDef(AdapterDef):
         scalars = scalars[:-1]
         super().__init__(inputs, scalars, tvars, adapterimpl)
         self._output_def = None
+        # Control whether to normalize scalar arguments
+        # C++ adapters need normalized types (default), Python adapters don't (fixes #569)
+        self._normalize_scalars = True
 
     def _create(self, engine, memo):
         assert self._output_def is not None
@@ -101,12 +104,21 @@ class InputAdapterDef(AdapterDef):
             if manager is None:
                 manager = memo[self._managerDef] = self._managerDef._create(engine, memo)
 
+        # Normalize scalars only if requested (default True for C++ compatibility)
+        if self._normalize_scalars:
+            scalars_tuple = tuple(
+                ContainerTypeNormalizer.normalized_type_to_actual_python_type(s)
+                for s in self._scalars
+            )
+        else:
+            scalars_tuple = tuple(self._scalars)
+
         return self._impl(
             manager,
             engine,
             ContainerTypeNormalizer.normalized_type_to_actual_python_type(self._output_def.typ.typ),
             self._push_mode,
-            tuple(self._scalars),
+            scalars_tuple,
         )
 
     def set_output_def(self, output_def):
@@ -229,9 +241,12 @@ def py_pull_adapter_def(name, adapterimpl, out_type, memoize=True, force_memoize
     def impl(mgr, engine, pytype, push_mode, scalars):
         return _cspimpl._pulladapter(mgr, engine, pytype, push_mode, (adapterimpl, scalars))
 
-    return _adapterdef(
+    adaptertype = _adapterdef(
         InputAdapterDef, name, impl, out_type, manager_type=None, memoize=memoize, force_memoize=force_memoize, **kwargs
     )
+    # Fix #569: Don't normalize scalar arguments for Python adapters
+    adaptertype._signature._normalize_scalars = False
+    return adaptertype
 
 
 def py_managed_adapter_def(name, adapterimpl, out_type, manager_type, memoize=True, force_memoize=False, **kwargs):
@@ -252,9 +267,12 @@ def py_managed_adapter_def(name, adapterimpl, out_type, manager_type, memoize=Tr
     def impl(mgr, engine, pytype, push_mode, scalars):
         return _cspimpl._managedsimadapter(mgr, engine, pytype, push_mode, (adapterimpl, (mgr, *scalars)))
 
-    return _adapterdef(
+    adaptertype = _adapterdef(
         InputAdapterDef, name, impl, out_type, manager_type, memoize=memoize, force_memoize=force_memoize, **kwargs
     )
+    # Fix #569: Don't normalize scalar arguments for Python adapters
+    adaptertype._signature._normalize_scalars = False
+    return adaptertype
 
 
 def py_push_adapter_def(name, adapterimpl, out_type, manager_type=None, memoize=True, force_memoize=False, **kwargs):
@@ -278,7 +296,7 @@ def py_push_adapter_def(name, adapterimpl, out_type, manager_type=None, memoize=
             scalars = (mgr,) + scalars
         return _cspimpl._pushadapter(mgr, engine, pytype, push_mode, (adapterimpl, push_group, scalars))
 
-    return _adapterdef(
+    adaptertype = _adapterdef(
         InputAdapterDef,
         name,
         impl,
@@ -289,6 +307,9 @@ def py_push_adapter_def(name, adapterimpl, out_type, manager_type=None, memoize=
         **kwargs,
         push_group=(object, None),
     )
+    # Fix #569: Don't normalize scalar arguments for Python adapters
+    adaptertype._signature._normalize_scalars = False
+    return adaptertype
 
 
 def py_pushpull_adapter_def(
@@ -314,7 +335,7 @@ def py_pushpull_adapter_def(
             scalars = (mgr,) + scalars
         return _cspimpl._pushpulladapter(mgr, engine, pytype, push_mode, (adapterimpl, push_group, scalars))
 
-    return _adapterdef(
+    adaptertype = _adapterdef(
         InputAdapterDef,
         name,
         impl,
@@ -325,6 +346,9 @@ def py_pushpull_adapter_def(
         **kwargs,
         push_group=(object, None),
     )
+    # Fix #569: Don't normalize scalar arguments for Python adapters
+    adaptertype._signature._normalize_scalars = False
+    return adaptertype
 
 
 # output adapters

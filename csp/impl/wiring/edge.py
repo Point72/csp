@@ -202,6 +202,11 @@ class Edge:
             elemtype = typ.metadata(typed=True).get(key)
             if elemtype is None:
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.tstype.typ.__name__, key))
+            if (key in typ.optional_fields()) and (typ.is_strict()):
+                raise AttributeError(
+                    "Cannot access optional field '%s' on strict struct object '%s' at graph time"
+                    % (key, self.tstype.typ.__name__)
+                )
             return csp.struct_field(self, key, elemtype)
 
         raise AttributeError("'Edge' object has no attribute '%s'" % (key))

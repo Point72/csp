@@ -86,6 +86,13 @@ class CspTypingUtils310:
         )
 
     @classmethod
+    def is_optional_type(cls, typ):
+        if cls.is_union_type(typ):
+            args = typing.get_args(typ)
+            return type(None) in args
+        return False
+
+    @classmethod
     def is_literal_type(cls, typ):
         return isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Literal
 

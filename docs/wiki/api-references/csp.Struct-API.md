@@ -147,6 +147,40 @@ print(f"Using FastList field: value {s.a}, type {type(s.a)}, is Python list: {is
 - **`to_json(self, callback=lambda x: x)`**: convert struct instance to a json string, callback is invoked for any values encountered when processing the struct that are not basic Python types, datetime types, tuples, lists, dicts, csp.Structs, or csp.Enums. The callback should convert the unhandled type to a combination of the known types.
 - **`all_fields_set(self)`**: returns `True` if all the fields on the struct are set. Note that this will not recursively check sub-struct fields
 
-# Note on inheritance
+## Note on inheritance
 
 `csp.Struct` types may inherit from each other, but **multiple inheritance is not supported**. Composition is usually a good choice in absence of multiple inheritance.
+
+## "Strict" Structs
+
+By default, CSP Struct objects allow any field to be unset. This means that accessing fields without checking `hasattr` first can cause an `AttributeError` at runtime. To improve safety, CSP Structs provide the `allow_unset` metaclass parameter that can be set to `False` to enable "strict struct" semantics.
+
+### `allow_unset` Parameter
+
+- **Default:** `True` (for backwards compatibility)
+- **When set to `False`:** Enforces *strict struct semantics* — required fields must be set at initialization.
+  - Note that `del struct.field` is not allowed for stric structs — this will raise an error. As a result, for any strict struct, `hasattr(struct, field)` always returns True for any defined field.
+  - A non-strict struct may not inherit (directly or indirectly) from a strict base.
+
+### Semantics when `allow_unset=False`
+
+1. **Required Fields**
+
+   - Any field with a non‑optional type (e.g., `x: int`) **must be set** upon struct creation.
+   - If no value is passed and no default is provided for a required field, a `ValueError` is raised with the missing fields.
+
+1. **Optional Fields**
+
+   - Fields declared as `Optional[T] = None` or `T | None = None` are not required to be set. They must have a default value, which can be `None`, meaning they are unset.
+
+1. **Example**
+
+   ```python
+   class MyStruct(csp.Struct, allow_unset=False):
+       x: int                   # required
+       y: Optional[str] = None  # optional
+       z: str | None = None     # optional (alternate syntax)
+
+   MyStruct(x=3)       # good: y and z default to None
+   MyStruct(y="hello") # bad: required field x is not set
+   ```

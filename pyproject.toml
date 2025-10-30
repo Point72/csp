@@ -5,7 +5,7 @@ requires = [
     # oldest numpy 2 we can
     "numpy>=2,<2.1; python_version < '3.13'",
     "numpy>=2,<2.2",
-    "pyarrow>=15,<22",
+    "pyarrow>=15,<23",
     "ruamel.yaml",
     "scikit-build",
     "setuptools>=69,<74",
@@ -27,7 +27,7 @@ dependencies = [
     "packaging",
     "pandas",
     "psutil",
-    "pyarrow>=15,<22",
+    "pyarrow>=15,<23",
     "pydantic>=2",
     "pytz",
     "ruamel.yaml",

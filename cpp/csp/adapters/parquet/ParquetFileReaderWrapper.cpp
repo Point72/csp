@@ -17,7 +17,7 @@ void ParquetFileReaderWrapper::open( const std::string &fileName )
 
     try
     {
-#if ARROW_VERSION_MAJOR == 20 || ARROW_VERSION_MAJOR == 21
+#if ARROW_VERSION_MAJOR >= 20
         auto res = ::parquet::arrow::OpenFile(m_inputFile, arrow::default_memory_pool());
         STATUS_OK_OR_THROW_RUNTIME(res.status(), "Failed to open parquet file " << fileName );
         m_fileReader = res.MoveValueUnsafe();

@@ -69,7 +69,7 @@ develop = [
     "codespell>=2.4,<2.5",
     "mdformat>=0.7.19,<0.8",
     "mdformat-tables>=1,<1.1",
-    "ruff>=0.9,<0.14",
+    "ruff>=0.9,<0.15",
     # test
     "pytest",
     "pytest-asyncio",

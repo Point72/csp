@@ -314,7 +314,6 @@ class TestKafka:
         )["data"]
         assert len(res) == len(expected)
 
-    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     @pytest.fixture(autouse=True)
     def test_raw_pubsub(self, kafkaadapter):
         @csp.node

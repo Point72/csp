@@ -18,8 +18,9 @@ try:
     from csp.impl.perspective_common import PerspectiveWidget, is_perspective3
 
     _PERSPECTIVE_3 = is_perspective3()
+    HAS_PERSPECTIVE = True
 except ImportError:
-    raise unittest.SkipTest("skipping perspective tests")
+    HAS_PERSPECTIVE = False
 
 
 class TestCspPerspectiveTable(unittest.TestCase):
@@ -66,11 +67,13 @@ class TestCspPerspectiveTable(unittest.TestCase):
         print(target)
         pd.testing.assert_frame_equal(df, target)
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_not_running(self):
         table = CspPerspectiveTable(self.df)
         self.assertRaises(ValueError, table.stop)
         self.assertRaises(ValueError, table.join)
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_keep_history(self):
         target = self.df.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=4))
 
@@ -96,6 +99,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
 
         self.assertRaises(ValueError, CspPerspectiveTable, self.df, time_col=None, keep_history=True)
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_run_multiple(self):
         table = CspPerspectiveTable(self.df)
         table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
@@ -110,6 +114,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
         df2 = table.to_df()
         self.assertEqual(len(df2), 2 * len(df1))
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_limit(self):
         table = CspPerspectiveTable(self.df, limit=3)
         table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=20))
@@ -131,6 +136,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
 
         self.assertRaises(ValueError, CspPerspectiveTable, self.df, keep_history=False, limit=3)
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_localize(self):
         # In this mode, the timestamp column should be in "local time", not utc
         self.df["datetime_col"] = pd.Series(
@@ -159,6 +165,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
         target = pd.Series(["2020-01-01 01", "2020-01-01 02", np.nan], dtype="datetime64[ns]", name="datetime_col")
         pd.testing.assert_series_equal(utc, target)
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_snap(self):
         index_col = "my_index"
         time_col = "my_timestamp"
@@ -186,6 +193,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
         out = out.convert_dtypes()
         pd.testing.assert_frame_equal(out, target.drop(columns=time_col))
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_run_types(self):
         s_str = pd.Series([csp.const("a") for _ in self.idx], dtype=TsDtype(str), index=self.idx)
         s_int = pd.Series([csp.const(0) for _ in self.idx], dtype=TsDtype(int), index=self.idx)
@@ -229,6 +237,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
             )
         pd.testing.assert_series_equal(df.dtypes, dtypes)
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_run_historical(self):
         index_col = "my_index"
         time_col = "my_timestamp"
@@ -273,6 +282,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
             if not _PERSPECTIVE_3:  # See https://github.com/finos/perspective/pull/2756
                 pd.testing.assert_frame_equal(out.sort_values([index_col, time_col]), target)
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_real_time(self):
         table = CspPerspectiveTable(self.df, keep_history=False)
         table.start(endtime=timedelta(seconds=0.2), realtime=True)
@@ -290,6 +300,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
         self.assertFalse(table.is_running())
         self.assertLess(table.to_df()["timestamp"].max(), endtime - timedelta(seconds=2))
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_empty(self):
         table = CspPerspectiveTable(self.df.csp.static_frame(), keep_history=True)
         table.start(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
@@ -306,6 +317,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
             df2 = self._adjust_psp3(df2, "index", None)
         pd.testing.assert_frame_equal(df2, self.df.csp.static_frame().reset_index())
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_get_widget(self):
         table = CspPerspectiveTable(self.df, index_col="my_index", time_col="my_timestamp")
         widget = table.get_widget()
@@ -338,6 +350,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
         self.assertEqual(widget.sort, [["foo", "asc"]])
         self.assertEqual(widget.theme, "Material Dark")
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_multi_table(self):
         tables = {"test1": CspPerspectiveTable(self.df), "test2": CspPerspectiveTable(self.df, keep_history=False)}
         tables["test3"] = tables["test1"]
@@ -356,6 +369,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
         self.assertEqual(len(multi["test2"].to_df()), 3)
         self.assertEqual(len(multi["test3"].to_df()), len(multi["test1"].to_df()))
 
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective and ipywidgets")
     def test_multi_table_widget(self):
         tables = {"test1": CspPerspectiveTable(self.df), "test2": CspPerspectiveTable(self.df, keep_history=False)}
         tables["test3"] = tables["test1"]

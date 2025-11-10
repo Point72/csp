@@ -159,7 +159,7 @@ By default, CSP Struct objects allow any field to be unset. This means that acce
 
 - **Default:** `True` (for backwards compatibility)
 - **When set to `False`:** Enforces *strict struct semantics* — required fields must be set at initialization.
-  - Note that `del struct.field` is not allowed for stric structs — this will raise an error. As a result, for any strict struct, `hasattr(struct, field)` always returns True for any defined field.
+  - Note that `del struct.field` is not allowed for strict structs — this will raise an error. As a result, for any strict struct, `hasattr(struct, field)` always returns True for any defined field.
   - A non-strict struct may not inherit (directly or indirectly) from a strict base.
 
 ### Semantics when `allow_unset=False`

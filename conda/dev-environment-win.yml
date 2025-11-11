@@ -18,29 +18,28 @@ dependencies:
  - graphviz
  - gtest
  - httpx>=0.20,<1
- - libarrow<22
+ - libarrow<23
  - libboost>=1.80.0
  - libboost-headers>=1.80.0
  - librdkafka
  - lz4-c
  - make
  - mamba
- - mdformat>=0.7.19,<0.8
+ - mdformat>=0.7.19,<1.1
  - mdformat-tables>=1,<1.1
  - ninja
  - numpy>=2
- - pandas<2.3  # [py<310]
- - pandas      # [py>=310]
+ - pandas
  - pillow
  - polars
  - psutil
- - pyarrow>=15,<22
+ - pyarrow>=15,<23
  - pydantic>=2
  - pytest
  - pytest-asyncio
  - pytest-cov
  - pytest-sugar
- - python<3.14
+ - python>=3.10,<3.14
  - python-build
  - python-graphviz
  - python-rapidjson
@@ -48,7 +47,7 @@ dependencies:
  - rapidjson
  - requests
  - ruamel.yaml
- - ruff>=0.9,<0.10
+ - ruff>=0.9,<0.15
  - scikit-build
  - setuptools>=69,<74
  - sqlalchemy

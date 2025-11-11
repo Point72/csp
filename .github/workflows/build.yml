@@ -200,7 +200,6 @@ jobs:
           python-version:
             - "3.11"
           cibuildwheel:
-            - "cp39"
             - "cp310"
             - "cp311"
             - "cp312"
@@ -296,35 +295,28 @@ jobs:
           run: make dist-check
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v4
-          with:
-            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.9
-            path: dist/*.whl
-          if: ${{ matrix.cibuildwheel == 'cp39' }}
-
-        - name: Upload Wheel
-          uses: actions/upload-artifact@v4
+          uses: actions/upload-artifact@v5
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.10
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp310' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v4
+          uses: actions/upload-artifact@v5
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.11
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp311' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v4
+          uses: actions/upload-artifact@v5
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.12
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp312' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v4
+          uses: actions/upload-artifact@v5
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.13
             path: dist/*.whl
@@ -385,7 +377,7 @@ jobs:
           run: make dist-check
 
         - name: Upload SDist
-          uses: actions/upload-artifact@v4
+          uses: actions/upload-artifact@v5
           with:
               name: csp-sdist
               path: dist/*.tar.gz
@@ -415,7 +407,6 @@ jobs:
             - macos-14
             - windows-2022
           python-version:
-            - 3.9
             - "3.10"
             - 3.11
             - 3.12
@@ -426,15 +417,8 @@ jobs:
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
-            # mac arm builds support py3.10+
-            - os: macos-14
-              python-version: "3.9"
-
+        
             # Avoid extra resources for windows build
-            - is-full-run: false
-              os: windows-2022
-              python-version: "3.9"
-
             - is-full-run: false
               os: windows-2022
               python-version: "3.10"
@@ -448,10 +432,6 @@ jobs:
               python-version: "3.12"
 
             # avoid unnecessary use of mac resources
-            - is-full-run: false
-              os: macos-14
-              python-version: "3.9"
-
             - is-full-run: false
               os: macos-14
               python-version: "3.10"
@@ -482,7 +462,7 @@ jobs:
           run: make requirements
 
         - name: Download wheel
-          uses: actions/download-artifact@v5
+          uses: actions/download-artifact@v6
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -566,7 +546,7 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - 3.9
+            - 3.11
 
       runs-on: ${{ matrix.os }}
 
@@ -593,7 +573,7 @@ jobs:
         - name: Install requirements
           run: sudo make dependencies-debian
 
-        - uses: actions/download-artifact@v5
+        - uses: actions/download-artifact@v6
           with:
             name: csp-sdist
             path: dist/
@@ -644,7 +624,7 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - 3.9
+            - "3.10"
           package:
             - sqlalchemy<2
             - perspective-python<3
@@ -674,7 +654,7 @@ jobs:
           run: sudo apt-get install graphviz
 
         - name: Download wheel
-          uses: actions/download-artifact@v5
+          uses: actions/download-artifact@v6
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -754,7 +734,7 @@ jobs:
 
       steps:
         - name: Download wheels and sdist
-          uses: actions/download-artifact@v5
+          uses: actions/download-artifact@v6
           with:
             name:
             merge-multiple: true

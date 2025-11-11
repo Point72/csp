@@ -17,7 +17,7 @@ void ParquetFileWriterWrapper::openImpl( const std::string &fileName, const std:
 
     ::parquet::WriterProperties::Builder builder;
     builder.compression( resolveCompression( compression ));
-#if ARROW_VERSION_MAJOR == 20 || ARROW_VERSION_MAJOR == 21
+#if ARROW_VERSION_MAJOR >= 20
     builder.version(::parquet::ParquetVersion::PARQUET_2_6 );
 #else
     builder.version(::parquet::ParquetVersion::PARQUET_2_0 );

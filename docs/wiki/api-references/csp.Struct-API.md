@@ -153,16 +153,16 @@ print(f"Using FastList field: value {s.a}, type {type(s.a)}, is Python list: {is
 
 ## "Strict" Structs
 
-By default, CSP Struct objects allow any field to be unset. This means that accessing fields without checking `hasattr` first can cause an `AttributeError` at runtime. To improve safety, CSP Structs provide the `allow_unset` metaclass parameter that can be set to `False` to enable "strict struct" semantics.
+By default, CSP Struct objects allow any field to be unset. This means that accessing fields without checking `hasattr` first can cause an `AttributeError` at runtime. To improve safety, CSP Structs provide the `strict` metaclass parameter that can be set to `True` to enable "strict struct" semantics.
 
-### `allow_unset` Parameter
+### `strict` Parameter
 
-- **Default:** `True` (for backwards compatibility)
-- **When set to `False`:** Enforces *strict struct semantics* — required fields must be set at initialization.
+- **Default:** `False` (for backwards compatibility)
+- **When set to `True`:** Enforces *strict struct semantics* — required fields must be set at initialization.
   - Note that `del struct.field` is not allowed for strict structs — this will raise an error. As a result, for any strict struct, `hasattr(struct, field)` always returns True for any defined field.
-  - A non-strict struct may not inherit (directly or indirectly) from a strict base.
+  - A non-strict struct may not inherit (directly or indirectly) from a strict base, and vice versa.
 
-### Semantics when `allow_unset=False`
+### Semantics when `strict=True`
 
 1. **Required Fields**
 
@@ -171,7 +171,8 @@ By default, CSP Struct objects allow any field to be unset. This means that acce
 
 1. **Optional Fields**
 
-   - Fields declared as `Optional[T] = None` or `T | None = None` are not required to be set. They must have a default value, which can be `None`, meaning they are unset.
+   - Fields declared as `Optional[T]` or `T | None` may be set to `None`; internally, the data will still be stored as its native type.
+   - Fields must either have a default value, which can be `None`, or they must be initialized explicitly (but can be set to `None`).
 
 1. **Example**
 
@@ -179,8 +180,9 @@ By default, CSP Struct objects allow any field to be unset. This means that acce
    class MyStruct(csp.Struct, allow_unset=False):
        x: int                   # required
        y: Optional[str] = None  # optional
-       z: str | None = None     # optional (alternate syntax)
+       z: bool | None           # optional (alternate syntax, and no default)
 
-   MyStruct(x=3)       # good: y and z default to None
-   MyStruct(y="hello") # bad: required field x is not set
+   MyStruct(x=3, z=None) # good: y defaults to None
+   MyStruct(y="hello") # bad: required fields x and z are not set
+   MyStruct(x=None, z=None) # bad: cannot set field x to None as its not optional
    ```

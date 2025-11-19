@@ -20,7 +20,7 @@ class PyObjectStructField final : public DialectGenericStructField
 public:
     using BASE = DialectGenericStructField;
     PyObjectStructField( const std::string & name,
-                         PyTypeObjectPtr pytype ) : BASE( name, sizeof( PyObjectPtr ), alignof( PyObjectPtr ) ),
+                         PyTypeObjectPtr pytype, bool optional ) : BASE( name, sizeof( PyObjectPtr ), alignof( PyObjectPtr ), optional ),
                                              m_pytype( pytype )
     {}
 
@@ -29,7 +29,7 @@ public:
 
     void setValue( Struct * s, const DialectGenericType & obj ) const override
     {
-        auto& pyobj = reinterpret_cast<const PyObjectPtr &>(obj);
+        auto & pyobj = reinterpret_cast<const PyObjectPtr &>( obj );
         if( !PyObject_IsInstance( pyobj.ptr(), ( PyObject * ) m_pytype.ptr() ) )
             CSP_THROW( TypeError, "Invalid " << m_pytype -> tp_name << " type, expected " << m_pytype -> tp_name << " got " <<
                        Py_TYPE( pyobj.ptr() ) -> tp_name << " for field '" << fieldname() << "'" );
@@ -106,11 +106,15 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
     if( !metadata )
         CSP_THROW( KeyError, "StructMeta missing __metadata__" );
 
+    PyObject * optFields = PyDict_GetItemString( dict, "__optional_fields__" );
+    if( !optFields ) 
+        CSP_THROW( TypeError, "StructMeta missing __optional_fields__" );
+
     StructMeta::Fields fields;
     {
         PyObject *key, *type;
         Py_ssize_t pos = 0;
-        PyObject *optional_fields = PyDict_GetItemString( dict, "__optional_fields__" );
+        bool optional;
 
         while( PyDict_Next( metadata, &pos, &key, &type ) )
         {
@@ -118,10 +122,11 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
             if( !keystr )
                 CSP_THROW( PythonPassthrough, "" );
 
-            if (!PySet_Check(optional_fields)) 
-                CSP_THROW( TypeError, "Struct metadata for key " << keystr << " expected a set, got " << PyObjectPtr::incref( optional_fields ) );
-
-
+            int rv = PySet_Contains( optFields, key );
+            if( rv == -1 )
+                CSP_THROW( PythonPassthrough, "" );
+            optional = rv;
+                
             if( !PyType_Check( type ) && !PyList_Check( type ) )
                 CSP_THROW( TypeError, "Struct metadata for key " << keystr << " expected a type, got " << PyObjectPtr::incref( type ) );
 
@@ -130,30 +135,30 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
 
             switch( csptype -> type() )
             {
-                case csp::CspType::Type::BOOL:      field = std::make_shared<BoolStructField>( keystr ); break;
-                case csp::CspType::Type::INT64:     field = std::make_shared<Int64StructField>( keystr ); break;
-                case csp::CspType::Type::DOUBLE:    field = std::make_shared<DoubleStructField>( keystr ); break;
-                case csp::CspType::Type::DATETIME:  field = std::make_shared<DateTimeStructField>( keystr ); break;
-                case csp::CspType::Type::TIMEDELTA: field = std::make_shared<TimeDeltaStructField>( keystr ); break;
-                case csp::CspType::Type::DATE:      field = std::make_shared<DateStructField>( keystr ); break;
-                case csp::CspType::Type::TIME:      field = std::make_shared<TimeStructField>( keystr ); break;
-                case csp::CspType::Type::STRING:    field = std::make_shared<StringStructField>( csptype, keystr ); break;
-                case csp::CspType::Type::ENUM:      field = std::make_shared<CspEnumStructField>( csptype, keystr ); break;
-                case csp::CspType::Type::STRUCT:    field = std::make_shared<StructStructField>( csptype, keystr ); break;
+                case csp::CspType::Type::BOOL:      field = std::make_shared<BoolStructField>( keystr, optional ); break;
+                case csp::CspType::Type::INT64:     field = std::make_shared<Int64StructField>( keystr, optional ); break;
+                case csp::CspType::Type::DOUBLE:    field = std::make_shared<DoubleStructField>( keystr, optional ); break;
+                case csp::CspType::Type::DATETIME:  field = std::make_shared<DateTimeStructField>( keystr, optional ); break;
+                case csp::CspType::Type::TIMEDELTA: field = std::make_shared<TimeDeltaStructField>( keystr, optional ); break;
+                case csp::CspType::Type::DATE:      field = std::make_shared<DateStructField>( keystr, optional ); break;
+                case csp::CspType::Type::TIME:      field = std::make_shared<TimeStructField>( keystr, optional ); break;
+                case csp::CspType::Type::STRING:    field = std::make_shared<StringStructField>( csptype, keystr, optional ); break;
+                case csp::CspType::Type::ENUM:      field = std::make_shared<CspEnumStructField>( csptype, keystr, optional ); break;
+                case csp::CspType::Type::STRUCT:    field = std::make_shared<StructStructField>( csptype, keystr, optional ); break;
                 case csp::CspType::Type::ARRAY:
                 {
                     const CspArrayType & arrayType = static_cast<const CspArrayType&>( *csptype );
-                    field = ArraySubTypeSwitch::invoke( arrayType.elemType(), [csptype,keystr]( auto tag ) -> std::shared_ptr<StructField>
+                    field = ArraySubTypeSwitch::invoke( arrayType.elemType(), [csptype,keystr,optional]( auto tag ) -> std::shared_ptr<StructField>
                     {
                         using CElemType = typename decltype(tag)::type;
                         using CType = typename CspType::Type::toCArrayType<CElemType>::type;
-                        return std::make_shared<ArrayStructField<CType>>( csptype, keystr );
+                        return std::make_shared<ArrayStructField<CType>>( csptype, keystr, optional );
                     } );
 
                     break;
                 }
 
-                case csp::CspType::Type::DIALECT_GENERIC: field = std::make_shared<PyObjectStructField>( keystr, PyTypeObjectPtr::incref( ( PyTypeObject * ) type ) ); break;
+                case csp::CspType::Type::DIALECT_GENERIC: field = std::make_shared<PyObjectStructField>( keystr, PyTypeObjectPtr::incref( ( PyTypeObject * ) type ), optional ); break;
                 default:
                     CSP_THROW( ValueError, "Unexpected csp type " << csptype -> type() << " on struct " << name );
             }
@@ -221,7 +226,6 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
     if( PyDict_Size( defaults ) > 0 )
     {
         StructPtr defaultStruct = structMeta -> create();
-
         PyObject *key, *value;
         Py_ssize_t pos = 0;
         while( PyDict_Next( defaults, &pos, &key, &value ) )
@@ -448,6 +452,9 @@ PyObject * PyStruct::getattr( PyObject * attr )
 
     if( !field -> isSet( struct_.get() ) )
     {
+        if( field -> isNone( struct_.get() ) )
+            return Py_None;
+        
         //For efficiency reasons we set err here rather than rely on exceptions, since this
         //can get called pretty regularly, ie getattr( s, "f", default ) or hasattr checks
         //we also pass the attribute as the exception for efficiency, expensive to format a nice error here
@@ -482,7 +489,15 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
             auto *typedField = static_cast<const fieldType *>( field );
 
             if( value )
-                typedField -> setValue( struct_, fromPython<CType>( value, *field -> type() ) );
+            {
+                if( typedField -> isOptional() && value == Py_None )
+                {
+                    typedField -> setNone( struct_ );
+                    typedField -> clearValue( struct_ );
+                }
+                else
+                    typedField -> setValue( struct_, fromPython<CType>( value, *field -> type() ) );
+            }
             else
                 typedField -> clearValue( struct_ );
         } );

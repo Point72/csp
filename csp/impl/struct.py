@@ -15,7 +15,7 @@ g_YAML = ruamel.yaml.YAML()
 
 
 class StructMeta(_csptypesimpl.PyStructMeta):
-    def __new__(cls, name, bases, dct, allow_unset=True):
+    def __new__(cls, name, bases, dct, strict=False):
         full_metadata = {}
         full_metadata_typed = {}
         metadata = {}
@@ -36,14 +36,14 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 # Lists need to be normalized too as potentially we need to add a boolean flag to use FastList
                 if v == FastList:
                     raise TypeError(f"{v} annotation is not supported without args")
-                if CspTypingUtils.is_optional_type(v):
-                    if (not allow_unset) and (k not in dct):
-                        raise TypeError(f"Optional field {k} must have a default value")
+
+                if CspTypingUtils.is_optional_type(v) and strict:
                     optional_fields.add(k)
+                    actual_type = typing.get_args(v)[0]
                 if (
-                    CspTypingUtils.is_generic_container(v)
-                    or CspTypingUtils.is_union_type(v)
-                    or CspTypingUtils.is_literal_type(v)
+                    CspTypingUtils.is_generic_container(actual_type)
+                    or CspTypingUtils.is_union_type(actual_type)
+                    or CspTypingUtils.is_literal_type(actual_type)
                 ):
                     actual_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(v)
                     if CspTypingUtils.is_generic_container(actual_type):
@@ -78,7 +78,7 @@ class StructMeta(_csptypesimpl.PyStructMeta):
         dct["__metadata__"] = metadata
         dct["__defaults__"] = defaults
         dct["__optional_fields__"] = optional_fields
-        dct["__strict_enabled__"] = not allow_unset
+        dct["__strict_enabled__"] = strict
 
         res = super().__new__(cls, name, bases, dct)
         # This is how we make sure we construct the pydantic schema from the new class

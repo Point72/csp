@@ -9,15 +9,19 @@ namespace csp
 {
 
 StructField::StructField( CspTypePtr type, const std::string & fieldname, 
-                          size_t size, size_t alignment ) :
+                          size_t size, size_t alignment, bool isOptional ) :
     m_fieldname( fieldname ),
     m_offset( 0 ),
     m_size( size ),
     m_alignment( alignment ),
     m_maskOffset( 0 ),
+    m_noneMaskOffset( 0 ),
     m_maskBit( 0 ),
+    m_noneMaskBit( 0 ),
     m_maskBitMask( 0 ),
-    m_type( type )
+    m_noneMaskBitMask( 0 ),
+    m_type( type ),
+    m_isOptional( isOptional )
 {
 }
 
@@ -37,10 +41,11 @@ and adjustments required for the hidden fields
 */
 
 StructMeta::StructMeta( const std::string & name, const Fields & fields, bool isStrict,
-                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_isStrict( isStrict ), m_fields( fields ), 
+                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields( fields ), 
                                                              m_size( 0 ), m_partialSize( 0 ), m_partialStart( 0 ), m_nativeStart( 0 ), m_basePadding( 0 ),
                                                              m_maskLoc( 0 ), m_maskSize( 0 ), m_firstPartialField( 0 ), m_firstNativePartialField( 0 ),
-                                                             m_isPartialNative( true ), m_isFullyNative( true )
+                                                             m_optionalFieldsSetBits( nullptr ), m_optionalFieldsNoneBits( nullptr ), m_isPartialNative( true ), 
+                                                             m_isFullyNative( true ), m_isStrict( isStrict )
 {
     if( m_fields.empty() && !m_base)
         CSP_THROW( TypeError, "Struct types must define at least 1 field" );
@@ -98,20 +103,70 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
     //Setup masking bits for our fields
     //NOTE we can be more efficient by sticking masks into any potential alignment gaps, dont want to spend time on it 
     //at this point
-    m_maskSize     = !m_fields.empty() ? 1 + ( ( m_fields.size() - 1 ) / 8 ) : 0;
+
+    size_t optionalFieldCount = std::count_if( m_fields.begin(), m_fields.end(), []( const auto & f ) { return f -> isOptional(); } );
+    
+    m_maskSize     = !m_fields.empty() ? 1 + ( ( m_fields.size() + optionalFieldCount - 1 ) / 8 ) : 0;
     m_size         = offset + m_maskSize;
     m_partialSize  = m_size - baseSize;
     m_maskLoc      = m_size - m_maskSize;
+    
+    uint8_t numRemainingBits = ( m_fields.size() - m_firstPartialField + optionalFieldCount ) % 8;
+    m_lastByteMask = ( 1u << numRemainingBits ) - 1;
 
     size_t  maskLoc = m_maskLoc;
     uint8_t maskBit = 0;
-    for( auto & f : m_fields )
+
+    // Set optional fields first so that their 2-bits never cross a byte boundary
+    m_optionalFieldsSetBits  = new uint8_t[ m_maskSize ]();
+    m_optionalFieldsNoneBits = new uint8_t[ m_maskSize ]();
+    for( size_t i = 0; i < m_fields.size(); ++i )
     {
-        f -> setMaskOffset( maskLoc, maskBit );
-        if( ++maskBit == 8 )
+        auto & f = m_fields[ i ];
+        if( f -> isOptional() )
         {
-            maskBit = 0;
-            ++maskLoc;
+            f -> setMaskOffset( maskLoc, maskBit );
+            f -> setNoneMaskOffset( maskLoc, ++maskBit ); // use adjacent bit for None bit
+            if( ++maskBit == 8 )
+            {
+                m_optionalFieldsSetBits[ maskLoc - m_maskLoc ]  = 0xAA;
+                m_optionalFieldsNoneBits[ maskLoc - m_maskLoc ] = 0x55;
+                maskBit = 0;
+                ++maskLoc;
+            }
+        }
+    }
+    // deal with last (partial) byte filled with optional fields
+    auto lastOptIndex = maskLoc - m_maskLoc;
+    switch( maskBit / 2 )
+    {
+        case 1:
+            m_optionalFieldsSetBits[ lastOptIndex ]  = 0x1;
+            m_optionalFieldsNoneBits[ lastOptIndex ] = 0x2;
+            break;
+        case 2:
+            m_optionalFieldsSetBits[ lastOptIndex ]  = 0x5;
+            m_optionalFieldsNoneBits[ lastOptIndex ] = 0xA;
+            break;
+        case 3:
+            m_optionalFieldsSetBits[ lastOptIndex ]  = 0x15;
+            m_optionalFieldsNoneBits[ lastOptIndex ] = 0x2A;
+            break;
+        default:
+            break; // default initialized to 0
+    }
+
+    for( size_t i = 0; i < m_fields.size(); ++i )
+    {
+        auto & f = m_fields[ i ];
+        if( !f -> isOptional() )
+        {
+            f -> setMaskOffset( maskLoc, maskBit );
+            if( ++maskBit == 8 )
+            {
+                maskBit = 0;
+                ++maskLoc;
+            }
         }
     }
 
@@ -132,22 +187,21 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
             CSP_THROW( ValueError, "csp Struct " << name << " attempted to add existing field " << m_fields[ idx ] -> fieldname() );
     }
     
-    // A non-strict struct may not inherit (directly or indirectly) from a strict base
-    bool encountered_non_strict = false;
-    for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
+    // The complete inheritance hierarchy must agree on strict/non-strict
+    if( m_base && m_isStrict != m_base -> isStrict() )
     {
-        encountered_non_strict |= !cur -> isStrict();
-        if ( encountered_non_strict && cur -> isStrict() )
-            CSP_THROW( ValueError, 
-                    "Strict '" << m_name 
-                    << "' has non-strict inheritance of strict base '" 
-                    << cur -> name() << "'" );
+        CSP_THROW( ValueError, 
+                "Struct " << m_name << " was declared " << ( m_isStrict ? "strict" : "non-strict" ) << " but derives from "
+                << m_base -> name() << " which is " << ( m_base -> isStrict() ? "strict" : "non-strict" )
+        );
     }
 }
 
 StructMeta::~StructMeta()
 {
     m_default.reset();
+    delete[] m_optionalFieldsSetBits;
+    delete[] m_optionalFieldsNoneBits;
 }
 
 Struct * StructMeta::createRaw() const
@@ -468,53 +522,66 @@ void StructMeta::clear( Struct * s ) const
         m_base -> clear( s );
 }
 
-bool StructMeta::allFieldsSet( const Struct * s ) const
-{
-    size_t  numLocalFields = m_fields.size() - m_firstPartialField;
-    uint8_t numRemainingBits = numLocalFields % 8;
-
-    const uint8_t * m = reinterpret_cast<const uint8_t *>( s ) + m_maskLoc;
-    const uint8_t * e = m + m_maskSize - bool( numRemainingBits );
-    for( ; m < e; ++m )
-    {
-        if( *m != 0xFF )
-            return false;
-    }
-
-    if( numRemainingBits > 0 )
-    {
-        uint8_t bitmask = ( 1u << numRemainingBits ) - 1;
-        if( ( *m & bitmask ) != bitmask )
-            return false;
-    }
-    return true;
-}
-
 std::string StructMeta::formatAllUnsetStrictFields( const Struct * s ) const
 {
     bool first = true;
     std::stringstream ss;
     ss << "["; 
-
-    for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
-    {
-        if ( !cur -> isStrict() )
-            continue;
     
-        for( size_t i = cur -> m_firstPartialField; i < cur -> m_fields.size(); ++i )
+    for( size_t i = 0; i < m_fields.size(); ++i )
+    {
+        const auto & f = m_fields[ i ];
+        if( !f -> isSet( s ) && !f -> isNone( s ) )
         {
-            if( !cur -> m_fields[ i ] -> isSet( s ) )
-            {
-                if( !first )
-                    ss << ", ";
-                else
-                    first = false;
-                ss << cur -> m_fields[ i ] -> fieldname();
-            }
+            if( !first )
+                ss << ", ";
+            else
+                first = false;
+            ss << f -> fieldname();
         }
     }
     ss << "]";
     return ss.str();
+}
+
+bool StructMeta::allFieldsSet( const Struct * s ) const
+{
+    /*
+    We can use bit operations to validate the struct. 
+        1. Let M1 be the bitmask with 1s that align with the set bit of optional fields and 
+        2. Let M2 be the bitmask with 1s that align with the none bit of optional fields. 
+            -- Both M1 and M2 are computed trivially when we create the meta.
+        3. Let M1* = M1 & mask. M1* now is the bitmask of all set optional fields.
+        4. Similarly, let M2* = M2 & mask, such that M2* is the bitmask of all none optional fields.
+        5. Let M3 = mask | (M1* << 1) | (M2* >> 1). Since the shifted set/none bitsets will fill in that optional fields other bit,
+            the struct can validate iff M3 is all 1s.
+
+    Notes:
+        1) We do this on a byte by byte basis currently. If we add 32/64 bit padding to the struct mask, we could do this as one single step for most structs.
+        2) There is an edge condition if a) the set bit of an optional field is the last bit of a byte or b) the none bit of an optional field is the first bit of a byte.
+            So, when we create the meta, we ensure this never happens by being smart about the ordering of fields in the mask.
+    */
+
+    const uint8_t * m = reinterpret_cast<const uint8_t *>( s ) + m_maskLoc;
+    const uint8_t * e = m + m_maskSize - bool( m_lastByteMask );
+
+    const uint8_t * M1 = m_optionalFieldsSetBits;
+    const uint8_t * M2 = m_optionalFieldsNoneBits;
+
+    for( ; m < e; ++m, ++M1, ++M2 )
+    {
+        if( ( *m | ( ( *m & *M1 ) << 1 ) | ( ( *m & *M2 ) >> 1 ) ) != 0xFF )
+            return false;
+    }
+
+    if( m_lastByteMask )
+    {
+        uint8_t masked = *m & m_lastByteMask;
+        if( ( masked | ( ( ( masked & *M1 ) << 1 ) & m_lastByteMask ) | ( ( masked & *M2 ) >> 1 ) ) != m_lastByteMask )
+            return false;
+    }
+
+    return m_base ? m_base -> allFieldsSet( s ) : true;
 }
 
 void StructMeta::destroy( Struct * s ) const
@@ -536,18 +603,16 @@ void StructMeta::destroy( Struct * s ) const
 }
 
 [[nodiscard]] bool StructMeta::validate( const Struct * s ) const
-{    
+{   
+    if( !s -> meta() -> isStrict() )
+        return true;
+
     for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
     {
-        if ( !cur -> isStrict() )
-            continue;
-
-        // Note that we do not recursively validate nested struct.
-        // We assume after any creation on the C++ side, these structs 
-        // are validated properly prior to being set as field values 
         if ( !cur -> allFieldsSet( s ) )
             return false;
     }
+
     return true;
 }
 

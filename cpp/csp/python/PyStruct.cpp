@@ -475,9 +475,6 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
     if( !field )
         CSP_THROW( AttributeError, "'" << s -> meta() -> name() << "' object has no attribute '" << PyUnicode_AsUTF8( attr ) << "'" );
 
-    if ( s -> meta() -> isStrict() && value == nullptr )
-        CSP_THROW( AttributeError, "Strict struct " << s -> meta() -> name() << " does not allow the deletion of field " << PyUnicode_AsUTF8( attr ) );
-
     try
     {
         switchCspType( field -> type(), [field,&struct_=s,value]( auto tag )
@@ -499,8 +496,13 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
                     typedField -> setValue( struct_, fromPython<CType>( value, *field -> type() ) );
             }
             else
+            {
+                if( unlikely( struct_ -> meta() -> isStrict() ) )
+                    CSP_THROW( AttributeError, "Strict struct " << struct_ -> meta() -> name() << " does not allow the deletion of field " << field -> fieldname() );
                 typedField -> clearValue( struct_ );
+            }
         } );
+        
     }
     catch( const TypeError & err )
     {

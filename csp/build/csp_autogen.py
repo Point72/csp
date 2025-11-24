@@ -6,13 +6,31 @@ import os.path
 import sys
 import types
 
-# We need to patch mock modules into sys.modules to avoid pulling in csp/__init__.py and all of its baggage, which include imports of
-# _cspimpl, which would be a circular dep
-spec = importlib.util.find_spec("csp")
-loader = importlib.machinery.SourceFileLoader(spec.name, spec.origin)
-spec = importlib.util.spec_from_loader("csp", loader)
-csp_mod = importlib.util.module_from_spec(spec)
-sys.modules["csp"] = csp_mod
+
+def import_module_skip_init(module_name: str):
+    """Import a single module without running its __init__.py file"""
+    spec = importlib.util.find_spec(module_name)
+    if spec is None:
+        raise ImportError(f"Cannot find module named {module_name}")
+    loader = importlib.machinery.SourceFileLoader(spec.name, spec.origin)
+    spec = importlib.util.spec_from_loader(module_name, loader)
+    module_obj = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module_obj
+    return module_obj
+
+
+def import_module_skip_all_inits(module_name: str):
+    """Import a module and all its parent modules without running their __init__.py files"""
+    module = ""
+    for part in module_name.split(".")[:-1]:
+        module += part
+        import_module_skip_init(module)
+        module += "."
+    return importlib.import_module(module_name)
+
+
+# We need to avoid importing csp.__init__, as it would pull in _cspimpl and cause circular dependencies
+import_module_skip_init("csp")
 
 from csp.impl.enum import Enum  # noqa: E402
 from csp.impl.struct import Struct  # noqa: E402
@@ -61,9 +79,13 @@ CSP_CPP_TYPE_MAP = {
 
 
 class CodeGenerator:
-    def __init__(self, module_name: str, output_filename: str, namespace: str, generate_imported_types: bool):
+    def __init__(
+        self, module_name: str, output_filename: str, namespace: str, generate_imported_types: bool, skip_init: bool
+    ):
         self._module_name = module_name
-        self._module = importlib.import_module(module_name)
+        self._module = (
+            importlib.import_module(module_name) if not skip_init else import_module_skip_all_inits(module_name)
+        )
         self._namespace = namespace
 
         self._header_filename = f"{output_filename}.h"
@@ -528,10 +550,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dryRun", dest="dry_run", action="store_true", required=False, help="if true write output to stdout"
     )
+    parser.add_argument(
+        "--skip_init",
+        dest="skip_init",
+        action="store_true",
+        required=False,
+        help="if true skip importing module __init__ files",
+    )
 
     args = parser.parse_args()
 
-    struct_gen = CodeGenerator(args.module_name, args.outname, args.namespace, bool(args.generate_imports))
+    struct_gen = CodeGenerator(
+        args.module_name, args.outname, args.namespace, bool(args.generate_imports), args.skip_init
+    )
 
     header_file = os.path.join(args.output_directory, struct_gen.header_filename())
     cpp_file = os.path.join(args.output_directory, struct_gen.cpp_filename())

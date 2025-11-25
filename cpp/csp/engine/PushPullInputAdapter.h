@@ -2,18 +2,19 @@
 #define _IN_CSP_ENGINE_PUSHPULLINPUTADAPTER_H
 
 #include <csp/engine/PushInputAdapter.h>
-#include <queue>
+#include <csp/engine/PushPullEvent.h>
 
 namespace csp
 {
+
 //A variation of PushInputAdapter that lets you schedule historical data as well.  Used for adapters
 //that can replay history and switch to realtime seamlessly ( ie kafka )
-
 class PushPullInputAdapter : public PushInputAdapter
 {
 public:
     PushPullInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode,
                           PushGroup * group = nullptr, bool adjustOutOfOrderTime = false );
+    ~PushPullInputAdapter();
     
     template<typename T>
     void pushTick( bool live, DateTime time, T &&value, PushBatch *batch = nullptr );
@@ -24,38 +25,35 @@ public:
     void stop() override;
 
 protected:
-    
-    struct PullDataEvent
-    {
-        DateTime time;
-    };
 
-    virtual PullDataEvent * nextPullEvent();
+    virtual PushPullEvent * nextPullEvent();
 
     bool flaggedLive() const { return m_notifiedEndOfPull; }
 
-private:
-    template<typename T>
-    struct TypedPullDataEvent : public PullDataEvent
+    void setNextPushPullEvent( PushPullEvent * event )
     {
-        TypedPullDataEvent( DateTime t, T && d ) : PullDataEvent{ t },
-                                                   data( std::forward<T>( d ) )
-        {}
+        if( !m_nextPullEvent )
+            m_nextPullEvent = event;
+        else
+        {
+            assert( m_tailEvent );
+            assert( m_nextPullEvent );
+            m_tailEvent -> next = event;
+        }
 
-        typename std::remove_reference<T>::type data;
-    };
-
-    bool processNextPullEvent();
-
-    using QueueT = std::queue<PullDataEvent *>;
-    std::mutex        m_queueMutex;
-    QueueT            m_threadQueue;
-    QueueT            m_poppedPullEvents;
+        m_tailEvent = event;
+        event -> next = nullptr;
+    }
+    
+private:
+    bool processNextPullEvent( PushPullEvent *& nextEvent );
+    void scheduleNextPullEvent( PushPullEvent * nextEvent );
+    
     Scheduler::Handle m_timerHandle;
-    PullDataEvent   * m_nextPullEvent;
+    PushPullEvent   * m_nextPullEvent;
+    PushPullEvent   * m_tailEvent;
     bool              m_notifiedEndOfPull; //flagged when we're done pushing pull values
     bool              m_adjustOutOfOrderTime;
-
 };
 
 inline void PushPullInputAdapter::flagReplayComplete()
@@ -63,8 +61,8 @@ inline void PushPullInputAdapter::flagReplayComplete()
     if( unlikely( !m_notifiedEndOfPull ) )
     {
         m_notifiedEndOfPull = true;
-        std::lock_guard<std::mutex> g( m_queueMutex );
-        m_threadQueue.emplace( nullptr );
+        auto * replayCompleteEvent = new PushPullEvent( this, DateTime::NONE() );
+        rootEngine() -> pushPullEventQueue().push( replayCompleteEvent );
     }
 }
 
@@ -84,12 +82,8 @@ inline void PushPullInputAdapter::pushTick( bool live, DateTime time, T &&value,
         if( unlikely( m_notifiedEndOfPull ) )
             CSP_THROW( RuntimeException, "PushPullInputAdapter tried to push a sim tick after live tick" );
 
-        //TBD allocators
-        PullDataEvent * event = new TypedPullDataEvent<T>( time, std::forward<T>(value) );
-        {
-            std::lock_guard<std::mutex> g( m_queueMutex );
-            m_threadQueue.emplace( event );
-        }
+        PushPullEvent * event = new TypedPushPullEvent<T>( this, time, std::forward<T>(value) );
+        rootEngine() -> pushPullEventQueue().push( event );
     }
 }
 

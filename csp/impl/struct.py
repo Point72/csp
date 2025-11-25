@@ -60,6 +60,29 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                         % (k, (actual_type))
                     )
 
+                # --- BEGIN OVERRIDE CHECK LOGIC ---
+                if k in full_metadata_typed:
+                    base_type = full_metadata_typed[k]
+                    # Only allow override if new type is subclass of base type
+                    # (or the same type)
+                    try:
+                        # Handle generic aliases (e.g., typing.List[int])
+                        # by comparing their __origin__ if possible
+                        base_type_cmp = base_type
+                        actual_type_cmp = actual_type
+                        if hasattr(base_type, "__origin__") and hasattr(actual_type, "__origin__"):
+                            base_type_cmp = base_type.__origin__
+                            actual_type_cmp = actual_type.__origin__
+                        if not (actual_type_cmp is base_type_cmp or (isinstance(actual_type_cmp, type) and isinstance(base_type_cmp, type) and issubclass(actual_type_cmp, base_type_cmp))):
+                            raise TypeError(
+                                f"Cannot override field '{k}' of base type {base_type} with incompatible type {actual_type} in derived struct '{name}'"
+                            )
+                    except Exception as e:
+                        raise TypeError(
+                            f"Cannot override field '{k}' of base type {base_type} with incompatible type {actual_type} in derived struct '{name}': {e}"
+                        )
+                # --- END OVERRIDE CHECK LOGIC ---
+
                 metadata_typed[k] = v
                 metadata[k] = actual_type
 

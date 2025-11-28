@@ -4,6 +4,7 @@ import re
 import sys
 import typing
 import unittest
+import warnings
 from datetime import datetime, time, timedelta
 from typing import Callable, Dict, List, Optional, Union
 
@@ -66,6 +67,12 @@ class TestTypeChecking(unittest.TestCase):
                 typed_scalar(i, 123)
 
         csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_const_eq_scalar_no_warning(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _ = csp.const(1) == 1
+            self.assertEqual(len(caught), 0)
 
     def test_runtime_type_check(self):
         ## native output type

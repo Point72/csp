@@ -41,6 +41,7 @@ set(ENGINE_PUBLIC_HEADERS
         OutputAdapter.h
         PendingPushEvents.h
         Profiler.h
+        PushPullEvent.h
         PushEvent.h
         PullInputAdapter.h
         PushInputAdapter.h

@@ -11,6 +11,7 @@
 #include <csp/engine/PendingPushEvents.h>
 #include <csp/engine/Profiler.h>
 #include <csp/engine/PushEvent.h>
+#include <csp/engine/PushPullEvent.h>
 #include <csp/engine/Scheduler.h>
 #include <memory>
 
@@ -35,7 +36,8 @@ private:
 
 class RootEngine : public Engine
 {
-    using PushEventQueue  = SRMWLockFreeQueue<PushEvent>;
+    using PushEventQueue     = SRMWLockFreeQueue<PushEvent>;
+    using PushPullEventQueue = SRMWLockFreeQueue<PushPullEvent>;
 
 public:
     RootEngine( const Dictionary & );
@@ -87,6 +89,8 @@ public:
 
     bool interrupted() const;
 
+    PushPullEventQueue & pushPullEventQueue() { return m_pushPullEventQueue; }
+    
 protected:
     enum State { NONE, STARTING, RUNNING, SHUTDOWN, DONE };
     using EndCycleListeners = std::vector<EndCycleListener*>;
@@ -129,7 +133,9 @@ protected:
     bool              m_inRealtime;
     int               m_initSignalCount;
 
-    PushEventQueue    m_pushEventQueue;
+    PushEventQueue     m_pushEventQueue;
+    //This queue is managed entirely from the PushPullInputAdapter
+    PushPullEventQueue m_pushPullEventQueue;
 
     std::exception_ptr                m_exception_ptr;
     std::mutex                        m_exception_mutex;

@@ -111,7 +111,7 @@ class TestKafka:
             # csp.print('sub', sub_data)
             # Wait for at least count ticks and until we get a live tick
             done_flag = csp.count(sub_data) >= count
-            done_flag = csp.and_(done_flag, sub_data.mapped_live is True)
+            done_flag = csp.and_(done_flag, sub_data.mapped_live == True)  # noqa: E712
             stop = csp.filter(done_flag, done_flag)
             csp.stop_engine(stop)
 

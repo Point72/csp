@@ -16,7 +16,6 @@ USE_PYDANTIC: bool = os.environ.get("CSP_PYDANTIC", True)
 
 if USE_PYDANTIC:
     from pydantic import (
-        Field,
         ValidationError,
         ValidationInfo,
         WrapValidator,
@@ -67,7 +66,7 @@ class Signature:
             for defn in inputs:
                 if defn.kind != ArgKind.ALARM:
                     default = defaults.get(defn.name, ...)
-                    typ = Annotated[adjust_annotations(defn.typ, make_optional=True), Field(validate_default=True)]
+                    typ = adjust_annotations(defn.typ, make_optional=True)
                     if defn.kind.is_scalar():  # Allow for SnapType and SnapKeyType
                         typ = Annotated[typ, WrapValidator(make_snap_validator(defn.typ))]
                     input_fields[f"{INPUT_PREFIX}{defn.name}"] = (typ, default)
@@ -89,7 +88,7 @@ class Signature:
                 return v
 
             # https://docs.pydantic.dev/latest/concepts/models/#dynamic-model-creation
-            config = {"arbitrary_types_allowed": True, "extra": "forbid"}
+            config = {"arbitrary_types_allowed": True, "extra": "forbid", "validate_default": True}
             validators = {
                 "validate_tvars": model_validator(mode="after")(validate_tvars),
                 "track_fields": field_validator("*", mode="before")(track_fields),

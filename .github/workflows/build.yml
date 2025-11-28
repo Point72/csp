@@ -72,7 +72,7 @@ jobs:
         FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN || steps.setupschedule.outputs.FULL_RUN }}
       steps:
         - name: Checkout
-          uses: actions/checkout@v5
+          uses: actions/checkout@v6
           with:
             # for pull_request so we can do HEAD^2
             fetch-depth: 2
@@ -159,7 +159,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v5
+          uses: actions/checkout@v6
           with:
             submodules: recursive
 
@@ -239,7 +239,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v5
+          uses: actions/checkout@v6
           with:
             submodules: recursive
             fetch-depth: 0
@@ -358,7 +358,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v5
+          uses: actions/checkout@v6
           with:
             submodules: recursive
 
@@ -448,7 +448,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v5
+          uses: actions/checkout@v6
           with:
               submodules: recursive
 
@@ -554,7 +554,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v5
+          uses: actions/checkout@v6
           with:
             submodules: recursive
 
@@ -635,7 +635,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v5
+          uses: actions/checkout@v6
           with:
               submodules: recursive
               fetch-depth: 0

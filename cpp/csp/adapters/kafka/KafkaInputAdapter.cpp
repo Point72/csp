@@ -91,7 +91,8 @@ void KafkaInputAdapter::processMessage( RdKafka::Message* message, bool live, cs
     if( ts.type != RdKafka::MessageTimestamp::MSG_TIMESTAMP_NOT_AVAILABLE )
         msgTime = DateTime::fromMilliseconds( ts.timestamp );
 
-    if( type() -> type() == CspType::Type::STRUCT )
+    auto tsType = ( pushMode() == PushMode::BURST ? static_cast<const CspArrayType *>( type() ) -> elemType() -> type() : type() -> type() );
+    if( tsType == CspType::Type::STRUCT )
     {
         auto tick = m_converter -> asStruct( message -> payload(), message -> len() );
 
@@ -117,7 +118,7 @@ void KafkaInputAdapter::processMessage( RdKafka::Message* message, bool live, cs
         if( shouldProcessMessage( pushLive, msgTime ) )
             pushTick(pushLive, msgTime, std::move(tick), batch);
     }
-    else if( type() -> type() == CspType::Type::STRING )
+    else if( tsType == CspType::Type::STRING )
     {
         bool pushLive = shouldPushLive(live, msgTime);
         if( shouldProcessMessage( pushLive, msgTime ) )

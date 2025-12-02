@@ -51,6 +51,7 @@ class KafkaAdapterManager:
         sasl_kerberos_principal="",
         ssl_ca_location="",
         sasl_kerberos_service_name="kafka",
+        sasl_kerberos_kinit_cmd=None,
         rd_kafka_conf_options=None,
         debug: bool = False,
         poll_timeout: timedelta = timedelta(seconds=1),
@@ -110,6 +111,8 @@ class KafkaAdapterManager:
                     "ssl.ca.location": ssl_ca_location,
                 }
             )
+            if sasl_kerberos_kinit_cmd is not None:
+                self._properties["rd_kafka_conf_properties"]["sasl.kerberos.kinit.cmd"] = sasl_kerberos_kinit_cmd
 
         rd_kafka_conf_options = rd_kafka_conf_options.copy() if rd_kafka_conf_options else {}
         if debug:

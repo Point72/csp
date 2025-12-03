@@ -111,7 +111,7 @@ class TestKafka:
             # csp.print('sub', sub_data)
             # Wait for at least count ticks and until we get a live tick
             done_flag = csp.count(sub_data) >= count
-            done_flag = csp.and_(done_flag, sub_data.mapped_live is True)
+            done_flag = csp.and_(done_flag, sub_data.mapped_live == True)  # noqa: E712
             stop = csp.filter(done_flag, done_flag)
             csp.stop_engine(stop)
 
@@ -464,6 +464,20 @@ class TestKafka:
 
         with pytest.raises(ValueError):
             csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
+    def test_conf_options(self):
+        mgr = KafkaAdapterManager(
+            "broker123",
+            rd_kafka_conf_options={"test": "a"},
+            rd_kafka_consumer_conf_options={"consumer_test": "b"},
+            rd_kafka_producer_conf_options={"producer_test": "c"},
+        )
+        assert mgr._properties["rd_kafka_conf_properties"]["test"] == "a"
+        assert mgr._properties["rd_kafka_consumer_conf_properties"]["consumer_test"] == "b"
+        assert mgr._properties["rd_kafka_producer_conf_properties"]["producer_test"] == "c"
+
+        pytest.raises(ValueError, KafkaAdapterManager, "broker123", rd_kafka_consumer_conf_options={"group.id": "b"})
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_push_mode(self, kafkaadapter, kafkabroker):

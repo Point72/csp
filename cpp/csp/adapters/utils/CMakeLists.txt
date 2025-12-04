@@ -1,4 +1,5 @@
 set(ADAPTER_UTILS_PUBLIC_HEADERS
+        AvroMessageWriter.h
         JSONMessageStructConverter.h
         JSONMessageWriter.h
         MessageEnums.h

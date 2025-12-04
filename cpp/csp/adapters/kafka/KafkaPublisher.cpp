@@ -3,6 +3,7 @@
 #include <csp/adapters/kafka/KafkaPublisher.h>
 #include <csp/adapters/utils/MessageWriter.h>
 #include <csp/adapters/utils/JSONMessageWriter.h>
+#include <csp/adapters/utils/AvroMessageWriter.h>
 
 #include <librdkafka/rdkafkacpp.h>
 
@@ -17,6 +18,8 @@ KafkaPublisher::KafkaPublisher( KafkaAdapterManager * mgr, const Dictionary & pr
     auto protocol = properties.get<std::string>( "protocol" );
     if( protocol == "JSON" )
         m_msgWriter = std::make_shared<utils::JSONMessageWriter>( properties );
+    else if( protocol == "AVRO" )
+        m_msgWriter = std::make_shared<utils::AvroMessageWriter>( properties );
     else if( protocol != "RAW_BYTES" )
         CSP_THROW( NotImplemented, "msg protocol " << protocol << " not currently supported for kafka output adapters" );
 }

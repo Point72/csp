@@ -24,6 +24,13 @@ find_package(DepsKafkaAdapter REQUIRED)
 
 target_link_libraries(csp_kafka_adapter PUBLIC csp_adapter_utils RdKafka::rdkafka RdKafka::rdkafka++)
 
+# Link Avro library - uses different target names for vcpkg vs conda
+if(CSP_USE_VCPKG)
+  target_link_libraries(csp_kafka_adapter PUBLIC unofficial::avro-cpp::avrocpp)
+else()
+  target_link_libraries(csp_kafka_adapter PUBLIC Avro::avrocpp)
+endif()
+
 install(TARGETS csp_kafka_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/kafka
         RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}

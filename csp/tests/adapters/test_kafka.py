@@ -6,6 +6,7 @@ import pytest
 import csp
 from csp import ts
 from csp.adapters.kafka import (
+    AvroMessageMapper,
     DateTimeType,
     JSONTextMessageMapper,
     KafkaAdapterManager,
@@ -464,3 +465,260 @@ class TestKafka:
 
         with pytest.raises(ValueError):
             csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
+    def test_avro_basic(self, kafkaadapter):
+        """Test basic Avro publish functionality similar to JSON test"""
+
+        @csp.node
+        def curtime(x: ts[object]) -> ts[datetime]:
+            if csp.ticked(x):
+                return csp.now()
+
+        # Define Avro schema for MyData struct
+        avro_schema = '''
+        {
+            "type": "record",
+            "name": "MyData",
+            "fields": [
+                {"name": "b", "type": "boolean"},
+                {"name": "i", "type": "long"},
+                {"name": "d", "type": "double"},
+                {"name": "s", "type": "string"},
+                {"name": "dt", "type": "long"}
+            ]
+        }
+        '''
+
+        def graph(symbols: list, count: int):
+            b = csp.merge(
+                csp.timer(timedelta(seconds=0.2), True),
+                csp.delay(csp.timer(timedelta(seconds=0.2), False), timedelta(seconds=0.1)),
+            )
+            i = csp.count(csp.timer(timedelta(seconds=0.15)))
+            d = csp.count(csp.timer(timedelta(seconds=0.2))) / 2.0
+            s = csp.sample(csp.timer(timedelta(seconds=0.4)), csp.const("STRING"))
+            dt = curtime(b)
+
+            struct = MyData.collectts(b=b, i=i, d=d, s=s, dt=dt)
+
+            msg_mapper = AvroMessageMapper(
+                avro_schema=avro_schema,
+                datetime_type=DateTimeType.UINT64_MICROS
+            )
+
+            done_flags = []
+            topic = f"avro_mktdata.{os.getpid()}"
+            _precreate_topic(topic)
+            for symbol in symbols:
+                kafkaadapter.publish(msg_mapper, topic, ["s"], struct)
+
+                # Collect published data for comparison
+                csp.add_graph_output(f"pub_{symbol}", struct)
+
+                done_flag = csp.count(struct) == count
+                done_flag = csp.filter(done_flag, done_flag)
+                done_flags.append(done_flag)
+
+            stop = csp.and_(*done_flags)
+            stop = csp.filter(stop, stop)
+            csp.stop_engine(stop)
+
+        symbols = ["AAPL", "MSFT"]
+        count = 20
+        results = csp.run(
+            graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
+        )
+
+        # Verify data was published
+        for symbol in symbols:
+            pub = results[f"pub_{symbol}"]
+            assert len(pub) == count
+
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
+    def test_avro_field_map(self, kafkaadapter):
+        """Test Avro publish with field mapping"""
+
+        avro_schema = '''
+        {
+            "type": "record",
+            "name": "MappedData",
+            "fields": [
+                {"name": "mapped_value", "type": "long"},
+                {"name": "mapped_text", "type": "string"}
+            ]
+        }
+        '''
+
+        class SourceData(csp.Struct):
+            value: int
+            text: str
+
+        def graph(count: int):
+            value = csp.count(csp.timer(timedelta(seconds=0.1)))
+            text = csp.sample(value, csp.const("hello"))
+
+            struct = SourceData.collectts(value=value, text=text)
+
+            msg_mapper = AvroMessageMapper(
+                avro_schema=avro_schema,
+                datetime_type=DateTimeType.UINT64_NANOS
+            )
+
+            # Map struct fields to different Avro field names
+            field_map = {"value": "mapped_value", "text": "mapped_text"}
+
+            topic = f"avro_field_map.{os.getpid()}"
+            _precreate_topic(topic)
+            kafkaadapter.publish(msg_mapper, topic, ["text"], struct, field_map=field_map)
+
+            csp.add_graph_output("pub", struct)
+
+            done_flag = csp.count(struct) == count
+            done_flag = csp.filter(done_flag, done_flag)
+            csp.stop_engine(done_flag)
+
+        count = 10
+        results = csp.run(
+            graph, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
+        )
+
+        assert len(results["pub"]) == count
+
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
+    def test_avro_array_types(self, kafkaadapter):
+        """Test Avro publish with array types"""
+
+        avro_schema = '''
+        {
+            "type": "record",
+            "name": "ArrayData",
+            "fields": [
+                {"name": "key", "type": "string"},
+                {"name": "values", "type": {"type": "array", "items": "long"}},
+                {"name": "names", "type": {"type": "array", "items": "string"}}
+            ]
+        }
+        '''
+
+        class ArrayData(csp.Struct):
+            key: str
+            values: [int]
+            names: [str]
+
+        def graph(count: int):
+            key = csp.sample(csp.timer(timedelta(seconds=0.1)), csp.const("test_key"))
+            values = csp.sample(csp.timer(timedelta(seconds=0.1)), csp.const([1, 2, 3, 4, 5]))
+            names = csp.sample(csp.timer(timedelta(seconds=0.1)), csp.const(["a", "b", "c"]))
+
+            struct = ArrayData.collectts(key=key, values=values, names=names)
+
+            msg_mapper = AvroMessageMapper(
+                avro_schema=avro_schema,
+                datetime_type=DateTimeType.UINT64_NANOS
+            )
+
+            topic = f"avro_arrays.{os.getpid()}"
+            _precreate_topic(topic)
+            kafkaadapter.publish(msg_mapper, topic, ["key"], struct)
+
+            csp.add_graph_output("pub", struct)
+
+            done_flag = csp.count(struct) == count
+            done_flag = csp.filter(done_flag, done_flag)
+            csp.stop_engine(done_flag)
+
+        count = 10
+        results = csp.run(
+            graph, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
+        )
+
+        assert len(results["pub"]) == count
+
+        for _, data in results["pub"]:
+            assert data.values == [1, 2, 3, 4, 5]
+            assert data.names == ["a", "b", "c"]
+
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
+    def test_avro_nullable_fields(self, kafkaadapter):
+        """Test Avro publish with nullable (union) fields - some messages have nulls, some don't"""
+
+        avro_schema = '''
+        {
+            "type": "record",
+            "name": "NullableData",
+            "fields": [
+                {"name": "key", "type": "string"},
+                {"name": "required_value", "type": "long"},
+                {"name": "optional_value", "type": ["null", "long"], "default": null},
+                {"name": "optional_text", "type": ["null", "string"], "default": null}
+            ]
+        }
+        '''
+
+        class NullableData(csp.Struct):
+            key: str
+            required_value: int
+            optional_value: int
+            optional_text: str
+
+        @csp.node
+        def create_nullable_structs(trigger: csp.ts[int]) -> csp.ts[NullableData]:
+            """Create structs where some have optional fields set, some don't"""
+            with csp.state():
+                s_count = 0
+            if csp.ticked(trigger):
+                s_count += 1
+                if s_count % 3 == 0:
+                    # Every 3rd message: both optional fields are Unset
+                    return NullableData(key=f"msg_{s_count}", required_value=s_count)
+                elif s_count % 3 == 1:
+                    # Every 1st message: only optional_value is set
+                    return NullableData(key=f"msg_{s_count}", required_value=s_count, optional_value=s_count * 10)
+                else:
+                    # Every 2nd message: both optional fields are set
+                    return NullableData(key=f"msg_{s_count}", required_value=s_count, optional_value=s_count * 10, optional_text=f"text_{s_count}")
+
+        def graph(count: int):
+            trigger = csp.count(csp.timer(timedelta(seconds=0.1)))
+            struct = create_nullable_structs(trigger)
+
+            msg_mapper = AvroMessageMapper(
+                avro_schema=avro_schema,
+                datetime_type=DateTimeType.UINT64_NANOS
+            )
+
+            topic = f"avro_nullable.{os.getpid()}"
+            _precreate_topic(topic)
+            kafkaadapter.publish(msg_mapper, topic, ["key"], struct)
+
+            csp.add_graph_output("pub", struct)
+
+            done_flag = csp.count(struct) == count
+            done_flag = csp.filter(done_flag, done_flag)
+            csp.stop_engine(done_flag)
+
+        count = 9
+        results = csp.run(
+            graph, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
+        )
+
+        pub = results["pub"]
+        assert len(pub) == count
+
+        for i, (_, data) in enumerate(pub, 1):
+            assert data.key == f"msg_{i}"
+            assert data.required_value == i
+
+            if i % 3 == 0:
+                assert not hasattr(data, "optional_value")
+                assert not hasattr(data, "optional_text")
+            elif i % 3 == 1:
+                assert hasattr(data, "optional_value")
+                assert data.optional_value == i * 10
+                assert not hasattr(data, "optional_text")
+            else:
+                assert hasattr(data, "optional_value")
+                assert data.optional_value == i * 10
+                assert hasattr(data, "optional_text")
+                assert data.optional_text == f"text_{i}"

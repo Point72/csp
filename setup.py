@@ -38,10 +38,33 @@ elif sys.platform == "win32":
 else:
     VCPKG_TRIPLET = None
 
+VCPKG_SHA = "9c5c2a0ab75aff5bcd08142525f6ff7f6f7ddeee"
+
 # This will be used for e.g. the sdist
 if CSP_USE_VCPKG:
     if not os.path.exists("vcpkg"):
-        subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
+        # Clone at the sha we want
+        subprocess.call(
+            [
+                "git",
+                "clone",
+                "https://github.com/Microsoft/vcpkg.git",
+            ],
+        )
+        subprocess.call(["git", "checkout", VCPKG_SHA], cwd="vcpkg")
+    else:
+        # Ensure that the sha matches what we expect
+        # First get the sha
+        sha = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd="vcpkg",
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        if sha != VCPKG_SHA:
+            raise RuntimeError(f"vcpkg sha {sha} does not match expected {VCPKG_SHA}")
     if not os.path.exists("vcpkg/ports"):
         subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
     if not os.path.exists("vcpkg/buildtrees"):

@@ -684,7 +684,8 @@ void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset
     for( auto & fieldname : meta -> fieldNames() )
     {
         auto & field = meta -> field( fieldname );
-        if( !( field -> isSet( struct_ ) ) && !show_unset )
+        bool isUnset = !( field -> isSet( struct_ ) || field -> isNone( struct_ ) );
+        if( isUnset && !show_unset )
             continue;
 
         if( unlikely( first ) ) first = false;
@@ -692,8 +693,10 @@ void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset
 
         tl_repr += fieldname;
         tl_repr += "=";
-        if( !( field -> isSet( struct_ ) ) )
+        if( isUnset )
             tl_repr += "<unset>";
+        else if( field -> isNone( struct_ ) )
+            tl_repr += "None";
         else
             repr_field( struct_, field, tl_repr, show_unset );
     }

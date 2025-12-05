@@ -1,6 +1,5 @@
-import sys
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 import csp
@@ -369,6 +368,17 @@ class TestStrictStructs(unittest.TestCase):
             AttributeError, "Cannot access optional field 'is_active' on strict struct object 'Test' at graph time"
         ):
             csp.build_graph(main_graph)
+
+    def test_str_repr(self):
+        class StrictStruct(csp.Struct, strict=True):
+            a: int | None = None
+            b: bool
+            c: str | None = None
+
+        ss1 = StrictStruct(b=True, c="abc")
+        ss2 = StrictStruct(a=42, b=False)
+        self.assertEqual(repr(ss1), "StrictStruct( a=None, b=True, c=abc )")
+        self.assertEqual(str(ss2), "StrictStruct( a=42, b=False, c=None )")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import itertools
 import os
 
 from csp.impl.constants import UNSET
+from csp.impl.error_handling import fmt_errors
 from csp.impl.types import tstype
 from csp.impl.types.common_definitions import ArgKind, InputDef, OutputBasketContainer, OutputDef
 from csp.impl.types.generic_values_resolver import GenericValuesResolver
@@ -222,8 +223,7 @@ class Signature:
         try:
             input_model = self._input_model.model_validate(new_kwargs, context=context)
         except ValidationError as e:
-            processed_msg = str(e).replace(INPUT_PREFIX, "")
-            raise TypeError(f"Input type validation error(s).\n{processed_msg}") from None
+            raise TypeError(f"Input type validation error(s).\n{fmt_errors(e, INPUT_PREFIX)}") from None
         # Normally, you would just grab the non-alarm ts and sclar inputs off the input model, but there are two complexities
         # 1. AttachType is initially classified as a ts input but needs to be returned as a scalar input (for historical reasons)
         # 2. Pydantic does a shallow copy on validation, which is different from csp behavior, and especially certain

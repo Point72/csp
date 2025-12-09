@@ -986,6 +986,21 @@ class TestParsing(unittest.TestCase):
         def graph() -> [ts[int]]:
             __return__([csp.const(5), csp.const(6.0)])
 
+    def test_none_output_annotation(self):
+        """Test that -> None annotation is properly parsed for nodes and graphs with no outputs."""
+
+        @csp.node
+        def node_with_none_output(x: ts[int]) -> None:
+            if csp.ticked(x):
+                print(x)
+
+        @csp.graph
+        def graph_with_none_output() -> None:
+            node_with_none_output(csp.const(1))
+
+        # Should parse and run without errors
+        csp.run(graph_with_none_output, starttime=datetime(2020, 1, 1), endtime=datetime(2020, 1, 1, 0, 0, 1))
+
     def test_list_inside_callable(self):
         """was a bug "Empty list inside callable annotation raises exception" """
 

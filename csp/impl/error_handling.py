@@ -1,6 +1,10 @@
 import ast
 import os
 
+from pydantic import ValidationError
+from pydantic.version import version_short
+from pydantic_core import ErrorDetails
+
 import csp.impl
 from csp.impl.__cspimpl import _cspimpl
 
@@ -48,3 +52,67 @@ def set_print_full_exception_stack(new_value: bool):
     res = ExceptionContext.PRINT_EXCEPTION_FULL_STACK
     ExceptionContext.PRINT_EXCEPTION_FULL_STACK = new_value
     return res
+
+
+# ValidationError formatting helpers
+
+INPUT_VALUE_TRUNCATE_LENGTH = int(os.getenv("CSP_INPUT_VALUE_TRUNCATE_LENGTH", "300"))
+
+
+def fmt_loc(loc: tuple[int | str, ...], prefix: str) -> str:
+    def fmt_loc_item(loc_item: int | str) -> str:
+        """
+        See https://github.com/pydantic/pydantic-core/blob/15b9c7b/src/errors/location.rs#L27-L33
+        """
+        match loc_item:
+            case str() if "." in loc_item:
+                return f"`{loc_item}`"
+            case _:
+                return str(loc_item)
+
+    return ".".join(fmt_loc_item(loc_item) for loc_item in loc).replace(prefix, "")
+
+
+def get_error_url(error_type: str) -> str:
+    return f"https://errors.pydantic.dev/{version_short()}/v/{error_type}"
+
+
+def truncate_input_value(input_value: str) -> str:
+    if (input_len := len(input_value)) > INPUT_VALUE_TRUNCATE_LENGTH:
+        mid_point = (INPUT_VALUE_TRUNCATE_LENGTH + 1) // 2
+        left_end = max(mid_point - 3, 0)
+        right_start = min(input_len - mid_point + 5, input_len)
+        return f"{input_value[:left_end]}...{input_value[right_start:]}"
+    return input_value
+
+
+def fmt_line_error(error_details: ErrorDetails, prefix: str) -> str:
+    """
+    See https://github.com/pydantic/pydantic-core/blob/15b9c7b/src/errors/validation_exception.rs#L527-L572
+    """
+    error_type = error_details["type"]
+    output = [
+        fmt_loc(error_details["loc"], prefix),
+        f"\n  {error_details['msg']} [type={error_type}",
+    ]
+    if error_type != "default_factory_not_called":
+        input_value = error_details["input"]
+        input_type = type(input_value)
+        input_type_str = (
+            f"{input_type.__module__}." if input_type.__module__ != "builtins" else ""
+        ) + input_type.__qualname__
+        output.append(f", input_value={truncate_input_value(repr(input_value))}, input_type={input_type_str}")
+    output.append(f"]\n    For further information visit {get_error_url(error_type)}")
+    return "".join(output)
+
+
+def fmt_errors(e: ValidationError, prefix: str) -> str:
+    """
+    See https://github.com/pydantic/pydantic-core/blob/15b9c7b/src/errors/validation_exception.rs#L96-L107
+    """
+    errors = e.errors()
+    count = len(errors)
+    line_errors = "\n".join(fmt_line_error(error, prefix) for error in errors)
+    plural = "" if count == 1 else "s"
+    title = e.title.replace(prefix, "")
+    return f"{count} validation error{plural} for {title}\n{line_errors}"

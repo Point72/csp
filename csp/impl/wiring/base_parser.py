@@ -306,11 +306,11 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         """
         # evaluate the returns statement
         ret_type = self._eval_expr(returns)
-        
+
         # Handle -> None annotation: explicitly return empty tuple for no outputs
         if ret_type is None:
             return tuple()
-        
+
         output_dictionary_type = ContainerTypeNormalizer.normalize_type(ret_type)
 
         if not (isinstance(output_dictionary_type, type) and issubclass(output_dictionary_type, Outputs)):

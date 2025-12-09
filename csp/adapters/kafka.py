@@ -21,7 +21,14 @@ from csp.adapters.utils import (
 from csp.impl.wiring import ReplayMode, input_adapter_def, output_adapter_def, status_adapter_def
 from csp.lib import _kafkaadapterimpl
 
-_ = AvroMessageMapper, BytesMessageProtoMapper, DateTimeType, JSONTextMessageMapper, RawBytesMessageMapper, RawTextMessageMapper
+_ = (
+    AvroMessageMapper,
+    BytesMessageProtoMapper,
+    DateTimeType,
+    JSONTextMessageMapper,
+    RawBytesMessageMapper,
+    RawTextMessageMapper,
+)
 T = TypeVar("T")
 
 

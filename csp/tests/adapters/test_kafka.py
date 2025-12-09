@@ -67,29 +67,29 @@ class MetaSubData(csp.Struct):
 
 
 class TestKafka:
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_metadata(self, kafkaadapter):
         def graph(count: int):
             msg_mapper = JSONTextMessageMapper(datetime_type=DateTimeType.UINT64_MICROS)
 
-            pub_field_map = {'mapped_a': {'a': {'mapped_b': {'b': {'mapped_c': 'c'}}}}, 'mapped_count': 'count'}
+            pub_field_map = {"mapped_a": {"a": {"mapped_b": {"b": {"mapped_c": "c"}}}}, "mapped_count": "count"}
 
-            sub_field_map = {'a': {'mapped_a': {'b': {'mapped_b': {'c': 'mapped_c'}}}}, 'count': 'mapped_count'}
+            sub_field_map = {"a": {"mapped_a": {"b": {"mapped_b": {"c": "mapped_c"}}}}, "count": "mapped_count"}
 
             meta_field_map = {
-                'partition': 'mapped_partition',
-                'offset': 'mapped_offset',
-                'live': 'mapped_live',
-                'timestamp': 'mapped_timestamp',
+                "partition": "mapped_partition",
+                "offset": "mapped_offset",
+                "live": "mapped_live",
+                "timestamp": "mapped_timestamp",
             }
 
-            topic = f'test.metadata.{os.getpid()}'
+            topic = f"test.metadata.{os.getpid()}"
             _precreate_topic(topic)
-            subKey = 'foo'
-            pubKey = ['mapped_a', 'mapped_b', 'mapped_c']
+            subKey = "foo"
+            pubKey = ["mapped_a", "mapped_b", "mapped_c"]
 
             c = csp.count(csp.timer(timedelta(seconds=0.1)))
-            t = csp.sample(c, csp.const('foo'))
+            t = csp.sample(c, csp.const("foo"))
 
             pubStruct = MetaPubData.collectts(
                 mapped_a=MetaSubStruct.collectts(mapped_b=MetaTextStruct.collectts(mapped_c=t)), mapped_count=c
@@ -108,7 +108,7 @@ class TestKafka:
                 push_mode=csp.PushMode.NON_COLLAPSING,
             )
 
-            csp.add_graph_output('sub_data', sub_data)
+            csp.add_graph_output("sub_data", sub_data)
             # csp.print('sub', sub_data)
             # Wait for at least count ticks and until we get a live tick
             done_flag = csp.count(sub_data) >= count
@@ -118,16 +118,16 @@ class TestKafka:
 
         count = 5
         results = csp.run(graph, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
-        assert len(results['sub_data']) >= 5
+        assert len(results["sub_data"]) >= 5
         print(results)
-        for result in results['sub_data']:
+        for result in results["sub_data"]:
             assert result[1].mapped_partition >= 0
             assert result[1].mapped_offset >= 0
             assert result[1].mapped_live is not None
             assert result[1].mapped_timestamp < datetime.utcnow()
-        assert results['sub_data'][-1][1].mapped_live
+        assert results["sub_data"][-1][1].mapped_live
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_basic(self, kafkaadapter):
         @csp.node
         def curtime(x: ts[object]) -> ts[datetime]:
@@ -141,7 +141,7 @@ class TestKafka:
             )
             i = csp.count(csp.timer(timedelta(seconds=0.15)))
             d = csp.count(csp.timer(timedelta(seconds=0.2))) / 2.0
-            s = csp.sample(csp.timer(timedelta(seconds=0.4)), csp.const('STRING'))
+            s = csp.sample(csp.timer(timedelta(seconds=0.4)), csp.const("STRING"))
             dt = curtime(b)
             date_ts = csp.apply(dt, lambda x: x.date(), date)
 
@@ -149,18 +149,18 @@ class TestKafka:
 
             msg_mapper = JSONTextMessageMapper(datetime_type=DateTimeType.UINT64_MICROS)
 
-            struct_field_map = {'b': 'b2', 'i': 'i2', 'd': 'd2', 's': 's2', 'dt': 'dt2', 'date': 'date2'}
+            struct_field_map = {"b": "b2", "i": "i2", "d": "d2", "s": "s2", "dt": "dt2", "date": "date2"}
 
             done_flags = []
-            topic = f'mktdata.{os.getpid()}'
+            topic = f"mktdata.{os.getpid()}"
             _precreate_topic(topic)
             for symbol in symbols:
-                kafkaadapter.publish(msg_mapper, topic, symbol, b, field_map='b')
-                kafkaadapter.publish(msg_mapper, topic, symbol, i, field_map='i')
-                kafkaadapter.publish(msg_mapper, topic, symbol, d, field_map='d')
-                kafkaadapter.publish(msg_mapper, topic, symbol, s, field_map='s')
-                kafkaadapter.publish(msg_mapper, topic, symbol, dt, field_map='dt')
-                kafkaadapter.publish(msg_mapper, topic, symbol, date_ts, field_map='date')
+                kafkaadapter.publish(msg_mapper, topic, symbol, b, field_map="b")
+                kafkaadapter.publish(msg_mapper, topic, symbol, i, field_map="i")
+                kafkaadapter.publish(msg_mapper, topic, symbol, d, field_map="d")
+                kafkaadapter.publish(msg_mapper, topic, symbol, s, field_map="s")
+                kafkaadapter.publish(msg_mapper, topic, symbol, dt, field_map="dt")
+                kafkaadapter.publish(msg_mapper, topic, symbol, date_ts, field_map="date")
                 kafkaadapter.publish(msg_mapper, topic, symbol, struct, field_map=struct_field_map)
 
                 # This isnt used to publish just to collect data for comparison at the end
@@ -178,7 +178,7 @@ class TestKafka:
                     dt2=struct.dt,
                     date2=struct.date,
                 )
-                csp.add_graph_output(f'pall_{symbol}', pub_data)
+                csp.add_graph_output(f"pall_{symbol}", pub_data)
 
                 # csp.print('status', kafkaadapter.status())
 
@@ -192,7 +192,7 @@ class TestKafka:
 
                 sub_data = csp.firstN(sub_data, count)
 
-                csp.add_graph_output(f'sall_{symbol}', sub_data)
+                csp.add_graph_output(f"sall_{symbol}", sub_data)
 
                 done_flag = csp.count(sub_data) == count
                 done_flag = csp.filter(done_flag, done_flag)
@@ -202,21 +202,21 @@ class TestKafka:
             stop = csp.filter(stop, stop)
             csp.stop_engine(stop)
 
-        symbols = ['AAPL', 'MSFT']
+        symbols = ["AAPL", "MSFT"]
         count = 100
         results = csp.run(
             graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
         )
         for symbol in symbols:
-            pub = results[f'pall_{symbol}']
-            sub = results[f'sall_{symbol}']
+            pub = results[f"pall_{symbol}"]
+            sub = results[f"sall_{symbol}"]
 
             assert len(sub) == count
             assert [v[1] for v in sub] == [v[1] for v in pub[:count]]
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_start_offsets(self, kafkaadapter, kafkabroker):
-        topic = f'test_start_offsets.{os.getpid()}'
+        topic = f"test_start_offsets.{os.getpid()}"
         _precreate_topic(topic)
         msg_mapper = JSONTextMessageMapper(datetime_type=DateTimeType.UINT64_MICROS)
         count = 10
@@ -225,7 +225,7 @@ class TestKafka:
         def pub_graph():
             i = csp.count(csp.timer(timedelta(seconds=0.1)))
             struct = MyData.collectts(i=i)
-            kafkaadapter.publish(msg_mapper, topic, 'AAPL', struct)
+            kafkaadapter.publish(msg_mapper, topic, "AAPL", struct)
             stop = csp.count(struct) == count
             stop = csp.filter(stop, stop)
             csp.stop_engine(stop)
@@ -240,19 +240,19 @@ class TestKafka:
                 MyData,
                 msg_mapper=msg_mapper,
                 topic=topic,
-                key='AAPL',
-                meta_field_map={'timestamp': 'dt'},
+                key="AAPL",
+                meta_field_map={"timestamp": "dt"},
                 push_mode=csp.PushMode.NON_COLLAPSING,
             )
             stop = csp.count(data) == count
             csp.stop_engine(csp.filter(stop, stop))
-            csp.add_graph_output('data', data)
+            csp.add_graph_output("data", data)
 
             # csp.print('sub', data)
             # csp.print('status', kafkaadapter.status())
 
         all_data = csp.run(get_times_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)[
-            'data'
+            "data"
         ]
         min_time = all_data[0][1].dt
 
@@ -262,13 +262,13 @@ class TestKafka:
                 MyData,
                 msg_mapper=msg_mapper,
                 topic=topic,
-                key='AAPL',
-                meta_field_map={'timestamp': 'dt'},
+                key="AAPL",
+                meta_field_map={"timestamp": "dt"},
                 push_mode=csp.PushMode.NON_COLLAPSING,
             )
             stop = csp.count(data) == expected_count
             csp.stop_engine(csp.filter(stop, stop))
-            csp.add_graph_output('data', data)
+            csp.add_graph_output("data", data)
 
             # csp.print('data', data)
 
@@ -279,7 +279,7 @@ class TestKafka:
             starttime=datetime.utcnow(),
             endtime=timedelta(seconds=30),
             realtime=True,
-        )['data']
+        )["data"]
         # print(res)
         # If we playback from earliest but start "now", all data should still arrive but as realtime ticks
         assert len(res) == 10
@@ -291,12 +291,12 @@ class TestKafka:
             starttime=datetime.utcnow(),
             endtime=timedelta(seconds=1),
             realtime=True,
-        )['data']
+        )["data"]
         assert len(res) == 0
 
         res = csp.run(
             get_data, KafkaStartOffset.START_TIME, 10, starttime=min_time, endtime=timedelta(seconds=30), realtime=True
-        )['data']
+        )["data"]
         assert len(res) == 10
 
         # Test sim playback time as well
@@ -307,15 +307,15 @@ class TestKafka:
         expected = [x for x in all_data if x[1].dt >= stime]
         res = csp.run(
             get_data, stime, len(expected), starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
-        )['data']
+        )["data"]
         assert len(res) == len(expected)
 
         res = csp.run(
             get_data, timedelta(seconds=0), len(expected), starttime=stime, endtime=timedelta(seconds=30), realtime=True
-        )['data']
+        )["data"]
         assert len(res) == len(expected)
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_raw_pubsub(self, kafkaadapter):
         @csp.node
         def data(x: ts[object]) -> ts[bytes]:
@@ -332,19 +332,19 @@ class TestKafka:
             msg_mapper = RawBytesMessageMapper()
 
             done_flags = []
-            topic = f'test_str.{os.getpid()}'
+            topic = f"test_str.{os.getpid()}"
             _precreate_topic(topic)
             for symbol in symbols:
-                topic = f'test_str.{os.getpid()}'
+                topic = f"test_str.{os.getpid()}"
                 kafkaadapter.publish(msg_mapper, topic, symbol, d)
-                csp.add_graph_output(f'pub_{symbol}', d)
+                csp.add_graph_output(f"pub_{symbol}", d)
 
                 # csp.print('status', kafkaadapter.status())
 
                 sub_data = kafkaadapter.subscribe(
                     ts_type=SubData,
                     msg_mapper=RawTextMessageMapper(),
-                    field_map={'': 'msg'},
+                    field_map={"": "msg"},
                     topic=topic,
                     key=symbol,
                     push_mode=csp.PushMode.NON_COLLAPSING,
@@ -353,7 +353,7 @@ class TestKafka:
                 sub_data_bytes = kafkaadapter.subscribe(
                     ts_type=bytes,
                     msg_mapper=RawTextMessageMapper(),
-                    field_map='',
+                    field_map="",
                     topic=topic,
                     key=symbol,
                     push_mode=csp.PushMode.NON_COLLAPSING,
@@ -363,8 +363,8 @@ class TestKafka:
                 sub_data_bytes = csp.firstN(sub_data_bytes, count)
 
                 # csp.print('sub', sub_data)
-                csp.add_graph_output(f'sub_{symbol}', sub_data)
-                csp.add_graph_output(f'sub_bytes_{symbol}', sub_data_bytes)
+                csp.add_graph_output(f"sub_{symbol}", sub_data)
+                csp.add_graph_output(f"sub_bytes_{symbol}", sub_data_bytes)
 
                 done_flag = csp.count(sub_data) + csp.count(sub_data_bytes) == count * 2
                 done_flag = csp.filter(done_flag, done_flag)
@@ -374,22 +374,22 @@ class TestKafka:
             stop = csp.filter(stop, stop)
             csp.stop_engine(stop)
 
-        symbols = ['AAPL', 'MSFT']
+        symbols = ["AAPL", "MSFT"]
         count = 10
         results = csp.run(
             graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
         )
         # print(results)
         for symbol in symbols:
-            pub = results[f'pub_{symbol}']
-            sub = results[f'sub_{symbol}']
-            sub_bytes = results[f'sub_bytes_{symbol}']
+            pub = results[f"pub_{symbol}"]
+            sub = results[f"sub_{symbol}"]
+            sub_bytes = results[f"sub_bytes_{symbol}"]
 
             assert len(sub) == count
             assert [v[1] for v in sub] == [v[1] for v in pub[:count]]
             assert [v[1] for v in sub_bytes] == [v[1] for v in pub[:count]]
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_invalid_topic(self, kafkaadapterkwargs):
         class SubData(csp.Struct):
             msg: str
@@ -400,7 +400,7 @@ class TestKafka:
         def graph_sub():
             # csp.print('status', kafkaadapter.status())
             return kafkaadapter1.subscribe(
-                ts_type=SubData, msg_mapper=RawTextMessageMapper(), field_map={'': 'msg'}, topic='foobar', key='none'
+                ts_type=SubData, msg_mapper=RawTextMessageMapper(), field_map={"": "msg"}, topic="foobar", key="none"
             )
 
         # With bug this would deadlock
@@ -410,16 +410,16 @@ class TestKafka:
 
         def graph_pub():
             msg_mapper = RawTextMessageMapper()
-            kafkaadapter2.publish(msg_mapper, x=csp.const('heyyyy'), topic='foobar', key='test_key124')
+            kafkaadapter2.publish(msg_mapper, x=csp.const("heyyyy"), topic="foobar", key="test_key124")
 
         # With bug this would deadlock
         with pytest.raises(RuntimeError):
             csp.run(graph_pub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_invalid_broker(self, kafkaadapterkwargs):
         dict_with_broker = kafkaadapterkwargs.copy()
-        dict_with_broker['broker'] = 'foobar'
+        dict_with_broker["broker"] = "foobar"
 
         kafkaadapter1 = KafkaAdapterManager(**dict_with_broker)
 
@@ -429,7 +429,7 @@ class TestKafka:
         # Was a bug where engine would stall
         def graph_sub():
             return kafkaadapter1.subscribe(
-                ts_type=SubData, msg_mapper=RawTextMessageMapper(), field_map={'': 'msg'}, topic='foobar', key='none'
+                ts_type=SubData, msg_mapper=RawTextMessageMapper(), field_map={"": "msg"}, topic="foobar", key="none"
             )
 
         # With bug this would deadlock
@@ -440,13 +440,13 @@ class TestKafka:
 
         def graph_pub():
             msg_mapper = RawTextMessageMapper()
-            kafkaadapter2.publish(msg_mapper, x=csp.const('heyyyy'), topic='foobar', key='test_key124')
+            kafkaadapter2.publish(msg_mapper, x=csp.const("heyyyy"), topic="foobar", key="test_key124")
 
         # With bug this would deadlock
         with pytest.raises(RuntimeError):
             csp.run(graph_pub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_meta_field_map_tick_timestamp_from_field(self, kafkaadapterkwargs):
         class SubData(csp.Struct):
             msg: str
@@ -458,9 +458,9 @@ class TestKafka:
             return kafkaadapter1.subscribe(
                 ts_type=SubData,
                 msg_mapper=RawTextMessageMapper(),
-                meta_field_map={'timestamp': 'dt'},
-                topic='foobar',
-                tick_timestamp_from_field='dt',
+                meta_field_map={"timestamp": "dt"},
+                topic="foobar",
+                tick_timestamp_from_field="dt",
             )
 
         with pytest.raises(ValueError):
@@ -468,24 +468,24 @@ class TestKafka:
 
     def test_conf_options(self):
         mgr = KafkaAdapterManager(
-            'broker123',
-            rd_kafka_conf_options={'test': 'a'},
-            rd_kafka_consumer_conf_options={'consumer_test': 'b'},
-            rd_kafka_producer_conf_options={'producer_test': 'c'},
+            "broker123",
+            rd_kafka_conf_options={"test": "a"},
+            rd_kafka_consumer_conf_options={"consumer_test": "b"},
+            rd_kafka_producer_conf_options={"producer_test": "c"},
         )
-        assert mgr._properties['rd_kafka_conf_properties']['test'] == 'a'
-        assert mgr._properties['rd_kafka_consumer_conf_properties']['consumer_test'] == 'b'
-        assert mgr._properties['rd_kafka_producer_conf_properties']['producer_test'] == 'c'
+        assert mgr._properties["rd_kafka_conf_properties"]["test"] == "a"
+        assert mgr._properties["rd_kafka_consumer_conf_properties"]["consumer_test"] == "b"
+        assert mgr._properties["rd_kafka_producer_conf_properties"]["producer_test"] == "c"
 
-        pytest.raises(ValueError, KafkaAdapterManager, 'broker123', rd_kafka_consumer_conf_options={'group.id': 'b'})
+        pytest.raises(ValueError, KafkaAdapterManager, "broker123", rd_kafka_consumer_conf_options={"group.id": "b"})
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_push_mode(self, kafkaadapter, kafkabroker):
         class BasicData(csp.Struct):
             a: int
             b: bool
 
-        topic = f'test_burst.{os.getpid()}'
+        topic = f"test_burst.{os.getpid()}"
         _precreate_topic(topic)
         msg_mapper = JSONTextMessageMapper(datetime_type=DateTimeType.UINT64_MICROS)
         count = 10
@@ -493,7 +493,7 @@ class TestKafka:
         def pub_graph():
             i = csp.count(csp.timer(timedelta(seconds=0.1)))
             struct = BasicData.collectts(a=i, b=(i > 0))
-            kafkaadapter.publish(msg_mapper, topic, 'foo', struct)
+            kafkaadapter.publish(msg_mapper, topic, "foo", struct)
             stop = csp.count(struct) == count
             stop = csp.filter(stop, stop)
             csp.stop_engine(stop)
@@ -504,14 +504,14 @@ class TestKafka:
             kafkaadapter = KafkaAdapterManager(broker=kafkabroker, start_offset=KafkaStartOffset.EARLIEST)
             stop_flags = []
             for key, push_mode in (
-                ('burst', csp.PushMode.BURST),
-                ('last', csp.PushMode.LAST_VALUE),
+                ("burst", csp.PushMode.BURST),
+                ("last", csp.PushMode.LAST_VALUE),
             ):
                 data = kafkaadapter.subscribe(
                     BasicData,
                     msg_mapper=msg_mapper,
                     topic=topic,
-                    key='foo',
+                    key="foo",
                     push_mode=push_mode,
                 )
                 csp.add_graph_output(key, data)
@@ -521,20 +521,20 @@ class TestKafka:
             csp.stop_engine(csp.filter(stop, stop))
 
         res = csp.run(sub_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=True)
-        burst = res['burst']
+        burst = res["burst"]
         assert len(burst) == 1
         assert isinstance(burst[0][1], list)
         assert len(burst[0][1]) == 10
         assert all([rv == BasicData(a=i + 1, b=True) for i, rv in enumerate(burst[0][1])])
 
-        last = res['last']
+        last = res["last"]
         assert len(last) == 1
         assert isinstance(last[0][1], BasicData)
         assert last[0][1] == BasicData(a=count, b=True)
 
         # non-collapsing is tested in other tests
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_avro_basic(self, kafkaadapter):
         """Test basic Avro publish functionality similar to JSON test"""
 
@@ -565,7 +565,7 @@ class TestKafka:
             )
             i = csp.count(csp.timer(timedelta(seconds=0.15)))
             d = csp.count(csp.timer(timedelta(seconds=0.2))) / 2.0
-            s = csp.sample(csp.timer(timedelta(seconds=0.4)), csp.const('STRING'))
+            s = csp.sample(csp.timer(timedelta(seconds=0.4)), csp.const("STRING"))
             dt = curtime(b)
 
             struct = MyData.collectts(b=b, i=i, d=d, s=s, dt=dt)
@@ -573,13 +573,13 @@ class TestKafka:
             msg_mapper = AvroMessageMapper(avro_schema=avro_schema, datetime_type=DateTimeType.UINT64_MICROS)
 
             done_flags = []
-            topic = f'avro_mktdata.{os.getpid()}'
+            topic = f"avro_mktdata.{os.getpid()}"
             _precreate_topic(topic)
             for symbol in symbols:
-                kafkaadapter.publish(msg_mapper, topic, ['s'], struct)
+                kafkaadapter.publish(msg_mapper, topic, ["s"], struct)
 
                 # Collect published data for comparison
-                csp.add_graph_output(f'pub_{symbol}', struct)
+                csp.add_graph_output(f"pub_{symbol}", struct)
 
                 done_flag = csp.count(struct) == count
                 done_flag = csp.filter(done_flag, done_flag)
@@ -589,7 +589,7 @@ class TestKafka:
             stop = csp.filter(stop, stop)
             csp.stop_engine(stop)
 
-        symbols = ['AAPL', 'MSFT']
+        symbols = ["AAPL", "MSFT"]
         count = 20
         results = csp.run(
             graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
@@ -597,10 +597,10 @@ class TestKafka:
 
         # Verify data was published
         for symbol in symbols:
-            pub = results[f'pub_{symbol}']
+            pub = results[f"pub_{symbol}"]
             assert len(pub) == count
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_avro_field_map(self, kafkaadapter):
         """Test Avro publish with field mapping"""
 
@@ -621,20 +621,20 @@ class TestKafka:
 
         def graph(count: int):
             value = csp.count(csp.timer(timedelta(seconds=0.1)))
-            text = csp.sample(value, csp.const('hello'))
+            text = csp.sample(value, csp.const("hello"))
 
             struct = SourceData.collectts(value=value, text=text)
 
             msg_mapper = AvroMessageMapper(avro_schema=avro_schema, datetime_type=DateTimeType.UINT64_NANOS)
 
             # Map struct fields to different Avro field names
-            field_map = {'value': 'mapped_value', 'text': 'mapped_text'}
+            field_map = {"value": "mapped_value", "text": "mapped_text"}
 
-            topic = f'avro_field_map.{os.getpid()}'
+            topic = f"avro_field_map.{os.getpid()}"
             _precreate_topic(topic)
-            kafkaadapter.publish(msg_mapper, topic, ['text'], struct, field_map=field_map)
+            kafkaadapter.publish(msg_mapper, topic, ["text"], struct, field_map=field_map)
 
-            csp.add_graph_output('pub', struct)
+            csp.add_graph_output("pub", struct)
 
             done_flag = csp.count(struct) == count
             done_flag = csp.filter(done_flag, done_flag)
@@ -643,9 +643,9 @@ class TestKafka:
         count = 10
         results = csp.run(graph, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
 
-        assert len(results['pub']) == count
+        assert len(results["pub"]) == count
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_avro_array_types(self, kafkaadapter):
         """Test Avro publish with array types"""
 
@@ -667,19 +667,19 @@ class TestKafka:
             names: [str]
 
         def graph(count: int):
-            key = csp.sample(csp.timer(timedelta(seconds=0.1)), csp.const('test_key'))
+            key = csp.sample(csp.timer(timedelta(seconds=0.1)), csp.const("test_key"))
             values = csp.sample(csp.timer(timedelta(seconds=0.1)), csp.const([1, 2, 3, 4, 5]))
-            names = csp.sample(csp.timer(timedelta(seconds=0.1)), csp.const(['a', 'b', 'c']))
+            names = csp.sample(csp.timer(timedelta(seconds=0.1)), csp.const(["a", "b", "c"]))
 
             struct = ArrayData.collectts(key=key, values=values, names=names)
 
             msg_mapper = AvroMessageMapper(avro_schema=avro_schema, datetime_type=DateTimeType.UINT64_NANOS)
 
-            topic = f'avro_arrays.{os.getpid()}'
+            topic = f"avro_arrays.{os.getpid()}"
             _precreate_topic(topic)
-            kafkaadapter.publish(msg_mapper, topic, ['key'], struct)
+            kafkaadapter.publish(msg_mapper, topic, ["key"], struct)
 
-            csp.add_graph_output('pub', struct)
+            csp.add_graph_output("pub", struct)
 
             done_flag = csp.count(struct) == count
             done_flag = csp.filter(done_flag, done_flag)
@@ -688,13 +688,13 @@ class TestKafka:
         count = 10
         results = csp.run(graph, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
 
-        assert len(results['pub']) == count
+        assert len(results["pub"]) == count
 
-        for _, data in results['pub']:
+        for _, data in results["pub"]:
             assert data.values == [1, 2, 3, 4, 5]
-            assert data.names == ['a', 'b', 'c']
+            assert data.names == ["a", "b", "c"]
 
-    @pytest.mark.skipif(not os.environ.get('CSP_TEST_KAFKA'), reason='Skipping kafka adapter tests')
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_avro_nullable_fields(self, kafkaadapter):
         """Test Avro publish with nullable (union) fields - some messages have nulls, some don't"""
 
@@ -726,17 +726,17 @@ class TestKafka:
                 s_count += 1
                 if s_count % 3 == 0:
                     # Every 3rd message: both optional fields are Unset
-                    return NullableData(key=f'msg_{s_count}', required_value=s_count)
+                    return NullableData(key=f"msg_{s_count}", required_value=s_count)
                 elif s_count % 3 == 1:
                     # Every 1st message: only optional_value is set
-                    return NullableData(key=f'msg_{s_count}', required_value=s_count, optional_value=s_count * 10)
+                    return NullableData(key=f"msg_{s_count}", required_value=s_count, optional_value=s_count * 10)
                 else:
                     # Every 2nd message: both optional fields are set
                     return NullableData(
-                        key=f'msg_{s_count}',
+                        key=f"msg_{s_count}",
                         required_value=s_count,
                         optional_value=s_count * 10,
-                        optional_text=f'text_{s_count}',
+                        optional_text=f"text_{s_count}",
                     )
 
         def graph(count: int):
@@ -745,11 +745,11 @@ class TestKafka:
 
             msg_mapper = AvroMessageMapper(avro_schema=avro_schema, datetime_type=DateTimeType.UINT64_NANOS)
 
-            topic = f'avro_nullable.{os.getpid()}'
+            topic = f"avro_nullable.{os.getpid()}"
             _precreate_topic(topic)
-            kafkaadapter.publish(msg_mapper, topic, ['key'], struct)
+            kafkaadapter.publish(msg_mapper, topic, ["key"], struct)
 
-            csp.add_graph_output('pub', struct)
+            csp.add_graph_output("pub", struct)
 
             done_flag = csp.count(struct) == count
             done_flag = csp.filter(done_flag, done_flag)
@@ -758,22 +758,22 @@ class TestKafka:
         count = 9
         results = csp.run(graph, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
 
-        pub = results['pub']
+        pub = results["pub"]
         assert len(pub) == count
 
         for i, (_, data) in enumerate(pub, 1):
-            assert data.key == f'msg_{i}'
+            assert data.key == f"msg_{i}"
             assert data.required_value == i
 
             if i % 3 == 0:
-                assert not hasattr(data, 'optional_value')
-                assert not hasattr(data, 'optional_text')
+                assert not hasattr(data, "optional_value")
+                assert not hasattr(data, "optional_text")
             elif i % 3 == 1:
-                assert hasattr(data, 'optional_value')
+                assert hasattr(data, "optional_value")
                 assert data.optional_value == i * 10
-                assert not hasattr(data, 'optional_text')
+                assert not hasattr(data, "optional_text")
             else:
-                assert hasattr(data, 'optional_value')
+                assert hasattr(data, "optional_value")
                 assert data.optional_value == i * 10
-                assert hasattr(data, 'optional_text')
-                assert data.optional_text == f'text_{i}'
+                assert hasattr(data, "optional_text")
+                assert data.optional_text == f"text_{i}"

@@ -20,44 +20,26 @@ public:
     KafkaConsumer( KafkaAdapterManager * mgr, const Dictionary & properties );
     ~KafkaConsumer();
 
-    void addSubscriber( const std::string & topic, const std::string & key, KafkaSubscriber * subscriber );
     void poll();
     void start( DateTime starttime );
     void stop();
 
-    void setNumPartitions( const std::string & topic, size_t num );
-
-    void forceReplayCompleted();
+    void setPartitions( const std::string & topic, const std::vector<int> partitionIds );
+    void addTopic( const std::string & topic );
 
 private:
 
     struct TopicData
     {
-        //Key -> Subscriber
-        using SubscriberMap = std::unordered_map<std::string, std::vector<KafkaSubscriber*>>;
-        SubscriberMap      subscribers;
-        KafkaSubscriber *  wildcardSubscriber = nullptr;
-        std::vector<bool>  partitionLive;
-        bool               flaggedReplayComplete = false;
-
-        void markReplayComplete()
+        struct PartitionInfo
         {
-            if( !flaggedReplayComplete )
-            {
-                // Flag all regular subscribers
-                for( auto& subscriberEntry : subscribers )
-                {
-                    for( auto* subscriber : subscriberEntry.second )
-                        subscriber -> flagReplayComplete();
-                }
-                
-                // Handle wildcard subscriber if present
-                if( wildcardSubscriber )
-                    wildcardSubscriber -> flagReplayComplete();
-                
-                flaggedReplayComplete = true;
-            }
-        }
+            bool receivedEOF = false;
+            //For multi-consumer on a single topic not all partitions in the vector are valid
+            bool valid       = false;
+        };
+        
+        bool flaggedReplayComplete = false;
+        std::vector<PartitionInfo> partitionInfo;
     };
 
     std::unordered_map<std::string,TopicData> m_topics;

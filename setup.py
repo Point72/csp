@@ -1,6 +1,5 @@
 import multiprocessing
 import os
-import os.path
 import platform
 import subprocess
 import sys
@@ -147,11 +146,51 @@ if which("ccache") and os.environ.get("CSP_USE_CCACHE", "") != "0":
 
 print(f"CMake Args: {cmake_args}")
 
+
+def exclude_source_files(cmake_manifest):
+    """Filter out source files from CMake installation manifest.
+
+    These files should only be included in source distributions (via MANIFEST.in),
+    not installed at the environment root during pip install.
+    """
+    exclude_filenames = [
+        "CMakeLists.txt",
+        "pyproject.toml",
+        "setup.py",
+        "README.md",
+        "LICENSE",
+        "NOTICE",
+        "MANIFEST.in",
+        "vcpkg.json",
+        "Brewfile",
+        "Makefile",
+    ]
+    exclude_extensions = [".cmake", ".bat", ".sh", ".yml", ".yaml"]
+    # Also exclude the cpp directory and other source directories
+    exclude_dirs = ["cpp", "ci", "conda", "examples", "docs", "vcpkg", ".git"]
+    filtered = []
+    for f in cmake_manifest:
+        # Get just the filename for pattern matching
+        filename = os.path.basename(f)
+        # Check if filename matches any exclude pattern
+        if filename in exclude_filenames:
+            continue
+        # Check if file has an excluded extension
+        if any(filename.endswith(ext) for ext in exclude_extensions):
+            continue
+        # Check if file is in an excluded directory
+        if any(f"/{d}/" in f or f.startswith(f"{d}/") for d in exclude_dirs):
+            continue
+        filtered.append(f)
+    return filtered
+
+
 setup(
     name="csp",
     version="0.13.0",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,
+    cmake_process_manifest_hook=exclude_source_files,
     # cmake_with_sdist=True,
 )

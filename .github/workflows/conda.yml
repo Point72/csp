@@ -81,13 +81,24 @@ jobs:
         - uses: mamba-org/setup-micromamba@v2
           with:
             micromamba-version: '2.3.2-0'
-            environment-file: conda/dev-environment-unix.yml
+            environment-file: conda/dev-environment-linux.yml
             init-shell: >-
               bash
             cache-environment: true
             cache-downloads: true
             post-cleanup: 'all'
-          if: ${{ runner.os != 'Windows' }}
+          if: ${{ runner.os == 'Linux' }}
+
+        - uses: mamba-org/setup-micromamba@v2
+          with:
+            micromamba-version: '2.3.2-0'
+            environment-file: conda/dev-environment-osx.yml
+            init-shell: >-
+              bash
+            cache-environment: true
+            cache-downloads: true
+            post-cleanup: 'all'
+          if: ${{ runner.os == 'macOS' }}
 
         - uses: mamba-org/setup-micromamba@v2
           with:

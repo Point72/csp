@@ -477,6 +477,7 @@ jobs:
           run: |
             python -m pip install -U *manylinux*.whl
             python -m pip install -U --no-deps *manylinux*.whl --target .
+            ls $(dirname $(dirname $(which python)))
           if: ${{ runner.os == 'Linux' }}
 
         ########
@@ -496,6 +497,7 @@ jobs:
           run: |
             python -m pip install -U *arm64*.whl
             python -m pip install -U --no-deps *arm64*.whl --target .
+            ls $(dirname $(dirname $(which python)))
           if: ${{ runner.os == 'macOS' && runner.arch == 'ARM64' }}
 
         ########

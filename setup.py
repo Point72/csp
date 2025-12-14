@@ -6,6 +6,7 @@ import sys
 from shutil import which
 
 from setuptools import find_packages
+
 from skbuild import setup
 
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")

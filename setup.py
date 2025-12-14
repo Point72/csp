@@ -5,6 +5,7 @@ import subprocess
 import sys
 from shutil import which
 
+from setuptools import find_packages
 from skbuild import setup
 
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
@@ -155,21 +156,18 @@ print(f"CMake Args: {cmake_args}")
 setup(
     name="csp",
     version="0.13.0",
-    packages=["csp"],
+    packages=find_packages(),
     cmake_install_dir="csp",
     cmake_args=cmake_args,
     # ---------------------------------------------------------
     # FIX: Prevent root-level files from being installed
     # ---------------------------------------------------------
-    # 1. Stop setuptools from using MANIFEST.in for the wheel install
-    #    This prevents root-level files (CMakeLists.txt, README.md, etc.)
-    #    from being dumped at the environment root during pip install.
+    # Stop setuptools from using MANIFEST.in for the wheel install.
+    # This prevents root-level files (CMakeLists.txt, README.md, etc.)
+    # from being dumped at the environment root during pip install.
+    # Python packages are automatically discovered via find_packages(),
+    # and compiled extensions are installed via cmake_install_dir.
     include_package_data=False,
-    # 2. Explicitly include non-Python files strictly INSIDE the 'csp' package
-    #    (This ensures things like .pyi stubs or shipped data inside csp/ are kept)
-    package_data={
-        "csp": ["*"],
-    },
     # ---------------------------------------------------------
     # cmake_with_sdist=True,
 )

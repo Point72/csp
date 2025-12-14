@@ -147,43 +147,10 @@ if which("ccache") and os.environ.get("CSP_USE_CCACHE", "") != "0":
 print(f"CMake Args: {cmake_args}")
 
 
-def exclude_source_files(cmake_manifest):
-    """Filter out source files from CMake installation manifest.
-
-    These files should only be included in source distributions (via MANIFEST.in),
-    not installed at the environment root during pip install.
-    """
-    exclude_filenames = [
-        "CMakeLists.txt",
-        "pyproject.toml",
-        "setup.py",
-        "README.md",
-        "LICENSE",
-        "NOTICE",
-        "MANIFEST.in",
-        "vcpkg.json",
-        "Brewfile",
-        "Makefile",
-    ]
-    exclude_extensions = [".cmake", ".bat", ".sh", ".yml", ".yaml"]
-    # Also exclude the cpp directory and other source directories
-    exclude_dirs = ["cpp", "ci", "conda", "examples", "docs", "vcpkg", ".git"]
-    filtered = []
-    for f in cmake_manifest:
-        # Get just the filename for pattern matching
-        filename = os.path.basename(f)
-        # Check if filename matches any exclude pattern
-        if filename in exclude_filenames:
-            continue
-        # Check if file has an excluded extension
-        if any(filename.endswith(ext) for ext in exclude_extensions):
-            continue
-        # Check if file is in an excluded directory
-        if any(f"/{d}/" in f or f.startswith(f"{d}/") for d in exclude_dirs):
-            continue
-        filtered.append(f)
-    return filtered
-
+# DELETE or COMMENT OUT the 'exclude_source_files' function.
+# It is not needed and doesn't work for this issue.
+# The root cause is how setuptools handles MANIFEST.in when building a wheel,
+# not CMake installation. The fix is to set include_package_data=False below.
 
 setup(
     name="csp",
@@ -191,6 +158,18 @@ setup(
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,
-    cmake_process_manifest_hook=exclude_source_files,
+    # ---------------------------------------------------------
+    # FIX: Prevent root-level files from being installed
+    # ---------------------------------------------------------
+    # 1. Stop setuptools from using MANIFEST.in for the wheel install
+    #    This prevents root-level files (CMakeLists.txt, README.md, etc.)
+    #    from being dumped at the environment root during pip install.
+    include_package_data=False,
+    # 2. Explicitly include non-Python files strictly INSIDE the 'csp' package
+    #    (This ensures things like .pyi stubs or shipped data inside csp/ are kept)
+    package_data={
+        "csp": ["*"],
+    },
+    # ---------------------------------------------------------
     # cmake_with_sdist=True,
 )

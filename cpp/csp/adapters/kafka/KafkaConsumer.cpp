@@ -13,8 +13,7 @@ class RebalanceCb : public RdKafka::RebalanceCb
 {
 public:
     RebalanceCb( KafkaConsumer & consumer ) : m_consumer( consumer ),
-                                              m_startOffset( RdKafka::Topic::OFFSET_INVALID ),
-                                              m_doneSeeking( false )
+                                              m_startOffset( RdKafka::Topic::OFFSET_INVALID )
     {
     }
 
@@ -27,41 +26,55 @@ public:
     {
         if( err == RdKafka::ERR__ASSIGN_PARTITIONS )
         {
-            if( !m_doneSeeking )
+            debug_printf( "Rebalance on consumer %p with %lu partitions\n", this, partitions.size() );
+            std::unordered_map<std::string,std::vector<int>> partitionInfo;
+            for( auto * partition : partitions )
+                partitionInfo[ partition -> topic() ].push_back( partition -> partition() );
+
+            for( auto & entry : partitionInfo )
+                m_consumer.setPartitions( entry.first, entry.second );
+
+            //Dont reset offsets if an offset was already set.  Subtle issue when running multiple Consumer threads
+            //on the same topic.  Subsequent consumers as they come up and re-assign the partitions from the first
+            //consumer.  We dont want to reset the offsets again since this will cause us to replay data that was already
+            //processed.  Instead, query the current offsets and only apply offsets if they arent set yet
+            RdKafka::ErrorCode rc = consumer -> committed( partitions, 10000 );
+            if( rc )
+                CSP_THROW( RuntimeException, "Failed to get kafka committed offsets: " << RdKafka::err2str( rc ) );
+
+            for( auto * partition : partitions )
             {
-                std::unordered_map<std::string,std::vector<int>> partitionInfo;
-                for( auto * partition : partitions )
-                    partitionInfo[ partition -> topic() ].push_back( partition -> partition() );
-
-                for( auto & entry : partitionInfo )
-                    m_consumer.setPartitions( entry.first, entry.second );
-
-                if( !m_startTime.isNone() )
+                if( partition -> offset() == RdKafka::Topic::OFFSET_INVALID )
                 {
-                    for( auto * partition : partitions )
+                    if( !m_startTime.isNone() )
+                    {
                         partition -> set_offset( m_startTime.asMilliseconds() );
-
-                    auto rc = consumer -> offsetsForTimes( partitions, 10000 );
-                    if( rc )
-                        CSP_THROW( RuntimeException, "Failed to get kafka offsets for starttime " << m_startTime << ": " << RdKafka::err2str( rc ) );
-                }
-                else if( m_startOffset != RdKafka::Topic::OFFSET_INVALID )
-                {
-                    for( auto * partition : partitions )
+                        std::vector<RdKafka::TopicPartition*> tmp{ partition };
+                        rc = consumer -> offsetsForTimes( tmp, 10000 );
+                        if( rc )
+                            CSP_THROW( RuntimeException, "Failed to get kafka offsets for starttime " << m_startTime << ": " << RdKafka::err2str( rc ) );
+                        debug_printf( "Set offset on topic %s consumer %p partition %d to %ld\n", partition -> topic().c_str(), this,
+                                      partition -> partition(), partition -> offset() );
+                    }
+                    else if( m_startOffset != RdKafka::Topic::OFFSET_INVALID )
                         partition -> set_offset( m_startOffset );
                 }
-
-                auto rc = consumer -> assign( partitions );
-                if( rc )
-                    CSP_THROW( RuntimeException, "Failed to get kafka offsets for starttime " << m_startTime << ": " << RdKafka::err2str( rc ) );
-
-                m_doneSeeking = true;
+                else
+                    debug_printf( "offset on topic %s consumer %p partition %d already set to %ld\n", partition -> topic().c_str(), this, partition -> partition(), partition -> offset() );
             }
-            else
-                consumer -> assign( partitions );
+            
+            rc = consumer -> assign( partitions );
+            
+            if( rc )
+                CSP_THROW( RuntimeException, "Failed to get kafka offsets for starttime " << m_startTime << ": " << RdKafka::err2str( rc ) );
+
+            consumer -> commitSync( partitions );
         }
         else
         {
+            //Since we run with auto-sync off, force commit offets here so rebalanced consumers see the latest
+            consumer -> position( partitions );
+            consumer -> commitSync( partitions );
             consumer -> unassign();
         }
     }
@@ -70,7 +83,6 @@ private:
     KafkaConsumer & m_consumer;
     DateTime        m_startTime;
     int64_t         m_startOffset;
-    bool            m_doneSeeking;
 };
 
 KafkaConsumer::KafkaConsumer( KafkaAdapterManager * mgr, const Dictionary & properties ) : m_mgr( mgr ),

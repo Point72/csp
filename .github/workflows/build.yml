@@ -295,28 +295,28 @@ jobs:
           run: make dist-check
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v5
+          uses: actions/upload-artifact@v6
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.10
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp310' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v5
+          uses: actions/upload-artifact@v6
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.11
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp311' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v5
+          uses: actions/upload-artifact@v6
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.12
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp312' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v5
+          uses: actions/upload-artifact@v6
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.13
             path: dist/*.whl
@@ -377,7 +377,7 @@ jobs:
           run: make dist-check
 
         - name: Upload SDist
-          uses: actions/upload-artifact@v5
+          uses: actions/upload-artifact@v6
           with:
               name: csp-sdist
               path: dist/*.tar.gz

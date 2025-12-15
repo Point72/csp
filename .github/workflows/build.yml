@@ -462,7 +462,7 @@ jobs:
           run: make requirements
 
         - name: Download wheel
-          uses: actions/download-artifact@v6
+          uses: actions/download-artifact@v7
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -573,7 +573,7 @@ jobs:
         - name: Install requirements
           run: sudo make dependencies-debian
 
-        - uses: actions/download-artifact@v6
+        - uses: actions/download-artifact@v7
           with:
             name: csp-sdist
             path: dist/
@@ -654,7 +654,7 @@ jobs:
           run: sudo apt-get install graphviz
 
         - name: Download wheel
-          uses: actions/download-artifact@v6
+          uses: actions/download-artifact@v7
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -734,7 +734,7 @@ jobs:
 
       steps:
         - name: Download wheels and sdist
-          uses: actions/download-artifact@v6
+          uses: actions/download-artifact@v7
           with:
             name:
             merge-multiple: true

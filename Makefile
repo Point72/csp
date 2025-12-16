@@ -14,6 +14,9 @@ requirements:  ## install python dev and runtime dependencies
 develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
+develop-conda: ## install just the local library when developing in conda
+	CSP_USE_VCPKG=OFF pip install -U -e . --no-deps --no-build-isolation
+
 build:  ## build the library
 	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) python setup.py build build_ext --inplace
 

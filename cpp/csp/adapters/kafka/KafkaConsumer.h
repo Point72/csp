@@ -24,7 +24,7 @@ public:
     void start( DateTime starttime );
     void stop();
 
-    void setPartitions( const std::string & topic, const std::vector<int> partitionIds );
+    void setPartitions(  std::vector<RdKafka::TopicPartition*> & partitions );
     void addTopic( const std::string & topic );
 
 private:

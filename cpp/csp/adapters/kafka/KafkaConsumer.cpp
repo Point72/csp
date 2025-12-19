@@ -26,13 +26,7 @@ public:
     {
         if( err == RdKafka::ERR__ASSIGN_PARTITIONS )
         {
-            debug_printf( "Rebalance on consumer %p with %lu partitions\n", this, partitions.size() );
-            std::unordered_map<std::string,std::vector<int>> partitionInfo;
-            for( auto * partition : partitions )
-                partitionInfo[ partition -> topic() ].push_back( partition -> partition() );
-
-            for( auto & entry : partitionInfo )
-                m_consumer.setPartitions( entry.first, entry.second );
+            m_consumer.setPartitions( partitions );
 
             //Dont reset offsets if an offset was already set.  Subtle issue when running multiple Consumer threads
             //on the same topic.  Subsequent consumers as they come up and re-assign the partitions from the first
@@ -53,14 +47,14 @@ public:
                         rc = consumer -> offsetsForTimes( tmp, 10000 );
                         if( rc )
                             CSP_THROW( RuntimeException, "Failed to get kafka offsets for starttime " << m_startTime << ": " << RdKafka::err2str( rc ) );
-                        debug_printf( "Set offset on topic %s consumer %p partition %d to %ld\n", partition -> topic().c_str(), this,
+                        debug_printf( "Set offset on topic %s consumer %p partition %d to %ld\n", partition -> topic().c_str(), consumer,
                                       partition -> partition(), partition -> offset() );
                     }
                     else if( m_startOffset != RdKafka::Topic::OFFSET_INVALID )
                         partition -> set_offset( m_startOffset );
                 }
                 else
-                    debug_printf( "offset on topic %s consumer %p partition %d already set to %ld\n", partition -> topic().c_str(), this, partition -> partition(), partition -> offset() );
+                    debug_printf( "offset on topic %s consumer %p partition %d already set to %ld\n", partition -> topic().c_str(), consumer, partition -> partition(), partition -> offset() );
             }
             
             rc = consumer -> assign( partitions );
@@ -166,15 +160,31 @@ void KafkaConsumer::addTopic( const std::string & topic )
     m_topics.emplace( topic, TopicData{} );
 }
 
-void KafkaConsumer::setPartitions( const std::string & topic, std::vector<int> partitions )
+void KafkaConsumer::setPartitions( std::vector<RdKafka::TopicPartition*> & partitions )
 {
-    auto & topicData = m_topics[ topic ];
-    topicData.partitionInfo.clear();
-    for( auto partition : partitions )
+    //Clear out any previous assignments
+    for( auto &[_,topicData] : m_topics )
+        topicData.partitionInfo.clear();
+
+    for( auto * partition : partitions )
     {
-        if( ( uint32_t ) partition >= topicData.partitionInfo.size() )
-            topicData.partitionInfo.resize( partition + 1, {} );
-        topicData.partitionInfo[ partition ].valid = true;
+        auto & topicData = m_topics[ partition -> topic() ];
+        int partitionIdx = partition -> partition();
+        if( ( uint32_t ) partitionIdx >= topicData.partitionInfo.size() )
+            topicData.partitionInfo.resize( partitionIdx + 1, {} );
+        topicData.partitionInfo[ partitionIdx ].valid = true;
+    }
+
+    //Handle degenerate case where more threads than partitions were requested, we can get assigned 0 partitions and
+    //should flag ourselves complete in this case
+    for( auto &[topic,topicData] : m_topics )
+    {
+        debug_printf( "KafkaConsumer %p topic %s assigned %lu partitions\n", this, topic.c_str(), partitions.size() );
+        if( topicData.partitionInfo.empty() )
+        {
+            m_mgr -> markConsumerReplayDone( this, topic );
+            topicData.flaggedReplayComplete = true;
+        }
     }
 }
 
@@ -214,7 +224,7 @@ void KafkaConsumer::poll()
                 {
                     partitionInfo[ partition ].receivedEOF = true;
                     
-                    debug_printf( "%p [DEBUG] %s EOF on %d\n", this, DateTime::now().asString().c_str(), partition );
+                    debug_printf( "%p [DEBUG] %s EOF on %d\n", m_consumer.get(), DateTime::now().asString().c_str(), partition );
                     debug_printf( "Remaining: " );
                     for( size_t i = 0; i < partitionInfo.size(); ++i )
                     {

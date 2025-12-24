@@ -16,6 +16,7 @@ from csp import ts
 from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring.runtime import build_graph
 from csp.typing import Numpy1DArray
+from csp.utils.datetime import utc_now
 
 USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
@@ -617,7 +618,7 @@ class TestTypeChecking(unittest.TestCase):
         def foo() -> csp.Outputs(x=ts[int], y=ts[str]):
             return csp.output(y=csp.const("hey"), x=csp.const(1))
 
-        csp.run(foo, starttime=datetime.utcnow(), endtime=timedelta())
+        csp.run(foo, starttime=utc_now(), endtime=timedelta())
 
     def test_typed_to_untyped_container(self):
         @csp.graph
@@ -631,7 +632,7 @@ class TestTypeChecking(unittest.TestCase):
                 l=csp.const.using(T=typing.List[int])([]),
             )
 
-        csp.run(main, starttime=datetime.utcnow(), endtime=timedelta())
+        csp.run(main, starttime=utc_now(), endtime=timedelta())
 
     def test_typed_to_untyped_container_wrong(self):
         @csp.graph
@@ -671,7 +672,7 @@ class TestTypeChecking(unittest.TestCase):
             with self.assertRaisesRegex(TypeError, msg):
                 g3(d=csp.const.using(T=typing.List[int])(["d"]))
 
-        csp.run(main, starttime=datetime.utcnow(), endtime=timedelta())
+        csp.run(main, starttime=utc_now(), endtime=timedelta())
 
     def test_time_tzinfo(self):
         import pytz
@@ -679,9 +680,9 @@ class TestTypeChecking(unittest.TestCase):
         timetz = time(1, 2, 3, tzinfo=pytz.timezone("EST"))
         with self.assertRaisesRegex(TypeError, "csp time type does not support timezones"):
             # Now that Time is a native type it no longer supports ticking with tzinfo
-            csp.run(csp.const, timetz, starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(csp.const, timetz, starttime=utc_now(), endtime=timedelta())
 
-        res = csp.run(csp.const.using(T=object), timetz, starttime=datetime.utcnow(), endtime=timedelta())[0][0][1]
+        res = csp.run(csp.const.using(T=object), timetz, starttime=utc_now(), endtime=timedelta())[0][0][1]
         self.assertEqual(res, timetz)
 
     def test_np_ndarray_ts_arg(self):

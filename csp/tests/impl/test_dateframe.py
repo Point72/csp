@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime, timedelta
 
 import csp
+from csp.utils.datetime import utc_now
 
 
 class TestCspDataFrame(unittest.TestCase):
@@ -137,7 +138,7 @@ class TestCspDataFrame(unittest.TestCase):
         _ = df.to_perspective(starttime, endtime)
 
         # realtime
-        widget = df.to_perspective(datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
+        widget = df.to_perspective(utc_now(), endtime=timedelta(seconds=30), realtime=True)
         import time
 
         time.sleep(1)

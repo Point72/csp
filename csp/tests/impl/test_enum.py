@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, RootModel
 
 import csp
 from csp import ts
+from csp.utils.datetime import utc_now
 
 
 class MyEnum(csp.Enum):
@@ -129,7 +130,7 @@ class TestCspEnum(unittest.TestCase):
             csp.add_graph_output("eout", eout)
             csp.add_graph_output("ein", ein)
 
-        result = csp.run(graph, starttime=datetime.utcnow())
+        result = csp.run(graph, starttime=utc_now())
         self.assertEqual([v[1] for v in result["eout"]], [MyEnum(3), MyEnum(20), MyEnum(1)])
         self.assertEqual([v[1] for v in result["ein"]], [3, 20, 1])
 

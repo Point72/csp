@@ -9,6 +9,7 @@ from packaging import version
 import csp
 import csp.impl.pandas_accessor
 from csp.impl.pandas_ext_type import TsDtype
+from csp.utils.datetime import utc_now
 
 try:
     import ipywidgets
@@ -292,7 +293,7 @@ class TestCspPerspectiveTable(unittest.TestCase):
 
         # Start it again, but stop right away
         self.assertFalse(table.is_running())
-        starttime = datetime.utcnow()
+        starttime = utc_now()
         endtime = starttime + timedelta(minutes=1)
         table.start(starttime=starttime, endtime=endtime, realtime=True)
         self.assertTrue(table.is_running())

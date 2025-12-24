@@ -13,6 +13,7 @@ import csp
 from csp import ts
 from csp.baselib import _convert_ts_object_for_print
 from csp.impl.struct import define_struct
+from csp.utils.datetime import utc_now
 
 
 class TestBaselib(unittest.TestCase):
@@ -682,7 +683,7 @@ class TestBaselib(unittest.TestCase):
             demux.demultiplex(123)
 
         with self.assertRaisesRegex(TypeError, "Conflicting type resolution for K"):
-            csp.run(my_graph2, starttime=datetime.utcnow())
+            csp.run(my_graph2, starttime=utc_now())
 
     def test_delayed_collect(self):
         def g():
@@ -1216,20 +1217,20 @@ class TestBaselib(unittest.TestCase):
                 "dynamic_b_d": csp.dynamic_cast(x_b, D),
             }
 
-        res = csp.run(g, starttime=datetime.utcnow(), endtime=timedelta())
+        res = csp.run(g, starttime=utc_now(), endtime=timedelta())
         self.assertEqual(res["static_b_d"][0][1], D(a=1, b=2.1))
         self.assertEqual(res["dynamic_bool_int"][0][1], 1)
         self.assertEqual(res["dynamic_b_d"][0][1], D(a=1, b=2.1))
 
         with self.assertRaisesRegex(TypeError, "Unable to csp.static_cast edge of type int to str"):
-            csp.run(csp.static_cast(x_int, str), starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(csp.static_cast(x_int, str), starttime=utc_now(), endtime=timedelta())
 
         with self.assertRaisesRegex(TypeError, "Unable to csp.static_cast edge of type int to bool"):
-            csp.run(csp.static_cast(x_int, bool), starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(csp.static_cast(x_int, bool), starttime=utc_now(), endtime=timedelta())
 
         # Runtime type check
         with self.assertRaisesRegex(TypeError, 'expected output type on .* to be of type "int" got type "float"'):
-            csp.run(csp.dynamic_cast(x_float, int), starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(csp.dynamic_cast(x_float, int), starttime=utc_now(), endtime=timedelta())
 
 
 if __name__ == "__main__":

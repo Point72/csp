@@ -6,6 +6,7 @@ import numpy as np
 import csp
 from csp.random import brownian_motion, brownian_motion_1d, poisson_timer
 from csp.typing import Numpy1DArray, NumpyNDArray
+from csp.utils.datetime import utc_now
 
 
 class TestPoissonTimer(unittest.TestCase):
@@ -226,7 +227,7 @@ class TestBrownianMotion(unittest.TestCase):
             out = brownian_motion(trigger, csp.const(mean), csp.const(cov), seed=1234)
             csp.add_graph_output("BM", out, tick_count=1)
 
-        start = datetime.utcnow()
+        start = utc_now()
 
         from threadpoolctl import threadpool_limits  # May need to pip install separately
 
@@ -236,5 +237,5 @@ class TestBrownianMotion(unittest.TestCase):
                 starttime=datetime(2020, 1, 1),
                 endtime=timedelta(seconds=N),
             )
-        end = datetime.utcnow()
+        end = utc_now()
         print(f"Elapsed: {end - start}")

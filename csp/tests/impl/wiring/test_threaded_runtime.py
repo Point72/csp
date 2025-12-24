@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import csp
 from csp import ts
+from csp.utils.datetime import utc_now
 
 
 @csp.node
@@ -30,7 +31,7 @@ def graph_exception():
 class TestThreadedRuntime(unittest.TestCase):
     def test_run_on_thread(self):
         output = {}
-        starttime = datetime.utcnow()
+        starttime = utc_now()
         endtime = starttime + timedelta(minutes=1)
         runner = csp.run_on_thread(
             graph_stop, csp.const(True), output, starttime=starttime, endtime=endtime, realtime=True
@@ -44,7 +45,7 @@ class TestThreadedRuntime(unittest.TestCase):
 
     def test_node_exception(self):
         runner = csp.run_on_thread(
-            node_exception, csp.const(True), starttime=datetime.utcnow(), endtime=timedelta(seconds=1), realtime=True
+            node_exception, csp.const(True), starttime=utc_now(), endtime=timedelta(seconds=1), realtime=True
         )
         self.assertRaises(RuntimeError, runner.join)
         self.assertFalse(runner.is_alive())
@@ -52,7 +53,7 @@ class TestThreadedRuntime(unittest.TestCase):
 
     def test_graph_exception(self):
         runner = csp.run_on_thread(
-            graph_exception, csp.const(True), starttime=datetime.utcnow(), endtime=timedelta(seconds=1), realtime=True
+            graph_exception, csp.const(True), starttime=utc_now(), endtime=timedelta(seconds=1), realtime=True
         )
         self.assertRaises(RuntimeError, runner.join)
         self.assertFalse(runner.is_alive())
@@ -60,7 +61,7 @@ class TestThreadedRuntime(unittest.TestCase):
 
     def test_auto_shutdown(self):
         output = {}
-        starttime = datetime.utcnow()
+        starttime = utc_now()
         endtime = starttime + timedelta(minutes=1)
         runner = csp.run_on_thread(
             graph_stop, csp.const(True), output, auto_shutdown=True, starttime=starttime, endtime=endtime, realtime=True
@@ -75,7 +76,7 @@ class TestThreadedRuntime(unittest.TestCase):
             node_exception,
             csp.const(True),
             auto_shutdown=True,
-            starttime=datetime.utcnow(),
+            starttime=utc_now(),
             endtime=timedelta(seconds=1),
             realtime=True,
         )
@@ -91,15 +92,13 @@ class TestThreadedRuntime(unittest.TestCase):
             csp.print("values: ", values)
 
         # kwargs
-        csp.run(graph, arg=1, starttime=datetime.utcnow(), endtime=timedelta(seconds=0.1), realtime=True)
-        res = csp.run_on_thread(
-            graph, arg=1, starttime=datetime.utcnow(), endtime=timedelta(seconds=0.1), realtime=True
-        )
+        csp.run(graph, arg=1, starttime=utc_now(), endtime=timedelta(seconds=0.1), realtime=True)
+        res = csp.run_on_thread(graph, arg=1, starttime=utc_now(), endtime=timedelta(seconds=0.1), realtime=True)
         res.join()
 
         # args
-        csp.run(graph, 1, starttime=datetime.utcnow(), endtime=timedelta(seconds=0.1), realtime=True)
-        res = csp.run_on_thread(graph, 1, starttime=datetime.utcnow(), endtime=timedelta(seconds=0.1), realtime=True)
+        csp.run(graph, 1, starttime=utc_now(), endtime=timedelta(seconds=0.1), realtime=True)
+        res = csp.run_on_thread(graph, 1, starttime=utc_now(), endtime=timedelta(seconds=0.1), realtime=True)
         res.join()
 
 

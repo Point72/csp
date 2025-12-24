@@ -16,6 +16,7 @@ import csp
 from csp.impl.struct import define_nested_struct, define_struct, defineNestedStruct, defineStruct
 from csp.impl.types.typing_utils import FastList
 from csp.typing import Numpy1DArray
+from csp.utils.datetime import utc_now
 
 
 class MyEnum(csp.Enum):
@@ -1244,7 +1245,7 @@ class TestCspStruct(unittest.TestCase):
             s = S()
             setattr(s, fieldname, i)
             ts = getattr(csp.const(s), fieldname)
-            csp.run(ts, starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(ts, starttime=utc_now(), endtime=timedelta())
 
     def test_struct_printing(self):
         # simple test

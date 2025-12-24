@@ -13,6 +13,7 @@ from csp.impl.adaptermanager import AdapterManagerImpl
 from csp.impl.outputadapter import OutputAdapter
 from csp.impl.pushadapter import PushInputAdapter
 from csp.impl.wiring import py_output_adapter_def, py_push_adapter_def
+from csp.utils.datetime import utc_now
 
 
 class MyData(csp.Struct):
@@ -178,13 +179,13 @@ def my_graph_with_manager():
 
 class TestPythonOutputAdapter(unittest.TestCase):
     def test_basic(self):
-        csp.run(my_graph_basic, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=False)
+        csp.run(my_graph_basic, starttime=utc_now(), endtime=timedelta(seconds=5), realtime=False)
         self.assertEqual(
             output_buffer[0], '[{"a": 1, "b": 2, "c": 3}, {"a": 1, "b": 2, "c": 3}, {"a": 1, "b": 2, "c": 3}]'
         )
 
     def test_with_manager(self):
-        csp.run(my_graph_with_manager, starttime=datetime.utcnow(), endtime=timedelta(seconds=1), realtime=True)
+        csp.run(my_graph_with_manager, starttime=utc_now(), endtime=timedelta(seconds=1), realtime=True)
 
         # assert that the adapter manager put the right things in the right place,
         # e.g. data_1 and data_2 into data_1 output, and data_3 into data_3 output

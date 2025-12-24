@@ -7,6 +7,7 @@ import csp
 from csp import PushMode, ts
 from csp.impl.pushpulladapter import PushGroup, PushPullInputAdapter
 from csp.impl.wiring import py_pushpull_adapter_def
+from csp.utils.datetime import utc_now
 
 
 class MyPushPullAdapter(PushPullInputAdapter):
@@ -39,7 +40,7 @@ class MyPushPullAdapter(PushPullInputAdapter):
         while self._running and idx < len(self._data):
             live, t, v = self._data[idx]
             idx += 1
-            diff = t - datetime.utcnow()
+            diff = t - utc_now()
             if diff > timedelta(seconds=0):
                 time.sleep(diff.total_seconds())
             self.push_tick(live, t, v)
@@ -64,14 +65,14 @@ class TestPushPullAdapter(unittest.TestCase):
             print(csp.now(), x)
 
         def graph(num_sim, num_rt, num_sim_repeats):
-            start_time = datetime.utcnow() - (num_sim + 1) * timedelta(minutes=1)
+            start_time = utc_now() - (num_sim + 1) * timedelta(minutes=1)
             data = []
             for x in range(num_sim):
                 for c in range(num_sim_repeats):
                     t = start_time + timedelta(minutes=x)
                     data.append((False, t, Data(time=t, value=x, live=False)))
 
-            rtstart = datetime.utcnow() + timedelta(seconds=1)
+            rtstart = utc_now() + timedelta(seconds=1)
             for x in range(num_sim, num_sim + num_rt):
                 t = rtstart + timedelta(seconds=0.1 * x)
                 data.append((True, t, Data(time=t, value=x, live=True)))
@@ -96,8 +97,8 @@ class TestPushPullAdapter(unittest.TestCase):
             num_sim,
             num_rt,
             num_sim_repeats,
-            starttime=datetime.utcnow() - timedelta(hours=1),
-            endtime=datetime.utcnow() + timedelta(seconds=30),
+            starttime=utc_now() - timedelta(hours=1),
+            endtime=utc_now() + timedelta(seconds=30),
             realtime=True,
         )
         nc = res["nc"]
@@ -123,23 +124,23 @@ class TestPushPullAdapter(unittest.TestCase):
         """test ticking sim after live"""
 
         def graph():
-            dt = datetime.utcnow()
+            dt = utc_now()
             data = [(False, dt, 1), (True, dt, 2), (False, dt, 3)]
 
             return test_adapter(int, data)
 
         with self.assertRaisesRegex(RuntimeError, "tried to push a sim tick after live tick"):
-            csp.run(graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10))
+            csp.run(graph, starttime=utc_now(), endtime=timedelta(seconds=10))
 
     def test_historical(self):
         """test only sim data"""
 
         def graph():
-            dt = datetime.utcnow()
+            dt = utc_now()
             data = [(False, dt, 1), (False, dt, 2), (False, dt, 3)]
             return test_adapter(int, data)
 
-        graph_out = csp.run(graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=False)
+        graph_out = csp.run(graph, starttime=utc_now(), endtime=timedelta(seconds=10), realtime=False)
         result = [out[1] for out in graph_out[0]]
         self.assertEqual(result, [1, 2, 3])
 
@@ -174,7 +175,7 @@ class TestPushPullAdapter(unittest.TestCase):
 
                 idx = 0
                 while self._running:
-                    self.push_tick(True, datetime.utcnow(), len(self._data) + 1)
+                    self.push_tick(True, utc_now(), len(self._data) + 1)
                     if idx and not self._shutdown_before_live:
                         time.sleep(0.1)
                         self.shutdown_engine(TypeError("Dummy exception message"))
@@ -197,7 +198,7 @@ class TestPushPullAdapter(unittest.TestCase):
                 graph,
                 False,
                 starttime=datetime(2020, 1, 1, 1),
-                endtime=datetime.utcnow() + timedelta(seconds=2),
+                endtime=utc_now() + timedelta(seconds=2),
                 realtime=True,
             )
 

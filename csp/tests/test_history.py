@@ -8,6 +8,7 @@ import psutil
 
 import csp
 from csp import ts
+from csp.utils.datetime import utc_now
 
 
 class _Globals:
@@ -641,7 +642,7 @@ class TestHistory(unittest.TestCase):
 
         process = psutil.Process(os.getpid())
         mem_before = process.memory_info().rss
-        csp.run(g, starttime=datetime.utcnow(), endtime=timedelta(seconds=1))
+        csp.run(g, starttime=utc_now(), endtime=timedelta(seconds=1))
         mem_after = process.memory_info().rss
         self.assertTrue(mem_after < mem_before * 10)
 

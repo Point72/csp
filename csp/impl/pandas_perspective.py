@@ -16,6 +16,7 @@ from csp.impl.perspective_common import (
     perspective,
     perspective_type_map,
 )
+from csp.utils.datetime import utc_now
 
 _ = csp.impl.pandas_accessor
 
@@ -240,7 +241,7 @@ class CspPerspectiveTable:
         """Run a graph that sends data to the table on the current thread.
         Normally, this is only useful for debugging.
         """
-        starttime = starttime or datetime.utcnow()
+        starttime = starttime or utc_now()
         if clear:
             self.clear()
         csp.run(self.graph, starttime=starttime, endtime=endtime, realtime=realtime)
@@ -250,7 +251,7 @@ class CspPerspectiveTable:
         If clear=True, will clear any data from the data before writing to it.
         If auto_shutdown=True, will stop the engine if the table gets garbage collected.
         """
-        starttime = starttime or datetime.utcnow()
+        starttime = starttime or utc_now()
         if clear:
             self.clear()
         self._runner = csp.run_on_thread(

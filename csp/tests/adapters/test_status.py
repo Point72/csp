@@ -7,6 +7,7 @@ import csp
 from csp import ts
 from csp.adapters.kafka import DateTimeType, JSONTextMessageMapper, KafkaStatusMessageType
 from csp.adapters.status import Level
+from csp.utils.datetime import utc_now
 
 from .kafka_utils import _precreate_topic
 
@@ -43,7 +44,7 @@ class TestStatus:
             csp.stop_engine(done_flag)
 
         _precreate_topic(topic)
-        results = csp.run(graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)
+        results = csp.run(graph, starttime=utc_now(), endtime=timedelta(seconds=10), realtime=True)
         status = results["status"][0][1]
         assert status.status_code == KafkaStatusMessageType.MSG_RECV_ERROR
         assert status.level == Level.ERROR

@@ -4,6 +4,7 @@ import unittest
 from datetime import datetime, timedelta
 
 import csp
+from csp.utils.datetime import utc_now
 
 
 class Driver:
@@ -48,7 +49,7 @@ class TestGenericPushAdapter(unittest.TestCase):
 
         res = csp.run(
             graph,
-            starttime=datetime.utcnow(),
+            starttime=utc_now(),
             endtime=timedelta(1),
             realtime=True,
             queue_wait_time=timedelta(seconds=0),

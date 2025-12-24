@@ -14,6 +14,7 @@ import pytz
 import csp
 from csp.adapters.output_adapters.parquet import ParquetOutputConfig
 from csp.adapters.parquet import ParquetReader, ParquetWriter
+from csp.utils.datetime import utc_now
 
 
 class PriceQuantity(csp.Struct):
@@ -855,7 +856,7 @@ class TestParquet(unittest.TestCase):
                 b=True,
                 i=123,
                 d=123.456,
-                dt=datetime.utcnow(),
+                dt=utc_now(),
                 dte=date.today(),
                 t=time(1, 2, 3),
                 s="hello hello",

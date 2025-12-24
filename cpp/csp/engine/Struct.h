@@ -716,8 +716,8 @@ private:
     size_t                      m_maskSize;          // number of bytes used for mask
     size_t                      m_firstPartialField; // index into m_fields of first field of this level
     size_t                      m_firstNativePartialField; // index into m_fields of first native field of this level
-    uint8_t *                   m_optionalFieldsSetBits; // mask (per-byte, for now) of the set bits of optional fields
-    uint8_t *                   m_optionalFieldsNoneBits; // mask (per-byte, for now) of the none bits of optional fields
+    std::vector<uint8_t>        m_optionalFieldsSetBits; // mask (per-byte, for now) of the set bits of optional fields
+    std::vector<uint8_t>        m_optionalFieldsNoneBits; // mask (per-byte, for now) of the none bits of optional fields
     uint8_t                     m_lastByteMask;      // mask of remaining bits in the last byte of our mask
     bool                        m_isPartialNative;   // true if this level is all native
     bool                        m_isFullyNative;     // true if this level and all bases are fully native

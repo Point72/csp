@@ -338,12 +338,12 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         return sorted(super().__dir__() + list(self.__full_metadata_typed__.keys()))
 
 
-def define_struct(name, metadata: dict, defaults: dict = {}, base=Struct):
+def define_struct(name, metadata: dict, defaults: dict = {}, base=Struct, strict: bool = False):
     """Helper method to dynamically create struct types"""
 
     dct = deepcopy(defaults)
     dct["__annotations__"] = metadata
-    clazz = StructMeta(name, (base,), dct)
+    clazz = StructMeta(name, (base,), dct, strict)
     return clazz
 
 

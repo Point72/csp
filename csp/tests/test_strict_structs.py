@@ -1,8 +1,10 @@
+import string
 import unittest
 from datetime import datetime
 from typing import Optional
 
 import csp
+from csp.impl.struct import define_struct
 
 
 class TestStrictStructs(unittest.TestCase):
@@ -379,6 +381,18 @@ class TestStrictStructs(unittest.TestCase):
         ss2 = StrictStruct(a=42, b=False)
         self.assertEqual(repr(ss1), "StrictStruct( a=None, b=True, c=abc )")
         self.assertEqual(str(ss2), "StrictStruct( a=42, b=False, c=None )")
+
+    def test_bitmask_edge_cases(self):
+        # 4 optional fields mean we have a full byte of optional fields,
+        A = define_struct(
+            "A", {c: Optional[int] for c in string.ascii_lowercase[:4]}, {c: None for c in string.ascii_lowercase[:4]}
+        )
+
+        a = A(a=1, c=3)
+        self.assertEqual(a.a, 1)
+        self.assertIsNone(a.b, 1)
+        self.assertEqual(a.c, 3)
+        self.assertIsNone(a.d, 1)
 
 
 if __name__ == "__main__":

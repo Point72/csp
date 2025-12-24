@@ -1,4 +1,5 @@
 import os
+import typing
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -514,6 +515,11 @@ class TestKafka:
                     key="foo",
                     push_mode=push_mode,
                 )
+                # ensure graph-time ts type is correct
+                if push_mode == csp.PushMode.BURST:
+                    assert data.tstype.typ is typing.List[BasicData]
+                else:
+                    assert data.tstype.typ is BasicData
                 csp.add_graph_output(key, data)
                 stop_flags.append(csp.count(data) == 1)
 

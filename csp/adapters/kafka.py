@@ -187,7 +187,7 @@ class KafkaAdapterManager:
                 )
             properties["tick_timestamp_from_field"] = tick_timestamp_from_field
 
-        return _kafka_input_adapter_def(self, ts_type, properties, push_mode)
+        return _kafka_input_adapter_def(self, ts_type, properties, push_mode=push_mode)
 
     def publish(
         self,

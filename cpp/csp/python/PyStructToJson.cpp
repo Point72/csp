@@ -190,12 +190,14 @@ rapidjson::Value toJsonRecursive( const StructPtr& self, rapidjson::Document& do
 
         rapidjson::Value sub_json; // default is null
         if( !field -> isNone( struct_ptr ) )
+        {
             sub_json = switchCspType( field -> type(), [field, struct_ptr, callable, &doc]( auto tag )
                 {
                     using CType = typename decltype( tag )::type;
                     auto *typedField = static_cast<const typename StructField::upcast<CType>::type *>( field.get() );
                     return toJson( typedField -> value( struct_ptr ), *field -> type(), doc, callable );
                 } );
+        }
         new_dict.AddMember( rapidjson::StringRef( key ), sub_json, doc.GetAllocator() );
     }
     return new_dict;

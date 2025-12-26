@@ -343,7 +343,7 @@ def define_struct(name, metadata: dict, defaults: dict = {}, base=Struct, strict
 
     dct = deepcopy(defaults)
     dct["__annotations__"] = metadata
-    clazz = StructMeta(name, (base,), dct, strict)
+    clazz = StructMeta(name, (base,), dct, strict=strict)
     return clazz
 
 

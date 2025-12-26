@@ -31,10 +31,9 @@ public:
     size_t  offset() const                { return m_offset; }      //offset to start of field's memory from start of struct mem
     size_t  size() const                  { return m_size; }        //size of field in bytes
     size_t  alignment() const             { return m_alignment; }   //alignment of the field
-    size_t  maskOffset() const            { return m_maskOffset; }  //offset to location of the mask byte fo this field from start of struct mem
+    size_t  maskOffset() const            { return m_maskOffset; }  //offset to location of the mask byte of this field from start of struct mem. Note that set/none bits always live on same byte
     uint8_t maskBit() const               { return m_maskBit; }     //bit within mask byte associated with this field. Just used for debugging
     uint8_t maskBitMask() const           { return m_maskBitMask; } //same as maskBit but as a mask ( 1 << bit
-    size_t  noneMaskOffset() const        { return m_noneMaskOffset; }  //same fields as above but for the None bit, if this an optional field
     uint8_t noneMaskBit() const           { return m_noneMaskBit; }     
     uint8_t noneMaskBitMask() const       { return m_noneMaskBitMask; }
 
@@ -42,23 +41,20 @@ public:
     bool isOptional() const               { return m_isOptional; }
 
     void setOffset( size_t off )          { m_offset = off; }
-    void setMaskOffset( size_t off, uint8_t bit  )
+    void setMaskOffset( size_t off, uint8_t bit )
     {
         CSP_ASSERT( bit < BITS_PER_BYTE );
 
         m_maskOffset  = off;
         m_maskBit     = bit;
-        m_maskBitMask = 1 << bit;
-    }
-
-    void setNoneMaskOffset( size_t off, uint8_t bit  )
-    {
-        CSP_ASSERT( m_isOptional );
-        CSP_ASSERT( bit < BITS_PER_BYTE );
-
-        m_noneMaskOffset  = off;
-        m_noneMaskBit     = bit;
-        m_noneMaskBitMask = 1 << bit;
+        m_maskBitMask = 1 << m_maskBit;
+        if( m_isOptional )
+        {
+            // None mask bit is always adjacent and on the same byte as the set bit
+            CSP_ASSERT( bit + 1 < BITS_PER_BYTE );
+            m_noneMaskBit = bit + 1;
+            m_noneMaskBitMask = 1 << m_noneMaskBit;            
+        }
     }
 
     bool isSet( const Struct * s ) const
@@ -69,7 +65,7 @@ public:
 
     bool isNone( const Struct * s ) const
     {
-        const uint8_t * m = reinterpret_cast<const uint8_t *>( s ) + m_noneMaskOffset;
+        const uint8_t * m = reinterpret_cast<const uint8_t *>( s ) + m_maskOffset;
         return ( *m ) & m_noneMaskBitMask;
     }
 
@@ -77,7 +73,7 @@ public:
     {
         CSP_ASSERT( m_isOptional );
 
-        uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_noneMaskOffset;
+        uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
         (*m) |= m_noneMaskBitMask;
     }
 
@@ -112,7 +108,7 @@ protected:
         uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
         (*m) |= m_maskBitMask;
 
-        clearIsNone( s ); // no-op if not an optional field
+        clearIsNone( s ); // no-op if not an optional field, as m_noneMaskBitMask is initialized to 0 in the constructor
     }
 
     const void * valuePtr( const Struct * s ) const
@@ -133,7 +129,7 @@ protected:
 
     void clearIsNone( Struct * s ) const
     {
-        uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_noneMaskOffset;
+        uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
         (*m) &= ~m_noneMaskBitMask;
     }
 
@@ -143,7 +139,6 @@ private:
     const size_t m_size;
     const size_t m_alignment;
     size_t       m_maskOffset;
-    size_t       m_noneMaskOffset;
     uint8_t      m_maskBit;
     uint8_t      m_noneMaskBit;
     uint8_t      m_maskBitMask;

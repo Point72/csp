@@ -383,16 +383,47 @@ class TestStrictStructs(unittest.TestCase):
         self.assertEqual(str(ss2), "StrictStruct( a=42, b=False, c=None )")
 
     def test_bitmask_edge_cases(self):
-        # 4 optional fields mean we have a full byte of optional fields,
+        # 4 optional fields mean we have a full byte of optional fields
         A = define_struct(
-            "A", {c: Optional[int] for c in string.ascii_lowercase[:4]}, {c: None for c in string.ascii_lowercase[:4]}
+            "A",
+            {c: Optional[int] for c in string.ascii_lowercase[:4]},
+            {c: None for c in string.ascii_lowercase[:4]},
+            strict=True,
         )
 
+        def verify_first_byte(a):
+            self.assertEqual(a.a, 1)
+            self.assertIsNone(a.b)
+            self.assertEqual(a.c, 3)
+            self.assertIsNone(a.d)
+
+        def verify_second_byte(a, is_e_none):
+            if is_e_none:
+                self.assertIsNone(a.e)
+            else:
+                self.assertEqual(a.e, 5)
+            self.assertEqual(a.f, 6)
+            self.assertEqual(a.g, 7)
+
         a = A(a=1, c=3)
-        self.assertEqual(a.a, 1)
-        self.assertIsNone(a.b, 1)
-        self.assertEqual(a.c, 3)
-        self.assertIsNone(a.d, 1)
+        verify_first_byte(a)
+
+        # 5 optional fields and 2 non-optional mean we have a full byte of optional fields, then a partial byte with 1 opt and 2 non-opt (4 bits)
+        A = define_struct(
+            "A",
+            {c: Optional[int] for c in string.ascii_lowercase[:5]} | {c: int for c in string.ascii_lowercase[5:7]},
+            {c: None for c in string.ascii_lowercase[:4]},  # do not default last field
+            strict=True,
+        )
+
+        # test with last opt field set, none, or neither
+        a = A(a=1, c=3, e=5, f=6, g=7)
+        verify_first_byte(a)
+        verify_second_byte(a, False)
+        a = A(e=None, f=6, g=7)
+        verify_second_byte(a, True)
+        with self.assertRaisesRegex(ValueError, r"Struct A is not valid; required fields \[e\] were not set on init"):
+            a = A(f=6, g=7)
 
 
 if __name__ == "__main__":

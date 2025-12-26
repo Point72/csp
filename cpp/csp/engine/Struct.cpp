@@ -15,7 +15,6 @@ StructField::StructField( CspTypePtr type, const std::string & fieldname,
     m_size( size ),
     m_alignment( alignment ),
     m_maskOffset( 0 ),
-    m_noneMaskOffset( 0 ),
     m_maskBit( 0 ),
     m_noneMaskBit( 0 ),
     m_maskBitMask( 0 ),
@@ -111,7 +110,7 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
     m_partialSize  = m_size - baseSize;
     m_maskLoc      = m_size - m_maskSize;
     
-    uint8_t numRemainingBits = ( m_fields.size() - m_firstPartialField + optionalFieldCount ) % 8;
+    uint8_t numRemainingBits = ( m_fields.size() + optionalFieldCount ) % 8;
     m_lastByteMask = ( 1u << numRemainingBits ) - 1;
 
     size_t  maskLoc = m_maskLoc;
@@ -126,34 +125,14 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
         if( f -> isOptional() )
         {
             f -> setMaskOffset( maskLoc, maskBit );
-            f -> setNoneMaskOffset( maskLoc, ++maskBit ); // use adjacent bit for None bit
+            m_optionalFieldsSetBits[ maskLoc - m_maskLoc ] |= ( 1 << maskBit );
+            m_optionalFieldsNoneBits[ maskLoc - m_maskLoc ] |= ( 1 << ++maskBit );
             if( ++maskBit == 8 )
             {
-                m_optionalFieldsSetBits[ maskLoc - m_maskLoc ]  = 0x55;
-                m_optionalFieldsNoneBits[ maskLoc - m_maskLoc ] = 0xAA;
                 maskBit = 0;
                 ++maskLoc;
             }
         }
-    }
-    // deal with last (partial) byte filled with optional fields
-    auto lastOptIndex = maskLoc - m_maskLoc;
-    switch( maskBit / 2 )
-    {
-        case 1:
-            m_optionalFieldsSetBits[ lastOptIndex ]  = 0x1;
-            m_optionalFieldsNoneBits[ lastOptIndex ] = 0x2;
-            break;
-        case 2:
-            m_optionalFieldsSetBits[ lastOptIndex ]  = 0x5;
-            m_optionalFieldsNoneBits[ lastOptIndex ] = 0xA;
-            break;
-        case 3:
-            m_optionalFieldsSetBits[ lastOptIndex ]  = 0x15;
-            m_optionalFieldsNoneBits[ lastOptIndex ] = 0x2A;
-            break;
-        default:
-            break; // default initialized to 0
     }
 
     for( size_t i = 0; i < m_fields.size(); ++i )
@@ -172,6 +151,15 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
 
     if( m_base )
     {
+        // The complete inheritance hierarchy must agree on strict/non-strict
+        if( m_isStrict != m_base -> isStrict() )
+        {
+            CSP_THROW( ValueError, 
+                    "Struct " << m_name << " was declared " << ( m_isStrict ? "strict" : "non-strict" ) << " but derives from "
+                    << m_base -> name() << " which is " << ( m_base -> isStrict() ? "strict" : "non-strict" )
+            );
+        }
+
         m_fields.insert( m_fields.begin(), m_base -> m_fields.begin(), m_base -> m_fields.end() );
         m_fieldnames.insert( m_fieldnames.begin(), m_base -> m_fieldnames.begin(), m_base -> m_fieldnames.end() );
         
@@ -185,15 +173,6 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
         auto rv = m_fieldMap.emplace( m_fields[ idx ] -> fieldname().c_str(), m_fields[ idx ] );
         if( !rv.second )
             CSP_THROW( ValueError, "csp Struct " << name << " attempted to add existing field " << m_fields[ idx ] -> fieldname() );
-    }
-    
-    // The complete inheritance hierarchy must agree on strict/non-strict
-    if( m_base && m_isStrict != m_base -> isStrict() )
-    {
-        CSP_THROW( ValueError, 
-                "Struct " << m_name << " was declared " << ( m_isStrict ? "strict" : "non-strict" ) << " but derives from "
-                << m_base -> name() << " which is " << ( m_base -> isStrict() ? "strict" : "non-strict" )
-        );
     }
 }
 
@@ -600,16 +579,7 @@ void StructMeta::destroy( Struct * s ) const
 
 [[nodiscard]] bool StructMeta::validate( const Struct * s ) const
 {   
-    if( !s -> meta() -> isStrict() )
-        return true;
-
-    for ( const StructMeta * cur = this; cur; cur = cur -> m_base.get() )
-    {
-        if ( !cur -> allFieldsSet( s ) )
-            return false;
-    }
-
-    return true;
+    return !isStrict() || allFieldsSet( s );
 }
 
 Struct::Struct( const std::shared_ptr<const StructMeta> & meta )

@@ -159,8 +159,6 @@ By default, CSP Struct objects allow any field to be unset. This means that acce
 
 - **Default:** `False` (for backwards compatibility)
 - **When set to `True`:** Enforces *strict struct semantics* — required fields must be set at initialization.
-  - Note that `del struct.field` is not allowed for strict structs — this will raise an error. As a result, for any strict struct, `hasattr(struct, field)` always returns True for any defined field.
-  - A non-strict struct may not inherit (directly or indirectly) from a strict base, and vice versa.
 
 ### Semantics when `strict=True`
 
@@ -174,10 +172,15 @@ By default, CSP Struct objects allow any field to be unset. This means that acce
    - Fields declared as `Optional[T]` or `T | None` may be set to `None`; internally, the data will still be stored as its native type.
    - Fields must either have a default value, which can be `None`, or they must be initialized explicitly (but can be set to `None`).
 
+1. **Additional Constraints**
+
+- Note that `del struct.field` is not allowed for strict structs — this will raise an error. As a result, for any strict struct, `hasattr(struct, field)` always returns True for any defined field and never needs to be checked.
+- A non-strict struct may not inherit (directly or indirectly) from a strict base, and vice versa.
+
 1. **Example**
 
    ```python
-   class MyStruct(csp.Struct, allow_unset=False):
+   class MyStruct(csp.Struct, strict=True):
        x: int                   # required
        y: Optional[str] = None  # optional
        z: bool | None           # optional (alternate syntax, and no default)

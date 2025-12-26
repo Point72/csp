@@ -147,6 +147,45 @@ print(f"Using FastList field: value {s.a}, type {type(s.a)}, is Python list: {is
 - **`to_json(self, callback=lambda x: x)`**: convert struct instance to a json string, callback is invoked for any values encountered when processing the struct that are not basic Python types, datetime types, tuples, lists, dicts, csp.Structs, or csp.Enums. The callback should convert the unhandled type to a combination of the known types.
 - **`all_fields_set(self)`**: returns `True` if all the fields on the struct are set. Note that this will not recursively check sub-struct fields
 
-# Note on inheritance
+## Note on inheritance
 
 `csp.Struct` types may inherit from each other, but **multiple inheritance is not supported**. Composition is usually a good choice in absence of multiple inheritance.
+
+## "Strict" Structs
+
+By default, CSP Struct objects allow any field to be unset. This means that accessing fields without checking `hasattr` first can cause an `AttributeError` at runtime. To improve safety, CSP Structs provide the `strict` metaclass parameter that can be set to `True` to enable "strict struct" semantics.
+
+### `strict` Parameter
+
+- **Default:** `False` (for backwards compatibility)
+- **When set to `True`:** Enforces *strict struct semantics* — required fields must be set at initialization.
+
+### Semantics when `strict=True`
+
+1. **Required Fields**
+
+   - Any field with a non‑optional type (e.g., `x: int`) **must be set** upon struct creation.
+   - If no value is passed and no default is provided for a required field, a `ValueError` is raised with the missing fields.
+
+1. **Optional Fields**
+
+   - Fields declared as `Optional[T]` or `T | None` may be set to `None`; internally, the data will still be stored as its native type.
+   - Fields must either have a default value, which can be `None`, or they must be initialized explicitly (but can be set to `None`).
+
+1. **Additional Constraints**
+
+- Note that `del struct.field` is not allowed for strict structs — this will raise an error. As a result, for any strict struct, `hasattr(struct, field)` always returns True for any defined field and never needs to be checked.
+- A non-strict struct may not inherit (directly or indirectly) from a strict base, and vice versa.
+
+1. **Example**
+
+   ```python
+   class MyStruct(csp.Struct, strict=True):
+       x: int                   # required
+       y: Optional[str] = None  # optional
+       z: bool | None           # optional (alternate syntax, and no default)
+
+   MyStruct(x=3, z=None) # good: y defaults to None
+   MyStruct(y="hello") # bad: required fields x and z are not set
+   MyStruct(x=None, z=None) # bad: cannot set field x to None as its not optional
+   ```

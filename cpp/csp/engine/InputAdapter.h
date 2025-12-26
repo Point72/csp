@@ -4,6 +4,7 @@
 #include <csp/core/Time.h>
 #include <csp/engine/Enums.h>
 #include <csp/engine/RootEngine.h>
+#include <csp/engine/Struct.h>
 #include <csp/engine/TimeSeriesProvider.h>
 
 namespace csp
@@ -21,6 +22,8 @@ public:
 
     virtual void start( DateTime start, DateTime end ) {}
     virtual void stop() {}
+
+    virtual const char * name() const { return "InputAdapter"; }
 
     template< typename T > void outputTickTyped( DateTime timestamp, const T & value )
     {
@@ -55,6 +58,13 @@ protected:
 template<typename T>
 bool InputAdapter::consumeTick( const T & value )
 {
+    if constexpr( CspType::Type::fromCType<T>::type == CspType::TypeTraits::STRUCT )
+    {
+        if( unlikely( !( value -> validate() ) ) )
+            CSP_THROW( ValueError, "Struct " << value -> meta() -> name() << " from adapter type " << name() 
+                << " is not valid; required fields " << value -> formatAllUnsetStrictFields() << " were not set on init" );
+    }
+    
     switch( pushMode() )
     {
         case PushMode::LAST_VALUE:

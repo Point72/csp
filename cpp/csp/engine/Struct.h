@@ -22,6 +22,8 @@ class StructField
 {
 public:
 
+    static constexpr uint8_t BITS_PER_BYTE = 8;
+
     virtual ~StructField() {}
 
     const std::string & fieldname() const { return m_fieldname; }
@@ -29,26 +31,50 @@ public:
     size_t  offset() const                { return m_offset; }      //offset to start of field's memory from start of struct mem
     size_t  size() const                  { return m_size; }        //size of field in bytes
     size_t  alignment() const             { return m_alignment; }   //alignment of the field
-    size_t  maskOffset() const            { return m_maskOffset; }  //offset to location of the mask byte fo this field from start of struct mem
-    uint8_t maskBit() const               { return m_maskBit; }     //bit within mask byte associated with this field
+    size_t  maskOffset() const            { return m_maskOffset; }  //offset to location of the mask byte of this field from start of struct mem. Note that set/none bits always live on same byte
+    uint8_t maskBit() const               { return m_maskBit; }     //bit within mask byte associated with this field. Just used for debugging
     uint8_t maskBitMask() const           { return m_maskBitMask; } //same as maskBit but as a mask ( 1 << bit
+    uint8_t noneMaskBit() const           { return m_noneMaskBit; }     
+    uint8_t noneMaskBitMask() const       { return m_noneMaskBitMask; }
 
     bool isNative() const                 { return m_type -> type() <= CspType::Type::MAX_NATIVE_TYPE; }
+    bool isOptional() const               { return m_isOptional; }
 
     void setOffset( size_t off )          { m_offset = off; }
-    void setMaskOffset( size_t off, uint8_t bit  )
+    void setMaskOffset( size_t off, uint8_t bit )
     {
-        CSP_ASSERT( bit < 8 );
+        CSP_ASSERT( bit < BITS_PER_BYTE );
 
         m_maskOffset  = off;
         m_maskBit     = bit;
-        m_maskBitMask = 1 << bit;
+        m_maskBitMask = 1 << m_maskBit;
+        if( m_isOptional )
+        {
+            // None mask bit is always adjacent and on the same byte as the set bit
+            CSP_ASSERT( bit + 1 < BITS_PER_BYTE );
+            m_noneMaskBit = bit + 1;
+            m_noneMaskBitMask = 1 << m_noneMaskBit;            
+        }
     }
 
     bool isSet( const Struct * s ) const
     {
         const uint8_t * m = reinterpret_cast<const uint8_t *>( s ) + m_maskOffset;
         return (*m ) & m_maskBitMask;
+    }
+
+    bool isNone( const Struct * s ) const
+    {
+        const uint8_t * m = reinterpret_cast<const uint8_t *>( s ) + m_maskOffset;
+        return ( *m ) & m_noneMaskBitMask;
+    }
+
+    void setNone( Struct * s ) const
+    {
+        CSP_ASSERT( m_isOptional );
+
+        uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
+        (*m) |= m_noneMaskBitMask;
     }
 
     //copy methods need not deal with mask set/unset, only copy values
@@ -75,12 +101,14 @@ public:
 protected:
 
     StructField( CspTypePtr type, const std::string & fieldname,
-                 size_t size, size_t alignment );
+                 size_t size, size_t alignment, bool optional );
 
     void setIsSet( Struct * s ) const
     {
         uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
         (*m) |= m_maskBitMask;
+
+        clearIsNone( s ); // no-op if not an optional field, as m_noneMaskBitMask is initialized to 0 in the constructor
     }
 
     const void * valuePtr( const Struct * s ) const
@@ -99,6 +127,12 @@ protected:
         (*m) &= ~m_maskBitMask;
     }
 
+    void clearIsNone( Struct * s ) const
+    {
+        uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
+        (*m) &= ~m_noneMaskBitMask;
+    }
+
 private:
     std::string  m_fieldname;
     size_t       m_offset;
@@ -106,8 +140,11 @@ private:
     const size_t m_alignment;
     size_t       m_maskOffset;
     uint8_t      m_maskBit;
+    uint8_t      m_noneMaskBit;
     uint8_t      m_maskBitMask;
+    uint8_t      m_noneMaskBitMask;
     CspTypePtr   m_type;
+    bool         m_isOptional;
 };
 
 using StructFieldPtr = std::shared_ptr<StructField>;
@@ -120,7 +157,7 @@ class NativeStructField : public StructField
 
 public:
     NativeStructField() {}
-    NativeStructField( const std::string & fieldname ) : NativeStructField( CspType::fromCType<T>::type(), fieldname )
+    NativeStructField( const std::string & fieldname, bool optional ) : NativeStructField( CspType::fromCType<T>::type(), fieldname, optional )
     {
     }
 
@@ -157,7 +194,8 @@ public:
     }
 
 protected:
-    NativeStructField( CspTypePtr type, const std::string & fieldname ) : StructField( type, fieldname, sizeof( T ), alignof( T ) )
+    NativeStructField( CspTypePtr type, const std::string & fieldname, bool optional ) 
+        : StructField( type, fieldname, sizeof( T ), alignof( T ), optional )
     {}
 };
 
@@ -179,7 +217,7 @@ using TimeStructField      = NativeStructField<Time>;
 class CspEnumStructField final : public NativeStructField<CspEnum>
 {
 public:
-    CspEnumStructField( CspTypePtr type, const std::string & fieldname ) : NativeStructField( type, fieldname )
+    CspEnumStructField( CspTypePtr type, const std::string & fieldname, bool optional ) : NativeStructField( type, fieldname, optional )
     {}
 };
 
@@ -218,8 +256,8 @@ public:
 class NonNativeStructField : public StructField
 {
 public:
-    NonNativeStructField( CspTypePtr type, const std::string &fieldname, size_t size, size_t alignment ) :
-        StructField( type, fieldname, size, alignment )
+    NonNativeStructField( CspTypePtr type, const std::string &fieldname, size_t size, size_t alignment, bool optional ) :
+        StructField( type, fieldname, size, alignment, optional )
     {}
 
     virtual void initialize( Struct * s ) const = 0;
@@ -244,8 +282,8 @@ class StringStructField final : public NonNativeStructField
 public:
     using CType = csp::CspType::StringCType;
 
-    StringStructField( CspTypePtr type, const std::string & fieldname ) :
-        NonNativeStructField( type, fieldname, sizeof( CType ), alignof( CType ) )
+    StringStructField( CspTypePtr type, const std::string & fieldname, bool optional ) :
+        NonNativeStructField( type, fieldname, sizeof( CType ), alignof( CType ), optional )
     {}
 
     void initialize( Struct * s ) const override
@@ -343,8 +381,8 @@ class ArrayStructField : public NonNativeStructField
     }
 
 public:
-    ArrayStructField( CspTypePtr arrayType, const std::string & fieldname ) :
-        NonNativeStructField( arrayType, fieldname, sizeof( CType ), alignof( CType ) )
+    ArrayStructField( CspTypePtr arrayType, const std::string & fieldname, bool optional ) :
+        NonNativeStructField( arrayType, fieldname, sizeof( CType ), alignof( CType ), optional )
     {}
 
     const CType & value( const Struct * s ) const
@@ -421,8 +459,8 @@ private:
 class DialectGenericStructField : public NonNativeStructField
 {
 public:
-    DialectGenericStructField( const std::string & fieldname, size_t size, size_t alignment ) :
-        NonNativeStructField( CspType::DIALECT_GENERIC(), fieldname, size, alignment )
+    DialectGenericStructField( const std::string & fieldname, size_t size, size_t alignment, bool optional ) :
+        NonNativeStructField( CspType::DIALECT_GENERIC(), fieldname, size, alignment, optional )
     {}
 
     const DialectGenericType & value( const Struct * s ) const
@@ -587,7 +625,7 @@ public:
     using FieldNames = std::vector<std::string>;
 
     //Fields will be re-arranged and assigned their offsets in StructMeta for optimal performance
-    StructMeta( const std::string & name, const Fields & fields, std::shared_ptr<StructMeta> base = nullptr );
+    StructMeta( const std::string & name, const Fields & fields, bool isStrict, std::shared_ptr<StructMeta> base = nullptr );
     virtual ~StructMeta();
 
     const std::string & name() const          { return m_name; }
@@ -595,12 +633,15 @@ public:
     size_t partialSize() const                { return m_partialSize; }
 
     bool isNative() const                     { return m_isFullyNative; }
+    bool isStrict() const                     { return m_isStrict; }
 
     const Fields & fields() const             { return m_fields; }
     const FieldNames & fieldNames() const     { return m_fieldnames; }
 
     size_t maskLoc() const                    { return m_maskLoc; }
     size_t maskSize() const                   { return m_maskSize; }
+
+    [[nodiscard]] bool validate( const Struct * s ) const;
 
     const StructFieldPtr & field( const char * name ) const
     {
@@ -629,6 +670,9 @@ public:
     void   clear( Struct * s ) const;
     bool   allFieldsSet( const Struct * s ) const;
 
+    // used for error messages / debugging
+    std::string formatAllUnsetStrictFields( const Struct * s ) const;
+
     //for debugging layout of types
     std::string layout() const;
 
@@ -653,10 +697,17 @@ private:
     StructPtr                   m_default;
     FieldMap                    m_fieldMap;
 
+    const uint8_t & optionalSetBitMask( size_t byte ) const  { return m_optionalFieldsBitMasks[ 2 * byte ]; }
+    const uint8_t & optionalNoneBitMask( size_t byte ) const { return m_optionalFieldsBitMasks[ 2 * byte + 1 ]; }
+
+    uint8_t & optionalSetBitMask( size_t byte )     { return m_optionalFieldsBitMasks[ 2 * byte ]; }
+    uint8_t & optionalNoneBitMask( size_t byte )    { return m_optionalFieldsBitMasks[ 2 * byte + 1 ]; }
+    
     //fields in order, memory owners of field objects which in turn own the key memory
     //m_fields includes all base fields as well. m_fieldnames maintains the proper iteration order of fields
     Fields                      m_fields;
     FieldNames                  m_fieldnames;
+    std::vector<uint8_t>        m_optionalFieldsBitMasks; // masks (per-byte, for now) of the set bits and none bits of optional fields. Each byte has its set and none mask adjacent in the vector
     size_t                      m_size;              // full size of struct including base classes - NOTE this does not include refcount and meta ptr on Struct
     size_t                      m_partialSize;       // size of data in this level of the hierarchy
     size_t                      m_partialStart;      // offset into mem where data for this level starts
@@ -666,8 +717,10 @@ private:
     size_t                      m_maskSize;          // number of bytes used for mask
     size_t                      m_firstPartialField; // index into m_fields of first field of this level
     size_t                      m_firstNativePartialField; // index into m_fields of first native field of this level
+    uint8_t                     m_lastByteMask;      // mask of remaining bits in the last byte of our mask
     bool                        m_isPartialNative;   // true if this level is all native
     bool                        m_isFullyNative;     // true if this level and all bases are fully native
+    bool                        m_isStrict;          // true if this is a strict struct
 };
 
 template<typename T>
@@ -736,6 +789,16 @@ public:
     bool allFieldsSet() const
     {
         return meta() -> allFieldsSet( this );
+    }
+
+    [[nodiscard]] bool validate() const
+    {
+        return meta() -> validate( this );
+    }
+
+    std::string formatAllUnsetStrictFields() const
+    {
+        return meta() -> formatAllUnsetStrictFields( this );
     }
 
 
@@ -822,8 +885,8 @@ bool TypedStructPtr<T>::operator==( const TypedStructPtr<T> & rhs ) const
 class StructStructField final : public NonNativeStructField
 {
 public:
-    StructStructField( CspTypePtr cspType, const std::string &fieldname ) :
-        NonNativeStructField( cspType, fieldname, sizeof( StructPtr ), alignof( StructPtr ) )
+    StructStructField( CspTypePtr cspType, const std::string &fieldname, bool optional ) :
+        NonNativeStructField( cspType, fieldname, sizeof( StructPtr ), alignof( StructPtr ), optional )
     {
         CSP_ASSERT( cspType -> type() == CspType::Type::STRUCT );
         m_meta = std::static_pointer_cast<const CspStructType>( cspType ) -> meta();

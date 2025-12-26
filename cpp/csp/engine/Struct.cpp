@@ -40,11 +40,10 @@ and adjustments required for the hidden fields
 */
 
 StructMeta::StructMeta( const std::string & name, const Fields & fields, bool isStrict,
-                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields( fields ), 
+                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields( fields ), m_optionalFieldsBitMasks(),
                                                              m_size( 0 ), m_partialSize( 0 ), m_partialStart( 0 ), m_nativeStart( 0 ), m_basePadding( 0 ),
                                                              m_maskLoc( 0 ), m_maskSize( 0 ), m_firstPartialField( 0 ), m_firstNativePartialField( 0 ),
-                                                             m_optionalFieldsSetBits(), m_optionalFieldsNoneBits(), m_isPartialNative( true ), 
-                                                             m_isFullyNative( true ), m_isStrict( isStrict )
+                                                             m_isPartialNative( true ), m_isFullyNative( true ), m_isStrict( isStrict )
 {
     if( m_fields.empty() && !m_base )
         CSP_THROW( TypeError, "Struct types must define at least 1 field" );
@@ -117,16 +116,16 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
     uint8_t maskBit = 0;
 
     // Set optional fields first so that their 2-bits never cross a byte boundary
-    m_optionalFieldsSetBits.resize( m_maskSize );
-    m_optionalFieldsNoneBits.resize( m_maskSize );
+    // Put both the set bits and none bits in the same vector to avoid fragmentation
+    m_optionalFieldsBitMasks.resize( 2 * m_maskSize );
     for( size_t i = 0; i < m_fields.size(); ++i )
     {
         auto & f = m_fields[ i ];
         if( f -> isOptional() )
         {
             f -> setMaskOffset( maskLoc, maskBit );
-            m_optionalFieldsSetBits[ maskLoc - m_maskLoc ] |= ( 1 << maskBit );
-            m_optionalFieldsNoneBits[ maskLoc - m_maskLoc ] |= ( 1 << ++maskBit );
+            optionalSetBitMask( maskLoc - m_maskLoc ) |= ( 1 << maskBit ); // set bits for this byte
+            optionalNoneBitMask( maskLoc - m_maskLoc ) |= ( 1 << ++maskBit ); // none bits for this byte
             if( ++maskBit == 8 )
             {
                 maskBit = 0;
@@ -545,14 +544,14 @@ bool StructMeta::allFieldsSet( const Struct * s ) const
     size_t i = 0;
     for( ; m < e; ++m, ++i )
     {
-        if( ( *m | ( ( *m & m_optionalFieldsSetBits[ i ] ) << 1 ) | ( ( *m & m_optionalFieldsNoneBits[ i ] ) >> 1 ) ) != 0xFF )
+        if( ( *m | ( ( *m & optionalSetBitMask( i ) ) << 1 ) | ( ( *m & optionalNoneBitMask( i ) ) >> 1 ) ) != 0xFF )
             return false;
     }
 
     if( m_lastByteMask )
     {
         uint8_t masked = *m & m_lastByteMask;
-        if( ( masked | ( ( ( masked & m_optionalFieldsSetBits[ i ] ) << 1 ) & m_lastByteMask ) | ( ( masked & m_optionalFieldsNoneBits[ i ] ) >> 1 ) ) != m_lastByteMask )
+        if( ( masked | ( ( ( masked & optionalSetBitMask( i ) ) << 1 ) & m_lastByteMask ) | ( ( masked & optionalNoneBitMask( i ) ) >> 1 ) ) != m_lastByteMask )
             return false;
     }
 

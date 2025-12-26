@@ -696,12 +696,18 @@ private:
     std::shared_ptr<StructMeta> m_base;
     StructPtr                   m_default;
     FieldMap                    m_fieldMap;
-              
+
+    const uint8_t & optionalSetBitMask( size_t byte ) const  { return m_optionalFieldsBitMasks[ 2 * byte ]; }
+    const uint8_t & optionalNoneBitMask( size_t byte ) const { return m_optionalFieldsBitMasks[ 2 * byte + 1 ]; }
+
+    uint8_t & optionalSetBitMask( size_t byte )     { return m_optionalFieldsBitMasks[ 2 * byte ]; }
+    uint8_t & optionalNoneBitMask( size_t byte )    { return m_optionalFieldsBitMasks[ 2 * byte + 1 ]; }
     
     //fields in order, memory owners of field objects which in turn own the key memory
     //m_fields includes all base fields as well. m_fieldnames maintains the proper iteration order of fields
     Fields                      m_fields;
     FieldNames                  m_fieldnames;
+    std::vector<uint8_t>        m_optionalFieldsBitMasks; // masks (per-byte, for now) of the set bits and none bits of optional fields. Each byte has its set and none mask adjacent in the vector
     size_t                      m_size;              // full size of struct including base classes - NOTE this does not include refcount and meta ptr on Struct
     size_t                      m_partialSize;       // size of data in this level of the hierarchy
     size_t                      m_partialStart;      // offset into mem where data for this level starts
@@ -711,8 +717,6 @@ private:
     size_t                      m_maskSize;          // number of bytes used for mask
     size_t                      m_firstPartialField; // index into m_fields of first field of this level
     size_t                      m_firstNativePartialField; // index into m_fields of first native field of this level
-    std::vector<uint8_t>        m_optionalFieldsSetBits; // mask (per-byte, for now) of the set bits of optional fields
-    std::vector<uint8_t>        m_optionalFieldsNoneBits; // mask (per-byte, for now) of the none bits of optional fields
     uint8_t                     m_lastByteMask;      // mask of remaining bits in the last byte of our mask
     bool                        m_isPartialNative;   // true if this level is all native
     bool                        m_isFullyNative;     // true if this level and all bases are fully native

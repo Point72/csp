@@ -9,6 +9,10 @@ set(ADAPTER_UTILS_PUBLIC_HEADERS
         ValueDispatcher.h
         )
 
+if(CSP_HAVE_AVRO)
+    list(APPEND ADAPTER_UTILS_PUBLIC_HEADERS AvroMessageWriter.h)
+endif()
+
 set(ADAPTER_UTILS_FILES
         JSONMessageStructConverter.cpp
         MessageWriter.cpp

@@ -4263,6 +4263,31 @@ class TestCspStruct(unittest.TestCase):
         del s
         gc.collect(0)
 
+    def test_pydantic_validation_strict_structs(self):
+        """Test Pydantic validation with strict structs"""
+
+        class StrictStruct(csp.Struct, strict=True):
+            a: int
+            b: str = "abc"
+            c: bool | None = None
+            d: int | None
+
+        good_schemas = [{"a": 1, "d": 2}, {"a": 1, "b": "abcd", "c": None, "d": None}]
+
+        bad_schemas = [
+            {"d": 2},  # missing a
+            {"a": 1},  # missing d
+            {"a": None, "d": None},  # wrong type for a
+            {"a": 1, "b": None, "d": None},  # wrong type for b
+        ]
+
+        for schema in good_schemas:
+            TypeAdapter(StrictStruct).validate_python(schema)
+
+        for schema in bad_schemas:
+            with self.assertRaises(ValidationError):
+                TypeAdapter(StrictStruct).validate_python(schema)
+
 
 if __name__ == "__main__":
     unittest.main()

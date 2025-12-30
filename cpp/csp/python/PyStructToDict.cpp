@@ -153,19 +153,27 @@ PyObjectPtr StructToDictHelper::parseStructToDictRecursive( const StructPtr& sel
     auto new_dict = PyObjectPtr::own( PyDict_New() );
     auto& fields = meta -> fields();
 
-    for( const auto& field: fields )
+    for( const auto & field: fields )
     {
         // NOTE: Add customization parameter to skip fields starting with underscore("_")
-        if( !field -> isSet( struct_ptr ) )
+        if( !field -> isSet( struct_ptr ) && !field -> isNone( struct_ptr ) )
             continue;
 
-        auto& key = field -> fieldname();
-        auto py_obj = switchCspType( field -> type(), [field, struct_ptr, this]( auto tag )
-            {
-                using CType = typename decltype( tag )::type;
-                auto * typedField = static_cast<const typename StructField::upcast<CType>::type *>( field.get() );
-                return this -> parseCspToPython( typedField -> value( struct_ptr ), *field -> type() );
-            } );
+        auto & key = field -> fieldname();
+
+        PyObjectPtr py_obj;
+        if( field -> isNone( struct_ptr ) )
+            py_obj = PyObjectPtr::incref( Py_None );
+        else
+        {
+            py_obj = switchCspType( field -> type(), [field, struct_ptr, this]( auto tag )
+                {
+                    using CType = typename decltype( tag )::type;
+                    auto * typedField = static_cast<const typename StructField::upcast<CType>::type *>( field.get() );
+                    return this -> parseCspToPython( typedField -> value( struct_ptr ), *field -> type() );
+                } );
+        }
+
         PyDict_SetItemString( new_dict.get(), key.c_str(), py_obj.get() );
     }
 

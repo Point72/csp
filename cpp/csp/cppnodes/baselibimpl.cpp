@@ -762,8 +762,8 @@ DECLARE_CPPNODE( struct_collectts )
                 );
         }
         
-        if( unlikely( !out.get() -> validate( ) ) )
-            CSP_THROW( ValueError, "Struct " << cls.value() -> name() << " is not valid; some required fields did not tick" );
+        if( unlikely( !out.get() -> validate() ) )
+            CSP_THROW( ValueError, "Struct " << cls.value() -> name() << " is not valid; required fields " << out -> formatAllUnsetStrictFields() << " did not tick" );
 
         CSP_OUTPUT( std::move( out ) );
     }

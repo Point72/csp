@@ -1,6 +1,6 @@
 import string
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import csp
@@ -153,8 +153,7 @@ class TestStrictStructs(unittest.TestCase):
             req_int: int
             opt_str: Optional[str] = None
 
-        # check that at graph and wire time we are able to access required fields just fine:
-
+        # check that at graph and wire time we are able to access required fields just fine
         @csp.node
         def ok_node(x: csp.ts[MyStrictStruct]) -> csp.ts[str]:
             int_val = x.req_int
@@ -186,8 +185,33 @@ class TestStrictStructs(unittest.TestCase):
         ):
             csp.run(g_fail, starttime=datetime(2023, 1, 1))
 
-    def test_strict_struct_fromts(self):
-        """fromts requires all non-defaulted fields to tick together"""
+        # ensure you can return a strict struct from a user-defined node and access required fields correctly
+        class Test(csp.Struct, strict=True):
+            name: str
+            age: int
+            is_active: Optional[bool] = None
+
+            def greet(self):
+                return f"Hello, my name is {self.name} and I am {self.age} years old."
+
+        @csp.node
+        def test() -> csp.ts[Test]:
+            return Test(name="John", age=30, is_active=True)
+
+        @csp.graph
+        def main_graph():
+            res = test().is_active
+            csp.print("", res)
+
+        with self.assertRaisesRegex(
+            AttributeError, "Cannot access optional field 'is_active' on strict struct object 'Test' at graph time"
+        ):
+            csp.build_graph(main_graph)
+
+    def test_strict_struct_fromts_collectts(self):
+        """fromts requires all non-defaulted fields to be valid, collectts requires them to tick together"""
+
+        st = datetime(2023, 1, 1)
 
         class MyStrictStruct(csp.Struct, strict=True):
             req_int1: int
@@ -196,42 +220,65 @@ class TestStrictStructs(unittest.TestCase):
             req_default_str: str = "default"
             opt_array_type: list[int] | None
 
-        @csp.node
-        def make_ts(x: csp.ts[int]) -> csp.ts[int]:
-            if x % 2 == 0:
-                return x
+        def test_and_check_values(g):
+            res = csp.run(g, starttime=st)
+            print(res)
+            mss = res[0][0][1]
+            self.assertEqual(mss.req_int1, 1)
+            self.assertEqual(mss.req_int2, 2)
+            self.assertIsNone(mss.opt_str)
+            self.assertEqual(mss.req_default_str, "default")
+            self.assertIsNone(mss.opt_array_type)
 
         @csp.graph
-        def g():
-            ts1 = make_ts(csp.const(2))
-            ts2 = make_ts(csp.const(1))
+        def fromts_invalid() -> csp.ts[MyStrictStruct]:
+            ts1 = csp.const(1)
+            ts2 = csp.const(2, delay=timedelta(seconds=1))
 
-            # ts1 and ts2 don't tick together
-            s_ts = MyStrictStruct.fromts(req_int1=ts1, req_int2=ts2)
-            csp.add_graph_output("output", s_ts)
+            # ts2 is not valid when ts1 ticks
+            return MyStrictStruct.fromts(req_int1=ts1, req_int2=ts2)
 
         with self.assertRaisesRegex(
             ValueError, r"Struct MyStrictStruct is not valid; required fields \[opt_array_type, req_int2\] did not tick"
         ):
-            csp.run(g, starttime=datetime(2023, 1, 1))
+            csp.run(fromts_invalid, starttime=st)
 
         @csp.graph
-        def g_ok():
-            ts1 = csp.const(2)
-            ts2 = csp.const(4)
-            ts3 = csp.const(None)
+        def fromts_valid() -> csp.ts[MyStrictStruct]:
+            ts1 = csp.const(1)
+            ts2 = csp.const(2, delay=timedelta(seconds=1))
+            ts3 = csp.const(None, delay=timedelta(seconds=1))
 
-            # ts1 and ts2 tick together
-            s_ts = MyStrictStruct.fromts(req_int1=ts1, req_int2=ts2, opt_array_type=ts3)
-            csp.add_graph_output("output", s_ts)
+            # all are now valid when trigger ticks
+            trigger = csp.const(True, delay=timedelta(seconds=1))
+            return MyStrictStruct.fromts(trigger, req_int1=ts1, req_int2=ts2, opt_array_type=ts3)
 
-        res = csp.run(g_ok, starttime=datetime(2023, 1, 1))
-        mss = res["output"][0][1]
-        self.assertEqual(mss.req_int1, 2)
-        self.assertEqual(mss.req_int2, 4)
-        self.assertIsNone(mss.opt_str)
-        self.assertEqual(mss.req_default_str, "default")
-        self.assertIsNone(mss.opt_array_type)
+        test_and_check_values(fromts_valid)
+
+        @csp.graph
+        def collectts_invalid() -> csp.ts[MyStrictStruct]:
+            ts1 = csp.const(1)
+            ts2 = csp.const(2, delay=timedelta(seconds=1))
+            ts3 = csp.const(None, delay=timedelta(seconds=1))
+
+            # ts1 ticks out of seq with ts2, ts3
+            return MyStrictStruct.collectts(req_int1=ts1, req_int2=ts2, opt_array_type=ts3)
+
+        with self.assertRaisesRegex(
+            ValueError, r"Struct MyStrictStruct is not valid; required fields \[opt_array_type, req_int2\] did not tick"
+        ):
+            csp.run(collectts_invalid, starttime=st)
+
+        @csp.graph
+        def collectts_valid() -> csp.ts[MyStrictStruct]:
+            ts1 = csp.const(1, delay=timedelta(seconds=1))
+            ts2 = csp.const(2, delay=timedelta(seconds=1))
+            ts3 = csp.const(None, delay=timedelta(seconds=1))
+
+            # all tick together, collectts is valid
+            return MyStrictStruct.collectts(req_int1=ts1, req_int2=ts2, opt_array_type=ts3)
+
+        test_and_check_values(collectts_valid)
 
     def test_strict_struct_inheritance_and_nested(self):
         class BaseStrict(csp.Struct, strict=True):
@@ -347,29 +394,6 @@ class TestStrictStructs(unittest.TestCase):
             ValueError, r"Struct InnerStrict is not valid; required fields \[x\] were not set on init"
         ):
             OuterStruct.from_dict({"strict_inner": {}, "loose_inner": {"y": None}})
-
-    def test_strict_struct_wiring_access_2(self):
-        class Test(csp.Struct, strict=True):
-            name: str
-            age: int
-            is_active: Optional[bool] = None
-
-            def greet(self):
-                return f"Hello, my name is {self.name} and I am {self.age} years old."
-
-        @csp.node
-        def test() -> csp.ts[Test]:
-            return Test(name="John", age=30, is_active=True)
-
-        @csp.graph
-        def main_graph():
-            res = test().is_active
-            csp.print("", res)
-
-        with self.assertRaisesRegex(
-            AttributeError, "Cannot access optional field 'is_active' on strict struct object 'Test' at graph time"
-        ):
-            csp.build_graph(main_graph)
 
     def test_str_repr(self):
         class StrictStruct(csp.Struct, strict=True):

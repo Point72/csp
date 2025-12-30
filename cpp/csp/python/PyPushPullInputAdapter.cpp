@@ -22,7 +22,7 @@ public:
     }
 
     //override nextPullEvent so we can release GIL while we wait
-    PushPullInputAdapter::PullDataEvent * nextPullEvent() override
+    PushPullEvent * nextPullEvent() override
     {
         ReleaseGIL release;
         return PushPullInputAdapter::nextPullEvent();

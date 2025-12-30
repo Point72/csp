@@ -1,4 +1,5 @@
 import os
+import typing
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -111,7 +112,7 @@ class TestKafka:
             # csp.print('sub', sub_data)
             # Wait for at least count ticks and until we get a live tick
             done_flag = csp.count(sub_data) >= count
-            done_flag = csp.and_(done_flag, sub_data.mapped_live is True)
+            done_flag = csp.and_(done_flag, sub_data.mapped_live == True)  # noqa: E712
             stop = csp.filter(done_flag, done_flag)
             csp.stop_engine(stop)
 
@@ -314,7 +315,7 @@ class TestKafka:
         )["data"]
         assert len(res) == len(expected)
 
-    @pytest.fixture(autouse=True)
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_raw_pubsub(self, kafkaadapter):
         @csp.node
         def data(x: ts[object]) -> ts[bytes]:
@@ -464,3 +465,77 @@ class TestKafka:
 
         with pytest.raises(ValueError):
             csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
+    def test_conf_options(self):
+        mgr = KafkaAdapterManager(
+            "broker123",
+            rd_kafka_conf_options={"test": "a"},
+            rd_kafka_consumer_conf_options={"consumer_test": "b"},
+            rd_kafka_producer_conf_options={"producer_test": "c"},
+        )
+        assert mgr._properties["rd_kafka_conf_properties"]["test"] == "a"
+        assert mgr._properties["rd_kafka_consumer_conf_properties"]["consumer_test"] == "b"
+        assert mgr._properties["rd_kafka_producer_conf_properties"]["producer_test"] == "c"
+
+        pytest.raises(ValueError, KafkaAdapterManager, "broker123", rd_kafka_consumer_conf_options={"group.id": "b"})
+
+    @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
+    def test_push_mode(self, kafkaadapter, kafkabroker):
+        class BasicData(csp.Struct):
+            a: int
+            b: bool
+
+        topic = f"test_burst.{os.getpid()}"
+        _precreate_topic(topic)
+        msg_mapper = JSONTextMessageMapper(datetime_type=DateTimeType.UINT64_MICROS)
+        count = 10
+
+        def pub_graph():
+            i = csp.count(csp.timer(timedelta(seconds=0.1)))
+            struct = BasicData.collectts(a=i, b=(i > 0))
+            kafkaadapter.publish(msg_mapper, topic, "foo", struct)
+            stop = csp.count(struct) == count
+            stop = csp.filter(stop, stop)
+            csp.stop_engine(stop)
+
+        csp.run(pub_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=True)
+
+        def sub_graph():
+            kafkaadapter = KafkaAdapterManager(broker=kafkabroker, start_offset=KafkaStartOffset.EARLIEST)
+            stop_flags = []
+            for key, push_mode in (
+                ("burst", csp.PushMode.BURST),
+                ("last", csp.PushMode.LAST_VALUE),
+            ):
+                data = kafkaadapter.subscribe(
+                    BasicData,
+                    msg_mapper=msg_mapper,
+                    topic=topic,
+                    key="foo",
+                    push_mode=push_mode,
+                )
+                # ensure graph-time ts type is correct
+                if push_mode == csp.PushMode.BURST:
+                    assert data.tstype.typ is typing.List[BasicData]
+                else:
+                    assert data.tstype.typ is BasicData
+                csp.add_graph_output(key, data)
+                stop_flags.append(csp.count(data) == 1)
+
+            stop = csp.and_(*stop_flags)
+            csp.stop_engine(csp.filter(stop, stop))
+
+        res = csp.run(sub_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=True)
+        burst = res["burst"]
+        assert len(burst) == 1
+        assert isinstance(burst[0][1], list)
+        assert len(burst[0][1]) == 10
+        assert all([rv == BasicData(a=i + 1, b=True) for i, rv in enumerate(burst[0][1])])
+
+        last = res["last"]
+        assert len(last) == 1
+        assert isinstance(last[0][1], BasicData)
+        assert last[0][1] == BasicData(a=count, b=True)
+
+        # non-collapsing is tested in other tests

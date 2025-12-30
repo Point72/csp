@@ -15,6 +15,7 @@ from typing import Callable, Dict, List
 import numpy as np
 import psutil
 import pytest
+from pytz import UTC
 
 import csp
 from csp import PushMode, ts
@@ -414,6 +415,75 @@ class TestEngine(unittest.TestCase):
         x = csp.timer(timedelta(seconds=1), True)
         result = csp.run(times(x), starttime=datetime(2020, 2, 7, 9), endtime=timedelta(seconds=10))[0]
         self.assertEqual([v[0] for v in result], [v[1] for v in result])
+
+    def test_csp_in_realtime__historical(self):
+        @csp.node
+        def is_in_realtime(x: ts[bool]) -> ts[bool]:
+            if csp.ticked(x):
+                return csp.in_realtime()
+
+        @csp.graph
+        def g() -> ts[bool]:
+            # Symbolic curve of expected booleans
+            times = csp.curve(
+                bool,
+                [(datetime(2025, 12, 24), False)],
+            )
+            csp.add_graph_output("in_realtime", is_in_realtime(times))
+
+        outputs = csp.run(g, starttime=datetime(2025, 12, 24), endtime=datetime(2025, 12, 25), realtime=False)
+        assert outputs
+        assert outputs["in_realtime"][0][1] is False
+
+    def test_csp_in_realtime__realtime(self):
+        def utc_now() -> datetime:
+            return datetime.now(UTC)
+
+        @csp.node
+        def is_in_realtime(x: ts[bool]) -> ts[bool]:
+            if csp.ticked(x):
+                return csp.in_realtime()
+
+        @csp.graph
+        def g() -> ts[bool]:
+            # Symbolic curve of expected booleans
+            times = csp.curve(
+                bool,
+                [(timedelta(seconds=10), True)],
+            )
+            csp.add_graph_output("in_realtime", is_in_realtime(times))
+            csp.stop_engine(times)
+
+        outputs = csp.run(g, starttime=utc_now(), endtime=utc_now() + timedelta(seconds=30), realtime=True)
+        assert outputs
+        assert outputs["in_realtime"][0][1] is True
+
+    @pytest.mark.skipif(not os.environ.get("CSP_ENGINE_FLAKY_TESTS"), reason="potentially flaky test")
+    def test_csp_in_realtime(self):
+        def utc_now() -> datetime:
+            return datetime.now(UTC)
+
+        @csp.node
+        def is_in_realtime(x: ts[bool]) -> ts[bool]:
+            if csp.ticked(x):
+                assert csp.in_realtime() == x
+                return csp.in_realtime()
+
+        @csp.graph
+        def g() -> ts[bool]:
+            # Symbolic curve of expected booleans
+            times = csp.curve(
+                bool,
+                [(utc_now() - timedelta(seconds=3), False), (utc_now() + timedelta(seconds=3), True)],
+            )
+            csp.add_graph_output("in_realtime", is_in_realtime(times))
+
+        outputs = csp.run(
+            g, starttime=utc_now() - timedelta(seconds=5), endtime=utc_now() + timedelta(seconds=10), realtime=True
+        )
+        assert outputs
+        assert outputs["in_realtime"][0][1] is False
+        assert outputs["in_realtime"][1][1] is True
 
     def test_stop_engine(self):
         @csp.node

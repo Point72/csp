@@ -11,6 +11,7 @@ from csp import ts
 from csp.impl.pandas_ext_type import TsDtype, is_csp_type
 from csp.impl.struct import define_nested_struct
 from csp.impl.wiring.edge import Edge
+from csp.utils.datetime import utc_now
 
 T = TypeVar("T")
 
@@ -369,7 +370,7 @@ class CspSeriesAccessor(object):
         :returns: A new Series of type corresponding to the underlying edge type (TsDtype.subtype),
             with the same index as the original series, containing the snapped value of each Edge.
         """
-        starttime = starttime or datetime.utcnow()
+        starttime = starttime or utc_now()
         return self.run(starttime, timeout, True, tick_count=1, snap=True)
 
     def show_graph(self):
@@ -546,7 +547,7 @@ class CspDataFrameAccessor(object):
             a time in the future (to schedule a snap at, i.e. the next minute)
         :returns: A new DataFrame with the same indices where every Edge is replaced by it's snapped value.
         """
-        starttime = starttime or datetime.utcnow()
+        starttime = starttime or utc_now()
         return self.run(starttime, timeout, True, tick_count=1, snap=True)
 
     def sample(self, trigger: Union[timedelta, np.timedelta64, pd.Timedelta, ts[object]], inplace: bool = False):

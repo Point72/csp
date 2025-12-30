@@ -2,6 +2,7 @@ import unittest
 from datetime import date, datetime, timedelta
 
 import csp
+from csp.utils.datetime import utc_now
 
 try:
     from csp.adapters.perspective import PerspectiveAdapter
@@ -35,4 +36,4 @@ class TestPerspectiveAdapter(unittest.TestCase):
     @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective")
     def test_adapter(self):
         output = {}
-        csp.run(my_graph, output, starttime=datetime.utcnow(), endtime=timedelta(seconds=1))
+        csp.run(my_graph, output, starttime=utc_now(), endtime=timedelta(seconds=1))

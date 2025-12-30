@@ -14,6 +14,7 @@ from csp.adapters.kafka import (
     RawBytesMessageMapper,
     RawTextMessageMapper,
 )
+from csp.utils.datetime import utc_now
 
 from .kafka_utils import _precreate_topic
 
@@ -117,14 +118,14 @@ class TestKafka:
             csp.stop_engine(stop)
 
         count = 5
-        results = csp.run(graph, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
+        results = csp.run(graph, count, starttime=utc_now(), endtime=timedelta(seconds=30), realtime=True)
         assert len(results["sub_data"]) >= 5
         print(results)
         for result in results["sub_data"]:
             assert result[1].mapped_partition >= 0
             assert result[1].mapped_offset >= 0
             assert result[1].mapped_live is not None
-            assert result[1].mapped_timestamp < datetime.utcnow()
+            assert result[1].mapped_timestamp < utc_now()
         assert results["sub_data"][-1][1].mapped_live
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
@@ -204,9 +205,7 @@ class TestKafka:
 
         symbols = ["AAPL", "MSFT"]
         count = 100
-        results = csp.run(
-            graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
-        )
+        results = csp.run(graph, symbols, count, starttime=utc_now(), endtime=timedelta(seconds=30), realtime=True)
         for symbol in symbols:
             pub = results[f"pall_{symbol}"]
             sub = results[f"sall_{symbol}"]
@@ -231,7 +230,7 @@ class TestKafka:
             csp.stop_engine(stop)
             # csp.print('pub', struct)
 
-        csp.run(pub_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)
+        csp.run(pub_graph, starttime=utc_now(), endtime=timedelta(seconds=30), realtime=True)
 
         # grab start/end times
         def get_times_graph():
@@ -251,9 +250,7 @@ class TestKafka:
             # csp.print('sub', data)
             # csp.print('status', kafkaadapter.status())
 
-        all_data = csp.run(get_times_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)[
-            "data"
-        ]
+        all_data = csp.run(get_times_graph, starttime=utc_now(), endtime=timedelta(seconds=30), realtime=True)["data"]
         min_time = all_data[0][1].dt
 
         def get_data(start_offset, expected_count):
@@ -276,7 +273,7 @@ class TestKafka:
             get_data,
             KafkaStartOffset.EARLIEST,
             10,
-            starttime=datetime.utcnow(),
+            starttime=utc_now(),
             endtime=timedelta(seconds=30),
             realtime=True,
         )["data"]
@@ -288,7 +285,7 @@ class TestKafka:
             get_data,
             KafkaStartOffset.LATEST,
             1,
-            starttime=datetime.utcnow(),
+            starttime=utc_now(),
             endtime=timedelta(seconds=1),
             realtime=True,
         )["data"]
@@ -306,7 +303,7 @@ class TestKafka:
         stime = all_data[2][1].dt + timedelta(milliseconds=1)
         expected = [x for x in all_data if x[1].dt >= stime]
         res = csp.run(
-            get_data, stime, len(expected), starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
+            get_data, stime, len(expected), starttime=utc_now(), endtime=timedelta(seconds=30), realtime=True
         )["data"]
         assert len(res) == len(expected)
 
@@ -376,9 +373,7 @@ class TestKafka:
 
         symbols = ["AAPL", "MSFT"]
         count = 10
-        results = csp.run(
-            graph, symbols, count, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True
-        )
+        results = csp.run(graph, symbols, count, starttime=utc_now(), endtime=timedelta(seconds=30), realtime=True)
         # print(results)
         for symbol in symbols:
             pub = results[f"pub_{symbol}"]
@@ -405,7 +400,7 @@ class TestKafka:
 
         # With bug this would deadlock
         with pytest.raises(RuntimeError):
-            csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+            csp.run(graph_sub, starttime=utc_now(), endtime=timedelta(seconds=2), realtime=True)
         kafkaadapter2 = KafkaAdapterManager(**kafkaadapterkwargs)
 
         def graph_pub():
@@ -414,7 +409,7 @@ class TestKafka:
 
         # With bug this would deadlock
         with pytest.raises(RuntimeError):
-            csp.run(graph_pub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+            csp.run(graph_pub, starttime=utc_now(), endtime=timedelta(seconds=2), realtime=True)
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_invalid_broker(self, kafkaadapterkwargs):
@@ -434,7 +429,7 @@ class TestKafka:
 
         # With bug this would deadlock
         with pytest.raises(RuntimeError):
-            csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+            csp.run(graph_sub, starttime=utc_now(), endtime=timedelta(seconds=2), realtime=True)
 
         kafkaadapter2 = KafkaAdapterManager(**dict_with_broker)
 
@@ -444,7 +439,7 @@ class TestKafka:
 
         # With bug this would deadlock
         with pytest.raises(RuntimeError):
-            csp.run(graph_pub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+            csp.run(graph_pub, starttime=utc_now(), endtime=timedelta(seconds=2), realtime=True)
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_meta_field_map_tick_timestamp_from_field(self, kafkaadapterkwargs):
@@ -464,7 +459,7 @@ class TestKafka:
             )
 
         with pytest.raises(ValueError):
-            csp.run(graph_sub, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+            csp.run(graph_sub, starttime=utc_now(), endtime=timedelta(seconds=2), realtime=True)
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_conf_options(self):
@@ -499,7 +494,7 @@ class TestKafka:
             stop = csp.filter(stop, stop)
             csp.stop_engine(stop)
 
-        csp.run(pub_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=True)
+        csp.run(pub_graph, starttime=utc_now(), endtime=timedelta(seconds=5), realtime=True)
 
         def sub_graph():
             kafkaadapter = KafkaAdapterManager(broker=kafkabroker, start_offset=KafkaStartOffset.EARLIEST)
@@ -526,7 +521,7 @@ class TestKafka:
             stop = csp.and_(*stop_flags)
             csp.stop_engine(csp.filter(stop, stop))
 
-        res = csp.run(sub_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=True)
+        res = csp.run(sub_graph, starttime=utc_now(), endtime=timedelta(seconds=5), realtime=True)
         burst = res["burst"]
         assert len(burst) == 1
         assert isinstance(burst[0][1], list)

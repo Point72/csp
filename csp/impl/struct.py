@@ -120,14 +120,16 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 field_schema = core_schema.with_default_schema(
                     schema=field_schema, default=cls.__defaults__[field_name]
                 )
+
+            required = cls.__strict_enabled__ and field_name not in cls.__defaults__
             fields[field_name] = core_schema.typed_dict_field(
                 schema=field_schema,
-                required=False,  # Make all fields optional
+                required=required,
             )
         # Schema for dictionary inputs
         fields_schema = core_schema.typed_dict_schema(
             fields=fields,
-            total=False,  # Allow missing fields
+            total=False,  # Allow missing fields that start with underscore
             extra_behavior="allow",  # let csp catch extra attributes, allows underscore fields to pass through
         )
 

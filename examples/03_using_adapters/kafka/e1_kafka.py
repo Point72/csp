@@ -10,6 +10,7 @@ from csp.adapters.kafka import (
     ProtoMessageMapper,
     RawTextMessageMapper,
 )
+from csp.utils.datetime import utc_now
 
 
 class JSONMessage(csp.Struct):
@@ -224,9 +225,9 @@ def text_consumer_graph():
 
 
 if __name__ == "__main__":
-    # csp.run( json_graph, starttime = datetime.utcnow(), endtime = timedelta( seconds = 10 ), realtime = True )
-    # csp.run( json_producer_graph, starttime = datetime.utcnow(), endtime = timedelta( seconds = 10 ), realtime = True )
-    # csp.run( proto_graph, starttime = datetime.utcnow(), endtime = timedelta( seconds = 10 ), realtime = True )
-    # csp.run( proto_graph_multiple_subscribers, starttime = datetime.utcnow(), endtime = timedelta( seconds = 10 ), realtime = True )
-    # csp.run( kerberos_consumer_graph, starttime = datetime.utcnow(), endtime = timedelta( seconds = 100 ), realtime = True )
-    csp.run(text_consumer_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=True)
+    # csp.run( json_graph, starttime = utc_now(), endtime = timedelta( seconds = 10 ), realtime = True )
+    # csp.run( json_producer_graph, starttime = utc_now(), endtime = timedelta( seconds = 10 ), realtime = True )
+    # csp.run( proto_graph, starttime = utc_now(), endtime = timedelta( seconds = 10 ), realtime = True )
+    # csp.run( proto_graph_multiple_subscribers, starttime = utc_now(), endtime = timedelta( seconds = 10 ), realtime = True )
+    # csp.run( kerberos_consumer_graph, starttime = utc_now(), endtime = timedelta( seconds = 100 ), realtime = True )
+    csp.run(text_consumer_graph, starttime=utc_now(), endtime=timedelta(seconds=10), realtime=True)

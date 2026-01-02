@@ -3,13 +3,14 @@ This is a simple example to demonstrate a basic output adapter. It also shows th
 functionality with a single node.
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from json import dumps
 
 import csp
 from csp import ts
 from csp.impl.outputadapter import OutputAdapter
 from csp.impl.wiring import py_output_adapter_def
+from csp.utils.datetime import utc_now
 
 
 class MyBufferWriterAdapterImpl(OutputAdapter):
@@ -62,7 +63,7 @@ def my_graph():
 def main():
     csp.run(
         my_graph,
-        starttime=datetime.utcnow(),
+        starttime=utc_now(),
         endtime=timedelta(seconds=2),
         realtime=True,
     )

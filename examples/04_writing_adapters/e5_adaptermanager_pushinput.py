@@ -7,13 +7,14 @@ that you want to connect to once, but provide data to/from many input/output ada
 import random
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import csp
 from csp import ts
 from csp.impl.adaptermanager import AdapterManagerImpl
 from csp.impl.pushadapter import PushInputAdapter
 from csp.impl.wiring import py_push_adapter_def
+from csp.utils.datetime import utc_now
 
 
 class MyData(csp.Struct):
@@ -152,7 +153,7 @@ def my_graph():
 
 
 def main():
-    csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=2), realtime=True)
+    csp.run(my_graph, starttime=utc_now(), endtime=timedelta(seconds=2), realtime=True)
 
 
 if __name__ == "__main__":

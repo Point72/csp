@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import csp
 from csp import ts
 from csp.adapters.websocket import WebsocketTableAdapter
+from csp.utils.datetime import utc_now
 
 """ To view the output see sample html code below """
 
@@ -59,7 +60,7 @@ num_keys = 10
 
 
 def main():
-    csp.run(my_graph, port, num_keys, starttime=datetime.utcnow(), endtime=timedelta(seconds=360), realtime=True)
+    csp.run(my_graph, port, num_keys, starttime=utc_now(), endtime=timedelta(seconds=360), realtime=True)
 
 
 """ Sample html to view the data.  Note to put your machine name on the websocket line below

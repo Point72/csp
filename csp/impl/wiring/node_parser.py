@@ -857,9 +857,13 @@ class NodeParser(BaseParser):
         start_and_body = [ast.Expr(value=ast.Yield(value=None))] + del_vars + start_and_body
         newbody = init_block + start_and_body
 
-        newfuncdef = ast.FunctionDef(name=self._name, body=newbody, returns=None)
-        newfuncdef.args = self._create_ast_args(
-            posonlyargs=[], args=[], kwonlyargs=[], defaults=[], vararg=None, kwarg=None, kw_defaults=[]
+        newfuncdef = ast.FunctionDef(
+            name=self._name,
+            args=self._create_ast_args(
+                posonlyargs=[], args=[], kwonlyargs=[], defaults=[], vararg=None, kwarg=None, kw_defaults=[]
+            ),
+            body=newbody,
+            returns=None,
         )
         newfuncdef.decorator_list = []
 

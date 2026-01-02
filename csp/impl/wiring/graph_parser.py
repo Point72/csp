@@ -164,8 +164,9 @@ class GraphParser(BaseParser):
         )
         self.generic_visit(self._funcdef)
 
-        newfuncdef = ast.FunctionDef(name=self._funcdef.name, body=self._funcdef.body, returns=None)
-        newfuncdef.args = self._funcdef.args
+        newfuncdef = ast.FunctionDef(
+            name=self._funcdef.name, args=self._funcdef.args, body=self._funcdef.body, returns=None
+        )
         newfuncdef.decorator_list = []
 
         ast.fix_missing_locations(newfuncdef)

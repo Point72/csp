@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import csp
 from csp import ts
+from csp.utils.datetime import utc_now
 
 # This example demonstrates the advanced concept of dynamic graphs. Dynamic graphs provide the ability to extend the shape of the graph during runtime,
 # which is useful when you may not necessarily know what you will be processing at start
@@ -70,7 +71,7 @@ def main_graph():
 
 
 def main():
-    csp.run(main_graph, starttime=datetime.utcnow().replace(microsecond=0), endtime=timedelta(seconds=10))
+    csp.run(main_graph, starttime=utc_now().replace(microsecond=0), endtime=timedelta(seconds=10))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,4 @@
+
+add_library(exampleadapterimpl SHARED exampleadapterimpl.c)
+target_link_libraries(exampleadapterimpl csp_c_example_adapter)
+install(TARGETS exampleadapterimpl RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR})

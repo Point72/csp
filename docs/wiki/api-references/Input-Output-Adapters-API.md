@@ -116,6 +116,7 @@ mapper = AvroMessageMapper(
 ```
 
 The Avro mapper supports:
+
 - Basic types: bool, int, long, double, string
 - Complex types: nested records (structs), arrays
 - Nullable fields via Avro unions (e.g., `["null", "long"]`)
@@ -261,6 +262,7 @@ csp.run(publish_graph, starttime=datetime.utcnow())
 ```
 
 The Avro format provides significant performance benefits over JSON:
+
 - Smaller message size (binary encoding)
 - Faster serialization/deserialization
 - Schema validation at compile time

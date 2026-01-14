@@ -690,7 +690,7 @@ class TestKafkaAvro:
             info_category = csp.sample(c, csp.const("A"))
             info_score = csp.apply(c, lambda x: x * 10.0, float)
             info = NestedInfo.collectts(category=info_category, score=info_score)
-            
+
             # Cycle through enum values
             status_values = [MyEnum.OPTION_A, MyEnum.OPTION_B, MyEnum.OPTION_C]
             status = csp.apply(c, lambda x: status_values[(x - 1) % 3], MyEnum)
@@ -773,9 +773,7 @@ class TestKafkaAvro:
             key = csp.sample(c, csp.const("optional_key"))
             optional_count = csp.apply(c, lambda x: x * 10, int)
 
-            pub_struct = OptionalData.collectts(
-                key=key, required_value=c, optional_count=optional_count
-            )
+            pub_struct = OptionalData.collectts(key=key, required_value=c, optional_count=optional_count)
 
             kafkaadapter.publish(msg_mapper, topic, ["key"], pub_struct)
 
@@ -973,6 +971,7 @@ class TestKafkaAvro:
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_avro_invalid_schema(self, kafkaadapter):
         """Test that invalid Avro schema raises proper error"""
+
         class TestStruct(csp.Struct):
             key: str
             value: int
@@ -1004,6 +1003,7 @@ class TestKafkaAvro:
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_avro_missing_schema(self, kafkaadapter):
         """Test that missing Avro schema raises proper error"""
+
         class TestStruct(csp.Struct):
             key: str
             value: int
@@ -1025,6 +1025,7 @@ class TestKafkaAvro:
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_avro_empty_arrays(self, kafkaadapter):
         """Test Avro round-trip with empty arrays"""
+
         class EmptyArrayData(csp.Struct):
             key: str
             tags: [str]

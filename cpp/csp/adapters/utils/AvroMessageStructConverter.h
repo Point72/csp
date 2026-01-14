@@ -4,6 +4,21 @@
 #include <csp/adapters/utils/MessageStructConverter.h>
 #include <csp/core/Hash.h>
 #include <csp/engine/Dictionary.h>
+
+// Workaround for avro-cpp fmt::formatter incompatibility with fmt v12
+// The avro-cpp library defines fmt::formatter<avro::Name> with a non-const format() method
+// but fmt v12 requires it to be const. We define our own const-correct version first.
+#ifdef _MSC_VER
+#include <fmt/format.h>
+namespace avro { struct Name; }
+template<>
+struct fmt::formatter<avro::Name, char> {
+    constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
+    template<typename FormatContext>
+    auto format(const avro::Name& n, FormatContext& ctx) const -> decltype(ctx.out());
+};
+#endif
+
 #include <avro/Decoder.hh>
 #include <avro/Generic.hh>
 #include <avro/Schema.hh>

@@ -78,6 +78,27 @@ public:
         if( record.hasField( field ) )
         {
             avro::GenericDatum & fieldDatum = record.field( field );
+
+            // If it's a union with default null branch, select the non-null branch
+            if( fieldDatum.isUnion() && fieldDatum.type() == avro::AVRO_NULL )
+            {
+                const avro::NodePtr & recordSchema = record.schema();
+                size_t fieldIndex = record.fieldIndex( field );
+                const avro::NodePtr & fieldSchema = recordSchema->leafAt( fieldIndex );
+
+                size_t nonNullBranch = 0;
+                for( size_t i = 0; i < fieldSchema->leaves(); ++i )
+                {
+                    if( fieldSchema->leafAt( i )->type() != avro::AVRO_NULL )
+                    {
+                        nonNullBranch = i;
+                        break;
+                    }
+                }
+
+                fieldDatum.selectBranch( nonNullBranch );
+            }
+
             setFieldValue( fieldDatum, value, type, entry );
         }
     }
@@ -130,52 +151,21 @@ private:
         dataMapper.apply( *this, sourcets );
     }
 
-    // Helper to handle union unwrapping
-    template<typename Func>
-    void withUnionUnwrapped( avro::GenericDatum & datum, Func && func )
-    {
-        if( datum.type() == avro::AVRO_UNION )
-        {
-            avro::GenericUnion & u = datum.value<avro::GenericUnion>();
-            // Find the non-null branch and set it
-            const avro::NodePtr & node = u.schema()->leafAt( 0 );
-            if( node->type() == avro::AVRO_NULL )
-            {
-                u.selectBranch( 1 );
-            }
-            else
-            {
-                u.selectBranch( 0 );
-            }
-            func( u.datum() );
-        }
-        else
-        {
-            func( datum );
-        }
-    }
-
     template<typename T>
     void setFieldValue( avro::GenericDatum & datum, const T & value, const CspType & type, const FieldEntry & entry )
     {
-        withUnionUnwrapped( datum, [&]( avro::GenericDatum & d ) {
-            setDatumValue( d, value );
-        } );
+        setDatumValue( datum, value );
     }
 
     void setFieldValue( avro::GenericDatum & datum, const StructPtr & value, const CspType & type, const FieldEntry & entry )
     {
-        withUnionUnwrapped( datum, [&]( avro::GenericDatum & d ) {
-            setDatumValueStruct( d, value, entry );
-        } );
+        setDatumValueStruct( datum, value, entry );
     }
 
     template<typename StorageT>
     void setFieldValue( avro::GenericDatum & datum, const std::vector<StorageT> & value, const CspType & type, const FieldEntry & entry )
     {
-        withUnionUnwrapped( datum, [&]( avro::GenericDatum & d ) {
-            setDatumValueArray( d, value, type );
-        } );
+        setDatumValueArray( datum, value, type );
     }
 
     void setDatumValue( avro::GenericDatum & datum, bool value )
@@ -240,13 +230,10 @@ private:
         // Avro date is days since Unix epoch (1970-01-01)
         if( datum.type() == avro::AVRO_INT )
         {
-            tm tm_val = {};
-            tm_val.tm_year = value.year() - 1900;
-            tm_val.tm_mon = value.month() - 1;
-            tm_val.tm_mday = value.day();
-            tm_val.tm_hour = 12;
-            time_t time_val = timegm( &tm_val );
-            int32_t days = static_cast<int32_t>( time_val / 86400 );
+            // Use the same logic as reader for symmetry
+            Date epoch = Date::fromYYYYMMDD( "1970-01-01" );
+            TimeDelta delta = value - epoch;
+            int32_t days = delta.days();
             datum.value<int32_t>() = days;
         }
         else if( datum.type() == avro::AVRO_STRING )
@@ -342,9 +329,21 @@ private:
         {
             avro::GenericDatum elemDatum( elemSchema );
             using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
-            withUnionUnwrapped( elemDatum, [&]( avro::GenericDatum & d ) {
-                setDatumValue( d, static_cast<ElemT>( value[i] ) );
-            } );
+            // If element is a union, select non-null branch
+            if( elemDatum.isUnion() && elemDatum.type() == avro::AVRO_NULL )
+            {
+                size_t nonNullBranch = 0;
+                for( size_t j = 0; j < elemSchema->leaves(); ++j )
+                {
+                    if( elemSchema->leafAt( j )->type() != avro::AVRO_NULL )
+                    {
+                        nonNullBranch = j;
+                        break;
+                    }
+                }
+                elemDatum.selectBranch( nonNullBranch );
+            }
+            setDatumValue( elemDatum, static_cast<ElemT>( value[i] ) );
             arr.value().push_back( elemDatum );
         }
     }

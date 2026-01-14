@@ -71,6 +71,7 @@ In order to publish or subscribe, you need to define a MsgMapper.
 These are the supported message types:
 
 - **`JSONTextMessageMapper(datetime_type = DateTimeType.UNKNOWN)`**
+- **`AvroMessageMapper(avro_schema: str, datetime_type = DateTimeType.UINT64_NANOS)`**
 - **`ProtoMessageMapper(datetime_type = DateTimeType.UNKNOWN)`**
 
 You should choose the `DateTimeType` based on how you want (when publishing) or expect (when subscribing) your datetimes to be represented on the wire.
@@ -85,6 +86,43 @@ The enum is defined in [csp/adapters/utils.py](https://github.com/Point72/csp/bl
 
 Note the `JSONTextMessageMapper` currently does not have support for lists.
 To subscribe to json data with lists, simply subscribe using the `RawTextMessageMapper` and process the text into json (e.g. via json.loads).
+
+#### Avro Message Format
+
+The `AvroMessageMapper` provides efficient binary serialization using [Apache Avro](https://avro.apache.org/). It requires an Avro schema in JSON format:
+
+```python
+from csp.adapters.utils import AvroMessageMapper, DateTimeType
+
+# Define your Avro schema
+avro_schema = """
+{
+    "type": "record",
+    "name": "TradeData",
+    "fields": [
+        {"name": "symbol", "type": "string"},
+        {"name": "price", "type": "double"},
+        {"name": "quantity", "type": "long"},
+        {"name": "timestamp", "type": "long"}
+    ]
+}
+"""
+
+# Create the mapper
+mapper = AvroMessageMapper(
+    avro_schema=avro_schema,
+    datetime_type=DateTimeType.UINT64_NANOS
+)
+```
+
+The Avro mapper supports:
+- Basic types: bool, int, long, double, string
+- Complex types: nested records (structs), arrays
+- Nullable fields via Avro unions (e.g., `["null", "long"]`)
+- Date and DateTime with configurable wire format
+- Enums
+
+Avro provides better performance and smaller message sizes compared to JSON, making it ideal for high-throughput Kafka topics.
 
 ### Subscribing and Publishing
 
@@ -141,6 +179,92 @@ KafkaAdapterManager.publish(
 - **`x`**: the timeseries to publish
 - **`field_map`**: dictionary of {struct_field: message_field} to define how the struct gets mapped onto the published message.
   Note this dictionary is the opposite of the field_map in subscribe()
+
+#### Example: Publishing and Subscribing with Avro
+
+Here's a complete example showing how to use Avro for efficient Kafka messaging:
+
+```python
+import csp
+from csp.adapters.kafka import KafkaAdapterManager
+from csp.adapters.utils import AvroMessageMapper, DateTimeType
+from datetime import datetime, timedelta
+
+# Define your data structure
+class TradeData(csp.Struct):
+    symbol: str
+    price: float
+    quantity: int
+    timestamp: datetime
+
+# Define matching Avro schema
+avro_schema = """
+{
+    "type": "record",
+    "name": "TradeData",
+    "fields": [
+        {"name": "symbol", "type": "string"},
+        {"name": "price", "type": "double"},
+        {"name": "quantity", "type": "long"},
+        {"name": "timestamp", "type": "long"}
+    ]
+}
+"""
+
+# Create Avro mapper
+avro_mapper = AvroMessageMapper(
+    avro_schema=avro_schema,
+    datetime_type=DateTimeType.UINT64_NANOS
+)
+
+# Publishing example
+def publish_graph():
+    kafka_manager = KafkaAdapterManager(broker='localhost:9092')
+
+    # Create trade data
+    @csp.node
+    def generate_trades() -> csp.ts[TradeData]:
+        if csp.ticked():
+            return TradeData(
+                symbol="AAPL",
+                price=150.5,
+                quantity=100,
+                timestamp=csp.now()
+            )
+
+    trades = csp.sample(csp.timer(timedelta(seconds=1)), generate_trades())
+
+    # Publish to Kafka with Avro encoding
+    kafka_manager.publish(
+        msg_mapper=avro_mapper,
+        topic='trades',
+        key='AAPL',
+        x=trades
+    )
+
+# Subscribing example
+def subscribe_graph():
+    kafka_manager = KafkaAdapterManager(broker='localhost:9092')
+
+    # Subscribe from Kafka with Avro decoding
+    trades = kafka_manager.subscribe(
+        ts_type=TradeData,
+        msg_mapper=avro_mapper,
+        topic='trades',
+        key='AAPL'
+    )
+
+    csp.print('trade', trades)
+
+# Run the graph
+csp.run(publish_graph, starttime=datetime.utcnow())
+```
+
+The Avro format provides significant performance benefits over JSON:
+- Smaller message size (binary encoding)
+- Faster serialization/deserialization
+- Schema validation at compile time
+- Better support for schema evolution
 
 ### Known Issues
 

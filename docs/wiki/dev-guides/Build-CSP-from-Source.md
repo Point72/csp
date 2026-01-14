@@ -75,10 +75,8 @@ git submodule update --init --recursive
 
 ```bash
 # Note the operating system, change as needed
-# Linux should use the linux dev environment spec
-micromamba create -n csp -f conda/dev-environment-linux.yml
-# On macOS, use the osx dev environment spec
-micromamba create -n csp -f conda/dev-environment-osx.yml
+# Linux and macOS should use the unix dev environment spec
+micromamba create -n csp -f conda/dev-environment-unix.yml
 
 # uncomment below if the build fails because git isn't new enough
 #

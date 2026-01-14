@@ -5,6 +5,7 @@ channels:
 dependencies:
  - astor
  - avrocpp
+ - fmt<12  # Pin fmt to v11.x for avro-cpp compatibility
 #  - bison  # not available on windows
  - brotli
  - bump-my-version

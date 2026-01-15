@@ -1,19 +1,8 @@
 #include <csp/adapters/utils/AvroMessageStructConverter.h>
 #include <csp/engine/PartialSwitchCspType.h>
-#include <avro/Compiler.hh>
-#include <avro/GenericDatum.hh>
-#include <avro/Stream.hh>
-#include <avro/Node.hh>
+
 #include <type_traits>
 #include <iostream>
-
-// Implement the corrected fmt::formatter<avro::Name> for Windows
-#ifdef _MSC_VER
-template<typename FormatContext>
-auto fmt::formatter<avro::Name, char>::format(const avro::Name &n, FormatContext &ctx) const -> decltype(ctx.out()) {
-    return fmt::format_to(ctx.out(), "{}", n.fullname());
-}
-#endif
 
 namespace csp::adapters::utils
 {

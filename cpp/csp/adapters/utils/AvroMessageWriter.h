@@ -2,13 +2,11 @@
 #define _IN_CSP_ADAPTERS_UTILS_AVROMESSAGEWRITER_H
 
 #include <csp/adapters/utils/MessageWriter.h>
+#include <csp/adapters/utils/AvroIncludes.h>
 #include <csp/engine/CspEnum.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/PartialSwitchCspType.h>
-#include <avro/Compiler.hh>
-#include <avro/Encoder.hh>
-#include <avro/Generic.hh>
-#include <avro/Stream.hh>
+
 #include <cstring>
 #include <sstream>
 

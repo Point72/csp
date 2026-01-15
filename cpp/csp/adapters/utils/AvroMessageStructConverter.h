@@ -4,10 +4,35 @@
 #include <csp/adapters/utils/MessageStructConverter.h>
 #include <csp/core/Hash.h>
 #include <csp/engine/Dictionary.h>
+
+// Workaround for avro-cpp from conda-forge on Windows
+// conda-forge's avro-cpp has outdated fmt::formatter<avro::Name> without const
+// We define the correct const version first, then disable the redefinition error
+#ifdef _MSC_VER
+#include <fmt/format.h>
+// Forward declare avro::Name
+namespace avro { class Name; }
+// Define correct const-correct formatter before avro headers include the broken one
+namespace fmt {
+template<>
+struct formatter<avro::Name, char> : formatter<std::string, char> {
+    template<typename FormatContext>
+    auto format(const avro::Name &n, FormatContext &ctx) const -> decltype(ctx.out());
+};
+}
+// Disable C2766 error (redefinition) - our version will be used
+#pragma warning(push)
+#pragma warning(disable: 2766)
+#endif
+
 #include <avro/Decoder.hh>
 #include <avro/Generic.hh>
 #include <avro/Schema.hh>
 #include <avro/ValidSchema.hh>
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #include <list>
 #include <string>
 #include <unordered_map>

@@ -25,7 +25,7 @@ dependencies = [
     "deprecated",
     "numpy>=1",
     "packaging",
-    "pandas",
+    "pandas<3",
     "psutil",
     "pyarrow>=15,<23",
     "pydantic>=2",

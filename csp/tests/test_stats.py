@@ -1,5 +1,4 @@
 import math
-import sys
 import unittest
 from datetime import datetime, timedelta
 
@@ -11,6 +10,8 @@ from pandas.testing import assert_series_equal
 import csp
 from csp.stats import _window_updates
 from csp.typing import Numpy1DArray
+
+PANDAS_MAJOR = int(pd.__version__[0])
 
 
 def list_nparr_to_matrix(x):
@@ -459,16 +460,17 @@ class TestStats(unittest.TestCase):
         np.testing.assert_almost_equal(expected_sd[499:, 1], np.array(results["sd_t"])[:, 1], decimal=7)
         np.testing.assert_almost_equal(expected_sd[499:, 1], np.array(results["sd_n"])[:, 1], decimal=7)
 
-        pdsem = values.rolling(window=500, min_periods=2).sem(ddof=ddoft).to_numpy()
         pdskew_unbias = values.rolling(window=500, min_periods=2).skew().to_numpy()
         pdkurt_unbias = values.rolling(window=500, min_periods=2).kurt().to_numpy()
 
-        expected_sem = np.array([(st + timedelta(seconds=i + 1), pdsem[i]) for i in range(1000)])
         expected_skew_unbias = np.array([(st + timedelta(seconds=i + 1), pdskew_unbias[i]) for i in range(1000)])
         expected_kurt_excess = np.array([(st + timedelta(seconds=i + 1), pdkurt_unbias[i]) for i in range(1000)])
 
-        np.testing.assert_almost_equal(expected_sem[1:, 1], np.array(results["sem_t"])[:, 1], decimal=7)
-        np.testing.assert_almost_equal(expected_sem[1:, 1], np.array(results["sem_n"])[:, 1], decimal=7)
+        if PANDAS_MAJOR >= 3:  # https://github.com/pandas-dev/pandas/issues/63180
+            pdsem = values.rolling(window=500, min_periods=2).sem(ddof=ddoft).to_numpy()
+            expected_sem = np.array([(st + timedelta(seconds=i + 1), pdsem[i]) for i in range(1000)])
+            np.testing.assert_almost_equal(expected_sem[1:, 1], np.array(results["sem_t"])[:, 1], decimal=7)
+            np.testing.assert_almost_equal(expected_sem[1:, 1], np.array(results["sem_n"])[:, 1], decimal=7)
 
         unbiased_skew = np.array(results["skew_t_unbias"])[:, 1].astype(float)
         biased_skew = np.array(results["skew_n_bias"])[:, 1].astype(float)
@@ -1452,7 +1454,7 @@ class TestStats(unittest.TestCase):
 
         def weighted_sem(x, weights, interval, ddof, total_span):
             weight_sum = pd.Series(weights).rolling(window=3, min_periods=3).sum()[2:]
-            return weighted_std(x, weights, interval, ddof, total_span) / np.sqrt(weight_sum - ddof)
+            return weighted_std(x, weights, interval, ddof, total_span) / np.sqrt(weight_sum)
 
         exp_wcov = weighted_cov(x_data, y_data, w_data, 3, 0, 8)
         exp_wvar = weighted_var(x_data, w_data, 3, 0, 8)
@@ -1463,8 +1465,9 @@ class TestStats(unittest.TestCase):
         np.testing.assert_almost_equal(exp_wcov, np.array(results["wcov"])[:, 1], decimal=7)
         np.testing.assert_almost_equal(exp_wvar, np.array(results["wvar"])[:, 1], decimal=7)
         np.testing.assert_almost_equal(exp_wstd, np.array(results["wstd"])[:, 1], decimal=7)
-        np.testing.assert_almost_equal(exp_wsem, np.array(results["wsem"])[:, 1], decimal=7)
         np.testing.assert_almost_equal(exp_wcorr, np.array(results["wcorr"])[:, 1], decimal=7)
+        if PANDAS_MAJOR >= 3:  # https://github.com/pandas-dev/pandas/issues/63180
+            np.testing.assert_almost_equal(exp_wsem, np.array(results["wsem"])[:, 1], decimal=7)
 
         # ensure skew and kurt converge
         np.testing.assert_almost_equal(np.array(results["wkurt"])[-1, 1], np.array(results["kurt"])[-1, 1], decimal=5)
@@ -2084,14 +2087,14 @@ class TestStats(unittest.TestCase):
         self.assertTrue(np.allclose(ema_cov_arr[:, 1], np.array(pd_ema_cov), equal_nan=True))
 
         # 3. weighted sem (ensure proper weighting)
-        pd_sem_x = x_ser.rolling(window=4, min_periods=1).sem(ddof=1)
-        pd_sem_y = y_ser.rolling(window=4, min_periods=1).sem(ddof=1)
-
-        self.assertTrue(np.allclose(np.array(res["wsem"])[:, 1].astype(float), np.array(pd_sem_x), equal_nan=True))
-        for i in range(len(pd_sem_x)):
-            sem_x, sem_y = list(res["np_wsem"][i][1])
-            self.assertTrue(np.isclose(sem_x, np.array(pd_sem_x)[i], equal_nan=True))
-            self.assertTrue(np.isclose(sem_y, np.array(pd_sem_y)[i], equal_nan=True))
+        if PANDAS_MAJOR >= 3:  # https://github.com/pandas-dev/pandas/issues/63180
+            pd_sem_x = x_ser.rolling(window=4, min_periods=1).sem(ddof=1)
+            pd_sem_y = y_ser.rolling(window=4, min_periods=1).sem(ddof=1)
+            self.assertTrue(np.allclose(np.array(res["wsem"])[:, 1].astype(float), np.array(pd_sem_x), equal_nan=True))
+            for i in range(len(pd_sem_x)):
+                sem_x, sem_y = list(res["np_wsem"][i][1])
+                self.assertTrue(np.isclose(sem_x, np.array(pd_sem_x)[i], equal_nan=True))
+                self.assertTrue(np.isclose(sem_y, np.array(pd_sem_y)[i], equal_nan=True))
 
     def test_resetter(self):
         st = datetime(2020, 1, 1)
@@ -2486,11 +2489,14 @@ class TestStats(unittest.TestCase):
             window = [data[j] for j in range(i - 8, i)]
             expected_var = np.var([x for x in window], axis=0, ddof=1)
             expected_std = np.std([x for x in window], axis=0, ddof=1)
-            expected_sem = expected_std / math.sqrt(7)
 
             np.testing.assert_almost_equal(expected_var, np.array(results["var"], dtype=object)[i - 8, 1], decimal=7)
             np.testing.assert_almost_equal(expected_std, np.array(results["stddev"], dtype=object)[i - 8, 1], decimal=7)
-            np.testing.assert_almost_equal(expected_sem, np.array(results["sem"], dtype=object)[i - 8, 1], decimal=7)
+            if PANDAS_MAJOR >= 3:  # https://github.com/pandas-dev/pandas/issues/63180
+                expected_sem = expected_std / math.sqrt(8)
+                np.testing.assert_almost_equal(
+                    expected_sem, np.array(results["sem"], dtype=object)[i - 8, 1], decimal=7
+                )
 
     def test_numpy_ewm(self):
         st = datetime(2020, 1, 1)

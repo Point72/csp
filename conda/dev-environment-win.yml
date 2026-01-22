@@ -13,6 +13,7 @@ dependencies:
  - cyrus-sasl
  - deprecated
  - docutils<0.22.1
+ - numba_type_utils
  - exprtk
 #  - flex  # not available on windows
  - graphviz

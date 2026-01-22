@@ -8,8 +8,11 @@ import types
 
 # We need to patch mock modules into sys.modules to avoid pulling in csp/__init__.py and all of its baggage, which include imports of
 # _cspimpl, which would be a circular dep
-spec = importlib.util.find_spec("csp")
-loader = importlib.machinery.SourceFileLoader(spec.name, spec.origin)
+# Use this script's location to find csp package (works for editable installs where spec.origin may be None)
+_this_dir = os.path.dirname(os.path.abspath(__file__))  # csp/build
+_csp_dir = os.path.dirname(_this_dir)  # csp
+_csp_init = os.path.join(_csp_dir, "__init__.py")
+loader = importlib.machinery.SourceFileLoader("csp", _csp_init)
 spec = importlib.util.spec_from_loader("csp", loader)
 csp_mod = importlib.util.module_from_spec(spec)
 sys.modules["csp"] = csp_mod

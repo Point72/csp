@@ -776,7 +776,7 @@ class StandardError
 
         double compute() const
         {
-            return ( m_count > m_ddof ? sqrt( m_var.compute() / ( m_count - m_ddof ) ) : std::numeric_limits<double>::quiet_NaN() );
+            return ( m_count > m_ddof ? sqrt( m_var.compute() / m_count ) : std::numeric_limits<double>::quiet_NaN() );
         }
 
     private:
@@ -822,7 +822,7 @@ class WeightedStandardError
 
         double compute() const
         {
-            return ( m_wsum > m_ddof && m_wsum > EPSILON ? sqrt( m_var.compute() / ( m_wsum - m_ddof ) ) : std::numeric_limits<double>::quiet_NaN() );
+            return ( m_wsum > m_ddof && m_wsum > EPSILON ? sqrt( m_var.compute() / m_wsum ) : std::numeric_limits<double>::quiet_NaN() );
         }
 
     private:

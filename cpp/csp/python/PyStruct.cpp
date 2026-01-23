@@ -497,7 +497,7 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
             }
             else
             {
-                if( unlikely( struct_ -> meta() -> isStrict() ) )
+                if( struct_ -> meta() -> isStrict() ) [[unlikely]]
                     CSP_THROW( AttributeError, "Strict struct " << struct_ -> meta() -> name() << " does not allow the deletion of field " << field -> fieldname() );
                 typedField -> clearValue( struct_ );
             }
@@ -633,7 +633,7 @@ void repr_array( const std::vector<StorageT> & val, const CspType & elemType, st
     bool first = true;
     for( auto it = val.begin(); it != val.end(); it++ )
     {
-        if( unlikely( first ) ) first = false;
+        if( first ) [[unlikely]] first = false;
         else tl_repr += ", ";
 
         // print array types
@@ -688,7 +688,7 @@ void repr_struct( const Struct * struct_, std::string & tl_repr, bool show_unset
         if( isUnset && !show_unset )
             continue;
 
-        if( unlikely( first ) ) first = false;
+        if( first ) [[unlikely]] first = false;
         else tl_repr += ", ";
 
         tl_repr += fieldname;
@@ -830,7 +830,7 @@ int PyStruct_init( PyStruct * self, PyObject * args, PyObject * kwargs )
     CSP_BEGIN_METHOD;
 
     PyStruct_setattrs( self, args, kwargs, "__init__" );
-    if( unlikely( !self -> struct_ -> validate() ) )
+    if( !self -> struct_ -> validate() ) [[unlikely]]
         CSP_THROW( ValueError, "Struct " << self -> struct_ -> meta() -> name() << " is not valid; required fields " << self -> struct_ -> formatAllUnsetStrictFields() << " were not set on init" );
 
     CSP_RETURN_INT;
@@ -871,7 +871,7 @@ Py_hash_t PyStruct_hash( PyStruct * self )
 
     Py_hash_t hash = self -> struct_ -> hash();
     //wheres the "so incredibly unlikely" macro
-    if( unlikely( hash == -1 ) )
+    if( hash == -1 ) [[unlikely]]
         hash = 2;
 
     return hash;

@@ -202,7 +202,7 @@ void KafkaConsumer::poll()
             //We tend to accumulate more cases over time of error states that leave the engine deadlocked on PushPull adapters.
             //This section is for cases where we get an error that is not topic specific, but is consumer specific, but we know its non-recoverable
             //if it gets too long, or we realize that ANY error here should stop the engine, we can just always make it stop
-            if( unlikely( msg -> err() == RdKafka::ERR_GROUP_AUTHORIZATION_FAILED ) )
+            if( msg -> err() == RdKafka::ERR_GROUP_AUTHORIZATION_FAILED ) [[unlikely]]
             {
                 m_mgr -> forceShutdown( RdKafka::err2str( msg -> err() ) + " error: " + msg -> errstr() );
                 continue;

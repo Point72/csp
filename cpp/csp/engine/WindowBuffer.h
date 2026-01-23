@@ -134,7 +134,7 @@ inline WindowBuffer<T>::WindowBuffer()
 template<typename T>
 inline T WindowBuffer<T>::pop_left()
 {
-    if( unlikely( empty() ) ) 
+    if( empty() ) [[unlikely]]
         CSP_THROW( RangeError, "Cannot pop from empty window buffer" ); 
     T v = std::move( m_values[m_leftIndex] );
     m_count--;
@@ -148,7 +148,7 @@ inline T WindowBuffer<T>::pop_left()
 template<typename T>
 inline T WindowBuffer<T>::pop_right()
 {
-    if( unlikely( empty() ) ) 
+    if( empty() ) [[unlikely]]
         CSP_THROW( RangeError, "Cannot pop from empty window buffer" ); 
     T v = std::move( m_values[m_rightIndex] );
     m_count--;
@@ -271,11 +271,11 @@ inline FixedSizeWindowBuffer<T>::FixedSizeWindowBuffer( int64_t capacity )
 template<typename T>
 inline void FixedSizeWindowBuffer<T>::push( const T & value) 
 {
-    if( likely( this -> full() ) ) 
+    if( this -> full() ) [[likely]]
     {
         // Overwrite the leftIndex value
         this -> m_leftIndex++;
-        if( unlikely( this -> m_leftIndex == this -> m_capacity ) ) 
+        if( this -> m_leftIndex == this -> m_capacity ) [[unlikely]]
             this -> m_leftIndex = 0;
     }
     else 
@@ -284,7 +284,7 @@ inline void FixedSizeWindowBuffer<T>::push( const T & value)
     this -> m_values[this -> m_rightIndex] = value;
     this -> m_rightIndex++;
     // loop back around "clockwise"
-    if( unlikely( this -> m_rightIndex == this -> m_capacity ) ) 
+    if( this -> m_rightIndex == this -> m_capacity ) [[unlikely]]
         this -> m_rightIndex = 0;
 }
 
@@ -307,12 +307,12 @@ inline FixedSizeWindowBuffer<T> & FixedSizeWindowBuffer<T>::operator=( FixedSize
 template<typename T>
 inline void VariableSizeWindowBuffer<T>::push( const T & value )
 {
-    if( unlikely( !( this -> m_capacity ) ) )
+    if( !( this -> m_capacity ) ) [[unlikely]]
     {
         this -> m_capacity = 1;
         this -> m_values = new T[1];
     }
-    else if( unlikely( this -> full() ) ) 
+    else if( this -> full() ) [[unlikely]] 
     {
         // need to create new arrray and flatten all elements to maintain circularity
         T* old_values = this -> m_values;

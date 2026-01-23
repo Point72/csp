@@ -1317,7 +1317,7 @@ class Rank
 
         void add( double x )
         {
-            if( unlikely( isnan( x ) ) )
+            if( isnan( x ) ) [[unlikely]]
             {
                 if( m_nanopt == KEEP )
                     m_lastval = std::numeric_limits<double>::quiet_NaN();
@@ -1334,7 +1334,7 @@ class Rank
 
         void remove( double x )
         {
-            if( likely( !isnan( x ) ) )
+            if( !isnan( x ) ) [[likely]]
             {
                 if ( m_method == MAX )
                     m_maxtree.erase ( m_maxtree.find( x ) );
@@ -1355,7 +1355,7 @@ class Rank
         {
             // Verify tree is not empty and lastValue is valid
             // Last value can only ever be NaN if the "keep" nan option is used
-            if( likely( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) )
+            if( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) [[likely]]
             {
                 switch( m_method )
                 {
@@ -1488,16 +1488,16 @@ class EMA
 
         void add( double x )
         {
-            if( unlikely( m_first ) && !isnan( x ) )
+            if( m_first && !isnan( x ) ) [[unlikely]]
             {
                 m_ema = x;
                 m_first = false;
             }
-            else if( unlikely( isnan( x ) ) && !m_ignore_na && likely( !m_first ) )
+            else if( isnan( x ) && !m_ignore_na && !m_first ) [[unlikely]]
             {
                 m_offset++;
             }
-            else if( likely( !isnan( x ) ) )
+            else if( !isnan( x ) ) [[likely]]
             {
                 double delta = x - m_ema;
                 if( m_offset == 1 )
@@ -1524,7 +1524,9 @@ class EMA
 
         double compute() const
         {
-            return unlikely( m_first ) ? std::numeric_limits<double>::quiet_NaN() : m_ema;
+            if( m_first ) [[unlikely]]
+                return std::numeric_limits<double>::quiet_NaN();
+            return m_ema;
         }
 
     private:
@@ -1556,7 +1558,7 @@ class AdjustedEMA
 
         void add( double x )
         {
-            if( likely( !isnan( x ) ) )
+            if( !isnan( x ) ) [[likely]]
             {
                 double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
                 m_ema *= decay_factor;
@@ -1574,7 +1576,7 @@ class AdjustedEMA
 
         void remove( double x )
         {
-            if( likely( !isnan( x ) ) )
+            if( !isnan( x ) ) [[likely]]
             {
                 double lookback = ( m_ignore_na ? m_horizon - m_nan_count : m_horizon - m_offset + 1 );
                 double decay_factor = pow( m_decay, lookback );
@@ -1631,9 +1633,9 @@ class AlphaDebiasEMA
         
         void add( double x )
         {
-            if( likely( !isnan( x ) ) )
+            if( !isnan( x ) ) [[likely]]
             {
-                if( unlikely( m_first ) )
+                if( m_first ) [[unlikely]]
                 {
                     m_wsum = 1;
                     m_sqsum = 1;
@@ -1663,7 +1665,7 @@ class AlphaDebiasEMA
             }
             else
             {
-                if( likely( !m_first ) )
+                if( !m_first ) [[likely]]
                     m_offset++;
                 m_nan_count++;
             }
@@ -1671,7 +1673,7 @@ class AlphaDebiasEMA
 
         void remove( double x )
         {
-            if( likely( !isnan( x ) ))
+            if( !isnan( x ) ) [[likely]]
             {
                 double lookback = ( m_ignore_na ? m_horizon - m_nan_count : m_horizon - m_offset + 1 );
                 double wh = pow( m_decay, lookback );
@@ -1731,7 +1733,7 @@ public:
 
     void add( double x, DateTime now )
     {
-        if( unlikely( m_last_tick.isNone() ) )
+        if( m_last_tick.isNone() ) [[unlikely]]
             m_ema = x;
         else
         {
@@ -1786,7 +1788,9 @@ class AdjustedHalflifeEMA
 
         double compute() const
         {
-            return likely( m_norm > 0 ) ? ( m_ema / m_norm ) : std::numeric_limits<double>::quiet_NaN();
+            if ( m_norm > 0 ) [[likely]]
+                return m_ema / m_norm;
+            return std::numeric_limits<double>::quiet_NaN();
         }
 
     private:

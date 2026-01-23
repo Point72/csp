@@ -299,9 +299,9 @@ DECLARE_CPPNODE( exprtk_impl )
             }
         }
 
-        if( likely( csp.valid( inputs ) ) )
+        if( csp.valid( inputs ) ) [[likely]]
         {
-            if( unlikely( !s_isCompiled ) )
+            if( !s_isCompiled ) [[unlikely]]
                 compile_expression();
 
             const CspType* outputType = unnamed_output().type();

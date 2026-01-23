@@ -107,7 +107,7 @@ void Scheduler::PendingEvents::executeCycle()
         Event * event = elt -> head.next;
 
         debug_printf( "Processing pending event %p on adapter %p\n", event, elt -> adapter );
-        if( unlikely( event == &elt -> tail ) )
+        if( event == &elt -> tail ) [[unlikely]]
         {
             elt = m_pendingEvents.erase( elt );
             continue;
@@ -116,7 +116,7 @@ void Scheduler::PendingEvents::executeCycle()
         auto eventId = event -> id;
         event -> id = -1;
 
-        if( unlikely( event -> func() != nullptr ) )
+        if( event -> func() != nullptr ) [[unlikely]]
         {
             //Note its possible this can return false, even though we do one at a time
             //This is how PullInputAdapter is already implemented, it keeps consuming if next returns the same timestamp ( needed for bursts )
@@ -193,7 +193,7 @@ bool Scheduler::cancelCallback( Handle handle )
 void Scheduler::executeNextEvents( DateTime now, Event * start )
 {
     debug_printf( "=== New cycle %s === \n", now.asString().c_str() );
-    if( unlikely( m_pendingEvents.hasEvents() ) )
+    if( m_pendingEvents.hasEvents() ) [[unlikely]]
         m_pendingEvents.executeCycle();
 
     if( m_map.empty() || m_map.begin() -> first > now )
@@ -202,9 +202,12 @@ void Scheduler::executeNextEvents( DateTime now, Event * start )
     EventList & elist = m_map.begin() -> second;
 
     // startPrev kept locally here since start wil be freed below
-    Event * startPrev = unlikely( start != nullptr ) ? start -> prev : nullptr;
+    Event * startPrev = nullptr;
+    if( start != nullptr ) [[unlikely]]
+        startPrev = start -> prev;
     // Note event is kept as a reference so that it gets updated throughout the loop
-    Event *& event = unlikely( start != nullptr ) ? start : elist.head;
+    // Cannot use [[unlikely]] on ternary - reference binding requires expression
+    Event *& event = start != nullptr ? start : elist.head;
     // mark end before iterating in case timers with same time are added during loop
     Event * tail = elist.tail;
 
@@ -219,7 +222,7 @@ void Scheduler::executeNextEvents( DateTime now, Event * start )
         auto * deferredAdapter = cur -> func();
         event = cur -> next;
 
-        if( unlikely( deferredAdapter != nullptr ) )
+        if( deferredAdapter != nullptr ) [[unlikely]]
         {
             //set id back to what it was, alarm is still cancellable
             cur -> id = eventId;

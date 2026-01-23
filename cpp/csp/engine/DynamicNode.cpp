@@ -89,7 +89,7 @@ void DynamicNode::executeImpl()
 
     //We defer csp.stop_engine shutdowns until after the cycle because we cant shutdown / destroy 
     //the dynamic engine while the node within the dynamic which is calling csp.stop_engine is being executed!
-    if( unlikely( !m_dynamicShutdowns.empty() ) )
+    if( !m_dynamicShutdowns.empty() ) [[unlikely]]
     {
         for( auto & key : m_dynamicShutdowns )
             removeDynamicInstance( key );

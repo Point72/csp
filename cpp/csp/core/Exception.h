@@ -4,7 +4,6 @@
 #include <exception>
 #include <sstream>
 #include <string.h>
-#include <csp/core/Likely.h>
 #include <csp/core/Platform.h>
 
 namespace csp
@@ -86,7 +85,7 @@ template<typename T>
 #define CSP_THROW( EX_TYPE, MSG )         do { std::stringstream desc; desc << MSG ;  csp::throw_exc(EX_TYPE( #EX_TYPE, desc.str(), __FILENAME__ , __FUNCTION__ , __LINE__  )); } while( 0 )
 #define CSP_THROW_EX( EX_TYPE, MSG, ... ) do { std::stringstream desc; desc << MSG ;  csp::throw_exc(EX_TYPE( #EX_TYPE, desc.str(), __FILENAME__ , __FUNCTION__ , __LINE__ , __VA_ARGS__ )); } while( 0 )
 
-#define CSP_TRUE_OR_THROW( EXPR, EXCEPTION_TYPE, MESSAGE ) do {if( unlikely(!((EXPR))) ) { CSP_THROW( EXCEPTION_TYPE, MESSAGE ); }} while(false)
+#define CSP_TRUE_OR_THROW( EXPR, EXCEPTION_TYPE, MESSAGE ) do {if( !((EXPR)) ) [[unlikely]] { CSP_THROW( EXCEPTION_TYPE, MESSAGE ); }} while(false)
 #define CSP_TRUE_OR_THROW_RUNTIME(EXPR, MESSAGE) CSP_TRUE_OR_THROW(EXPR, csp::RuntimeException, MESSAGE)
 #define CSP_NOT_IMPLEMENTED CSP_THROW(csp::NotImplemented, "");
 

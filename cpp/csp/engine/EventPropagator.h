@@ -113,7 +113,7 @@ private:
         template<typename CB >
         void apply( CB && cb ) const
         {
-            if( likely( !isEmpty() ) )
+            if( !isEmpty() ) [[likely]]
             {
                 if( isSingle() )
                     cb( single().consumer, single().inputId );

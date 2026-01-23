@@ -52,7 +52,7 @@ void CycleStepTable::schedule( Consumer * node )
 
 void CycleStepTable::executeCycle( csp::Profiler * profiler, bool isDynamic )
 {
-    if( unlikely( profiler && !isDynamic ) ) // prioritize case without profiler
+    if( profiler && !isDynamic ) [[unlikely]] // prioritize case without profiler
         profiler -> startCycle();
 
     auto curRank = m_rankBitset.find_first();
@@ -67,7 +67,7 @@ void CycleStepTable::executeCycle( csp::Profiler * profiler, bool isDynamic )
         
         while( curConsumer != s_END_MARKER )
         {
-            if( unlikely( ( bool )profiler ) )
+            if( ( bool )profiler ) [[unlikely]]
             {
                 profiler -> startNode();
                 curConsumer -> execute();
@@ -83,7 +83,7 @@ void CycleStepTable::executeCycle( csp::Profiler * profiler, bool isDynamic )
         curRank = m_rankBitset.find_next( curRank );
     }
 
-    if( unlikely( profiler && !isDynamic ) )
+    if( profiler && !isDynamic ) [[unlikely]]
         profiler -> finishCycle();
 }
 

@@ -118,7 +118,7 @@ void PendingPushEvents::processPendingEvents( std::vector<PushGroup*> & dirtyGro
             event = next;
         }
 
-        if( unlikely( deferred_head != nullptr ) )
+        if( deferred_head != nullptr ) [[unlikely]]
         {
             deferred_tail -> flagGroupEnd(); //ensure we flag group end on the last deferred events in this batch
             deferred_tail -> next = event;   //ensure we link to the next batch

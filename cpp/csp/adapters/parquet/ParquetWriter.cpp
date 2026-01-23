@@ -186,7 +186,7 @@ void ParquetWriter::stop()
 
 void ParquetWriter::onEndCycle()
 {
-    if( likely( isFileOpen() ) )
+    if( isFileOpen() ) [[likely]]
     {
         // This must be defined outside of the "if" below, the datetime object must live till the end of cycle since
         // We pass all values by reference
@@ -266,7 +266,7 @@ void ParquetWriter::writeCurChunkToFile()
 {
     if( m_curChunkSize > 0 )
     {
-        if( unlikely( !isFileOpen() ) )
+        if( !isFileOpen() ) [[unlikely]]
         {
             if(m_curChunkSize != 0 )
             {

@@ -55,7 +55,7 @@ DECLARE_CPPNODE( parquet_dict_basket_writer )
 
     INVOKE()
     {
-        if( unlikely( filename_provider.ticked() ) )
+        if( filename_provider.ticked() ) [[unlikely]]
         {
             s_outputWriter -> onFileNameChange( filename_provider.lastValue() );
         }

@@ -255,7 +255,7 @@ PyNode * PyNode::create( PyEngine * pyengine, PyObject * inputs, PyObject * outp
 
 inline bool PyNode::makeActive( InputId id )
 {
-    if( likely( m_passiveCounts != nullptr ) )
+    if( m_passiveCounts != nullptr ) [[likely]]
         m_passiveCounts[ id.id ] = ACTIVE_PCOUNT;
 
     return Node::makeActive( id );
@@ -263,7 +263,7 @@ inline bool PyNode::makeActive( InputId id )
 
 inline bool PyNode::makePassive( InputId id )
 {
-    if( unlikely( m_passiveCounts == nullptr ) )
+    if( m_passiveCounts == nullptr ) [[unlikely]]
     {
         // Allocate the passive conversion count array upon first csp.make_passive call
         m_passiveCounts = ( uint32_t* ) malloc( sizeof( uint32_t ) * numInputs() );

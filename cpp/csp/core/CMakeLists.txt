@@ -8,7 +8,6 @@ set(CORE_PUBLIC_HEADERS
       FileUtils.h
       Generator.h
       Hash.h
-      Likely.h
       QueueWaiter.h
       Platform.h
       SRMWLockFreeQueue.h

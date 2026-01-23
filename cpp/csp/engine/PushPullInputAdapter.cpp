@@ -105,7 +105,7 @@ PushPullEvent * PushPullInputAdapter::nextPullEvent()
     //Always force time before start to start.  There are two possibilities:
     //- User asked to replay from EARLIEST, so they should get all ticks replayed and we cant replay before starttime
     //- User asked to replay from STARTTIME in which case, if the adapter is written correctly, we shouldnt get ticks before starttime
-    if( unlikely( event -> time < rootEngine() -> startTime() ) )
+    if( event -> time < rootEngine() -> startTime() ) [[unlikely]]
         event -> time = rootEngine() -> startTime();
     
     if( m_adjustOutOfOrderTime )

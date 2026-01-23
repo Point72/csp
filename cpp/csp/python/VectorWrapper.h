@@ -38,7 +38,7 @@ public:
     // If the index pointed outside of the array, it will continue to do so after the call to this function
     inline IndexType normalizeIndex( IndexType index ) const
     {
-        if( unlikely( index < 0 ) )
+        if( index < 0 ) [[unlikely]]
             index += size();
         return index;
     }
@@ -109,7 +109,7 @@ inline typename VectorWrapper<StorageT>::IndexType VectorWrapper<StorageT>::veri
     // We allow list indices that are negative or point outside of the array
     index = normalizeIndex( index );
     // We don't allow indices to be past the array boundaries
-    if( unlikely( !check_index_in_bounds( index ) ) )
+    if( !check_index_in_bounds( index ) ) [[unlikely]]
         CSP_THROW( RangeError, "Index " << index << " is out of range." );
     return index;
 }
@@ -117,7 +117,7 @@ inline typename VectorWrapper<StorageT>::IndexType VectorWrapper<StorageT>::veri
 template<typename StorageT>
 inline typename VectorWrapper<StorageT>::Slice VectorWrapper<StorageT>::normalizeSlice( IndexType start_index, IndexType stop_index, IndexType step ) const
 {    
-    if( unlikely( step == 0 ) )
+    if( step == 0 ) [[unlikely]]
         CSP_THROW( ValueError, "Slice step cannot be zero." );
 
     IndexType sz = size();
@@ -152,12 +152,12 @@ typename VectorWrapper<StorageT>::IndexType VectorWrapper<StorageT>::index( cons
     // We allow list indices that are negative or point outside of the array
     VectorWrapper<StorageT>::IndexType sz = m_vector.size();
     auto normalized_slice = normalizeSlice( start_index, stop_index, 1 );
-    if( likely( normalized_slice.start_index < sz ) )
+    if( normalized_slice.start_index < sz ) [[likely]]
     {
         auto start_it = m_vector.begin() + normalized_slice.start_index;
         auto stop_it = ( normalized_slice.stop_index < sz ) ? m_vector.begin() + normalized_slice.stop_index : m_vector.end();
         auto it = std::find( start_it, stop_it, value );
-        if( likely( it != stop_it ) )
+        if( it != stop_it ) [[likely]]
             return it - m_vector.begin();
     }
     CSP_THROW( ValueError, "Value not found." ); 
@@ -167,7 +167,7 @@ template<typename StorageT>
 void VectorWrapper<StorageT>::remove( const StorageT & value )
 {
     auto it = std::find( m_vector.begin(), m_vector.end(), value );
-    if( likely( it != m_vector.end() ) )
+    if( it != m_vector.end() ) [[likely]]
         m_vector.erase( it );
     else
         CSP_THROW( ValueError, "Value not found." ); 
@@ -218,7 +218,7 @@ void VectorWrapper<StorageT>::setSlice( const std::vector<StorageT> & other, Ind
     // In case of step size other then 1, mismatch between lengths of the slice and the iterable to be set on the slice is not allowed
     else
     {
-        if( unlikely( normalized_slice.length != ( VectorWrapper<StorageT>::IndexType ) other.size() ) )
+        if( normalized_slice.length != ( VectorWrapper<StorageT>::IndexType ) other.size() ) [[unlikely]]
             CSP_THROW( ValueError, "Attempt to assign a sequence of mismatched size to extended slice." );
         
         // Go through the slice and assign its elements

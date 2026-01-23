@@ -493,7 +493,7 @@ void ParquetStructAdapter::addSubscriber( ValueDispatcher::SubscriberType subscr
 
 void ParquetStructAdapter::dispatchValue( const utils::Symbol *symbol, bool isNull )
 {
-    if(unlikely(m_needsReset))
+    if(m_needsReset) [[unlikely]]
     {
         m_resetFunc();
         m_needsReset = false;

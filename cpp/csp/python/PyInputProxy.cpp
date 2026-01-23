@@ -108,7 +108,7 @@ PyObject *PyInputProxy::valueAt( ValueType valueType, PyObject *indexArg, PyObje
         // Convert negative value to actual positive index
         valueIndex = -valueIndex;
 
-        if( unlikely( valueIndex >= ts() -> tickCountPolicy() ) )
+        if( valueIndex >= ts() -> tickCountPolicy() ) [[unlikely]]
             CSP_THROW( RangeError, "buffer index out of range.  requesting data at index " << valueIndex << " with buffer policy set to " << 
                        ts() -> tickCountPolicy() << " ticks in node '" << m_node -> name() << "'" );
 
@@ -129,7 +129,7 @@ PyObject *PyInputProxy::valueAt( ValueType valueType, PyObject *indexArg, PyObje
             CSP_TRUE_OR_THROW_RUNTIME( timedelta.sign() <= 0,
                                        "Positive time delta is unsupported" );
 
-            if( unlikely( -timedelta > ts() -> tickTimeWindowPolicy() ) )
+            if( -timedelta > ts() -> tickTimeWindowPolicy() ) [[unlikely]]
                 CSP_THROW( RangeError, "buffer timedelta out of range.  requesting data at timedelta " << PyObjectPtr::incref( indexArg ) << " with buffer policy set to " << 
                            PyObjectPtr::own( toPython( ts() -> tickTimeWindowPolicy() ) ) << " in node '" << m_node -> name() << "'" );
             valueIndex = ts() -> getValueIndex( m_node -> now() + timedelta, duplicatePolicyIntVal );
@@ -142,7 +142,7 @@ PyObject *PyInputProxy::valueAt( ValueType valueType, PyObject *indexArg, PyObje
             CSP_TRUE_OR_THROW_RUNTIME( datetime <= m_node -> now(),
                                        "requesting data from future time" );
 
-            if( unlikely( m_node -> now() - datetime >= ts() -> tickTimeWindowPolicy() ) )
+            if( m_node -> now() - datetime >= ts() -> tickTimeWindowPolicy() ) [[unlikely]]
                 CSP_THROW( RangeError, "requested buffer time out of range.  requesting datetime " << PyObjectPtr::incref( indexArg ) << " at time " << 
                            PyObjectPtr::own( toPython( m_node -> now() ) ) << " with buffer time window policy set to " << 
                            PyObjectPtr::own( toPython( ts() -> tickTimeWindowPolicy() ) )<< " in node '" << m_node -> name() << "'" );
@@ -275,9 +275,9 @@ PyObject *PyInputProxy::valuesAt( ValueType valueType, PyObject *startIndexArg,
         if( endPolicy.enum_value() != autogen::TimeIndexPolicy::enum_::INCLUSIVE )
             CSP_THROW( InvalidArgument, "Unsupported time index policy for integer indexing: " << endPolicy.name() );
 
-        if( unlikely( startIndex >= ts() -> tickCountPolicy() ) && startIndexArg != Py_None )
+        if( startIndex >= ts() -> tickCountPolicy() && startIndexArg != Py_None ) [[unlikely]]
             CSP_THROW( RangeError, "buffer index out of range.  requesting data at index " << startIndex << " with buffer policy set to " << ts() -> tickCountPolicy() << " ticks in node '" << m_node -> name() << "'" );
-        if( unlikely( endIndex >= ts() -> tickCountPolicy() ) )
+        if( endIndex >= ts() -> tickCountPolicy() ) [[unlikely]]
             CSP_THROW( RangeError, "buffer index out of range.  requesting data at index " << endIndex << " with buffer policy set to " << ts() -> tickCountPolicy() << " ticks in node '" << m_node -> name() << "'" );
 
         startIndex = std::min( static_cast<uint32_t>( startIndex ), num_ticks() - 1 );
@@ -300,7 +300,7 @@ PyObject *PyInputProxy::valuesAt( ValueType valueType, PyObject *startIndexArg,
                 startTd = startDtd.timedelta();
                 CSP_TRUE_OR_THROW_RUNTIME( startTd.sign() <= 0, "Positive timedelta is unsupported" );
 
-                if( unlikely( -startTd > ts() -> tickTimeWindowPolicy() ) )
+                if( -startTd > ts() -> tickTimeWindowPolicy() ) [[unlikely]]
                     CSP_THROW( RangeError, "buffer timedelta out of range.  requesting data at timedelta " <<
                                            PyObjectPtr::incref( startIndexArg ) << " with buffer policy set to " <<
                                            PyObjectPtr::own( toPython( ts() -> tickTimeWindowPolicy() ) ) <<
@@ -312,7 +312,7 @@ PyObject *PyInputProxy::valuesAt( ValueType valueType, PyObject *startIndexArg,
             {
                 startDt = startDtd.datetime();
                 CSP_TRUE_OR_THROW_RUNTIME( startDt <= m_node -> now(), "requesting data from future time" );
-                if( unlikely( m_node -> now() - startDt > ts() -> tickTimeWindowPolicy() ) )
+                if( m_node -> now() - startDt > ts() -> tickTimeWindowPolicy() ) [[unlikely]]
                     CSP_THROW( RangeError, "requested buffer time out of range.  requesting datetime " << PyObjectPtr::incref( startIndexArg ) << " at time " <<
                                            PyObjectPtr::own( toPython( m_node -> now() ) ) << " with buffer time window policy set to " <<
                                            PyObjectPtr::own( toPython( ts() -> tickTimeWindowPolicy() ) )<< " in node '" << m_node -> name() << "'" );
@@ -333,7 +333,7 @@ PyObject *PyInputProxy::valuesAt( ValueType valueType, PyObject *startIndexArg,
                     CSP_TRUE_OR_THROW_RUNTIME( endTd >= startTd,
                                                "Start timedelta (got " << startTd << ") must come before end timedelta (got " << endTd << ")" );
 
-                if( unlikely( -endTd > ts() -> tickTimeWindowPolicy() ) )
+                if( -endTd > ts() -> tickTimeWindowPolicy() ) [[unlikely]]
                     CSP_THROW( RangeError, "buffer timedelta out of range.  requesting data at timedelta " <<
                                            PyObjectPtr::incref( endIndexArg ) << " with buffer policy set to " <<
                                            PyObjectPtr::own( toPython( ts() -> tickTimeWindowPolicy() ) ) <<
@@ -350,7 +350,7 @@ PyObject *PyInputProxy::valuesAt( ValueType valueType, PyObject *startIndexArg,
                     CSP_TRUE_OR_THROW_RUNTIME( endDt >= startDt,
                                                "Start datetime (got " << startDt << ") must come before end datetime (got " << endDt << ")" );
 
-                if( unlikely( m_node -> now() - endDt >= ts() -> tickTimeWindowPolicy() ) )
+                if( m_node -> now() - endDt >= ts() -> tickTimeWindowPolicy() ) [[unlikely]]
                     CSP_THROW( RangeError, "requested buffer time out of range.  requesting datetime " << PyObjectPtr::incref( endIndexArg ) << " at time " <<
                                            PyObjectPtr::own( toPython( m_node -> now() ) ) << " with buffer time window policy set to " <<
                                            PyObjectPtr::own( toPython( ts() -> tickTimeWindowPolicy() ) )<< " in node '" << m_node -> name() << "'" );

@@ -58,7 +58,7 @@ private:
 
 inline void PushPullInputAdapter::flagReplayComplete()
 {
-    if( unlikely( !m_notifiedEndOfPull ) )
+    if( !m_notifiedEndOfPull ) [[unlikely]]
     {
         m_notifiedEndOfPull = true;
         auto * replayCompleteEvent = new PushPullEvent( this, DateTime::NONE() );
@@ -79,7 +79,7 @@ inline void PushPullInputAdapter::pushTick( bool live, DateTime time, T &&value,
     }
     else
     {
-        if( unlikely( m_notifiedEndOfPull ) )
+        if( m_notifiedEndOfPull ) [[unlikely]]
             CSP_THROW( RuntimeException, "PushPullInputAdapter tried to push a sim tick after live tick" );
 
         PushPullEvent * event = new TypedPushPullEvent<T>( this, time, std::forward<T>(value) );

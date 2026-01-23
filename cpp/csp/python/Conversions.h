@@ -447,7 +447,7 @@ inline PyObject * toPython( const CspEnum & e, const CspType & type )
     const auto * emeta = static_cast<const DialectCspEnumMeta*>( enumType.meta().get() );
 
     PyObject * obj = emeta -> pyMeta() -> toPyEnum( e );
-    if( unlikely( !obj ) )
+    if( !obj ) [[unlikely]]
         CSP_THROW( ValueError, e.value() << " is not a valid value on csp.enum type " << emeta -> name() );
     return obj;
 }

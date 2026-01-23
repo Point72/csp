@@ -54,7 +54,7 @@ int64_t DynamicInputBasketInfo::addDynamicKey( const DialectGenericType & key, c
     const_cast<TimeSeriesProvider *>( ts ) -> setTickCountPolicy( m_tickCountPolicy );
     const_cast<TimeSeriesProvider *>( ts ) -> setTickTimeWindowPolicy( m_timeWindowPolicy );
 
-    if( likely( ( bool ) m_changeCallback ) )
+    if( ( bool ) m_changeCallback ) [[likely]]
         m_changeCallback( key, true, elemId, -1 );
     return elemId;
 }
@@ -88,7 +88,7 @@ void DynamicInputBasketInfo::removeDynamicKey( uint64_t engineCycle, const Diale
         m_inputs[ replaceId ] = nullptr;
     }
 
-    if( likely( ( bool ) m_changeCallback ) )
+    if( ( bool ) m_changeCallback ) [[likely]]
         m_changeCallback( key, false, removeId, replaceId );
 }
 

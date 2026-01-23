@@ -153,12 +153,12 @@ DECLARE_CPPNODE( _sync_nan_f )
     INVOKE()
     {
         // Note that it's guaranteed x and y are ticking in sequence when this node is triggered
-        if( likely( !isnan( x ) ) )
+        if( !isnan( x ) ) [[likely]]
             y_sync.output( y );
         else
             y_sync.output( std::numeric_limits<double>::quiet_NaN() );
 
-        if( likely( !isnan( y ) ) )
+        if( !isnan( y ) ) [[likely]]
             x_sync.output( x );
         else
             x_sync.output( std::numeric_limits<double>::quiet_NaN() );

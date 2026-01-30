@@ -1,3 +1,5 @@
+# ruff: noqa: I001
+# Import order is intentional - async_adapter must be imported after csp.node is defined
 import os
 
 from csp.baselib import *
@@ -30,6 +32,17 @@ from csp.math import *
 from csp.showgraph import show_graph
 
 from . import stats
+
+# Import async adapter LAST since it uses @csp.node decorator which must be defined first
+from csp.impl.async_adapter import (  # noqa: E402
+    async_alarm,
+    async_for,
+    async_in,
+    async_node,
+    async_out,
+    await_,
+    schedule_async_alarm,
+)
 
 __version__ = "0.14.0"
 

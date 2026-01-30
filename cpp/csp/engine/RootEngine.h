@@ -25,7 +25,7 @@ class EndCycleListener
 public:
     virtual ~EndCycleListener() {};
     virtual void onEndCycle() = 0;
-    
+
     bool isDirty() const  { return m_dirty; }
     void setDirtyFlag()   { m_dirty = true; }
     void clearDirtyFlag() { m_dirty = false; }
@@ -56,6 +56,14 @@ public:
     void     run( DateTime start, DateTime end );
     void     shutdown();
     void     shutdown( std::exception_ptr except );
+
+    // Step-based execution API for asyncio integration
+    // Allows external event loops to drive CSP execution one step at a time
+    void     startStepping( DateTime start, DateTime end );
+    bool     step( TimeDelta maxWait = TimeDelta::NONE() );  // Returns true if more work pending
+    void     stopStepping();
+    bool     isStepping() const { return m_stepping; }
+    DateTime nextScheduledTime();  // Returns next scheduled event time, or NONE if none
 
     Scheduler::Handle reserveSchedulerHandle();
     Scheduler::Handle scheduleCallback( TimeDelta delta, Scheduler::Callback cb );
@@ -90,7 +98,7 @@ public:
     bool interrupted() const;
 
     PushPullEventQueue & pushPullEventQueue() { return m_pushPullEventQueue; }
-    
+
 protected:
     enum State { NONE, STARTING, RUNNING, SHUTDOWN, DONE };
     using EndCycleListeners = std::vector<EndCycleListener*>;
@@ -131,7 +139,11 @@ protected:
     PendingPushEvents m_pendingPushEvents;
     Settings          m_settings;
     bool              m_inRealtime;
+    bool              m_stepping;  // True when in step-based execution mode
     int               m_initSignalCount;
+
+    // For step-based execution
+    std::vector<PushGroup *> m_stepDirtyGroups;
 
     PushEventQueue     m_pushEventQueue;
     //This queue is managed entirely from the PushPullInputAdapter
@@ -168,7 +180,7 @@ inline Scheduler::Handle RootEngine::scheduleCallback( Scheduler::Handle reserve
     if( unlikely( time < m_now ) )
         CSP_THROW( ValueError, "Cannot schedule event in the past.  new time: " << time << " now: " << m_now );
 
-    return m_scheduler.scheduleCallback( reservedHandle, time, std::move( cb ) ); 
+    return m_scheduler.scheduleCallback( reservedHandle, time, std::move( cb ) );
 }
 
 inline Scheduler::Handle RootEngine::rescheduleCallback( Scheduler::Handle id, csp::DateTime time )

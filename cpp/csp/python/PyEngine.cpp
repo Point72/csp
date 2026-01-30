@@ -95,7 +95,7 @@ static void PyEngine_dealloc( PyEngine * self )
 {
     CSP_BEGIN_METHOD;
     self -> ~PyEngine();
-    Py_TYPE( self ) -> tp_free( self ); 
+    Py_TYPE( self ) -> tp_free( self );
     CSP_RETURN;
 }
 
@@ -105,7 +105,7 @@ static PyObject * PyEngine_run( PyEngine * self, PyObject * args )
 
     PyObject * pyStart;
     PyObject * pyEnd;
-    if( !PyArg_ParseTuple( args, "OO", &pyStart, &pyEnd ) ) 
+    if( !PyArg_ParseTuple( args, "OO", &pyStart, &pyEnd ) )
         return nullptr;
 
     auto start = fromPython<DateTime>( pyStart );
@@ -118,8 +118,94 @@ static PyObject * PyEngine_run( PyEngine * self, PyObject * args )
     CSP_RETURN_NONE;
 }
 
+static PyObject * PyEngine_startStepping( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    PyObject * pyStart;
+    PyObject * pyEnd;
+    if( !PyArg_ParseTuple( args, "OO", &pyStart, &pyEnd ) )
+        return nullptr;
+
+    auto start = fromPython<DateTime>( pyStart );
+    auto end   = fromPython<DateTime>( pyEnd );
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    self -> rootEngine() -> startStepping( start, end );
+
+    Py_RETURN_NONE;
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_step( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    double maxWaitSeconds = 0.0;
+    if( !PyArg_ParseTuple( args, "|d", &maxWaitSeconds ) )
+        return nullptr;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+
+    TimeDelta maxWait = maxWaitSeconds > 0 ? TimeDelta::fromSeconds( maxWaitSeconds ) : TimeDelta::ZERO();
+    bool hasMore = self -> rootEngine() -> step( maxWait );
+
+    return PyBool_FromLong( hasMore );
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_stopStepping( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    self -> rootEngine() -> stopStepping();
+
+    return self -> collectOutputs();
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_isStepping( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    bool stepping = self -> rootEngine() -> isStepping();
+
+    return PyBool_FromLong( stepping );
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_now( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    DateTime now = self -> rootEngine() -> now();
+
+    return toPython( now );
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_nextScheduledTime( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    DateTime nextTime = self -> rootEngine() -> nextScheduledTime();
+
+    return toPython( nextTime );
+    CSP_RETURN_NONE;
+}
+
 static PyMethodDef PyEngine_methods[] = {
-    { "run",             (PyCFunction) PyEngine_run,            METH_VARARGS, "start and run engine" },
+    { "run",               ( PyCFunction ) PyEngine_run,               METH_VARARGS, "start and run engine" },
+    { "start_stepping",    ( PyCFunction ) PyEngine_startStepping,     METH_VARARGS, "start engine in step mode" },
+    { "step",              ( PyCFunction ) PyEngine_step,              METH_VARARGS, "execute one step, returns True if more work pending" },
+    { "stop_stepping",     ( PyCFunction ) PyEngine_stopStepping,      METH_NOARGS,  "stop stepping and cleanup" },
+    { "is_stepping",       ( PyCFunction ) PyEngine_isStepping,        METH_NOARGS,  "check if in stepping mode" },
+    { "now",               ( PyCFunction ) PyEngine_now,               METH_NOARGS,  "get current engine time" },
+    { "next_scheduled_time", ( PyCFunction ) PyEngine_nextScheduledTime, METH_NOARGS,  "get next scheduled event time" },
     { NULL }
 };
 

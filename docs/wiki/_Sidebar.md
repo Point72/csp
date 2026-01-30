@@ -35,6 +35,7 @@ Notes for editors:
   - [Write Realtime Input Adapters](Write-Realtime-Input-Adapters)
   - [Write Output Adapters](Write-Output-Adapters)
 - [Profile CSP Code](Profile-CSP-Code)
+- [Event Loop Integration](Event-Loop-Integration)
 
 **References**
 

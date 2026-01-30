@@ -75,6 +75,7 @@ RootEngine::RootEngine( const Dictionary & settings ) : Engine( m_cycleStepTable
                                                         m_cycleCount( 0 ),
                                                         m_settings( settings ),
                                                         m_inRealtime( false ),
+                                                        m_stepping( false ),
                                                         m_initSignalCount( g_SIGNAL_COUNT ),
                                                         m_pushEventQueue( m_settings.queueWaitTime > TimeDelta::ZERO() )
 {
@@ -222,7 +223,7 @@ void RootEngine::runRealtime( DateTime end )
 
             for( auto * group : dirtyGroups )
                 group -> state = PushGroup::NONE;
-            
+
             dirtyGroups.clear();
             haveEvents = false;
         }
@@ -287,6 +288,144 @@ void RootEngine::shutdown( std::exception_ptr except_ptr )
     m_state = State::SHUTDOWN;
     if( !m_exception_ptr )
         m_exception_ptr = except_ptr;
+}
+
+void RootEngine::startStepping( DateTime start, DateTime end )
+{
+    if( m_stepping )
+        CSP_THROW( RuntimeException, "Engine is already in stepping mode" );
+
+    preRun( start, end );
+
+    m_exception_mutex.lock();
+    if( m_state != State::SHUTDOWN )
+        m_state = State::RUNNING;
+    m_exception_mutex.unlock();
+
+    m_stepping = true;
+    m_inRealtime = m_settings.realtime;
+    m_stepDirtyGroups.clear();
+}
+
+bool RootEngine::step( TimeDelta maxWait )
+{
+    if( !m_stepping )
+        CSP_THROW( RuntimeException, "Engine is not in stepping mode. Call startStepping() first." );
+
+    if( m_state != State::RUNNING || interrupted() )
+        return false;
+
+    // Check if we've passed the end time
+    if( m_now > m_endTime )
+        return false;
+
+    bool hasWork = false;
+
+    if( m_inRealtime )
+    {
+        // Realtime mode: check for push events and timers
+        TimeDelta waitTime = maxWait;
+        if( waitTime == TimeDelta::NONE() )
+            waitTime = TimeDelta::ZERO();
+
+        if( !m_pendingPushEvents.hasEvents() )
+        {
+            DateTime now = DateTime::now();
+            if( m_scheduler.hasEvents() )
+                waitTime = std::min( m_scheduler.nextTime() - now, waitTime );
+        }
+
+        // Don't block in step mode - just check for events
+        bool haveEvents = m_pushEventQueue.wait( waitTime );
+
+        m_now = DateTime::now();
+        if( m_now > m_endTime )
+        {
+            m_now = m_endTime;
+            return false;
+        }
+
+        ++m_cycleCount;
+
+        // Execute timers that are ready
+        if( m_scheduler.hasEvents() && m_scheduler.nextTime() <= m_now )
+        {
+            DateTime timerTime = m_scheduler.nextTime();
+            m_now = timerTime;
+            m_scheduler.executeNextEvents( m_now );
+            hasWork = true;
+        }
+        else if( haveEvents )
+        {
+            // Process push events
+            PushEvent * events = m_pushEventQueue.popAll();
+            processPendingPushEvents( m_stepDirtyGroups );
+            processPushEventQueue( events, m_stepDirtyGroups );
+
+            for( auto * group : m_stepDirtyGroups )
+                group -> state = PushGroup::NONE;
+            m_stepDirtyGroups.clear();
+            hasWork = true;
+        }
+    }
+    else
+    {
+        // Sim mode: process next scheduled event
+        if( m_scheduler.hasEvents() )
+        {
+            m_now = m_scheduler.nextTime();
+            if( m_now <= m_endTime )
+            {
+                ++m_cycleCount;
+                m_scheduler.executeNextEvents( m_now );
+                hasWork = true;
+            }
+            else
+            {
+                m_now = m_endTime;
+            }
+        }
+    }
+
+    if( hasWork )
+    {
+        m_cycleStepTable.executeCycle( m_profiler.get() );
+        processEndCycle();
+    }
+
+    // Return true if there's more work to do
+    return m_state == State::RUNNING && !interrupted() &&
+           ( m_scheduler.hasEvents() || m_pendingPushEvents.hasEvents() );
+}
+
+void RootEngine::stopStepping()
+{
+    if( !m_stepping )
+        return;
+
+    try
+    {
+        postRun();
+    }
+    catch( ... )
+    {
+        if( !m_exception_ptr )
+            m_exception_ptr = std::current_exception();
+    }
+
+    m_state = State::DONE;
+    m_stepping = false;
+    m_stepDirtyGroups.clear();
+
+    if( m_exception_ptr )
+        std::rethrow_exception( m_exception_ptr );
+}
+
+DateTime RootEngine::nextScheduledTime()
+{
+    if( m_scheduler.hasEvents() )
+        return m_scheduler.nextTime();
+    return DateTime::NONE();
 }
 
 DictionaryPtr RootEngine::engine_stats() const

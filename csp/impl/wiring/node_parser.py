@@ -14,6 +14,13 @@ from csp.impl.wiring.ast_utils import ASTUtils
 from csp.impl.wiring.base_parser import BaseParser, CspParseError, _pythonic_depr_warning
 
 
+def _get_async_alarm_class():
+    """Lazy import to avoid circular dependency."""
+    from csp.impl.async_adapter import AsyncAlarm
+
+    return AsyncAlarm
+
+
 class _SingleProxyFuncArgResolver(object):
     class INVALID_VALUE:
         pass
@@ -163,22 +170,40 @@ class NodeParser(BaseParser):
                         raise CspParseError("Exactly one alarm can be assigned per line", node.lineno)
                     name = node.targets[0].id
 
-                if not (isinstance(node.value, ast.Call) and BaseParser._is_csp_special_func_call(node.value, "alarm")):
-                    raise CspParseError("Alarms must be initialized with csp.alarm in __alarms__ block", node.lineno)
+                is_alarm = isinstance(node.value, ast.Call) and BaseParser._is_csp_special_func_call(
+                    node.value, "alarm"
+                )
+                is_async_alarm = isinstance(node.value, ast.Call) and BaseParser._is_csp_special_func_call(
+                    node.value, "async_alarm"
+                )
+
+                if not (is_alarm or is_async_alarm):
+                    raise CspParseError(
+                        "Alarms must be initialized with csp.alarm or csp.async_alarm in __alarms__ block", node.lineno
+                    )
                 call_node = node.value
 
-                # handle the initial scheduling via `csp.alarm`
+                # handle the initial scheduling via `csp.alarm` or `csp.async_alarm`
                 if len(call_node.keywords):
-                    raise TypeError("function `csp.alarm` does not take keyword arguments")
+                    raise TypeError("function `csp.alarm`/`csp.async_alarm` does not take keyword arguments")
                 if len(call_node.args) != 1:
                     raise TypeError(
-                        f"function `csp.alarm` requires a single type argument: {len(call_node.args)} arguments given"
+                        f"function `csp.alarm`/`csp.async_alarm` requires a single type argument: {len(call_node.args)} arguments given"
                     )
 
                 typ = self._eval_expr(call_node.args[0])
                 ts_type_arg = tstype.TsType[typ]
 
-                self._inputs.insert(num_alarms, InputDef(name, ts_type_arg, ArgKind.ALARM, None, num_alarms, -1))
+                if is_async_alarm:
+                    # Track async alarms for special handling
+                    if not hasattr(self, "_async_alarms"):
+                        self._async_alarms = {}
+                    self._async_alarms[name] = typ
+                    self._inputs.insert(
+                        num_alarms, InputDef(name, ts_type_arg, ArgKind.ASYNC_ALARM, None, num_alarms, -1)
+                    )
+                else:
+                    self._inputs.insert(num_alarms, InputDef(name, ts_type_arg, ArgKind.ALARM, None, num_alarms, -1))
                 num_alarms += 1
 
         # Re-assign tsidx on inputs that have been pushed further out
@@ -298,6 +323,18 @@ class NodeParser(BaseParser):
             return res.value
         else:
             return res
+
+    def visit_Name(self, node: ast.Name):
+        """Handle name access for async alarms - return manager's value instead of alarm proxy."""
+        if hasattr(self, "_async_alarms") and node.id in self._async_alarms:
+            # For async alarms, accessing by name should get the manager's value
+            mgr_name = f"#async_mgr_{node.id}"
+            return ast.Attribute(
+                value=ast.Name(id=mgr_name, ctx=ast.Load()),
+                attr="value",
+                ctx=node.ctx,
+            )
+        return node
 
     def _visit_node_or_list(self, node_or_list):
         if isinstance(node_or_list, list):
@@ -556,9 +593,64 @@ class NodeParser(BaseParser):
     def _create_single_input_ticked_expression(self, arg):
         return ast.UnaryOp(op=ast.UAdd(), operand=self._ts_inproxy_expr(arg))
 
+    def _create_async_alarm_ticked_expression(self, arg, input_def):
+        """
+        For async alarms, we check if the manager has results and get the result if so.
+        This generates code equivalent to:
+            (#async_mgr_name.has_result() and (#async_mgr_name.get_result(), True)[-1])
+
+        The get_result() call will store the result in _last_result, making it available
+        via the .value property when the alarm name is accessed.
+        """
+        mgr_name = f"#async_mgr_{input_def.name}"
+
+        # #async_mgr_name.has_result()
+        has_result_call = ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id=mgr_name, ctx=ast.Load()),
+                attr="has_result",
+                ctx=ast.Load(),
+            ),
+            args=[],
+            keywords=[],
+        )
+
+        # #async_mgr_name.get_result()
+        get_result_call = ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id=mgr_name, ctx=ast.Load()),
+                attr="get_result",
+                ctx=ast.Load(),
+            ),
+            args=[],
+            keywords=[],
+        )
+
+        # (get_result_call, True)[-1] - evaluates get_result (storing in _last_result) and returns True
+        result_tuple = ast.Subscript(
+            value=ast.Tuple(elts=[get_result_call, ast.Constant(True)], ctx=ast.Load()),
+            slice=ast.Constant(-1),
+            ctx=ast.Load(),
+        )
+
+        # has_result() and (get_result(), True)[-1]
+        return ast.BoolOp(
+            op=ast.And(),
+            values=[has_result_call, result_tuple],
+        )
+
     def _parse_ticked(self, node):
         """ORed together all values ticked converted to unary add +"""
-        exprs = [self._create_single_input_ticked_expression(arg) for arg in node.args]
+        exprs = []
+        for arg in node.args:
+            # Check if this is an async alarm
+            if isinstance(arg, ast.Name):
+                input_def = self._signature.input(arg.id, allow_missing=True)
+                if input_def and input_def.kind == ArgKind.ASYNC_ALARM:
+                    exprs.append(self._create_async_alarm_ticked_expression(arg, input_def))
+                    continue
+            exprs.append(self._create_single_input_ticked_expression(arg))
+
         if len(exprs) == 1:
             return exprs[0]
 
@@ -637,6 +729,42 @@ class NodeParser(BaseParser):
 
     def _parse_cancel_alarm(self, node):
         return self._parse_schedule_alarm_func(node, "cancel_alarm")
+
+    def _parse_schedule_async_alarm(self, node):
+        """
+        Parse csp.schedule_async_alarm(async_alarm, coro).
+        Transforms to: #async_mgr_name.schedule(coro)
+        """
+        if len(node.args) < 2:
+            raise CspParseError("csp.schedule_async_alarm requires alarm and coroutine arguments", node.lineno)
+
+        name_node = node.args[0]
+        if not isinstance(name_node, ast.Name):
+            raise CspParseError("csp.schedule_async_alarm expects async alarm name as first argument", node.lineno)
+
+        name = name_node.id
+        input_def = self._signature.input(name, allow_missing=True)
+        if not input_def:
+            raise CspParseError(f"unrecognized async alarm '{name}'", node.lineno)
+
+        if input_def.kind != ArgKind.ASYNC_ALARM:
+            raise CspParseError(
+                f"csp.schedule_async_alarm can only be used with async alarms, not '{name}'", node.lineno
+            )
+
+        mgr_name = f"#async_mgr_{name}"
+        coro_arg = node.args[1]
+
+        # #async_mgr_name.schedule(coro)
+        return ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id=mgr_name, ctx=ast.Load()),
+                attr="schedule",
+                ctx=ast.Load(),
+            ),
+            args=[coro_arg],
+            keywords=node.keywords,
+        )
 
     def _parse_set_buffering_policy(self, node):
         proxy = self._ts_inproxy_expr(node.args[0])
@@ -833,16 +961,70 @@ class NodeParser(BaseParser):
         self._stateblock = [self.visit(node) for node in self._stateblock]
         self._startblock = [self.visit(node) for node in self._startblock]
 
+        # Inject async alarm manager state and lifecycle code
+        async_alarm_state = []
+        async_alarm_start = []
+        async_alarm_stop = []
+        if hasattr(self, "_async_alarms") and self._async_alarms:
+            # Add AsyncAlarm to globals only when needed (lazy import to avoid circular dependency)
+            self._func_globals_modified["AsyncAlarm"] = _get_async_alarm_class()
+            for name, typ in self._async_alarms.items():
+                mgr_name = f"#async_mgr_{name}"
+                # State: create the AsyncAlarm manager
+                # We need to create a reference to the type, not embed it as a constant
+                type_name = typ.__name__ if hasattr(typ, "__name__") else str(typ)
+                async_alarm_state.append(
+                    ast.Assign(
+                        targets=[ast.Name(id=mgr_name, ctx=ast.Store())],
+                        value=ast.Call(
+                            func=ast.Name(id="AsyncAlarm", ctx=ast.Load()),
+                            args=[ast.Name(id=type_name, ctx=ast.Load())],
+                            keywords=[],
+                        ),
+                    )
+                )
+                # Start: start the manager
+                async_alarm_start.append(
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id=mgr_name, ctx=ast.Load()),
+                                attr="start",
+                                ctx=ast.Load(),
+                            ),
+                            args=[],
+                            keywords=[],
+                        )
+                    )
+                )
+                # Stop: stop the manager
+                async_alarm_stop.append(
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id=mgr_name, ctx=ast.Load()),
+                                attr="stop",
+                                ctx=ast.Load(),
+                            ),
+                            args=[],
+                            keywords=[],
+                        )
+                    )
+                )
+
         init_block = node_proxy + ts_in_proxies + ts_out_proxies + ts_vars
-        startblock = self._stateblock + self._startblock
+        startblock = async_alarm_state + self._stateblock + async_alarm_start + self._startblock
         body = [ast.While(test=ast.Constant(value=True), orelse=[], body=innerbody)]
 
+        # Combine user stopblock with async alarm stop
         if self._stopblock:
             self._stopblock = [self.visit(node) for node in self._stopblock]
+        combined_stopblock = (self._stopblock or []) + async_alarm_stop
 
+        if combined_stopblock:
             # For stop we wrap the body of a node in a try / finally
             # If the init block fails it's unrecoverable, and if the start block raises we don't want to stop that specific node
-            start_and_body = startblock + [ast.Try(body=body, finalbody=self._stopblock, handlers=[], orelse=[])]
+            start_and_body = startblock + [ast.Try(body=body, finalbody=combined_stopblock, handlers=[], orelse=[])]
 
         else:
             start_and_body = startblock + body
@@ -892,6 +1074,11 @@ class NodeParser(BaseParser):
         return f
 
     @classmethod
+    def _parse_passthrough(cls, self, node):
+        """Passthrough parser that keeps the csp.xxx call unchanged."""
+        return self.generic_visit(node)
+
+    @classmethod
     def _init_internal_maps(cls):
         cls.METHOD_MAP = {
             "csp.now": cls._parse_now,
@@ -921,6 +1108,9 @@ class NodeParser(BaseParser):
             "csp.engine_start_time": cls._parse_engine_start_time,
             "csp.engine_end_time": cls._parse_engine_end_time,
             "csp.engine_stats": cls._parse_csp_engine_stats,
+            "csp.await_": cls._parse_passthrough,
+            "csp.async_alarm": cls._parse_passthrough,
+            "csp.schedule_async_alarm": cls._parse_schedule_async_alarm,
         }
 
 

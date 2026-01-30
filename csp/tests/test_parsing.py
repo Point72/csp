@@ -131,7 +131,9 @@ class TestParsing(unittest.TestCase):
                 __alarms__(x)
                 pass
 
-        with self.assertRaisesRegex(CspParseError, "Alarms must be initialized with csp.alarm in __alarms__ block"):
+        with self.assertRaisesRegex(
+            CspParseError, "Alarms must be initialized with csp.alarm or csp.async_alarm in __alarms__ block"
+        ):
 
             @csp.node
             def foo():
@@ -146,7 +148,9 @@ class TestParsing(unittest.TestCase):
                 __alarms__(x=int)
                 pass
 
-        with self.assertRaisesRegex(CspParseError, "Alarms must be initialized with csp.alarm in __alarms__ block"):
+        with self.assertRaisesRegex(
+            CspParseError, "Alarms must be initialized with csp.alarm or csp.async_alarm in __alarms__ block"
+        ):
 
             @csp.node
             def foo():
@@ -154,7 +158,9 @@ class TestParsing(unittest.TestCase):
                     x: int = 5
                 pass
 
-        with self.assertRaisesRegex(CspParseError, "Alarms must be initialized with csp.alarm in __alarms__ block"):
+        with self.assertRaisesRegex(
+            CspParseError, "Alarms must be initialized with csp.alarm or csp.async_alarm in __alarms__ block"
+        ):
 
             @csp.node
             def foo():
@@ -162,7 +168,9 @@ class TestParsing(unittest.TestCase):
                     x: ts[int]
                 pass
 
-        with self.assertRaisesRegex(CspParseError, "Alarms must be initialized with csp.alarm in __alarms__ block"):
+        with self.assertRaisesRegex(
+            CspParseError, "Alarms must be initialized with csp.alarm or csp.async_alarm in __alarms__ block"
+        ):
 
             @csp.node
             def foo():
@@ -1658,21 +1666,27 @@ class TestParsing(unittest.TestCase):
         self.assertEqual(res["y"], exp_out)
 
         # Now verify a ton of error messages
-        with self.assertRaisesRegex(CspParseError, "Alarms must be initialized with csp.alarm in __alarms__ block"):
+        with self.assertRaisesRegex(
+            CspParseError, "Alarms must be initialized with csp.alarm or csp.async_alarm in __alarms__ block"
+        ):
 
             @csp.node
             def n():
                 with csp.alarms():
                     a: ts[int]
 
-        with self.assertRaisesRegex(CspParseError, "Alarms must be initialized with csp.alarm in __alarms__ block"):
+        with self.assertRaisesRegex(
+            CspParseError, "Alarms must be initialized with csp.alarm or csp.async_alarm in __alarms__ block"
+        ):
 
             @csp.node
             def n():
                 with csp.alarms():
                     a: ts[int] = csp.foo()
 
-        with self.assertRaisesRegex(TypeError, "function `csp.alarm` does not take keyword arguments"):
+        with self.assertRaisesRegex(
+            TypeError, "function `csp.alarm`/`csp.async_alarm` does not take keyword arguments"
+        ):
 
             @csp.node
             def n():
@@ -1680,7 +1694,7 @@ class TestParsing(unittest.TestCase):
                     a: ts[int] = csp.alarm(typ=int)
 
         with self.assertRaisesRegex(
-            TypeError, "function `csp.alarm` requires a single type argument: 0 arguments given"
+            TypeError, "function `csp.alarm`/`csp.async_alarm` requires a single type argument: 0 arguments given"
         ):
 
             @csp.node
@@ -1689,7 +1703,7 @@ class TestParsing(unittest.TestCase):
                     a: ts[int] = csp.alarm()
 
         with self.assertRaisesRegex(
-            TypeError, "function `csp.alarm` requires a single type argument: 2 arguments given"
+            TypeError, "function `csp.alarm`/`csp.async_alarm` requires a single type argument: 2 arguments given"
         ):
 
             @csp.node
@@ -1705,7 +1719,7 @@ class TestParsing(unittest.TestCase):
                 a = csp.alarm(foo())
 
         with self.assertRaisesRegex(
-            TypeError, "function `csp.alarm` requires a single type argument: 2 arguments given"
+            TypeError, "function `csp.alarm`/`csp.async_alarm` requires a single type argument: 2 arguments given"
         ):
 
             @csp.node
@@ -1719,7 +1733,9 @@ class TestParsing(unittest.TestCase):
             with csp.alarms():
                 a: ts[StructA] = csp.alarm(StructB)
 
-        with self.assertRaisesRegex(CspParseError, "Alarms must be initialized with csp.alarm in __alarms__ block"):
+        with self.assertRaisesRegex(
+            CspParseError, "Alarms must be initialized with csp.alarm or csp.async_alarm in __alarms__ block"
+        ):
 
             @csp.node
             def n():

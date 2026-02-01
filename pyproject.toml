@@ -207,3 +207,19 @@ section-order = [
 "__init__.py" = ["F401", "F403"]
 "csp/impl/__*.py" = ["F401"]
 "csp/tests/*.py" = ["F401", "F403", "F811", "F821", "F841", "F842", "E731", "E741"]
+
+[tool.mypy]
+# Configuration for stubtest validation
+ignore_missing_imports = true
+# Allow importing from modules without stubs
+follow_imports = "silent"
+# Don't check the bodies of functions in source files
+check_untyped_defs = false
+# Suppress errors about invalid type annotations in source code
+disable_error_code = ["valid-type", "import", "attr-defined", "union-attr", "arg-type", "assignment", "return-value", "misc", "var-annotated", "name-defined", "operator"]
+# Exclude test files and numba utilities from checking
+exclude = [
+    "csp/tests/",
+    "csp/impl/wiring/numba_utils/",
+    "csp/build/",
+]

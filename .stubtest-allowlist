@@ -1,0 +1,14 @@
+# Stubtest allowlist for csp type stubs
+# Each line is a pattern for symbols that are allowed to differ from runtime
+# Only add entries that are actually needed for the modules being tested
+
+# Struct "cannot be subclassed" is a false positive - users DO subclass Struct
+# The C++ metaclass handles subclassing specially
+csp.impl.struct.Struct
+csp.adapters.status.Struct
+
+# TypeVars are for typing only, not present at runtime (expected)
+csp.curve.T
+
+# Sentinel object - stub uses typed wrapper for IDE, runtime is bare object
+csp.impl.constants.UNSET

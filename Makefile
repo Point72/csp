@@ -69,11 +69,24 @@ fix: fix-py fix-cpp fix-docs ## run autofixers
 # alias
 format: fix
 
-check:
+check-manifest:  ## check the packaged files for the sdist
 	check-manifest -v
 
+types:  ## type check with ty
+	ty check --python $(which python)
+
+type-stubs:  ## validate type stub files are syntactically correct
+	python ci/scripts/validate_stubs.py
+
+# Note: stubtest requires the source code to be mypy-compatible, which csp is not
+# due to its custom DSL-style type annotations. Use this target for informational purposes.
+type-stubs-check:  ## run mypy stubtest (informational, will show source code type errors)
+	python -m mypy.stubtest csp --allowlist .stubtest-allowlist --ignore-missing-stub --mypy-config-file .mypy-stubtest.ini $(EXTRA_ARGS) || true
+
+checks: check-manifest
+
 # Alias
-checks: check
+check: checks
 
 #########
 # TESTS #

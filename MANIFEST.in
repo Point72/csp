@@ -8,6 +8,10 @@ graft csp
 include pyproject.toml
 include setup.py
 
+# Type stubs
+include csp/py.typed
+recursive-include csp *.pyi
+
 # C++ files
 graft cpp
 include CMakeLists.txt

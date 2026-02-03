@@ -535,15 +535,6 @@ class TestKafka:
         # non-collapsing is tested in other tests
 
 
-# Helper function for Avro tests
-def assert_values_equal(actual, expected, field_name="value"):
-    """Helper to compare values, handling floats with tolerance"""
-    if isinstance(expected, float):
-        assert abs(actual - expected) < 0.001, f"{field_name}: expected {expected}, got {actual}"
-    else:
-        assert actual == expected, f"{field_name}: expected {expected}, got {actual}"
-
-
 class TestKafkaAvro:
     """Comprehensive tests for Avro message format in Kafka adapter"""
 
@@ -626,7 +617,7 @@ class TestKafkaAvro:
             assert sub_data.symbol == pub_data.symbol == "AAPL"
             assert sub_data.is_buy == pub_data.is_buy
             assert sub_data.quantity == pub_data.quantity
-            assert_values_equal(sub_data.price, pub_data.price, "price")
+            assert sub_data.price == pub_data.price
             assert sub_data.trade_date == pub_data.trade_date
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
@@ -736,9 +727,9 @@ class TestKafkaAvro:
             assert sub_data.values == pub_data.values
             assert len(sub_data.prices) == len(pub_data.prices)
             for j in range(len(sub_data.prices)):
-                assert_values_equal(sub_data.prices[j], pub_data.prices[j], f"prices[{j}]")
+                assert sub_data.prices[j] == pub_data.prices[j]
             assert sub_data.info.category == pub_data.info.category
-            assert_values_equal(sub_data.info.score, pub_data.info.score, "info.score")
+            assert sub_data.info.score == pub_data.info.score
             assert sub_data.status == pub_data.status
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
@@ -878,7 +869,7 @@ class TestKafkaAvro:
 
             # Values should match despite different field names
             assert sub_data.external_id == pub_data.internal_id == "mapped_key"
-            assert_values_equal(sub_data.external_value, pub_data.internal_value, "value")
+            assert sub_data.external_value == pub_data.internal_value
             assert sub_data.external_count == pub_data.internal_count == i + 1
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")

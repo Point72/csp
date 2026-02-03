@@ -25,12 +25,7 @@ set_target_properties(csp_adapter_utils PROPERTIES PUBLIC_HEADER "${ADAPTER_UTIL
 
 find_package(DepsKafkaAdapter REQUIRED)
 
-# Link Avro library
-if(CSP_USE_VCPKG)
-  target_link_libraries(csp_adapter_utils PUBLIC unofficial::avro-cpp::avrocpp)
-else()
-  target_link_libraries(csp_adapter_utils PUBLIC Avro::avrocpp)
-endif()
+target_link_libraries(csp_adapter_utils PUBLIC ${CSP_AVRO_TARGET})
 
 install(TARGETS csp_adapter_utils
         PUBLIC_HEADER DESTINATION include/csp/adapters/utils

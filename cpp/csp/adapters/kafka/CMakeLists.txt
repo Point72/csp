@@ -24,12 +24,7 @@ find_package(DepsKafkaAdapter REQUIRED)
 
 target_link_libraries(csp_kafka_adapter PUBLIC csp_adapter_utils RdKafka::rdkafka RdKafka::rdkafka++)
 
-# Link Avro library
-if(CSP_USE_VCPKG)
-  target_link_libraries(csp_kafka_adapter PUBLIC unofficial::avro-cpp::avrocpp)
-else()
-  target_link_libraries(csp_kafka_adapter PUBLIC Avro::avrocpp)
-endif()
+target_link_libraries(csp_kafka_adapter PUBLIC ${CSP_AVRO_TARGET})
 
 install(TARGETS csp_kafka_adapter
         PUBLIC_HEADER DESTINATION include/csp/adapters/kafka

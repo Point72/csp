@@ -258,7 +258,11 @@ if(CSP_BUILD_ARROW_ADAPTER)
 endif()
 
 if(CSP_BUILD_KAFKA_ADAPTER)
-    find_package(DepsKafkaAdapter REQUIRED)
+    find_package(DepsKafkaAdapter)
+    if(NOT DepsKafkaAdapter_FOUND)
+        message(STATUS "Kafka adapter disabled - dependencies not available")
+        set(CSP_BUILD_KAFKA_ADAPTER OFF)
+    endif()
 endif()
 
 if(CSP_BUILD_PARQUET_ADAPTER)

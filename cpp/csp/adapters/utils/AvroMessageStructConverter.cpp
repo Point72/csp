@@ -136,9 +136,7 @@ std::vector<StorageT> AvroMessageStructConverter::extractArray( const avro::Gene
     out.reserve( elements.size() );
 
     for( const auto & elem : elements )
-    {
         out.emplace_back( extractValue<ElemT>( elem, fieldname ) );
-    }
 
     return out;
 }

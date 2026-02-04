@@ -1,7 +1,9 @@
+import asyncio
 import threading
 import time
 from collections import deque
 from datetime import datetime, timedelta
+from typing import Optional
 
 import pytz
 
@@ -116,10 +118,14 @@ def _build_engine(engine, context, memo=None):
 class GraphRunInfo:
     TLS = threading.local()
 
-    def __init__(self, starttime, endtime, realtime):
+    def __init__(
+        self, starttime, endtime, realtime, use_asyncio=False, asyncio_loop: Optional[asyncio.AbstractEventLoop] = None
+    ):
         self._starttime = starttime
         self._endtime = endtime
         self._realtime = realtime
+        self._use_asyncio = use_asyncio
+        self._asyncio_loop = asyncio_loop
         self._prev = None
 
     @property
@@ -133,6 +139,15 @@ class GraphRunInfo:
     @property
     def is_realtime(self):
         return self._realtime
+
+    @property
+    def is_asyncio(self):
+        return self._use_asyncio
+
+    @property
+    def asyncio_loop(self) -> Optional[asyncio.AbstractEventLoop]:
+        """Get the asyncio event loop for this run, if asyncio mode is enabled."""
+        return self._asyncio_loop
 
     @classmethod
     def get_cur_run_times_info(cls, raise_if_missing=True):
@@ -157,6 +172,44 @@ class _WrappedContext:
         self.context = context
 
 
+async def _run_asyncio_engine(engine, starttime, endtime):
+    """Run the engine in asyncio mode using step-based execution."""
+    engine.start_stepping(starttime, endtime)
+    try:
+        while True:
+            # Check if there's more work (step returns True if more work pending)
+            has_more = engine.step(0.0)
+            if not has_more:
+                # Check if engine is still active
+                if not engine.is_stepping():
+                    break
+                # In realtime mode, check if we've passed end time
+                now = datetime.now(pytz.UTC).replace(tzinfo=None)
+                if now >= endtime:
+                    break
+
+            # Yield to allow other async tasks to run
+            # and wait a bit before next step to avoid busy loop
+            next_time = engine.next_scheduled_time()
+            if next_time is not None:
+                now = datetime.now(pytz.UTC).replace(tzinfo=None)
+                if next_time > now:
+                    delay = min((next_time - now).total_seconds(), 0.01)
+                    await asyncio.sleep(delay)
+                else:
+                    await asyncio.sleep(0)
+            else:
+                # No scheduled events, poll for push events
+                await asyncio.sleep(0.001)
+    except Exception:
+        # On error, stop stepping and re-raise
+        engine.stop_stepping()
+        raise
+
+    # stop_stepping() returns collected outputs
+    return engine.stop_stepping()
+
+
 def run(
     g,
     *args,
@@ -165,8 +218,13 @@ def run(
     queue_wait_time=None,
     realtime=False,
     output_numpy=False,
+    use_asyncio=False,
     **kwargs,
 ):
+    # Validate asyncio mode requirements
+    if use_asyncio and not realtime:
+        raise ValueError("asyncio=True requires realtime=True")
+
     with ExceptionContext():
         starttime, endtime = _normalize_run_times(starttime, endtime, realtime)
 
@@ -207,14 +265,28 @@ def run(
                 time.sleep((starttime - now).total_seconds())
 
             with mem_cache:
-                return engine.run(starttime, endtime)
+                if use_asyncio:
+                    # Run in asyncio mode using step-based execution
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        # Set up GraphRunInfo with asyncio context
+                        with GraphRunInfo(
+                            starttime=starttime, endtime=endtime, realtime=realtime, use_asyncio=True, asyncio_loop=loop
+                        ):
+                            return loop.run_until_complete(_run_asyncio_engine(engine, starttime, endtime))
+                    finally:
+                        loop.close()
+                        asyncio.set_event_loop(None)
+                else:
+                    return engine.run(starttime, endtime)
 
         if isinstance(g, Edge):
-            return run(lambda: g, starttime=starttime, endtime=endtime, **engine_settings)
+            return run(lambda: g, starttime=starttime, endtime=endtime, use_asyncio=use_asyncio, **engine_settings)
 
         # wrapped in a _WrappedContext so that we can give up the mem before run
         graph = _WrappedContext(
             build_graph(g, *args, starttime=starttime, endtime=endtime, realtime=realtime, **kwargs)
         )
-        with GraphRunInfo(starttime=starttime, endtime=endtime, realtime=realtime):
-            return run(graph, starttime=starttime, endtime=endtime, **engine_settings)
+        with GraphRunInfo(starttime=starttime, endtime=endtime, realtime=realtime, use_asyncio=use_asyncio):
+            return run(graph, starttime=starttime, endtime=endtime, use_asyncio=use_asyncio, **engine_settings)

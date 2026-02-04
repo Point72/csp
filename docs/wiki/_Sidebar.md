@@ -30,11 +30,13 @@ Notes for editors:
 
 - [Use Statistical Nodes](Use-Statistical-Nodes)
 - [Create Dynamic Baskets](Create-Dynamic-Baskets)
+- [Use Async Operations](Async)
 - Write Adapters:
   - [Write Historical Input Adapters](Write-Historical-Input-Adapters)
   - [Write Realtime Input Adapters](Write-Realtime-Input-Adapters)
   - [Write Output Adapters](Write-Output-Adapters)
 - [Profile CSP Code](Profile-CSP-Code)
+- [Event Loop Integration](Event-Loop-Integration)
 
 **References**
 

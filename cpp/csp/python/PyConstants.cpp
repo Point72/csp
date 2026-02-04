@@ -12,7 +12,7 @@ namespace csp::python::constants
 {
     PyObject * UNSET() 
     {
-        if( unlikely( s_UNSET == nullptr ) )
+        if( s_UNSET == nullptr ) [[unlikely]]
         {
             PyObject * wiring = PyImport_AddModule("csp.impl.constants");
             PyObject * dict = PyModule_GetDict(wiring);
@@ -24,7 +24,7 @@ namespace csp::python::constants
 
     PyObject * REMOVE_DYNAMIC_KEY() 
     {
-        if( unlikely( s_REMOVE_DYNAMIC_KEY == nullptr ) )
+        if( s_REMOVE_DYNAMIC_KEY == nullptr ) [[unlikely]]
         {
             PyObject * wiring = PyImport_AddModule("csp.impl.constants");
             PyObject * dict = PyModule_GetDict(wiring);
@@ -36,7 +36,7 @@ namespace csp::python::constants
 
     PyObject * EDGE_TYPE()
     {
-        if( unlikely( s_EDGE_TYPE == nullptr ) )
+        if( s_EDGE_TYPE == nullptr ) [[unlikely]]
         {
             PyObject * mod = PyImport_AddModule("csp.impl.wiring.edge");
             PyObject * dict = PyModule_GetDict( mod );

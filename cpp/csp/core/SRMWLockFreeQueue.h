@@ -86,7 +86,7 @@ inline void SRMWLockFreeQueue<T>::push( T * item )
     while( !m_head.compare_exchange_weak( item -> next, item, std::memory_order_release ) ) 
     {}
 
-    if( unlikely( m_wait != nullptr ) )
+    if( m_wait != nullptr ) [[unlikely]]
         m_wait -> notify();
 }
 
@@ -101,7 +101,7 @@ inline void SRMWLockFreeQueue<T>::push( Batch & batch )
 
     batch.clear();
 
-    if( unlikely( m_wait != nullptr ) )
+    if( m_wait != nullptr ) [[unlikely]]
         m_wait -> notify();
 }
 
@@ -146,7 +146,7 @@ inline bool SRMWLockFreeQueue<T>::wait( TimeDelta maxWait )
 template< typename T >
 inline T * SRMWLockFreeQueue<T>::popAll( TimeDelta maxWait )
 {
-    if( unlikely( m_wait != nullptr && maxWait.asNanoseconds() > 0 && m_head == nullptr ) )
+    if( m_wait != nullptr && maxWait.asNanoseconds() > 0 && m_head == nullptr ) [[unlikely]]
         m_wait -> wait( maxWait );
 
     T * head = m_head.exchange( nullptr );

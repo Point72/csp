@@ -1,4 +1,5 @@
 import math
+from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import List, TypeVar, get_origin
 
@@ -270,6 +271,18 @@ def define_binary_op(name, op_lambda):
         if csp.valid(x, y):
             return op_lambda(x, y)
 
+    # Special case: datetime - datetime returns timedelta
+    @_node_internal_use(name=name)
+    def datetime_sub_type(x: ts[datetime], y: ts[datetime]) -> ts[timedelta]:
+        if csp.valid(x, y):
+            return op_lambda(x, y)
+
+    # Special case: datetime +/- timedelta returns datetime
+    @_node_internal_use(name=name)
+    def datetime_timedelta_type(x: ts[datetime], y: ts[timedelta]) -> ts[datetime]:
+        if csp.valid(x, y):
+            return op_lambda(x, y)
+
     def comp(x: ts["T"], y: ts["U"]):
         if get_origin(x.tstype.typ) in [Numpy1DArray, NumpyNDArray] or get_origin(y.tstype.typ) in [
             Numpy1DArray,
@@ -280,6 +293,10 @@ def define_binary_op(name, op_lambda):
             return float_type(x, y)
         elif x.tstype.typ is int and y.tstype.typ is int:
             return int_type(x, y)
+        elif name == "sub" and x.tstype.typ is datetime and y.tstype.typ is datetime:
+            return datetime_sub_type(x, y)
+        elif name in ("add", "sub") and x.tstype.typ is datetime and y.tstype.typ is timedelta:
+            return datetime_timedelta_type(x, y)
         return generic_type(x, y)
 
     comp.__name__ = name

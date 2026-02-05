@@ -33,7 +33,7 @@ dependencies:
  - pillow
  - polars
  - psutil
- - pyarrow>=15,<23
+ - pyarrow>=15,<24
  - pydantic>=2
  - pytest
  - pytest-asyncio

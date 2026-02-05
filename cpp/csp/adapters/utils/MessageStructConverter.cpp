@@ -1,5 +1,7 @@
 #include <csp/adapters/utils/MessageStructConverter.h>
+#ifdef CSP_USE_AVRO
 #include <csp/adapters/utils/AvroMessageStructConverter.h>
+#endif
 #include <csp/adapters/utils/JSONMessageStructConverter.h>
 #include <csp/adapters/utils/RawBytesMessageStructConverter.h>
 
@@ -16,7 +18,9 @@ MessageStructConverterCache::MessageStructConverterCache()
 {
     registerConverter( "RAW_BYTES", &RawBytesMessageStructConverter::create );
     registerConverter( "JSON",      &JSONMessageStructConverter::create );
+#ifdef CSP_USE_AVRO
     registerConverter( "AVRO",      &AvroMessageStructConverter::create );
+#endif
 }
 
 bool MessageStructConverterCache::registerConverter( std::string protocol, Creator creator )

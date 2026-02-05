@@ -2,11 +2,32 @@ cmake_minimum_required(VERSION 3.7.2)
 
 if (CSP_USE_VCPKG)
   find_package(RdKafka CONFIG REQUIRED)
-  if(NOT WIN32) 
+  find_package(unofficial-avro-cpp CONFIG REQUIRED)
+
+  # Check avro-cpp version on Windows - require >= 1.12.1 for fmt v12 compatibility
+  # avro-cpp 1.12.0 has fmt::formatter with non-const format() which causes MSVC C2766
+  if(WIN32 AND unofficial-avro-cpp_VERSION VERSION_LESS "1.12.1")
+    message(WARNING
+      "avro-cpp ${unofficial-avro-cpp_VERSION} has incompatible fmt::formatter on Windows. "
+      "Kafka adapter will be disabled. Update vcpkg to get avro-cpp >= 1.12.1.")
+    set(DepsKafkaAdapter_FOUND FALSE)
+    return()
+  endif()
+
+  if(NOT WIN32)
     # Bad, but a temporary workaround for
     # https://github.com/microsoft/vcpkg/issues/40320
     link_directories(${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib)
   endif()
+  set(CSP_AVRO_TARGET unofficial::avro-cpp::avrocpp CACHE INTERNAL "")
+  set(DepsKafkaAdapter_FOUND TRUE)
 else()
   find_package(RdKafka REQUIRED)
+  find_package(Avro)
+  if(NOT Avro_FOUND)
+    set(DepsKafkaAdapter_FOUND FALSE)
+  else()
+    set(CSP_AVRO_TARGET Avro::avrocpp CACHE INTERNAL "")
+    set(DepsKafkaAdapter_FOUND TRUE)
+  endif()
 endif()

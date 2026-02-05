@@ -25,7 +25,7 @@ set_target_properties(csp_adapter_utils PROPERTIES PUBLIC_HEADER "${ADAPTER_UTIL
 
 find_package(DepsKafkaAdapter REQUIRED)
 
-target_link_libraries(csp_adapter_utils PUBLIC ${CSP_AVRO_TARGET})
+target_link_libraries(csp_adapter_utils PUBLIC ${AVRO_LIBRARIES})
 
 install(TARGETS csp_adapter_utils
         PUBLIC_HEADER DESTINATION include/csp/adapters/utils

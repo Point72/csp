@@ -2,30 +2,46 @@ find_path(Avro_INCLUDE_DIR NAMES avro/Encoder.hh)
 find_library(Avro_LIBRARY NAMES avrocpp libavrocpp)
 
 # =============================================================================
-# Check for conda-forge avro-cpp fmt::formatter incompatibility on Windows
+# Extract version from library soname and check compatibility on Windows
 # =============================================================================
-# conda-forge's avro-cpp has fmt::formatter specializations with non-const
-# format() methods, but fmt v12+ requires const. This causes MSVC error C2766.
-#
-# If detected, Avro_FOUND is set to FALSE and Kafka adapter will be disabled.
+# avro-cpp versions <= 1.12.0 have fmt::formatter with non-const format()
+# methods, but fmt v12+ requires const. This causes MSVC error C2766.
+# Require avro-cpp >= 1.12.1 on Windows which has the fix.
 # =============================================================================
 
 set(Avro_COMPATIBLE TRUE)
+set(Avro_VERSION "")
 
-if(WIN32 AND Avro_INCLUDE_DIR AND NOT CSP_USE_VCPKG)
-    set(_avro_node_hh "${Avro_INCLUDE_DIR}/avro/Node.hh")
-    if(EXISTS "${_avro_node_hh}")
-        file(READ "${_avro_node_hh}" _node_hh_content)
-        string(FIND "${_node_hh_content}" "fmt::formatter<avro::Name>" _has_formatter)
-        if(NOT _has_formatter EQUAL -1)
-            # Check for non-const format() - the bug pattern
-            string(REGEX MATCH "auto format\\([^)]+\\)[^c]*\\{" _buggy_pattern "${_node_hh_content}")
-            if(_buggy_pattern)
-                set(Avro_COMPATIBLE FALSE)
-                message(WARNING
-                    "avro-cpp has incompatible fmt::formatter (non-const format()). "
-                    "Kafka adapter will be disabled. Update avro-cpp when conda-forge releases a fix.")
-            endif()
+if(Avro_LIBRARY)
+    get_filename_component(_avro_realpath "${Avro_LIBRARY}" REALPATH)
+    if(_avro_realpath MATCHES "libavrocpp\\.so\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+        set(Avro_VERSION_MAJOR "${CMAKE_MATCH_1}")
+        set(Avro_VERSION_MINOR "${CMAKE_MATCH_2}")
+        set(Avro_VERSION_PATCH "${CMAKE_MATCH_3}")
+        set(Avro_VERSION "${Avro_VERSION_MAJOR}.${Avro_VERSION_MINOR}.${Avro_VERSION_PATCH}")
+    elseif(_avro_realpath MATCHES "avrocpp\\.dll")
+        # Windows DLL doesn't have version in filename - try library name
+        if(_avro_realpath MATCHES "([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+            set(Avro_VERSION_MAJOR "${CMAKE_MATCH_1}")
+            set(Avro_VERSION_MINOR "${CMAKE_MATCH_2}")
+            set(Avro_VERSION_PATCH "${CMAKE_MATCH_3}")
+            set(Avro_VERSION "${Avro_VERSION_MAJOR}.${Avro_VERSION_MINOR}.${Avro_VERSION_PATCH}")
+        endif()
+    endif()
+
+    if(WIN32 AND NOT CSP_USE_VCPKG)
+        if(NOT Avro_VERSION)
+            # Could not detect version - assume buggy and skip
+            set(Avro_COMPATIBLE FALSE)
+            message(WARNING
+                "Could not detect avro-cpp version on Windows. "
+                "Kafka adapter will be disabled to avoid potential fmt::formatter incompatibility. "
+                "Use vcpkg or upgrade to avro-cpp >= 1.12.1.")
+        elseif(Avro_VERSION VERSION_LESS "1.12.1")
+            set(Avro_COMPATIBLE FALSE)
+            message(WARNING
+                "avro-cpp ${Avro_VERSION} has incompatible fmt::formatter on Windows. "
+                "Kafka adapter will be disabled. Upgrade to avro-cpp >= 1.12.1.")
         endif()
     endif()
 endif()

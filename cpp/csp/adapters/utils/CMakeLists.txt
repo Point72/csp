@@ -1,6 +1,4 @@
 set(ADAPTER_UTILS_PUBLIC_HEADERS
-        AvroMessageStructConverter.h
-        AvroMessageWriter.h
         JSONMessageStructConverter.h
         JSONMessageWriter.h
         MessageEnums.h
@@ -19,18 +17,17 @@ set(ADAPTER_UTILS_FILES
         RawBytesMessageStructConverter.cpp
         )
 
-find_package(DepsKafkaAdapter REQUIRED)
-
-if(CSP_KAFKA_ENABLE_AVRO)
+if(CSP_BUILD_AVRO)
+    list(APPEND ADAPTER_UTILS_PUBLIC_HEADERS AvroMessageStructConverter.h AvroMessageWriter.h)
     list(APPEND ADAPTER_UTILS_FILES AvroMessageStructConverter.cpp)
 endif()
 
 add_library(csp_adapter_utils STATIC ${ADAPTER_UTILS_FILES})
 set_target_properties(csp_adapter_utils PROPERTIES PUBLIC_HEADER "${ADAPTER_UTILS_PUBLIC_HEADERS}" PREFIX lib)
 
-if(CSP_KAFKA_ENABLE_AVRO)
-    target_compile_definitions(csp_adapter_utils PUBLIC CSP_USE_AVRO)
-    target_link_libraries(csp_adapter_utils PUBLIC ${AVRO_LIBRARIES})
+if(CSP_BUILD_AVRO)
+    target_compile_definitions(csp_adapter_utils PRIVATE CSP_USE_AVRO)
+    target_link_libraries(csp_adapter_utils PUBLIC ${CSP_AVRO_TARGET})
 endif()
 
 install(TARGETS csp_adapter_utils

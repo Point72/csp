@@ -79,8 +79,8 @@ class PushInputAdapter : public InputAdapter
 {
 public:
     PushInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode,
-                      PushGroup * group = nullptr ) : InputAdapter( engine, type, pushMode ),
-                                                      m_group( group )
+                      PushGroup * group = nullptr, bool invokeCallbackEventParser = false )
+        : InputAdapter( engine, type, pushMode ), m_invokeCallbackEventParser(invokeCallbackEventParser), m_group( group )
     {
     }
 
@@ -94,8 +94,25 @@ public:
     //will delete event if processed, returns true if processed
     bool consumeEvent( PushEvent *, std::vector<PushGroup *> & dirtyGroups );
 
+    // Override to transform a callback_event into a new parsed event for the csp engine
+    virtual PushEvent * parseCallbackEvent( PushEvent * callback_event ) { return nullptr; };
+    // Override to delete the original callback_event after its parsed event has been consumed
+    virtual void deleteCallbackEvent( PushEvent * callback_event ) { delete callback_event; };
+    // Override to reconcile callback_event and parsed_event when the parsed event was not consumed.
+    // The subclass must delete the parsed_event here as consumeEvent only deletes it on consumption.
+    virtual void restoreCallbackEvent( PushEvent * callback_event, PushEvent * parsed_event ) {};
+
 private:
 
+    // When enabled, consumeEvent will route events through the parseCallbackEvent/deleteCallbackEvent/restoreCallbackEvent
+    // hooks instead of consuming them directly. This allows subclasses to apply arbitrary transformations on pushed ticks
+    // before they are delivered to the csp engine.
+    //
+    // Event ownership with the flag enabled:
+    //   - parseCallbackEvent produces a new parsed event from the original callback_event
+    //   - If consumed: the parsed event is deleted by consumeEvent, and the callback_event is deleted via deleteCallbackEvent
+    //   - If not consumed: restoreCallbackEvent is called — the subclass must clean up the parsed event there
+    bool m_invokeCallbackEventParser = false;
     PushGroup * m_group;
 };
 
@@ -126,6 +143,14 @@ inline bool PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushG
 
     bool isGroupEnd = event -> isGroupEnd();
 
+    PushEvent * callback_event = event;
+
+    if( m_invokeCallbackEventParser )
+    {
+        event = parseCallbackEvent( callback_event );
+        CSP_ASSERT( event != nullptr );
+    }
+
     bool consumed = switchCspType( dataType(),
                                    [ event ]( auto tag )
                                    {
@@ -136,6 +161,20 @@ inline bool PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushG
                                            delete tevent;
                                        return consumed;
                                    } );
+    if( m_invokeCallbackEventParser )
+    {
+        if( consumed )
+        {
+            // Parsed event was consumed (deleted) so delete the original event to avoid leaking memory
+            deleteCallbackEvent( callback_event );
+        }
+        else
+        {
+            // Parsed event was not consumed so restore the original event so that it can be consumed again later.
+            restoreCallbackEvent( callback_event, event );
+        }
+    }
+
     if( m_group )
     {
         if( pushMode() == PushMode::NON_COLLAPSING )

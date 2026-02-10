@@ -1,9 +1,16 @@
 #include <Python.h>
 #include <csp/engine/CppNode.h>
+#include <csp/engine/PushInputAdapter.h>
 #include <csp/python/Conversions.h>
+#include <csp/python/Exception.h>
 #include <csp/python/InitHelper.h>
+#include <csp/python/PyAdapterManagerWrapper.h>
 #include <csp/python/PyCppNode.h>
+#include <csp/python/PyEngine.h>
+#include <csp/python/PyInputAdapterWrapper.h>
 #include <csp/python/PyObjectPtr.h>
+#include <csp/python/PyOutputAdapterWrapper.h>
+
 
 namespace csp::cppnodes
 {
@@ -96,6 +103,214 @@ DECLARE_CPPNODE( set_stop_index )
 EXPORT_CPPNODE( set_stop_index );
 
 }
+
+}
+
+}
+
+namespace csp::cppadapters
+{
+
+namespace testing
+{
+
+using namespace csp::python;
+
+
+class CustomPyPushInputAdapter: public PushInputAdapter
+{
+public:
+    CustomPyPushInputAdapter( Engine * engine, AdapterManager * manager, PyObjectPtr pyadapter, PyObject * pyType,
+                             PushMode pushMode, PyObjectPtr pyPushGroup, PushGroup * pushGroup ):
+        PushInputAdapter( engine, pyTypeAsCspType( pyType ), pushMode, pushGroup, true ),
+        m_pyadapter( pyadapter ),
+        m_pyType( PyObjectPtr::incref( ( PyObject * ) pyType ) ),
+        m_pyPushGroup( pyPushGroup )
+    {
+    }
+
+    void start( DateTime start, DateTime end ) override
+    {
+        PyObjectPtr rv = PyObjectPtr::own( PyObject_CallMethod( m_pyadapter.ptr(), "start", "OO", 
+                                                                PyObjectPtr::own( toPython( start ) ).ptr(),
+                                                                PyObjectPtr::own( toPython( end ) ).ptr() ) );
+        if( !rv.ptr() )
+            CSP_THROW( PythonPassthrough, "" );
+    }
+
+    void stop() override
+    {
+        PyObjectPtr rv = PyObjectPtr::own( PyObject_CallMethod( m_pyadapter.ptr(), "stop", nullptr ) ); 
+
+        if( !rv.ptr() )
+        {
+            if( PyErr_Occurred() == PyExc_KeyboardInterrupt )
+            {
+                PyErr_Clear();
+                rv = PyObjectPtr::own( PyObject_CallMethod( m_pyadapter.ptr(), "stop", nullptr ) );
+            }
+
+            if( !rv.ptr() )
+                CSP_THROW( PythonPassthrough, "" );
+        }
+    }
+
+    void pushPyTick( PyObject * value, PushBatch * batch )
+    {
+        PyObjectPtr ptr = PyObjectPtr::incref( value );
+        pushTick<PyObjectPtr>( std::move( ptr ), batch );
+    }
+
+    PushEvent * parseCallbackEvent( PushEvent * event ) override
+    {
+        csp::TypedPushEvent<PyObjectPtr> *tevent  = static_cast<csp::TypedPushEvent<PyObjectPtr> *>( event );
+        PyObjectPtr result = PyObjectPtr::own( PyObject_CallNoArgs( (tevent -> data).get() ) );
+        if (result.get() == NULL) {
+            CSP_THROW( RuntimeException, "Error while invoking callable" );
+        }
+        auto value = csp::python::fromPython<DialectGenericType>( result.get() );
+        PushEvent * new_event = new csp::TypedPushEvent<DialectGenericType>( this, std::forward<DialectGenericType>(value) );
+        return new_event;
+    }
+
+    void deleteCallbackEvent( PushEvent * event ) override
+    {
+        csp::TypedPushEvent<PyObjectPtr> *tevent  = static_cast<csp::TypedPushEvent<PyObjectPtr> *>( event );
+        delete tevent;
+    }
+
+    void restoreCallbackEvent( PushEvent * callback_event, PushEvent * parsed_event ) override
+    {
+        csp::TypedPushEvent<DialectGenericType> *tevent = static_cast<csp::TypedPushEvent<DialectGenericType> *>( parsed_event );
+        delete tevent;
+    }
+
+
+private:
+    PyObjectPtr m_pyadapter;
+    PyObjectPtr m_pyType;
+    PyObjectPtr m_pyPushGroup;
+};
+
+struct CustomPyPushInputAdapter_PyObject
+{
+    PyObject_HEAD
+    CustomPyPushInputAdapter * adapter;
+
+    static PyObject * pushTick( CustomPyPushInputAdapter_PyObject * self, PyObject * args, PyObject **kwargs )
+    {
+        CSP_BEGIN_METHOD;
+        PyObject *pyvalue = nullptr;
+
+        Py_ssize_t len = PyTuple_GET_SIZE( args );
+        if( len < 1 || len > 1 )
+            CSP_THROW( TypeError, "push_tick takes value as positional arguments" );
+
+        pyvalue = PyTuple_GET_ITEM( args, 0 );
+
+        PushBatch * batch = nullptr;
+
+        self -> adapter -> pushPyTick( pyvalue, batch );
+
+        CSP_RETURN_NONE;
+    }
+
+    static PyObject * shutdown_engine( CustomPyPushInputAdapter_PyObject * self, PyObject * pyException )
+    {
+        CSP_BEGIN_METHOD;
+
+        self -> adapter -> rootEngine() -> shutdown( PyEngine_shutdown_make_exception( pyException ) );
+
+        CSP_RETURN_NONE;
+    }
+
+    static PyTypeObject PyType;
+};
+
+static PyMethodDef CustomPyPushInputAdapter_PyObject_methods[] = {
+    { "push_tick",          (PyCFunction) CustomPyPushInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
+    { "shutdown_engine",    (PyCFunction) CustomPyPushInputAdapter_PyObject::shutdown_engine, METH_O, "shutdown_engine" },
+    {NULL}
+};
+
+PyTypeObject CustomPyPushInputAdapter_PyObject::PyType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_cspimpl.CustomPyPushInputAdapter", /* tp_name */
+    sizeof(CustomPyPushInputAdapter_PyObject),    /* tp_basicsize */
+    0,                         /* tp_itemsize */
+    0,                         /* tp_dealloc */
+    0,                         /* tp_print */
+    0,                         /* tp_getattr */
+    0,                         /* tp_setattr */
+    0,                         /* tp_reserved */
+    0,                         /* tp_repr */
+    0,                         /* tp_as_number */
+    0,                         /* tp_as_sequence */
+    0,                         /* tp_as_mapping */
+    0,                         /* tp_hash  */
+    0,                         /* tp_call */
+    0,                         /* tp_str */
+    0,                         /* tp_getattro */
+    0,                         /* tp_setattro */
+    0,                         /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
+    "csp push input adapter",  /* tp_doc */
+    0,                         /* tp_traverse */
+    0,                         /* tp_clear */
+    0,                         /* tp_richcompare */
+    0,                         /* tp_weaklistoffset */
+    0,                         /* tp_iter */
+    0,                         /* tp_iternext */
+    CustomPyPushInputAdapter_PyObject_methods,    /* tp_methods */
+    0,                         /* tp_members */
+    0,                         /* tp_getset */
+    0,                         /* tp_base */
+    0,                         /* tp_dict */
+    0,                         /* tp_descr_get */
+    0,                         /* tp_descr_set */
+    0,                         /* tp_dictoffset */
+    0,                         /* tp_init */
+    0,
+    PyType_GenericNew,
+};
+
+static InputAdapter * custompypushinputadapter_creator( csp::AdapterManager * manager, PyEngine * pyengine,
+                                                  PyObject * pyType, PushMode pushMode, PyObject * args )
+{
+    PyTypeObject * pyAdapterType = nullptr;
+    PyObject * adapterArgs = nullptr;
+    PyObject * pyPushGroup;
+
+    if( !PyArg_ParseTuple( args, "O!OO!", &PyType_Type, &pyAdapterType, &pyPushGroup, &PyTuple_Type, &adapterArgs ) )
+        CSP_THROW( PythonPassthrough, "" );
+
+    if( !PyType_IsSubtype( pyAdapterType, &CustomPyPushInputAdapter_PyObject::PyType ) )
+        CSP_THROW( TypeError, "Expected PushInputAdapter derived type, got " << pyAdapterType -> tp_name );
+
+    csp::PushGroup *pushGroup = nullptr;
+    if( pyPushGroup != Py_None )
+    {
+        pushGroup = ( csp::PushGroup * ) PyCapsule_GetPointer( pyPushGroup, nullptr );
+        if( !pushGroup )
+        {
+            PyErr_Clear();
+            CSP_THROW( TypeError, "Expected PushGroup instance for push group, got: " << PyObjectPtr::incref( pyPushGroup ) );
+        }
+    }
+
+    CustomPyPushInputAdapter_PyObject * pyAdapter = ( CustomPyPushInputAdapter_PyObject * ) PyObject_Call( ( PyObject * ) pyAdapterType, adapterArgs, nullptr );
+    if( !pyAdapter )
+        CSP_THROW( PythonPassthrough, "" );
+
+    pyAdapter -> adapter = pyengine -> engine() -> createOwnedObject<CustomPyPushInputAdapter>(
+        manager, PyObjectPtr::own( ( PyObject * ) pyAdapter ), pyType, pushMode, PyObjectPtr::incref( pyPushGroup ), pushGroup );
+    return pyAdapter -> adapter;
+}
+
+//PushGroup
+REGISTER_TYPE_INIT( &CustomPyPushInputAdapter_PyObject::PyType, "CustomPyPushInputAdapter" );
+
+REGISTER_INPUT_ADAPTER( _custompushadapter, custompypushinputadapter_creator );
 
 }
 

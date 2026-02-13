@@ -5,8 +5,8 @@ each callable on the engine thread to produce the actual tick value. This is use
 to be ticked depends on state that must be read on the engine thread, or when the production of the
 value should be deferred until consumption time.
 
-This example uses CustomPyPushInputAdapter from _csptestlibimpl, which overrides
-parseCallbackEvent / deleteCallbackEvent / restoreCallbackEvent in C++ to call the
+This example uses CallablePyPushInputAdapter from _csptestlibimpl, which overrides
+transformRawEvent / deleteRawEvent / restoreRawEvent in C++ to call the
 pushed Python callable and convert the result into a csp tick.
 """
 
@@ -21,15 +21,7 @@ from csp.lib import _csptestlibimpl
 from csp.utils.datetime import utc_now
 
 
-class CustomPushInputAdapter(_csptestlibimpl.CustomPyPushInputAdapter):
-    def start(self, starttime, endtime):
-        pass
-
-    def stop(self):
-        pass
-
-
-def custom_py_push_adapter_def(
+def callable_py_push_adapter_def(
     name, adapterimpl, out_type, manager_type=None, memoize=True, force_memoize=False, **kwargs
 ):
     def impl(mgr, engine, pytype, push_mode, scalars):
@@ -37,7 +29,7 @@ def custom_py_push_adapter_def(
         scalars = scalars[:-1]
         if mgr is not None:
             scalars = (mgr,) + scalars
-        return _csptestlibimpl._custompushadapter(mgr, engine, pytype, push_mode, (adapterimpl, push_group, scalars))
+        return _csptestlibimpl._callablepushadapter(mgr, engine, pytype, push_mode, (adapterimpl, push_group, scalars))
 
     return _adapterdef(
         InputAdapterDef,
@@ -54,7 +46,7 @@ def custom_py_push_adapter_def(
 
 # The Impl object is created at runtime when the graph is converted into the runtime engine
 # it does not exist at graph building time!
-class MyCallbackPushAdapterImpl(CustomPushInputAdapter):
+class MyCallablePushAdapterImpl(_csptestlibimpl.CallablePyPushInputAdapter):
     def __init__(self, interval):
         self._interval = interval
         self._thread = None
@@ -80,15 +72,15 @@ class MyCallbackPushAdapterImpl(CustomPushInputAdapter):
             time.sleep(self._interval.total_seconds())
 
 
-# MyCallbackPushAdapter is the graph-building time construct.
-MyCallbackPushAdapter = custom_py_push_adapter_def(
-    "MyCallbackPushAdapter", MyCallbackPushAdapterImpl, ts[dict], interval=timedelta
+# MyCallablePushAdapter is the graph-building time construct.
+MyCallablePushAdapter = callable_py_push_adapter_def(
+    "MyCallablePushAdapter", MyCallablePushAdapterImpl, ts[dict], interval=timedelta
 )
 
 
 @csp.graph
 def my_graph():
-    data = MyCallbackPushAdapter(timedelta(seconds=1))
+    data = MyCallablePushAdapter(timedelta(seconds=1))
     csp.print("data", data)
 
 

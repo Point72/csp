@@ -117,10 +117,10 @@ namespace testing
 using namespace csp::python;
 
 
-class CustomPyPushInputAdapter: public PushInputAdapter
+class CallablePyPushInputAdapter: public PushInputAdapter
 {
 public:
-    CustomPyPushInputAdapter( Engine * engine, AdapterManager * manager, PyObjectPtr pyadapter, PyObject * pyType,
+    CallablePyPushInputAdapter( Engine * engine, AdapterManager * manager, PyObjectPtr pyadapter, PyObject * pyType,
                              PushMode pushMode, PyObjectPtr pyPushGroup, PushGroup * pushGroup ):
         PushInputAdapter( engine, pyTypeAsCspType( pyType ), pushMode, pushGroup, true ),
         m_pyadapter( pyadapter ),
@@ -161,7 +161,7 @@ public:
         pushTick<PyObjectPtr>( std::move( ptr ), batch );
     }
 
-    PushEvent * parseCallbackEvent( PushEvent * event ) override
+    PushEvent * transformRawEvent( PushEvent * event ) override
     {
         csp::TypedPushEvent<PyObjectPtr> *tevent  = static_cast<csp::TypedPushEvent<PyObjectPtr> *>( event );
         PyObjectPtr result = PyObjectPtr::own( PyObject_CallNoArgs( (tevent -> data).get() ) );
@@ -173,13 +173,13 @@ public:
         return new_event;
     }
 
-    void deleteCallbackEvent( PushEvent * event ) override
+    void deleteRawEvent( PushEvent * event ) override
     {
         csp::TypedPushEvent<PyObjectPtr> *tevent  = static_cast<csp::TypedPushEvent<PyObjectPtr> *>( event );
         delete tevent;
     }
 
-    void restoreCallbackEvent( PushEvent * callback_event, PushEvent * parsed_event ) override
+    void restoreRawEvent( PushEvent * raw_event, PushEvent * parsed_event ) override
     {
         csp::TypedPushEvent<DialectGenericType> *tevent = static_cast<csp::TypedPushEvent<DialectGenericType> *>( parsed_event );
         delete tevent;
@@ -192,12 +192,12 @@ private:
     PyObjectPtr m_pyPushGroup;
 };
 
-struct CustomPyPushInputAdapter_PyObject
+struct CallablePyPushInputAdapter_PyObject
 {
     PyObject_HEAD
-    CustomPyPushInputAdapter * adapter;
+    CallablePyPushInputAdapter * adapter;
 
-    static PyObject * pushTick( CustomPyPushInputAdapter_PyObject * self, PyObject * args, PyObject **kwargs )
+    static PyObject * pushTick( CallablePyPushInputAdapter_PyObject * self, PyObject * args, PyObject **kwargs )
     {
         CSP_BEGIN_METHOD;
         PyObject *pyvalue = nullptr;
@@ -215,7 +215,7 @@ struct CustomPyPushInputAdapter_PyObject
         CSP_RETURN_NONE;
     }
 
-    static PyObject * shutdown_engine( CustomPyPushInputAdapter_PyObject * self, PyObject * pyException )
+    static PyObject * shutdown_engine( CallablePyPushInputAdapter_PyObject * self, PyObject * pyException )
     {
         CSP_BEGIN_METHOD;
 
@@ -227,54 +227,23 @@ struct CustomPyPushInputAdapter_PyObject
     static PyTypeObject PyType;
 };
 
-static PyMethodDef CustomPyPushInputAdapter_PyObject_methods[] = {
-    { "push_tick",          (PyCFunction) CustomPyPushInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
-    { "shutdown_engine",    (PyCFunction) CustomPyPushInputAdapter_PyObject::shutdown_engine, METH_O, "shutdown_engine" },
+static PyMethodDef CallablePyPushInputAdapter_PyObject_methods[] = {
+    { "push_tick",          (PyCFunction) CallablePyPushInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
+    { "shutdown_engine",    (PyCFunction) CallablePyPushInputAdapter_PyObject::shutdown_engine, METH_O, "shutdown_engine" },
     {NULL}
 };
 
-PyTypeObject CustomPyPushInputAdapter_PyObject::PyType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "_cspimpl.CustomPyPushInputAdapter", /* tp_name */
-    sizeof(CustomPyPushInputAdapter_PyObject),    /* tp_basicsize */
-    0,                         /* tp_itemsize */
-    0,                         /* tp_dealloc */
-    0,                         /* tp_print */
-    0,                         /* tp_getattr */
-    0,                         /* tp_setattr */
-    0,                         /* tp_reserved */
-    0,                         /* tp_repr */
-    0,                         /* tp_as_number */
-    0,                         /* tp_as_sequence */
-    0,                         /* tp_as_mapping */
-    0,                         /* tp_hash  */
-    0,                         /* tp_call */
-    0,                         /* tp_str */
-    0,                         /* tp_getattro */
-    0,                         /* tp_setattro */
-    0,                         /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
-    "csp push input adapter",  /* tp_doc */
-    0,                         /* tp_traverse */
-    0,                         /* tp_clear */
-    0,                         /* tp_richcompare */
-    0,                         /* tp_weaklistoffset */
-    0,                         /* tp_iter */
-    0,                         /* tp_iternext */
-    CustomPyPushInputAdapter_PyObject_methods,    /* tp_methods */
-    0,                         /* tp_members */
-    0,                         /* tp_getset */
-    0,                         /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-    0,                         /* tp_init */
-    0,
-    PyType_GenericNew,
+PyTypeObject CallablePyPushInputAdapter_PyObject::PyType = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_cspimpl.CallablePyPushInputAdapter", /* tp_name */
+    .tp_basicsize = sizeof(CallablePyPushInputAdapter_PyObject),    /* tp_basicsize */
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
+    .tp_doc = "test csp push input adapter",  /* tp_doc */
+    .tp_methods = CallablePyPushInputAdapter_PyObject_methods,    /* tp_methods */
+    .tp_new = PyType_GenericNew,
 };
 
-static InputAdapter * custompypushinputadapter_creator( csp::AdapterManager * manager, PyEngine * pyengine,
+static InputAdapter * callablepypushinputadapter_creator( csp::AdapterManager * manager, PyEngine * pyengine,
                                                   PyObject * pyType, PushMode pushMode, PyObject * args )
 {
     PyTypeObject * pyAdapterType = nullptr;
@@ -284,7 +253,7 @@ static InputAdapter * custompypushinputadapter_creator( csp::AdapterManager * ma
     if( !PyArg_ParseTuple( args, "O!OO!", &PyType_Type, &pyAdapterType, &pyPushGroup, &PyTuple_Type, &adapterArgs ) )
         CSP_THROW( PythonPassthrough, "" );
 
-    if( !PyType_IsSubtype( pyAdapterType, &CustomPyPushInputAdapter_PyObject::PyType ) )
+    if( !PyType_IsSubtype( pyAdapterType, &CallablePyPushInputAdapter_PyObject::PyType ) )
         CSP_THROW( TypeError, "Expected PushInputAdapter derived type, got " << pyAdapterType -> tp_name );
 
     csp::PushGroup *pushGroup = nullptr;
@@ -298,19 +267,19 @@ static InputAdapter * custompypushinputadapter_creator( csp::AdapterManager * ma
         }
     }
 
-    CustomPyPushInputAdapter_PyObject * pyAdapter = ( CustomPyPushInputAdapter_PyObject * ) PyObject_Call( ( PyObject * ) pyAdapterType, adapterArgs, nullptr );
+    CallablePyPushInputAdapter_PyObject * pyAdapter = ( CallablePyPushInputAdapter_PyObject * ) PyObject_Call( ( PyObject * ) pyAdapterType, adapterArgs, nullptr );
     if( !pyAdapter )
         CSP_THROW( PythonPassthrough, "" );
 
-    pyAdapter -> adapter = pyengine -> engine() -> createOwnedObject<CustomPyPushInputAdapter>(
+    pyAdapter -> adapter = pyengine -> engine() -> createOwnedObject<CallablePyPushInputAdapter>(
         manager, PyObjectPtr::own( ( PyObject * ) pyAdapter ), pyType, pushMode, PyObjectPtr::incref( pyPushGroup ), pushGroup );
     return pyAdapter -> adapter;
 }
 
 //PushGroup
-REGISTER_TYPE_INIT( &CustomPyPushInputAdapter_PyObject::PyType, "CustomPyPushInputAdapter" );
+REGISTER_TYPE_INIT( &CallablePyPushInputAdapter_PyObject::PyType, "CallablePyPushInputAdapter" );
 
-REGISTER_INPUT_ADAPTER( _custompushadapter, custompypushinputadapter_creator );
+REGISTER_INPUT_ADAPTER( _callablepushadapter, callablepypushinputadapter_creator );
 
 }
 

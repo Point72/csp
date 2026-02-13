@@ -10,15 +10,7 @@ from csp.lib import _csptestlibimpl
 from csp.utils.datetime import utc_now
 
 
-class CustomPushInputAdapter(_csptestlibimpl.CustomPyPushInputAdapter):
-    def start(self, starttime, endtime):
-        pass
-
-    def stop(self):
-        pass
-
-
-def custom_py_push_adapter_def(
+def callable_py_push_adapter_def(
     name, adapterimpl, out_type, manager_type=None, memoize=True, force_memoize=False, **kwargs
 ):
     def impl(mgr, engine, pytype, push_mode, scalars):
@@ -26,7 +18,7 @@ def custom_py_push_adapter_def(
         scalars = scalars[:-1]
         if mgr is not None:
             scalars = (mgr,) + scalars
-        return _csptestlibimpl._custompushadapter(mgr, engine, pytype, push_mode, (adapterimpl, push_group, scalars))
+        return _csptestlibimpl._callablepushadapter(mgr, engine, pytype, push_mode, (adapterimpl, push_group, scalars))
 
     return _adapterdef(
         InputAdapterDef,
@@ -41,7 +33,7 @@ def custom_py_push_adapter_def(
     )
 
 
-class _CallablePushAdapterImpl(CustomPushInputAdapter):
+class _CallablePushAdapterImpl(_csptestlibimpl.CallablePyPushInputAdapter):
     """Adapter impl that pushes callables from a shared list."""
 
     def __init__(self, typ, callables):
@@ -65,7 +57,7 @@ class _CallablePushAdapterImpl(CustomPushInputAdapter):
             time.sleep(0.01)
 
 
-_CallablePushAdapter = custom_py_push_adapter_def(
+_CallablePushAdapter = callable_py_push_adapter_def(
     "_CallablePushAdapter", _CallablePushAdapterImpl, ts["T"], typ="T", callables=list
 )
 
@@ -81,7 +73,7 @@ def _run_adapter(graph, timeout=5):
     )
 
 
-class TestCustomPushAdapter(unittest.TestCase):
+class TestCallablePushAdapter(unittest.TestCase):
     # --- dict tests ---
 
     def test_basic_callable_dict(self):

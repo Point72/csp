@@ -62,7 +62,7 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
             raise InvalidTypeAnnotationError(self._f.name, self._cur_arg, node.elts)
         node = ast.Subscript(
             value=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="List", ctx=ast.Load()),
-            slice=ast.Index(value=self.visit(node.elts[0])),
+            slice=self.visit(node.elts[0]),
             ctx=ast.Load(),
         )
         return node
@@ -75,7 +75,7 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
             raise InvalidTypeAnnotationError(self._f.name, node.arg, node.elts)
         node = ast.Subscript(
             value=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="Set", ctx=ast.Load()),
-            slice=ast.Index(value=self.visit(node.elts[0])),
+            slice=self.visit(node.elts[0]),
             ctx=ast.Load(),
         )
         return node
@@ -88,10 +88,7 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
             raise InvalidTypeAnnotationError(self._f.name, node.arg, node)
         node = ast.Subscript(
             value=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="Dict", ctx=ast.Load()),
-            slice=ast.Index(
-                value=ast.Tuple(elts=[self.visit(node.keys[0]), self.visit(node.values[0])], ctx=ast.Load()),
-                ctx=ast.Load(),
-            ),
+            slice=ast.Tuple(elts=[self.visit(node.keys[0]), self.visit(node.values[0])], ctx=ast.Load()),
             ctx=ast.Load(),
         )
         return node
@@ -107,6 +104,3 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
             args=[node],
             keywords=[],
         )
-
-    def visit_Str(self, node):
-        return self.visit_Constant(node)

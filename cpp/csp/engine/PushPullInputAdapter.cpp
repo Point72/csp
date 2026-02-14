@@ -6,51 +6,66 @@ PushPullInputAdapter::PushPullInputAdapter( Engine *engine, CspTypePtr &type, Pu
                                             PushGroup *group, bool adjustOutOfOrderTime )
             : PushInputAdapter(engine, type, pushMode, group),
               m_nextPullEvent(nullptr),
+              m_tailEvent(nullptr),
               m_notifiedEndOfPull(false),
               m_adjustOutOfOrderTime(adjustOutOfOrderTime)
 {
+}
+
+PushPullInputAdapter::~PushPullInputAdapter()
+{
     //free up any unused events
-    while( m_nextPullEvent )
+    PushPullEvent * event = nextPullEvent();
+    while( event )
     {
-        delete m_nextPullEvent;
-        m_nextPullEvent = nextPullEvent();
+        delete event;
+        event = nextPullEvent();
     }
 }
 
 void PushPullInputAdapter::start( DateTime start, DateTime end )
 {
-    m_nextPullEvent = nextPullEvent();
-    if( m_nextPullEvent )
-    {
-        m_timerHandle = rootEngine() -> scheduleCallback( m_nextPullEvent -> time,
-                                                          [this]() { return processNextPullEvent() ? nullptr : this; } );
-    }
+    auto * nextEvent = nextPullEvent();
+    if( nextEvent )
+        scheduleNextPullEvent( nextEvent );
 }
 
 void PushPullInputAdapter::stop()
 {
     rootEngine() -> cancelCallback( m_timerHandle );
     //shouldnt need to lock at this point
-    m_threadQueue.emplace( nullptr );
+    auto * replayCompleteEvent = new PushPullEvent( this, DateTime::NONE() );
+    rootEngine() -> pushPullEventQueue().push( replayCompleteEvent );
 }
 
-bool PushPullInputAdapter::processNextPullEvent()
+void PushPullInputAdapter::scheduleNextPullEvent( PushPullEvent * nextEvent )
+{
+    //Note that we make nextEvent mutable in the lambda since we need to be able to update it in processNextPullEvent
+    //which can return false to force a rescheduled re-attempt with a new event pointer
+    m_timerHandle = rootEngine() -> scheduleCallback( nextEvent -> time,
+                                                      [this, nextEvent]() mutable
+                                                      {
+                                                          return processNextPullEvent( nextEvent ) ? nullptr : this;
+                                                      } );
+}
+
+bool PushPullInputAdapter::processNextPullEvent( PushPullEvent *& nextEvent )
 {
     bool consumed = switchCspType( dataType(),
-                                   [ this ]( auto tag )
+                                   [ this, &nextEvent ]( auto tag )
                                    {
                                        using T = typename decltype(tag)::type;
-                                       TypedPullDataEvent<T> *tevent = static_cast<TypedPullDataEvent<T> *>( m_nextPullEvent );
+                                       TypedPushPullEvent<T> *tevent = static_cast<TypedPushPullEvent<T> *>( nextEvent );
 
                                        bool consumed = consumeTick( tevent -> data );
                                        assert( consumed );
 
                                        delete tevent;
 
-                                       while( ( m_nextPullEvent = nextPullEvent() ) &&
-                                              m_nextPullEvent -> time == rootEngine() -> now() )
+                                       while( ( nextEvent = nextPullEvent() ) &&
+                                              nextEvent -> time == rootEngine() -> now() )
                                        {
-                                           tevent = static_cast<TypedPullDataEvent<T> *>( m_nextPullEvent );
+                                           tevent = static_cast<TypedPushPullEvent<T> *>( nextEvent );
                                            consumed = consumeTick( tevent -> data );
                                            if( !consumed )
                                                return false;
@@ -60,38 +75,41 @@ bool PushPullInputAdapter::processNextPullEvent()
                                        return true;
                                    } );
 
-    if( consumed && m_nextPullEvent )
-    {
-        m_timerHandle = rootEngine() -> scheduleCallback( m_nextPullEvent->time,
-                                                          [this]() { return processNextPullEvent() ? nullptr : this; } );
-    }
+    if( consumed && nextEvent )
+        scheduleNextPullEvent( nextEvent );
 
     return consumed;
 }
 
-PushPullInputAdapter::PullDataEvent * PushPullInputAdapter::nextPullEvent()
+PushPullEvent * PushPullInputAdapter::nextPullEvent()
 {
-    //spin while we wait for data
-    while( m_poppedPullEvents.empty() )
+    while( m_nextPullEvent == nullptr )
     {
-        std::lock_guard<std::mutex> g( m_queueMutex );
-        m_threadQueue.swap( m_poppedPullEvents );
+        //Any PushPullInputAdapter instance can update events on any other adapter
+        PushPullEvent * event = rootEngine() -> pushPullEventQueue().popAll();
+        while( event )
+        {
+            PushPullEvent * next = event -> next;
+            event -> adapter -> setNextPushPullEvent( event );
+            event = next;
+        }
     }
 
-    auto * event = m_poppedPullEvents.front();
-    m_poppedPullEvents.pop();
+    //DateTime of None is the sentinel value for replay complete
+    if( m_nextPullEvent -> time.isNone() )
+        return nullptr;
+    
+    auto * event = m_nextPullEvent;
+    m_nextPullEvent = m_nextPullEvent -> next;
 
-    if( event )
-    {
-        //Always force time before start to start.  There are two possibilities:
-        //- User asked to replay from EARLIEST, so they should get all ticks replayed and we cant replay before starttime
-        //- User asked to replay from STARTTIME in which case, if the adapter is written correctly, we shouldnt get ticks before starttime
-        if( unlikely( event -> time < rootEngine() -> startTime() ) )
-            event -> time = rootEngine() -> startTime();
-        
-        if( m_adjustOutOfOrderTime )
-            event -> time = std::max( event -> time, rootEngine() -> now() );
-    }
+    //Always force time before start to start.  There are two possibilities:
+    //- User asked to replay from EARLIEST, so they should get all ticks replayed and we cant replay before starttime
+    //- User asked to replay from STARTTIME in which case, if the adapter is written correctly, we shouldnt get ticks before starttime
+    if( event -> time < rootEngine() -> startTime() ) [[unlikely]]
+        event -> time = rootEngine() -> startTime();
+    
+    if( m_adjustOutOfOrderTime )
+        event -> time = std::max( event -> time, rootEngine() -> now() );
 
     return event;    
 }

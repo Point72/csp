@@ -75,12 +75,14 @@ class NodeParser(BaseParser):
     _CSP_ENGINE_STATS_FUNC = "_csp_engine_stats"
 
     _CSP_STOP_ENGINE_FUNC = "_csp_stop_engine"
+    _CSP_IN_REALTIME_FUNC = "_csp_in_realtime"
     _LOCAL_METHODS = {
         _CSP_NOW_FUNC: _cspimpl._csp_now,
         _CSP_ENGINE_START_TIME_FUNC: _cspimpl._csp_engine_start_time,
         _CSP_ENGINE_END_TIME_FUNC: _cspimpl._csp_engine_end_time,
         _CSP_STOP_ENGINE_FUNC: _cspimpl._csp_stop_engine,
         _CSP_ENGINE_STATS_FUNC: _cspimpl._csp_engine_stats,
+        _CSP_IN_REALTIME_FUNC: _cspimpl._csp_in_realtime,
     }
 
     _SPECIAL_BLOCKS_METH = {"alarms", "state", "start", "stop", "outputs"}
@@ -586,6 +588,13 @@ class NodeParser(BaseParser):
             func=ast.Name(id=self._CSP_NOW_FUNC, ctx=ast.Load()), args=[self._node_proxy_expr()], keywords=[]
         )
 
+    def _parse_in_realtime(self, node):
+        if len(node.args) or len(node.keywords):
+            raise CspParseError("csp.in_realtime takes no arguments", node.lineno)
+        return ast.Call(
+            func=ast.Name(id=self._CSP_IN_REALTIME_FUNC, ctx=ast.Load()), args=[self._node_proxy_expr()], keywords=[]
+        )
+
     def _parse_stop_engine(self, node):
         args = [self._node_proxy_expr()] + node.args
         return ast.Call(func=ast.Name(id=self._CSP_STOP_ENGINE_FUNC, ctx=ast.Load()), args=args, keywords=node.keywords)
@@ -678,7 +687,9 @@ class NodeParser(BaseParser):
     def _parse_special_blocks(self, body):
         # skip doc string
         for index, node in enumerate(body):
-            if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Str):
+            if not isinstance(node, ast.Expr) or not (
+                isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+            ):
                 break
 
         last_special_block = None
@@ -766,7 +777,7 @@ class NodeParser(BaseParser):
         node_proxy = [
             ast.Assign(
                 targets=[self._node_proxy_expr(ast.Store())],
-                value=ast.Tuple(elts=[ast.Str(self._NODE_P_VARNAME), ast.Num(n=0)], ctx=ast.Load()),
+                value=ast.Tuple(elts=[ast.Constant(self._NODE_P_VARNAME), ast.Constant(0)], ctx=ast.Load()),
             )
         ]  # '#nodep'
         ts_in_proxies = []
@@ -780,7 +791,7 @@ class NodeParser(BaseParser):
                     ast.Assign(
                         targets=[proxy],
                         value=ast.Tuple(
-                            elts=[ast.Str(s=self._INPUT_PROXY_VARNAME), ast.Num(n=inp.ts_idx)], ctx=ast.Load()
+                            elts=[ast.Constant(self._INPUT_PROXY_VARNAME), ast.Constant(inp.ts_idx)], ctx=ast.Load()
                         ),
                     )
                 )
@@ -789,7 +800,7 @@ class NodeParser(BaseParser):
                         ast.Assign(
                             targets=[ast.Name(id=inp.name, ctx=ast.Store())],
                             value=ast.Tuple(
-                                elts=[ast.Str(s=self._INPUT_VAR_VARNAME), ast.Num(n=inp.ts_idx)], ctx=ast.Load()
+                                elts=[ast.Constant(self._INPUT_VAR_VARNAME), ast.Constant(inp.ts_idx)], ctx=ast.Load()
                             ),
                         )
                     )
@@ -801,7 +812,7 @@ class NodeParser(BaseParser):
                 ast.Assign(
                     targets=[ast.Name(id=name, ctx=ast.Store())],
                     value=ast.Tuple(
-                        elts=[ast.Str(s=self._OUTPUT_PROXY_VARNAME), ast.Num(n=output.ts_idx)], ctx=ast.Load()
+                        elts=[ast.Constant(self._OUTPUT_PROXY_VARNAME), ast.Constant(output.ts_idx)], ctx=ast.Load()
                     ),
                 )
             )
@@ -824,7 +835,7 @@ class NodeParser(BaseParser):
 
         init_block = node_proxy + ts_in_proxies + ts_out_proxies + ts_vars
         startblock = self._stateblock + self._startblock
-        body = [ast.While(test=ast.NameConstant(value=True), orelse=[], body=innerbody)]
+        body = [ast.While(test=ast.Constant(value=True), orelse=[], body=innerbody)]
 
         if self._stopblock:
             self._stopblock = [self.visit(node) for node in self._stopblock]
@@ -846,9 +857,13 @@ class NodeParser(BaseParser):
         start_and_body = [ast.Expr(value=ast.Yield(value=None))] + del_vars + start_and_body
         newbody = init_block + start_and_body
 
-        newfuncdef = ast.FunctionDef(name=self._name, body=newbody, returns=None)
-        newfuncdef.args = self._create_ast_args(
-            posonlyargs=[], args=[], kwonlyargs=[], defaults=[], vararg=None, kwarg=None, kw_defaults=[]
+        newfuncdef = ast.FunctionDef(
+            name=self._name,
+            args=self._create_ast_args(
+                posonlyargs=[], args=[], kwonlyargs=[], defaults=[], vararg=None, kwarg=None, kw_defaults=[]
+            ),
+            body=newbody,
+            returns=None,
         )
         newfuncdef.decorator_list = []
 
@@ -886,6 +901,7 @@ class NodeParser(BaseParser):
             "csp.make_passive": cls._make_single_proxy_arg_func_resolver(builtin_functions.make_passive),
             "csp.make_active": cls._make_single_proxy_arg_func_resolver(builtin_functions.make_active),
             "csp.remove_dynamic_key": cls._parse_remove_dynamic_key,
+            "csp.in_realtime": cls._parse_in_realtime,
             # omit this as its handled in a special case
             # 'csp.alarm': cls._parse_alarm,
             "csp.schedule_alarm": cls._parse_schedule_alarm,

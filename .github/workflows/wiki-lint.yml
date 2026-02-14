@@ -24,13 +24,13 @@ jobs:
         os:
           - ubuntu-24.04
         python-version:
-          - 3.9
+          - 3.11
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 

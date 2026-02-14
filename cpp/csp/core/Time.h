@@ -617,7 +617,7 @@ public:
     int nanoseconds() const  
     {
         auto nanos = m_ticks % NANOS_PER_SECOND;
-        if( unlikely( nanos < 0 ) )
+        if( nanos < 0 ) [[unlikely]]
            nanos += NANOS_PER_SECOND;
         return nanos;
     }

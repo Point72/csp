@@ -160,8 +160,7 @@ class TestAdjustAnnotations(TestCase):
         self.assertAnnotationsEqual(adjust_annotations(MyGeneric[str]), MyGeneric[str])
 
     def test_union_pipe(self):
-        if sys.version_info >= (3, 10):
-            self.assertAnnotationsEqual(adjust_annotations(str | float), Union[str, float])
+        self.assertAnnotationsEqual(adjust_annotations(str | float), Union[str, float])
 
     def test_make_optional(self):
         self.assertAnnotationsEqual(adjust_annotations(float, make_optional=True), Optional[float])

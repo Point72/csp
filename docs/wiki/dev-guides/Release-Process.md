@@ -206,8 +206,9 @@ cd ..
 
 You should end up with a copy of the wheel files and source distribution
 associated with the GitHub release. You should verify that all files
-were successfully downloaded. Currently there are 6 MacOS wheels and 4
-linux wheels. There should only be one source distribution.
+were successfully downloaded. Currently we support 4 versions of Python
+and MacOS, Linux, and Windows, so there should be 12 total wheels and
+one source distribution.
 
 Optionally, you can lint the release artifacts with
 

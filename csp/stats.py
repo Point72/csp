@@ -1228,50 +1228,92 @@ def _np_ema_adjusted(
     return 0
 
 
-@csp.node(cppimpl=_cspstatsimpl._ema_timewise)
-def _ema_timewise(
-    x: ts[float], halflife: timedelta, trigger: ts[object], sampler: ts[object], reset: ts[object], min_data_points: int
+@csp.node(cppimpl=_cspstatsimpl._ema_halflife)
+def _ema_halflife(
+    x: ts[float],
+    halflife: timedelta,
+    adjust: bool,
+    trigger: ts[object],
+    sampler: ts[object],
+    reset: ts[object],
+    min_data_points: int,
 ) -> ts[float]:
-    raise NotImplementedError("_ema_timewise only implemented in C++")
+    raise NotImplementedError("_ema_halflife only implemented in C++")
     return 0
 
 
-@csp.node(cppimpl=_cspnpstatsimpl._np_ema_timewise)
-def _np_ema_timewise(
+@csp.node(cppimpl=_cspstatsimpl._ema_halflife_adjusted)
+def _ema_halflife_adjusted(
+    x: ts[float],
+    halflife: timedelta,
+    adjust: bool,
+    trigger: ts[object],
+    sampler: ts[object],
+    reset: ts[object],
+    min_data_points: int,
+) -> ts[float]:
+    raise NotImplementedError("_ema_halflife_adjusted only implemented in C++")
+    return 0
+
+
+@csp.node(cppimpl=_cspnpstatsimpl._np_ema_halflife)
+def _np_ema_halflife(
     x: ts[np.ndarray],
     halflife: timedelta,
+    adjust: bool,
     trigger: ts[object],
     sampler: ts[object],
     reset: ts[object],
     min_data_points: int,
 ) -> ts[np.ndarray]:
-    raise NotImplementedError("_np_ema_timewise only implemented in C++")
+    raise NotImplementedError("_np_ema_halflife only implemented in C++")
     return 0
 
 
-@csp.node(cppimpl=_cspstatsimpl._ema_debias_halflife)
-def _ema_debias_halflife(
-    x: ts[float], halflife: timedelta, trigger: ts[object], sampler: ts[object], reset: ts[object], min_data_points: int
-) -> ts[float]:
-    raise NotImplementedError("_ema_debias_halflife only implemented in C++")
-    return 0
-
-
-@csp.node(cppimpl=_cspnpstatsimpl._np_ema_debias_halflife)
-def _np_ema_debias_halflife(
+@csp.node(cppimpl=_cspnpstatsimpl._np_ema_halflife_adjusted)
+def _np_ema_halflife_adjusted(
     x: ts[np.ndarray],
     halflife: timedelta,
+    adjust: bool,
     trigger: ts[object],
     sampler: ts[object],
     reset: ts[object],
     min_data_points: int,
 ) -> ts[np.ndarray]:
-    raise NotImplementedError("_np_ema_debias_halflife only implemented in C++")
+    raise NotImplementedError("_np_ema_halflife_adjusted only implemented in C++")
     return 0
 
 
-@csp.node(cppimpl=_cspstatsimpl._ema_debias_alpha)
-def _ema_debias_alpha(
+@csp.node(cppimpl=_cspstatsimpl._ema_halflife_debias)
+def _ema_halflife_debias(
+    x: ts[float],
+    halflife: timedelta,
+    adjust: bool,
+    trigger: ts[object],
+    sampler: ts[object],
+    reset: ts[object],
+    min_data_points: int,
+) -> ts[float]:
+    raise NotImplementedError("_ema_halflife_debias only implemented in C++")
+    return 0
+
+
+@csp.node(cppimpl=_cspnpstatsimpl._np_ema_halflife_debias)
+def _np_ema_halflife_debias(
+    x: ts[np.ndarray],
+    halflife: timedelta,
+    adjust: bool,
+    trigger: ts[object],
+    sampler: ts[object],
+    reset: ts[object],
+    min_data_points: int,
+) -> ts[np.ndarray]:
+    raise NotImplementedError("_np_ema_halflife_debias only implemented in C++")
+    return 0
+
+
+@csp.node(cppimpl=_cspstatsimpl._ema_alpha_debias)
+def _ema_alpha_debias(
     additions: ts[List[float]],
     removals: ts[List[float]],
     alpha: float,
@@ -1282,12 +1324,12 @@ def _ema_debias_alpha(
     reset: ts[object],
     min_data_points: int,
 ) -> ts[float]:
-    raise NotImplementedError("_ema_debias_alpha only implemented in C++")
+    raise NotImplementedError("_ema_alpha_debias only implemented in C++")
     return 0
 
 
-@csp.node(cppimpl=_cspnpstatsimpl._np_ema_debias_alpha)
-def _np_ema_debias_alpha(
+@csp.node(cppimpl=_cspnpstatsimpl._np_ema_alpha_debias)
+def _np_ema_alpha_debias(
     additions: ts[List[np.ndarray]],
     removals: ts[List[np.ndarray]],
     alpha: float,
@@ -1298,7 +1340,7 @@ def _np_ema_debias_alpha(
     reset: ts[object],
     min_data_points: int,
 ) -> ts[np.ndarray]:
-    raise NotImplementedError("_np_ema_debias_alpha only implemented in C++")
+    raise NotImplementedError("_np_ema_alpha_debias only implemented in C++")
     return 0
 
 
@@ -1321,18 +1363,18 @@ def _ema_debias(
         if not horizon:
             horizon = 0
         if x.tstype.typ is float:
-            return _ema_debias_alpha(
+            return _ema_alpha_debias(
                 additions, removals, alpha, ignore_na, horizon, adjust, trigger, reset, min_data_points
             )
         else:
-            return _np_ema_debias_alpha(
+            return _np_ema_alpha_debias(
                 additions, removals, alpha, ignore_na, horizon, adjust, trigger, reset, min_data_points
             )
 
     if x.tstype.typ is float:
-        return _ema_debias_halflife(x, halflife, trigger, sampler, reset, min_data_points)
+        return _ema_halflife_debias(x, halflife, adjust, trigger, sampler, reset, min_data_points)
 
-    return _np_ema_debias_halflife(x, halflife, trigger, sampler, reset, min_data_points)
+    return _np_ema_halflife_debias(x, halflife, adjust, trigger, sampler, reset, min_data_points)
 
 
 @csp.node(cppimpl=_cspstatsimpl._cross_sectional_as_list)
@@ -2912,9 +2954,11 @@ def ema(
     edge = None
     if series.tstype.typ is float:
         if halflife:
-            edge = _ema_timewise(
-                series, halflife, trigger, sampler, reset, min_data_points
-            )  # ignore na does not matter, same functionality for this case
+            # ignore na does not matter for the halflife case; adjust parameter does not need to be passed here either, set as False
+            if adjust:
+                edge = _ema_halflife_adjusted(series, halflife, False, trigger, sampler, reset, min_data_points)
+            else:
+                edge = _ema_halflife(series, halflife, False, trigger, sampler, reset, min_data_points)
         elif adjust:
             edge = _ema_adjusted(
                 updates.additions,
@@ -2933,7 +2977,10 @@ def ema(
             )
     elif series.tstype.typ in [Numpy1DArray[float], NumpyNDArray[float]]:
         if halflife:
-            edge = _np_ema_timewise(series, halflife, trigger, sampler, reset, min_data_points)
+            if adjust:
+                edge = _np_ema_halflife_adjusted(series, halflife, False, trigger, sampler, reset, min_data_points)
+            else:
+                edge = _np_ema_halflife(series, halflife, False, trigger, sampler, reset, min_data_points)
         elif adjust:
             edge = _np_ema_adjusted(
                 updates.additions,

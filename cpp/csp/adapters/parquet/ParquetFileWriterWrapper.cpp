@@ -2,6 +2,7 @@
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <arrow/io/file.h>
 #include <arrow/table.h>
+#include <arrow/util/config.h>
 #include <parquet/arrow/writer.h>
 
 namespace csp::adapters::parquet
@@ -16,8 +17,11 @@ void ParquetFileWriterWrapper::openImpl( const std::string &fileName, const std:
 
     ::parquet::WriterProperties::Builder builder;
     builder.compression( resolveCompression( compression ));
+#if ARROW_VERSION_MAJOR >= 20
+    builder.version(::parquet::ParquetVersion::PARQUET_2_6 );
+#else
     builder.version(::parquet::ParquetVersion::PARQUET_2_0 );
-
+#endif
     ::parquet::ArrowWriterProperties::Builder arrowBuilder;
     arrowBuilder.store_schema();
 

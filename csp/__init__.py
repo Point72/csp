@@ -31,7 +31,7 @@ from csp.showgraph import show_graph
 
 from . import stats
 
-__version__ = "0.11.1"
+__version__ = "0.14.0"
 
 
 def get_include_path():

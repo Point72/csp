@@ -2,7 +2,7 @@ import inspect
 import types
 
 from csp.impl.constants import UNSET
-from csp.impl.error_handling import ExceptionContext
+from csp.impl.error_handling import ExceptionContext, fmt_errors
 from csp.impl.mem_cache import csp_memoized_graph_object, function_full_name
 from csp.impl.types.instantiation_type_resolver import GraphOutputTypeResolver
 from csp.impl.wiring.graph_parser import GraphParser
@@ -102,8 +102,7 @@ class GraphDefMeta(type):
                 try:
                     _ = output_model.model_validate(outputs_dict, context=context)
                 except ValidationError as e:
-                    processed_msg = str(e).replace(OUTPUT_PREFIX, "")
-                    raise TypeError(f"Output type validation error(s).\n{processed_msg}") from None
+                    raise TypeError(f"Output type validation error(s).\n{fmt_errors(e, OUTPUT_PREFIX)}") from None
             else:
                 _ = GraphOutputTypeResolver(
                     function_name=self._signature._name,

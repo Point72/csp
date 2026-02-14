@@ -153,12 +153,12 @@ DECLARE_CPPNODE( _sync_nan_f )
     INVOKE()
     {
         // Note that it's guaranteed x and y are ticking in sequence when this node is triggered
-        if( likely( !isnan( x ) ) )
+        if( !isnan( x ) ) [[likely]]
             y_sync.output( y );
         else
             y_sync.output( std::numeric_limits<double>::quiet_NaN() );
 
-        if( likely( !isnan( y ) ) )
+        if( !isnan( y ) ) [[likely]]
             x_sync.output( x );
         else
             x_sync.output( std::numeric_limits<double>::quiet_NaN() );
@@ -299,7 +299,7 @@ EXPORT_TEMPLATE_CPPNODE( _rank,             SINGLE_ARG( _computeTwoArg<int64_t, 
 EXPORT_TEMPLATE_CPPNODE( _kurt,             SINGLE_ARG( _computeTwoArg<bool, Kurtosis> ) );
 EXPORT_TEMPLATE_CPPNODE( _ema_compute,      _computeEMA<EMA> );
 EXPORT_TEMPLATE_CPPNODE( _ema_adjusted,     _computeEMA<AdjustedEMA>);
-EXPORT_TEMPLATE_CPPNODE( _ema_debias_alpha, _computeEMA<AlphaDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_alpha_debias, _computeEMA<AlphaDebiasEMA> );
 
 
 // The following nodes are written independently from _compute
@@ -533,10 +533,12 @@ DECLARE_CPPNODE ( _quantile )
 EXPORT_CPPNODE ( _quantile );
 
 template<typename C>
-DECLARE_CPPNODE( _exp_timewise )
+DECLARE_CPPNODE( _exp_halflife )
 {
     TS_INPUT( double, x );
     SCALAR_INPUT( TimeDelta, halflife );
+    SCALAR_INPUT( bool, adjust );
+
     TS_INPUT( Generic, trigger );
     TS_INPUT( Generic, sampler );
     TS_INPUT( Generic, reset );
@@ -545,11 +547,11 @@ DECLARE_CPPNODE( _exp_timewise )
     STATE_VAR( DataValidator<C>, s_computation );
     TS_OUTPUT( double );
 
-    INIT_CPPNODE( _exp_timewise ) { }
+    INIT_CPPNODE( _exp_halflife ) { }
 
     START()
     {
-        s_computation = DataValidator<C>( min_data_points, true, halflife, now() );
+        s_computation = DataValidator<C>( min_data_points, true, halflife, now(), adjust );
     }
 
     INVOKE()
@@ -571,8 +573,9 @@ DECLARE_CPPNODE( _exp_timewise )
     }
 };
 
-EXPORT_TEMPLATE_CPPNODE( _ema_timewise,         _exp_timewise<HalflifeEMA> );
-EXPORT_TEMPLATE_CPPNODE( _ema_debias_halflife,  _exp_timewise<HalflifeDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_halflife,             _exp_halflife<HalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_halflife_adjusted,    _exp_halflife<AdjustedHalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _ema_halflife_debias,      _exp_halflife<HalflifeDebiasEMA> );
 
 DECLARE_CPPNODE( _arg_min_max )
 {

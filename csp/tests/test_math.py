@@ -281,6 +281,33 @@ class TestMath(unittest.TestCase):
                     [v[1] for v in results[op.__name__ + "-rev"]], [comp(y, x) for x, y in zip(xv, yv)], op.__name__
                 )
 
+    def test_arithmetic_time_ops(self):
+        """Test datetime/timedelta arithmetic operations between edges."""
+
+        @csp.graph
+        def graph():
+            dt1 = datetime(2020, 1, 1, 12, 0, 0)
+            dt2 = datetime(2020, 1, 1, 10, 0, 0)
+            td = timedelta(hours=2)
+            dt1_edge = csp.const(dt1)
+            dt2_edge = csp.const(dt2)
+            td_edge = csp.const(td)
+
+            # datetime - datetime -> timedelta
+            csp.add_graph_output("dt_sub_dt", dt1_edge - dt2_edge)
+
+            # datetime + timedelta -> datetime
+            csp.add_graph_output("dt_plus_td", dt1_edge + td_edge)
+
+            # datetime - timedelta -> datetime
+            csp.add_graph_output("dt_minus_td", dt1_edge - td_edge)
+
+        st = datetime(2020, 1, 1)
+        results = csp.run(graph, starttime=st, endtime=st + timedelta(seconds=1))
+        self.assertEqual(results["dt_sub_dt"][0][1], timedelta(hours=2))
+        self.assertEqual(results["dt_plus_td"][0][1], datetime(2020, 1, 1, 14, 0, 0))
+        self.assertEqual(results["dt_minus_td"][0][1], datetime(2020, 1, 1, 10, 0, 0))
+
     def test_boolean_ops(self):
         def graph():
             x = csp.default(csp.curve(bool, [(timedelta(seconds=s), s % 2 == 0) for s in range(1, 20)]), False)

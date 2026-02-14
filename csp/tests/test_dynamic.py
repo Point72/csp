@@ -11,6 +11,7 @@ import numpy
 
 import csp
 from csp import ts
+from csp.utils.datetime import utc_now
 
 
 class DynData(csp.Struct):
@@ -527,7 +528,7 @@ class TestDynamic(unittest.TestCase):
                 csp.print("Results: ", data)
 
         c = Container()
-        csp.run(c.main_graph, starttime=datetime.utcnow().replace(microsecond=0), endtime=timedelta(seconds=10))
+        csp.run(c.main_graph, starttime=utc_now().replace(microsecond=0), endtime=timedelta(seconds=10))
 
 
 if __name__ == "__main__":

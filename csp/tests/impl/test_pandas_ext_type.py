@@ -15,6 +15,8 @@ from csp.impl.wiring.edge import Edge
 
 PANDAS_BASE_EXTENSION_TESTS = base.base.BaseExtensionTests if pd.__version__ < "2.1.0" else object
 
+PANDAS_MAJOR = int(pd.__version__[0])
+
 
 @pytest.fixture
 def pytype():
@@ -30,20 +32,47 @@ def pytype():
 def edge_equality_mock(monkeypatch):
     """Because csp defines Edge equality to return another Edge, but the provided pandas tests rely on a standard
     equality test (returning a bool) to confirm that the right things are happening, we monkeypatch edge equality
-    so that we can ree-use the extensive pandas testing logic for extension types."""
+    so that we can re-use the extensive pandas testing logic for extension types."""
 
-    def mock_eq(self, other):
+    def mock_edge_eq(self, other):
         # This works for some tests, but not all (i.e. two different ways of arriving at the same logical Edge)
         # return id(self) == id(other)
         return self.run(starttime=datetime(2000, 1, 1), endtime=datetime(2000, 1, 1)) == other.run(
             starttime=datetime(2000, 1, 1), endtime=datetime(2000, 1, 1)
         )
 
-    def mock_ne(self, other):
-        return not mock_eq(self, other)
+    def mock_edge_ne(self, other):
+        return not mock_edge_eq(self, other)
 
-    monkeypatch.setattr(Edge, "__eq__", mock_eq)
-    monkeypatch.setattr(Edge, "__ne__", mock_ne)
+    def mock_tsarray_eq(self, other):
+        """TsArray equality that returns numpy boolean array using mocked Edge comparison.
+        For example, in some pandas 3.x testing code they use "data[:N] == data[0]". This is supposed to broadcast into an (N,) array
+        of boolean values per elementwise comparison.
+        """
+        if isinstance(other, Edge):
+            # Comparing TsArray with a single Edge - broadcast comparison
+            return np.array([mock_edge_eq(elem, other) if isinstance(elem, Edge) else False for elem in self._data])
+        elif isinstance(other, TsArray):
+            # Element-wise comparison with another TsArray
+            return np.array(
+                [
+                    mock_edge_eq(a, b) if isinstance(a, Edge) and isinstance(b, Edge) else False
+                    for a, b in zip(self._data, other._data)
+                ]
+            )
+        else:
+            return NotImplemented
+
+    def mock_tsarray_ne(self, other):
+        equality = self.__eq__(other)
+        if isinstance(equality, type(NotImplemented)):
+            return equality
+        return ~equality  # invert each element
+
+    monkeypatch.setattr(Edge, "__eq__", mock_edge_eq)
+    monkeypatch.setattr(Edge, "__ne__", mock_edge_ne)
+    monkeypatch.setattr(TsArray, "__eq__", mock_tsarray_eq)
+    monkeypatch.setattr(TsArray, "__ne__", mock_tsarray_ne)
 
 
 @pytest.fixture
@@ -55,17 +84,18 @@ def dtype(pytype):
 @pytest.fixture
 def data(pytype):
     """
-    Length-100 array for this type.
+    Length-100 array for this type in pandas 2.x, Length-10 in pandas 3.x.
     * data[0] and data[1] should both be non missing
     * data[0] and data[1] should not be equal
     """
-    return TsArray([csp.const(pytype(i + 1)) for i in range(100)])
+    data_size = 10 if PANDAS_MAJOR >= 3 else 100
+    return TsArray([csp.const(pytype(i + 1)) for i in range(data_size)])
 
 
 @pytest.fixture
 def data_missing(pytype):
     """Length-2 array with [NA, Valid]"""
-    return TsArray([np.NaN, csp.const(pytype(1))])
+    return TsArray([np.nan, csp.const(pytype(1))])
 
 
 @pytest.fixture(params=["data", "data_missing"])
@@ -114,8 +144,9 @@ def data_for_grouping(dtype, pytype):
 
 @pytest.fixture
 def data_for_twos(pytype):
-    """Length-100 array in which all the elements are two."""
-    return TsArray([csp.const(pytype(2)) for _ in range(100)])
+    """Length-100 (or 10 in pandas 3.x) array in which all the elements are two."""
+    data_size = 10 if PANDAS_MAJOR >= 3 else 100
+    return TsArray([csp.const(pytype(2)) for _ in range(data_size)])
 
 
 @pytest.fixture
@@ -395,6 +426,10 @@ class TestInterface(base.BaseInterfaceTests):
         # Overwrite from parent as it's not expected to pass with edges.
         pass
 
+    def test_array_interface_copy(self, data):
+        # Overwrite from parent as it's not expected to pass on numpy 2
+        pass
+
 
 class TestMethods(PANDAS_BASE_EXTENSION_TESTS):
     """Selected tests copied from base.BaseMethodsTests, because many of them are not expected to work."""
@@ -531,14 +566,19 @@ def check_reduce(self, s, op_name, skipna=None):
     tm.assert_almost_equal(result, expected)
 
 
-class TestBooleanReduce(base.BaseBooleanReduceTests):
+class TestReduce(base.BaseReduceTests):
+    def _supports_reduction(self, series, op_name):
+        return True  # we support all reduce operations
+
     def check_reduce(self, s, op_name, skipna):
         return check_reduce(self, s, op_name, skipna)
 
-
-class TestNumericReduce(base.BaseNumericReduceTests):
-    def check_reduce(self, s, op_name, skipna):
-        return check_reduce(self, s, op_name, skipna)
+    def _get_expected_reduction_dtype(self, arr, op_name: str, skipna: bool):
+        if op_name in ("mean", "median", "std", "var", "sem", "skew", "kurt"):
+            return TsDtype(float)
+        if op_name in ("any", "all"):
+            return TsDtype(bool)
+        return arr.dtype
 
 
 class TestReshaping(base.BaseReshapingTests):

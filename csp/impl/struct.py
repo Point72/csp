@@ -15,7 +15,7 @@ g_YAML = ruamel.yaml.YAML()
 
 
 class StructMeta(_csptypesimpl.PyStructMeta):
-    def __new__(cls, name, bases, dct):
+    def __new__(cls, name, bases, dct, strict=False):
         full_metadata = {}
         full_metadata_typed = {}
         metadata = {}
@@ -29,16 +29,21 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 defaults.update(base.__defaults__)
 
         annotations = dct.get("__annotations__", None)
+        optional_fields = set()
         if annotations:
             for k, v in annotations.items():
                 actual_type = v
                 # Lists need to be normalized too as potentially we need to add a boolean flag to use FastList
                 if v == FastList:
                     raise TypeError(f"{v} annotation is not supported without args")
+
+                if CspTypingUtils.is_optional_type(v) and strict:
+                    optional_fields.add(k)
+                    actual_type = typing.get_args(v)[0]
                 if (
-                    CspTypingUtils.is_generic_container(v)
-                    or CspTypingUtils.is_union_type(v)
-                    or CspTypingUtils.is_literal_type(v)
+                    CspTypingUtils.is_generic_container(actual_type)
+                    or CspTypingUtils.is_union_type(actual_type)
+                    or CspTypingUtils.is_literal_type(actual_type)
                 ):
                     actual_type = ContainerTypeNormalizer.normalized_type_to_actual_python_type(v)
                     if CspTypingUtils.is_generic_container(actual_type):
@@ -72,6 +77,8 @@ class StructMeta(_csptypesimpl.PyStructMeta):
         dct["__full_metadata_typed__"] = full_metadata_typed
         dct["__metadata__"] = metadata
         dct["__defaults__"] = defaults
+        dct["__optional_fields__"] = optional_fields
+        dct["__strict_enabled__"] = strict
 
         res = super().__new__(cls, name, bases, dct)
         # This is how we make sure we construct the pydantic schema from the new class
@@ -113,14 +120,16 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 field_schema = core_schema.with_default_schema(
                     schema=field_schema, default=cls.__defaults__[field_name]
                 )
+
+            required = cls.__strict_enabled__ and field_name not in cls.__defaults__
             fields[field_name] = core_schema.typed_dict_field(
                 schema=field_schema,
-                required=False,  # Make all fields optional
+                required=required,
             )
         # Schema for dictionary inputs
         fields_schema = core_schema.typed_dict_schema(
             fields=fields,
-            total=False,  # Allow missing fields
+            total=False,  # Allow missing fields that start with underscore
             extra_behavior="allow",  # let csp catch extra attributes, allows underscore fields to pass through
         )
 
@@ -173,6 +182,14 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
             return cls.__full_metadata_typed__
         else:
             return cls.__full_metadata__
+
+    @classmethod
+    def optional_fields(cls):
+        return cls.__optional_fields__
+
+    @classmethod
+    def is_strict(cls):
+        return cls.__strict_enabled__
 
     @classmethod
     def fromts(cls, trigger=None, /, **kwargs):
@@ -237,12 +254,13 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         elif issubclass(obj_type, Struct):
             if not isinstance(json, dict):
                 raise TypeError("Representation of struct as json is expected to be of dict type")
-            res = obj_type()
+            obj_args = {}
             for k, v in json.items():
                 expected_type = obj_type.__full_metadata_typed__.get(k, None)
                 if expected_type is None:
                     raise KeyError(f"Unexpected key {k} for type {obj_type}")
-                setattr(res, k, cls._obj_from_python(v, expected_type))
+                obj_args[k] = cls._obj_from_python(v, expected_type)
+            res = obj_type(**obj_args)
             return res
         else:
             if isinstance(json, obj_type):
@@ -322,12 +340,12 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         return sorted(super().__dir__() + list(self.__full_metadata_typed__.keys()))
 
 
-def define_struct(name, metadata: dict, defaults: dict = {}, base=Struct):
+def define_struct(name, metadata: dict, defaults: dict = {}, base=Struct, strict: bool = False):
     """Helper method to dynamically create struct types"""
 
     dct = deepcopy(defaults)
     dct["__annotations__"] = metadata
-    clazz = StructMeta(name, (base,), dct)
+    clazz = StructMeta(name, (base,), dct, strict=strict)
     return clazz
 
 

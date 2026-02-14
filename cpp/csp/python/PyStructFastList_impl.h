@@ -10,13 +10,6 @@
 #include <csp/python/VectorWrapper.h>
 #include <algorithm>
 
-// The Py_TPFLAGS_SEQUENCE flag is used for 'match' statement to work. It is not available prior Python 3.10, so need to use conditional compilation
-#define IS_PYTHON_3_10_OR_GREATER ( PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 10 )
-#if IS_PYTHON_3_10_OR_GREATER 
-#define SEQ_FLAG Py_TPFLAGS_SEQUENCE 
-#else 
-#define SEQ_FLAG 0 
-#endif
 
 namespace csp::python
 {
@@ -615,7 +608,7 @@ PyTypeObject  PyStructFastList<StorageT>::PyType = {
     PyObject_GenericGetAttr,   /* tp_getattro */
     0,                         /* tp_setattro */
     0,                         /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | SEQ_FLAG, /* tp_flags */  // adding flag Py_TPFLAGS_SEQUENCE in Python >=3.10
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_SEQUENCE, /* tp_flags */
     "",                        /* tp_doc */
     ( traverseproc ) PyStructFastList_tp_traverse<StorageT>, /* tp_traverse */
     ( inquiry ) PyStructFastList_tp_clear<StorageT>, /* tp_clear */

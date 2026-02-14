@@ -261,7 +261,11 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         lineno = None
         for i, body_item in enumerate(body):
             lineno = body_item.lineno
-            if isinstance(body_item, ast.Expr) and isinstance(body_item.value, ast.Str):
+            if (
+                isinstance(body_item, ast.Expr)
+                and isinstance(body_item.value, ast.Constant)
+                and isinstance(body_item.value.value, str)
+            ):
                 # last_doc_string_item = i
                 continue
             break
@@ -301,7 +305,13 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         NOTE: the node_parser will overload this function to set enforce_shape to true
         """
         # evaluate the returns statement
-        output_dictionary_type = ContainerTypeNormalizer.normalize_type(self._eval_expr(returns))
+        ret_type = self._eval_expr(returns)
+
+        # Handle -> None annotation: explicitly return empty tuple for no outputs
+        if ret_type is None:
+            return tuple()
+
+        output_dictionary_type = ContainerTypeNormalizer.normalize_type(ret_type)
 
         if not (isinstance(output_dictionary_type, type) and issubclass(output_dictionary_type, Outputs)):
             # try to wrap in outputs

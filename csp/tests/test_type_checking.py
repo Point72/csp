@@ -4,6 +4,7 @@ import re
 import sys
 import typing
 import unittest
+import warnings
 from datetime import datetime, time, timedelta
 from typing import Callable, Dict, List, Optional, Union
 
@@ -15,6 +16,7 @@ from csp import ts
 from csp.impl.types.typing_utils import CspTypingUtils
 from csp.impl.wiring.runtime import build_graph
 from csp.typing import Numpy1DArray
+from csp.utils.datetime import utc_now
 
 USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
@@ -66,6 +68,12 @@ class TestTypeChecking(unittest.TestCase):
                 typed_scalar(i, 123)
 
         csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+    def test_const_eq_scalar_no_warning(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _ = csp.const(1) == 1
+            self.assertEqual(len(caught), 0)
 
     def test_runtime_type_check(self):
         ## native output type
@@ -610,7 +618,7 @@ class TestTypeChecking(unittest.TestCase):
         def foo() -> csp.Outputs(x=ts[int], y=ts[str]):
             return csp.output(y=csp.const("hey"), x=csp.const(1))
 
-        csp.run(foo, starttime=datetime.utcnow(), endtime=timedelta())
+        csp.run(foo, starttime=utc_now(), endtime=timedelta())
 
     def test_typed_to_untyped_container(self):
         @csp.graph
@@ -624,7 +632,7 @@ class TestTypeChecking(unittest.TestCase):
                 l=csp.const.using(T=typing.List[int])([]),
             )
 
-        csp.run(main, starttime=datetime.utcnow(), endtime=timedelta())
+        csp.run(main, starttime=utc_now(), endtime=timedelta())
 
     def test_typed_to_untyped_container_wrong(self):
         @csp.graph
@@ -664,7 +672,7 @@ class TestTypeChecking(unittest.TestCase):
             with self.assertRaisesRegex(TypeError, msg):
                 g3(d=csp.const.using(T=typing.List[int])(["d"]))
 
-        csp.run(main, starttime=datetime.utcnow(), endtime=timedelta())
+        csp.run(main, starttime=utc_now(), endtime=timedelta())
 
     def test_time_tzinfo(self):
         import pytz
@@ -672,9 +680,9 @@ class TestTypeChecking(unittest.TestCase):
         timetz = time(1, 2, 3, tzinfo=pytz.timezone("EST"))
         with self.assertRaisesRegex(TypeError, "csp time type does not support timezones"):
             # Now that Time is a native type it no longer supports ticking with tzinfo
-            csp.run(csp.const, timetz, starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(csp.const, timetz, starttime=utc_now(), endtime=timedelta())
 
-        res = csp.run(csp.const.using(T=object), timetz, starttime=datetime.utcnow(), endtime=timedelta())[0][0][1]
+        res = csp.run(csp.const.using(T=object), timetz, starttime=utc_now(), endtime=timedelta())[0][0][1]
         self.assertEqual(res, timetz)
 
     def test_np_ndarray_ts_arg(self):
@@ -989,56 +997,55 @@ class TestTypeChecking(unittest.TestCase):
 
     def test_union_with_pipe_operator(self):
         """Test using the pipe operator for Union types in Python 3.10+."""
-        if sys.version_info >= (3, 10):  # pipe operator was introduced in Python 3.10
 
-            @csp.node
-            def node_with_pipe_union(x: ts[int], value: str | int | None) -> ts[str]:
-                if csp.ticked(x):
-                    return str(value) if value is not None else "none"
+        @csp.node
+        def node_with_pipe_union(x: ts[int], value: str | int | None) -> ts[str]:
+            if csp.ticked(x):
+                return str(value) if value is not None else "none"
 
-            @csp.graph
-            def graph_with_pipe_union(value: str | int | None) -> ts[str]:
-                return csp.const(str(value) if value is not None else "none")
+        @csp.graph
+        def graph_with_pipe_union(value: str | int | None) -> ts[str]:
+            return csp.const(str(value) if value is not None else "none")
 
-            @csp.node
-            def dummy_node(x: ts["T"]):  # to avoid pruning
-                if csp.ticked(x):
-                    pass
+        @csp.node
+        def dummy_node(x: ts["T"]):  # to avoid pruning
+            if csp.ticked(x):
+                pass
 
-            def graph():
-                # These should work - valid union types (str, int, None)
-                dummy_node(node_with_pipe_union(csp.const(10), "hello"))
-                dummy_node(node_with_pipe_union(csp.const(10), 42))
-                dummy_node(node_with_pipe_union(csp.const(10), None))
+        def graph():
+            # These should work - valid union types (str, int, None)
+            dummy_node(node_with_pipe_union(csp.const(10), "hello"))
+            dummy_node(node_with_pipe_union(csp.const(10), 42))
+            dummy_node(node_with_pipe_union(csp.const(10), None))
 
-                graph_with_pipe_union("world")
-                graph_with_pipe_union(123)
-                graph_with_pipe_union(None)
+            graph_with_pipe_union("world")
+            graph_with_pipe_union(123)
+            graph_with_pipe_union(None)
 
-                # This should fail - float is not part of the union
-                if USE_PYDANTIC:
-                    # Pydantic provides a structured error message
-                    msg = "(?s)2 validation errors for node_with_pipe_union.*value.*"
-                else:
-                    # Non-Pydantic error has specific format to match
-                    msg = r"In function node_with_pipe_union: Expected str \| int \| None for argument 'value', got .* \(float\)"
-                with self.assertRaisesRegex(TypeError, msg):
-                    dummy_node(node_with_pipe_union(csp.const(10), 3.14))
-
-            csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
-
-            # Test direct graph building
-            csp.build_graph(graph_with_pipe_union, "test")
-            csp.build_graph(graph_with_pipe_union, 42)
-            csp.build_graph(graph_with_pipe_union, None)
-
-            # This should fail - bool is not explicitly included in the union
+            # This should fail - float is not part of the union
             if USE_PYDANTIC:
-                msg = "(?s)2 validation errors for graph_with_pipe_union.*value.*"
+                # Pydantic provides a structured error message
+                msg = "(?s)2 validation errors for node_with_pipe_union.*value.*"
             else:
-                msg = r"In function graph_with_pipe_union: Expected str \| int \| None for argument 'value', got .*"
+                # Non-Pydantic error has specific format to match
+                msg = r"In function node_with_pipe_union: Expected str \| int \| None for argument 'value', got .* \(float\)"
             with self.assertRaisesRegex(TypeError, msg):
-                csp.build_graph(graph_with_pipe_union, 3.14)
+                dummy_node(node_with_pipe_union(csp.const(10), 3.14))
+
+        csp.run(graph, starttime=datetime(2020, 2, 7, 9), endtime=datetime(2020, 2, 7, 9, 1))
+
+        # Test direct graph building
+        csp.build_graph(graph_with_pipe_union, "test")
+        csp.build_graph(graph_with_pipe_union, 42)
+        csp.build_graph(graph_with_pipe_union, None)
+
+        # This should fail - bool is not explicitly included in the union
+        if USE_PYDANTIC:
+            msg = "(?s)2 validation errors for graph_with_pipe_union.*value.*"
+        else:
+            msg = r"In function graph_with_pipe_union: Expected str \| int \| None for argument 'value', got .*"
+        with self.assertRaisesRegex(TypeError, msg):
+            csp.build_graph(graph_with_pipe_union, 3.14)
 
     def test_generic_annotation(self):
         @csp.node

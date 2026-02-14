@@ -11,6 +11,7 @@
 #include <csp/engine/PendingPushEvents.h>
 #include <csp/engine/Profiler.h>
 #include <csp/engine/PushEvent.h>
+#include <csp/engine/PushPullEvent.h>
 #include <csp/engine/Scheduler.h>
 #include <memory>
 
@@ -35,7 +36,8 @@ private:
 
 class RootEngine : public Engine
 {
-    using PushEventQueue  = SRMWLockFreeQueue<PushEvent>;
+    using PushEventQueue     = SRMWLockFreeQueue<PushEvent>;
+    using PushPullEventQueue = SRMWLockFreeQueue<PushPullEvent>;
 
 public:
     RootEngine( const Dictionary & );
@@ -87,6 +89,8 @@ public:
 
     bool interrupted() const;
 
+    PushPullEventQueue & pushPullEventQueue() { return m_pushPullEventQueue; }
+    
 protected:
     enum State { NONE, STARTING, RUNNING, SHUTDOWN, DONE };
     using EndCycleListeners = std::vector<EndCycleListener*>;
@@ -129,7 +133,9 @@ protected:
     bool              m_inRealtime;
     int               m_initSignalCount;
 
-    PushEventQueue    m_pushEventQueue;
+    PushEventQueue     m_pushEventQueue;
+    //This queue is managed entirely from the PushPullInputAdapter
+    PushPullEventQueue m_pushPullEventQueue;
 
     std::exception_ptr                m_exception_ptr;
     std::mutex                        m_exception_mutex;
@@ -159,7 +165,7 @@ inline Scheduler::Handle RootEngine::scheduleCallback( Scheduler::Handle reserve
 
 inline Scheduler::Handle RootEngine::scheduleCallback( Scheduler::Handle reservedHandle, DateTime time, Scheduler::Callback cb )
 {
-    if( unlikely( time < m_now ) )
+    if( time < m_now ) [[unlikely]]
         CSP_THROW( ValueError, "Cannot schedule event in the past.  new time: " << time << " now: " << m_now );
 
     return m_scheduler.scheduleCallback( reservedHandle, time, std::move( cb ) ); 
@@ -167,7 +173,7 @@ inline Scheduler::Handle RootEngine::scheduleCallback( Scheduler::Handle reserve
 
 inline Scheduler::Handle RootEngine::rescheduleCallback( Scheduler::Handle id, csp::DateTime time )
 {
-    if( unlikely( time < m_now ) )
+    if( time < m_now ) [[unlikely]]
         CSP_THROW( ValueError, "Cannot schedule event in the past. new time: " << time << " now: " << m_now );
 
     return m_scheduler.rescheduleCallback( id, time );

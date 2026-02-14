@@ -26,8 +26,6 @@ template<> struct NPY_TYPE<double>   { static const int value = NPY_DOUBLE; };
 
 using namespace csp::cppnodes;
 
-// NumPy specific statistic functions
-
 static void * init_nparray()
 {
     csp::python::AcquireGIL gil;
@@ -52,7 +50,6 @@ class NumPyIterator
         NumPyIterator()
         {
             m_nd = 0;
-            m_size = 0;
             m_index = 0;
             m_data = nullptr;
             m_strides = nullptr;
@@ -68,7 +65,7 @@ class NumPyIterator
 
         NumPyIterator( PyObject * arr )
         {
-            if( unlikely( !PyArray_Check( arr ) ) )
+            if( !PyArray_Check( arr ) ) [[unlikely]]
                 CSP_THROW( csp::TypeError, "Expected NumPy array type, got " << Py_TYPE( arr ) -> tp_name );
             setup( ( PyArrayObject * ) arr );
         }
@@ -110,7 +107,7 @@ class NumPyIterator
         void verify_arr( PyArrayObject * arr )
         {
             auto expType = PyArray_DescrFromType( NPY_TYPE<T>::value );
-            if( unlikely( PyObject_RichCompareBool( ( PyObject * ) PyArray_DESCR( arr ), ( PyObject * ) expType, Py_EQ ) ) != 1 )
+            if( PyObject_RichCompareBool( ( PyObject * ) PyArray_DESCR( arr ), ( PyObject * ) expType, Py_EQ ) != 1 ) [[unlikely]]
             {
                 CSP_THROW( csp::TypeError,
                             "Expected array of type " << PyObjectPtr::own( PyObject_Repr( ( PyObject * ) expType ) )
@@ -131,15 +128,10 @@ class NumPyIterator
             for( int i = 0; i < m_nd; ++i )
                 m_stridedDimensions.emplace_back( m_strides[i] * ( m_dims[i] - 1 ) );
             m_data = reinterpret_cast<char*>( PyArray_DATA( arr ) );
-            if( m_nd == 0 )
-                m_size = 0;
-            else
-                m_size = std::accumulate( m_dims, m_dims + m_nd, 1, std::multiplies<int64_t>() );
-            m_valid = ( m_size > 0 );
+            m_valid = ( PyArray_SIZE( arr ) > 0 );
         }
 
         int64_t m_nd;
-        int64_t m_size;
         int64_t m_index;
         char* m_data;
         npy_intp* m_strides;
@@ -164,10 +156,7 @@ struct PyShape
         npy_intp* dims = PyArray_DIMS( arr );
         for( int64_t j = 0; j < nd; j++ )
             m_dims.emplace_back( dims[j] );
-        if( nd == 0 )
-            m_n = 0;
-        else
-            m_n = std::accumulate( std::begin( m_dims ), std::end( m_dims ), 1, std::multiplies<int64_t>() );
+        m_n = PyArray_SIZE( arr );
     }
 
     PyShape( PyObject* arr ) : PyShape( ( PyArrayObject* ) arr ) { }
@@ -236,7 +225,7 @@ PyObject* createZerosWithShape( PyObject* t )
 template<typename C>
 inline PyObject* computeArray( const PyShape & shp, std::vector<C> & elem, bool s_first )
 {
-    if( unlikely( s_first ) )
+    if( s_first ) [[unlikely]]
         CSP_THROW( ValueError, NPY_SHAPE_ERROR );
     PyObject* out = PyArray_EMPTY( shp.m_dims.size(), &shp.m_dims[0], NPY_DOUBLE, 0 );
     for( NumPyIterator iter( out ); iter; ++iter )
@@ -264,7 +253,7 @@ public:
     {
         PyObject* arr = x.lastValue().get();
         PyShape shp( arr );
-        if( unlikely( s_first ) )
+        if( s_first ) [[unlikely]]
             s_shp = shp;
         else
             s_shp.validateShape( arr );
@@ -296,7 +285,7 @@ public:
     {
         PyObject* arr = x.lastValue().get();
         PyShape shp( arr );
-        if( unlikely( s_first ) )
+        if( s_first ) [[unlikely]]
             s_shp = shp;
         else
             s_shp.validateShape( arr );
@@ -475,7 +464,7 @@ protected:
         PyArrayObject * xval = ( PyArrayObject* )x.lastValue().get();
         PyArrayObject * yval = ( PyArrayObject* )y.lastValue().get();
 
-        if( unlikely( s_first ) )
+        if( s_first ) [[unlikely]]
         {
             s_shp = PyShape( xval );
             s_first = false;
@@ -566,7 +555,7 @@ public:
         }
         if( csp.ticked( additions ) )
         {
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = additions.lastValue()[0].get();
                 s_shp = PyShape( arr );
@@ -681,7 +670,7 @@ EXPORT_TEMPLATE_CPPNODE( _np_rank,              SINGLE_ARG( _npComputeTwoArg<int
 EXPORT_TEMPLATE_CPPNODE( _np_kurt,              SINGLE_ARG( _npComputeTwoArg<bool, Kurtosis> ) );
 EXPORT_TEMPLATE_CPPNODE( _np_ema_compute,       _npComputeEMA<EMA> );
 EXPORT_TEMPLATE_CPPNODE( _np_ema_adjusted,      _npComputeEMA<AdjustedEMA>);
-EXPORT_TEMPLATE_CPPNODE( _np_ema_debias_alpha,  _npComputeEMA<AlphaDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_alpha_debias,  _npComputeEMA<AlphaDebiasEMA> );
 
 // Bivariate
 template<typename C>
@@ -725,7 +714,7 @@ public:
             const std::vector<PyObjectPtr> & add_x = x_add.lastValue();
             const std::vector<PyObjectPtr> & weights = w_add.lastValue();
 
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = add_x[0].get();
                 s_shp = PyShape( arr );
@@ -861,7 +850,7 @@ DECLARE_CPPNODE ( _np_quantile )
         }
         if( csp.ticked( additions ) )
         {
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = additions.lastValue()[0].get();
                 s_shp = PyShape( arr );
@@ -914,10 +903,12 @@ EXPORT_CPPNODE ( _np_quantile );
 
 // C: computation class
 template<typename C>
-DECLARE_CPPNODE( _np_exp_timewise )
+DECLARE_CPPNODE( _np_exp_halflife )
 {
     TS_INPUT( PyObjectPtr, x );
     SCALAR_INPUT( TimeDelta, halflife );
+    SCALAR_INPUT( bool, adjust );
+
     TS_INPUT( Generic, trigger );
     TS_INPUT( Generic, sampler );
     TS_INPUT( Generic, reset );
@@ -929,7 +920,7 @@ DECLARE_CPPNODE( _np_exp_timewise )
 
     TS_OUTPUT( PyObjectPtr );
 
-    INIT_CPPNODE( _np_exp_timewise ) { }
+    INIT_CPPNODE( _np_exp_halflife ) { }
 
     INVOKE()
     {
@@ -942,13 +933,13 @@ DECLARE_CPPNODE( _np_exp_timewise )
         if( csp.ticked( sampler ) && csp.ticked( x ) )
         {
             PyObject* arr = x.lastValue().get();
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 s_shp = PyShape( arr );
                 s_elem.reserve( s_shp.m_n );
                 for( int64_t j = 0; j < s_shp.m_n; j++ )
                 {
-                    s_elem.emplace_back( DataValidator<C>( min_data_points, true, halflife, now() - TimeDelta::fromMicroseconds( 1 ) ) );
+                    s_elem.emplace_back( DataValidator<C>( min_data_points, true, halflife, now() - TimeDelta::fromMicroseconds( 1 ), adjust ) );
                 }
                 s_first = false;
             }
@@ -964,8 +955,9 @@ DECLARE_CPPNODE( _np_exp_timewise )
     }
 };
 
-EXPORT_TEMPLATE_CPPNODE( _np_ema_timewise, _np_exp_timewise<HalflifeEMA> );
-EXPORT_TEMPLATE_CPPNODE( _np_ema_debias_halflife, _np_exp_timewise<HalflifeDebiasEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_halflife,          _np_exp_halflife<HalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_halflife_adjusted, _np_exp_halflife<AdjustedHalflifeEMA> );
+EXPORT_TEMPLATE_CPPNODE( _np_ema_halflife_debias,   _np_exp_halflife<HalflifeDebiasEMA> );
 
 template<typename C>
 DECLARE_CPPNODE( _np_matrix_compute )
@@ -996,7 +988,7 @@ DECLARE_CPPNODE( _np_matrix_compute )
         if( csp.ticked( additions ) )
         {
             const std::vector<PyObjectPtr> & add_x = additions.lastValue();
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = add_x[0].get();
                 if( PyArray_NDIM( (PyArrayObject * ) arr ) != 1 )
@@ -1090,7 +1082,7 @@ DECLARE_CPPNODE( _np_weighted_matrix_compute )
         {
             const std::vector<PyObjectPtr> & add_x = x_add.lastValue();
             const std::vector<double> & add_w = w_add.lastValue();
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = add_x[0].get();
                 if( PyArray_NDIM( (PyArrayObject * ) arr ) != 1 )
@@ -1195,7 +1187,7 @@ public:
             const std::vector<PyObjectPtr> & add_y = y_add.lastValue();
             const std::vector<PyObjectPtr> & weights = w_add.lastValue();
 
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = add_x[0].get();
                 s_shp = PyShape( arr );
@@ -1276,7 +1268,7 @@ DECLARE_CPPNODE( _np_arg_min_max )
         if( csp.ticked( x ) && csp.ticked( sampler ) )
         {
             PyObject* arr = x.lastValue().get();
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 s_shp = PyShape( arr );
                 s_elem.reserve( s_shp.m_n );
@@ -1303,18 +1295,18 @@ DECLARE_CPPNODE( _np_arg_min_max )
 
         if( csp.ticked( trigger ) )
         {
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
                 CSP_THROW( ValueError, NPY_SHAPE_ERROR );
             PyObject * date_type = PyUnicode_FromString( "<M8[ns]" );
             PyArray_Descr *descr;
             PyArray_DescrConverter( date_type, &descr );
             Py_XDECREF( date_type );
-            DateTime * values = new DateTime[s_elem.size()];
+            
+            PyObject * out = PyArray_NewFromDescr( &PyArray_Type, descr, s_shp.m_dims.size(), &s_shp.m_dims[0], NULL, NULL, 0, NULL );
+            DateTime * values = static_cast<DateTime *>( PyArray_DATA( ( PyArrayObject * )out ) );
             for( size_t i = 0; i < s_elem.size(); ++i )
                 values[i] = s_elem[i].compute_dt();
-
-            PyObject * out = PyArray_NewFromDescr( &PyArray_Type, descr, s_shp.m_dims.size(), &s_shp.m_dims[0], NULL, values, 0, NULL );
-            PyArray_ENABLEFLAGS( ( PyArrayObject * ) out, NPY_ARRAY_OWNDATA );
+            
             RETURN( PyObjectPtr::own( out ) );
         }
     }

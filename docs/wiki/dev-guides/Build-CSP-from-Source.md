@@ -96,7 +96,7 @@ micromamba activate csp
 make build-conda
 
 # finally install into the csp conda environment
-make develop
+make develop-conda
 ```
 
 ### A note about dependencies

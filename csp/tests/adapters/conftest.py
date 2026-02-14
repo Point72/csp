@@ -21,12 +21,3 @@ def kafkaadapter(kafkabroker):
         broker=kafkabroker, group_id=group_id, rd_kafka_conf_options={"allow.auto.create.topics": "true"}
     )
     return _kafkaadapter
-
-
-@pytest.fixture(scope="module", autouse=True)
-def kafkaadapternoautocreate(kafkabroker):
-    group_id = "group.id123"
-    _kafkaadapter = KafkaAdapterManager(
-        broker=kafkabroker, group_id=group_id, rd_kafka_conf_options={"allow.auto.create.topics": "false"}
-    )
-    return _kafkaadapter

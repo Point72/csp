@@ -1,15 +1,16 @@
 import copy
 import functools
-import numpy as np
 import operator
-import pandas as pd
 import re
+from pydoc import locate
+from typing import Any, List, Type, TypeVar, Union, cast
+
+import numpy as np
+import pandas as pd
 from pandas.api.types import is_integer, is_list_like
 from pandas.core.arrays import ExtensionArray, ExtensionScalarOpsMixin, IntervalArray
 from pandas.core.dtypes.dtypes import PandasExtensionDtype, register_extension_dtype
 from pandas.core.indexers import check_array_indexer
-from pydoc import locate
-from typing import Any, List, Type, TypeVar, Union, cast
 
 import csp
 from csp.impl.types.tstype import TsType, isTsType, ts
@@ -202,6 +203,7 @@ class _NumPyBackedExtensionArrayMixin(ExtensionArray, ExtensionScalarOpsMixin):
     # Code inspired by https://github.com/hgrecco/pint-pandas/blob/master/pint_pandas/pint_array.py
     # and https://github.com/ContinuumIO/cyberpandas/blob/master/cyberpandas/ip_array.py
     _data: np.ndarray
+    _readonly: bool = False
 
     @property
     def dtype(self) -> "TsDtype":
@@ -234,9 +236,14 @@ class _NumPyBackedExtensionArrayMixin(ExtensionArray, ExtensionScalarOpsMixin):
 
         item = check_array_indexer(self, item)
 
-        return self.__class__(self._data[item], self.dtype)
+        cls = self.__class__(self._data[item], self.dtype)
+        cls._readonly = self._readonly
+        return cls
 
     def __setitem__(self, key, value):
+        if self._readonly:
+            raise ValueError("Cannot modify read-only array")
+
         # need to not use `not value` on numpy arrays
         if isinstance(value, (list, tuple)) and (not value):
             # doing nothing here seems to be ok
@@ -389,6 +396,9 @@ class TsArray(_NumPyBackedExtensionArrayMixin):
             self._data = values._data
         else:
             self._data = np.atleast_1d(np.asarray(values, dtype="O"))
+            # Ensure the array is writeable (may be read-only in pandas 3.x)
+            if not self._data.flags.writeable:
+                self._data = self._data.copy()
 
         if dtype is None:
             try:
@@ -438,7 +448,7 @@ class TsArray(_NumPyBackedExtensionArrayMixin):
 
         return formatting_function
 
-    def _reduce(self, name, skipna=True, **kwds):
+    def _reduce(self, name, skipna=True, keepdims: bool = False, **kwds):
         """
         Return a scalar result of performing the reduction operation.
         Parameters
@@ -449,12 +459,15 @@ class TsArray(_NumPyBackedExtensionArrayMixin):
             std, var, sem, kurt, skew }.
         skipna : bool, default True
             If True, skip NaN values (both missing Edges and nan's inside of Edges)
+        keepdims : bool, default False
+            If True, return a TsArray with shape (1,) instead of a scalar, keeping the dimensions.
+            Used by DataFrame reductions. Required argument as of pandas 3.0: https://github.com/pandas-dev/pandas/pull/52788.
         **kwargs
             Additional keyword arguments passed to the reduction function.
             Currently, `ddof` is the only supported kwarg.
         Returns
         -------
-        scalar
+        scalar or TsArray
         Raises
         ------
         TypeError : subclass does not define reductions
@@ -485,9 +498,24 @@ class TsArray(_NumPyBackedExtensionArrayMixin):
             quantity = self._data
 
         if len(quantity) == 0:
-            return None
+            result = None
+        else:
+            result = functions[name](quantity.tolist(), self.dtype.subtype, kwargs=dict(skipna=skipna))
 
-        return functions[name](quantity.tolist(), self.dtype.subtype, kwargs=dict(skipna=skipna))
+        if keepdims:
+            # Determine the output dtype based on the reduction operation
+            if name in ("any", "all"):
+                result_dtype = TsDtype(bool)
+            elif name in ("mean", "median", "std", "var", "sem", "skew", "kurt"):
+                result_dtype = TsDtype(float)
+            else:
+                result_dtype = self.dtype
+
+            if result is None:
+                return TsArray([], dtype=result_dtype)
+            return TsArray([result], dtype=result_dtype)
+
+        return result
 
     @classmethod
     def _create_comparison_method(cls, op):
@@ -536,6 +564,36 @@ class TsArray(_NumPyBackedExtensionArrayMixin):
                 return TsArray(values, dtype)
         return super(TsArray, self).astype(dtype, copy=copy)
 
+    def to_numpy(self, dtype=None, copy=False, na_value=None):
+        """Convert to a NumPy ndarray.
+
+        Parameters
+        ----------
+        dtype : str or numpy.dtype, optional
+            The dtype to pass to numpy.asarray.
+        copy : bool, default False
+            Whether to ensure that the returned value is not a view on another array.
+        na_value : Any, optional
+            The value to use for missing values.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+        result = np.asarray(self._data, dtype=dtype)
+
+        if copy:
+            result = result.copy()
+        elif self._readonly:
+            # Need to make array not writeable if this TsArray is read-only
+            if np.may_share_memory(result, self._data):
+                result = result.view()
+                result.flags.writeable = False
+
+        if na_value is not None:
+            result[self.isna()] = na_value
+        return result
+
 
 @node
 def _cast(x: ts[object], typ: "T") -> ts["T"]:
@@ -556,7 +614,7 @@ def _unary_op(x: ts["T"], op: object) -> ts["T"]:
 
 
 @node
-def _reduce(x: [ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts["T"]:
+def _reduce(x: List[ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts["T"]:
     # The choice was made to only emit values if all basket elements are valid.
     # If one wanted to reduce only over valid elements, then in many cases you could pre-apply csp.default
     # with a nan/sentinal value, and then apply a function which ignores these values
@@ -578,14 +636,14 @@ def _reduce(x: [ts["T"]], typ: "T", func: object, args: object = (), kwargs: obj
 
 
 @node
-def _reduce_float(x: [ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts[float]:
+def _reduce_float(x: List[ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts[float]:
     if csp.valid(x):
         data = np.fromiter(x.validvalues(), dtype=typ)
         return func(data, *args, **kwargs)
 
 
 @node
-def _reduce_bool(x: [ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts[bool]:
+def _reduce_bool(x: List[ts["T"]], typ: "T", func: object, args: object = (), kwargs: object = {}) -> ts[bool]:
     if csp.valid(x):
         data = np.fromiter(x.validvalues(), dtype=typ)
         return bool(func(data, *args, **kwargs))

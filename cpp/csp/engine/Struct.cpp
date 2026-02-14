@@ -1,20 +1,26 @@
 #include <csp/core/System.h>
 #include <csp/engine/Struct.h>
 #include <algorithm>
+#include <ranges>
+#include <string>
+#include <sstream>
 
 namespace csp
 {
 
 StructField::StructField( CspTypePtr type, const std::string & fieldname, 
-                          size_t size, size_t alignment ) :
+                          size_t size, size_t alignment, bool isOptional ) :
     m_fieldname( fieldname ),
     m_offset( 0 ),
     m_size( size ),
     m_alignment( alignment ),
     m_maskOffset( 0 ),
     m_maskBit( 0 ),
+    m_noneMaskBit( 0 ),
     m_maskBitMask( 0 ),
-    m_type( type )
+    m_noneMaskBitMask( 0 ),
+    m_type( type ),
+    m_isOptional( isOptional )
 {
 }
 
@@ -33,13 +39,13 @@ and adjustments required for the hidden fields
 
 */
 
-StructMeta::StructMeta( const std::string & name, const Fields & fields,
-                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields( fields ),
+StructMeta::StructMeta( const std::string & name, const Fields & fields, bool isStrict,
+                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields( fields ), m_optionalFieldsBitMasks(),
                                                              m_size( 0 ), m_partialSize( 0 ), m_partialStart( 0 ), m_nativeStart( 0 ), m_basePadding( 0 ),
                                                              m_maskLoc( 0 ), m_maskSize( 0 ), m_firstPartialField( 0 ), m_firstNativePartialField( 0 ),
-                                                             m_isPartialNative( true ), m_isFullyNative( true )
+                                                             m_isPartialNative( true ), m_isFullyNative( true ), m_isStrict( isStrict )
 {
-    if( m_fields.empty() && !m_base)
+    if( m_fields.empty() && !m_base )
         CSP_THROW( TypeError, "Struct types must define at least 1 field" );
 
     //sort by sizes, biggest first, to get proper alignment
@@ -95,25 +101,64 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields,
     //Setup masking bits for our fields
     //NOTE we can be more efficient by sticking masks into any potential alignment gaps, dont want to spend time on it 
     //at this point
-    m_maskSize     = !m_fields.empty() ? 1 + ( ( m_fields.size() - 1 ) / 8 ) : 0;
+
+    size_t optionalFieldCount = std::count_if( m_fields.begin(), m_fields.end(), []( const auto & f ) { return f -> isOptional(); } );
+    
+    m_maskSize     = !m_fields.empty() ? 1 + ( ( m_fields.size() + optionalFieldCount - 1 ) / 8 ) : 0;
     m_size         = offset + m_maskSize;
     m_partialSize  = m_size - baseSize;
     m_maskLoc      = m_size - m_maskSize;
+    
+    uint8_t numRemainingBits = ( m_fields.size() + optionalFieldCount ) % 8;
+    m_lastByteMask = ( 1u << numRemainingBits ) - 1;
 
     size_t  maskLoc = m_maskLoc;
     uint8_t maskBit = 0;
-    for( auto & f : m_fields )
+
+    // Set optional fields first so that their 2-bits never cross a byte boundary
+    // Put both the set bits and none bits in the same vector to avoid fragmentation
+    m_optionalFieldsBitMasks.resize( 2 * m_maskSize );
+    for( size_t i = 0; i < m_fields.size(); ++i )
     {
-        f -> setMaskOffset( maskLoc, maskBit );
-        if( ++maskBit == 8 )
+        auto & f = m_fields[ i ];
+        if( f -> isOptional() )
         {
-            maskBit = 0;
-            ++maskLoc;
+            f -> setMaskOffset( maskLoc, maskBit );
+            optionalSetBitMask( maskLoc - m_maskLoc ) |= ( 1 << maskBit ); // set bits for this byte
+            optionalNoneBitMask( maskLoc - m_maskLoc ) |= ( 1 << ++maskBit ); // none bits for this byte
+            if( ++maskBit == 8 )
+            {
+                maskBit = 0;
+                ++maskLoc;
+            }
+        }
+    }
+
+    for( size_t i = 0; i < m_fields.size(); ++i )
+    {
+        auto & f = m_fields[ i ];
+        if( !f -> isOptional() )
+        {
+            f -> setMaskOffset( maskLoc, maskBit );
+            if( ++maskBit == 8 )
+            {
+                maskBit = 0;
+                ++maskLoc;
+            }
         }
     }
 
     if( m_base )
     {
+        // The complete inheritance hierarchy must agree on strict/non-strict
+        if( m_isStrict != m_base -> isStrict() )
+        {
+            CSP_THROW( ValueError, 
+                    "Struct " << m_name << " was declared " << ( m_isStrict ? "strict" : "non-strict" ) << " but derives from "
+                    << m_base -> name() << " which is " << ( m_base -> isStrict() ? "strict" : "non-strict" )
+            );
+        }
+
         m_fields.insert( m_fields.begin(), m_base -> m_fields.begin(), m_base -> m_fields.end() );
         m_fieldnames.insert( m_fieldnames.begin(), m_base -> m_fieldnames.begin(), m_base -> m_fieldnames.end() );
         
@@ -201,6 +246,22 @@ bool StructMeta::isDerivedType( const StructMeta * derived, const StructMeta * b
     return b != nullptr;
 }
 
+const StructMeta * StructMeta::commonBase( const StructMeta * x, const StructMeta *  y )
+{
+    const StructMeta * m = x;
+    while( m && m != y )
+        m = m -> m_base.get();
+
+    if( !m )
+    {
+        m = y;
+        while( m && m != x )
+            m = m -> m_base.get();
+    }
+    return m;
+
+}
+
 void StructMeta::initialize( Struct * s ) const
 {
     //TODO optimize initialize to use default if availbel instead of constructing
@@ -228,28 +289,32 @@ void StructMeta::initialize( Struct * s ) const
 
 void StructMeta::copyFrom( const Struct * src, Struct * dest )
 {
-    if( unlikely( src == dest ) )
+    if( src == dest ) [[unlikely]]
         return;
 
-    if( dest -> meta() != src -> meta() && 
-        !StructMeta::isDerivedType( src -> meta(), dest -> meta() ) )
-            CSP_THROW( TypeError, "Attempting to copy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
-                       << "'. copy_from may only be used to copy from same type or derived types" );
+    const StructMeta * meta = commonBase( src -> meta(), dest -> meta() );
+    if( !meta )
+    {
+        CSP_THROW( TypeError, "Attempting to copy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
+                   << "'. copy_from may only be used to copy from struct with a common base type" );
+    }
 
-    dest -> meta() -> copyFromImpl( src, dest, false );
+    meta -> copyFromImpl( src, dest, false );
 }
 
 void StructMeta::deepcopyFrom( const Struct * src, Struct * dest )
 {
-    if( unlikely( src == dest ) )
+    if( src == dest ) [[unlikely]]
         return;
 
-    if( dest -> meta() != src -> meta() && 
-        !StructMeta::isDerivedType( src -> meta(), dest -> meta() ) )
-            CSP_THROW( TypeError, "Attempting to deepcopy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
-                       << "'. deepcopy_from may only be used to copy from same type or derived types" );
-
-    dest -> meta() -> copyFromImpl( src, dest, true );
+    const StructMeta * meta = commonBase( src -> meta(), dest -> meta() );
+    if( !meta )
+    {
+        CSP_THROW( TypeError, "Attempting to deepcopy from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
+                   << "'. deepcopy_from may only be used to copy from struct with a common base type" );
+    }
+    
+    meta -> copyFromImpl( src, dest, true );
 }   
 
 void StructMeta::copyFromImpl( const Struct * src, Struct * dest, bool deepcopy ) const
@@ -288,15 +353,18 @@ void StructMeta::copyFromImpl( const Struct * src, Struct * dest, bool deepcopy 
 
 void StructMeta::updateFrom( const Struct * src, Struct * dest )
 {
-    if( unlikely( src == dest ) )
+    if( src == dest ) [[unlikely]]
         return;
 
-    if( dest -> meta() != src -> meta() && 
-        !StructMeta::isDerivedType( src -> meta(), dest -> meta() ) )
-            CSP_THROW( TypeError, "Attempting to update from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
-                       << "'. update_from may only be used to update from same type or derived types" );
+    const StructMeta * meta = commonBase( src -> meta(), dest -> meta() );
+    
+    if( !meta )
+    {
+        CSP_THROW( TypeError, "Attempting to update from struct type '" << src -> meta() -> name() << "' to struct type '" << dest -> meta() -> name() 
+                   << "'. update_from may only be used to update from struct with a common base type" );
+    }
 
-    dest -> meta() -> updateFromImpl( src, dest );
+    meta -> updateFromImpl( src, dest );
 }    
 
 void StructMeta::updateFromImpl( const Struct * src, Struct * dest ) const
@@ -381,7 +449,7 @@ size_t StructMeta::hash( const Struct * x ) const
     static thread_local size_t s_recursionDepth = 0;
     ScopedIncrement guard( s_recursionDepth );
 
-    if ( unlikely( s_recursionDepth > MAX_RECURSION_DEPTH ) )
+    if ( s_recursionDepth > MAX_RECURSION_DEPTH ) [[unlikely]]
         CSP_THROW( RecursionError,
             "Exceeded max recursion depth of " << MAX_RECURSION_DEPTH << " in " << name() << "::hash(), cannot hash cyclic data structure" );
 
@@ -430,23 +498,60 @@ void StructMeta::clear( Struct * s ) const
         m_base -> clear( s );
 }
 
+std::string StructMeta::formatAllUnsetStrictFields( const Struct * s ) const
+{
+    bool first = true;
+    std::stringstream ss;
+    ss << "["; 
+    
+    for( size_t i = 0; i < m_fields.size(); ++i )
+    {
+        const auto & f = m_fields[ i ];
+        if( !f -> isSet( s ) && !f -> isNone( s ) )
+        {
+            if( !first )
+                ss << ", ";
+            else
+                first = false;
+            ss << f -> fieldname();
+        }
+    }
+    ss << "]";
+    return ss.str();
+}
+
 bool StructMeta::allFieldsSet( const Struct * s ) const
 {
-    size_t  numLocalFields = m_fields.size() - m_firstPartialField;
-    uint8_t numRemainingBits = numLocalFields % 8;
+    /*
+    We can use bit operations to validate the struct. 
+        1. Let M1 be the bitmask with 1s that align with the set bit of optional fields and 
+        2. Let M2 be the bitmask with 1s that align with the none bit of optional fields. 
+            -- Both M1 and M2 are computed trivially when we create the meta.
+        3. Let M1* = M1 & mask. M1* now is the bitmask of all set optional fields.
+        4. Similarly, let M2* = M2 & mask, such that M2* is the bitmask of all none optional fields.
+        5. Let M3 = mask | (M1* << 1) | (M2* >> 1). Since the shifted set/none bitsets will fill in that optional fields other bit,
+            the struct can validate iff M3 is all 1s.
+
+    Notes:
+        1) We do this on a byte by byte basis currently. If we add 32/64 bit padding to the struct mask, we could do this as one single step for most structs.
+        2) There is an edge condition if a) the set bit of an optional field is the last bit of a byte or b) the none bit of an optional field is the first bit of a byte.
+            So, when we create the meta, we ensure this never happens by being smart about the ordering of fields in the mask.
+    */
 
     const uint8_t * m = reinterpret_cast<const uint8_t *>( s ) + m_maskLoc;
-    const uint8_t * e = m + m_maskSize - bool( numRemainingBits );
-    for( ; m < e; ++m )
+    const uint8_t * e = m + m_maskSize - bool( m_lastByteMask );
+
+    size_t i = 0;
+    for( ; m < e; ++m, ++i )
     {
-        if( *m != 0xFF )
+        if( ( *m | ( ( *m & optionalSetBitMask( i ) ) << 1 ) | ( ( *m & optionalNoneBitMask( i ) ) >> 1 ) ) != 0xFF )
             return false;
     }
 
-    if( numRemainingBits > 0 )
+    if( m_lastByteMask )
     {
-        uint8_t bitmask = ( 1u << numRemainingBits ) - 1;
-        if( ( *m & bitmask ) != bitmask )
+        uint8_t masked = *m & m_lastByteMask;
+        if( ( masked | ( ( ( masked & optionalSetBitMask( i ) ) << 1 ) & m_lastByteMask ) | ( ( masked & optionalNoneBitMask( i ) ) >> 1 ) ) != m_lastByteMask )
             return false;
     }
 
@@ -469,6 +574,11 @@ void StructMeta::destroy( Struct * s ) const
     
     if( m_base )
         m_base -> destroy( s );
+}
+
+[[nodiscard]] bool StructMeta::validate( const Struct * s ) const
+{   
+    return !isStrict() || allFieldsSet( s );
 }
 
 Struct::Struct( const std::shared_ptr<const StructMeta> & meta )

@@ -14,8 +14,10 @@
 #include <csp/python/PyCspType.h>
 #include <csp/python/PyObjectPtr.h>
 #include <csp/python/PyStruct.h>
+#include <csp/python/PyStructFastList.h>
 #include <csp/python/PyStructList.h>
 #include <Python.h>
+#include <datetime.h>
 #include <string>
 #include <variant>
 
@@ -81,7 +83,7 @@ inline T fromPython( PyObject * o )
     return T{};
 }
 
-//work around for inabilty to partially spcialize fromPython on vector<T>
+//work around for inabilty to partially specialize fromPython on vector<T>
 template<typename T>
 struct FromPython
 {
@@ -445,7 +447,7 @@ inline PyObject * toPython( const CspEnum & e, const CspType & type )
     const auto * emeta = static_cast<const DialectCspEnumMeta*>( enumType.meta().get() );
 
     PyObject * obj = emeta -> pyMeta() -> toPyEnum( e );
-    if( unlikely( !obj ) )
+    if( !obj ) [[unlikely]]
         CSP_THROW( ValueError, e.value() << " is not a valid value on csp.enum type " << emeta -> name() );
     return obj;
 }
@@ -768,11 +770,11 @@ inline PyObject * toPython( const DictionaryPtr & value)
 }
 
 template<typename StorageT>
-inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & type )
+inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & arrayType )
 {
-    assert( type.type() == CspType::Type::ARRAY );
+    assert( arrayType.type() == CspType::Type::ARRAY );
 
-    const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+    const CspType & elemType = *static_cast<const CspArrayType &>( arrayType ).elemType();
     size_t size = v.size();
     PyObjectPtr list = PyObjectPtr::check( PyList_New( size ) );
 
@@ -785,18 +787,27 @@ inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & typ
 }
 
 template<typename StorageT>
-inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & type, const PyStruct * pystruct )
+inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & arrayType, const PyStruct * pystruct )
 {
-    assert( type.type() == CspType::Type::ARRAY );
+    assert( arrayType.type() == CspType::Type::ARRAY );
 
-    const CspTypePtr elemType = static_cast<const CspArrayType &>( type ).elemType();
+    const CspArrayType & cspArrayType = static_cast<const CspArrayType &>( arrayType );
+    const CspTypePtr elemType = cspArrayType.elemType();
     using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
     size_t sz = v.size();
 
+    // Create PyStructFastList when requested
+    if( cspArrayType.isPyStructFastList() )
+    {
+        PyObject * fl = PyStructFastList<StorageT>::PyType.tp_alloc( &PyStructFastList<StorageT>::PyType, 0 );
+        new ( fl ) PyStructFastList<StorageT>( const_cast<PyStruct *>( pystruct ), const_cast<std::vector<StorageT> &>( v ), cspArrayType );
+        return fl;
+    }
+    // Create PyStructList otherwise
     // TODO: Implement more efficient list allocation by pre-allocating the space and filling it using PyList_SET_ITEM.
     // As of now, the problem is that Python is not allowing to resize the list via API, and it cannot allocate the list at the base of PyStructList, it can only allocate it somewhere in memory not under control.
     PyObject * psl = PyStructList<StorageT>::PyType.tp_alloc( &PyStructList<StorageT>::PyType, 0 );
-    new ( psl ) PyStructList<StorageT>( const_cast<PyStruct *>( pystruct ), const_cast<std::vector<StorageT> &>( v ), *elemType );
+    new ( psl ) PyStructList<StorageT>( const_cast<PyStruct *>( pystruct ), const_cast<std::vector<StorageT> &>( v ), cspArrayType );
 
     for( size_t index = 0; index < sz; ++index )
     {
@@ -810,15 +821,16 @@ inline PyObject * toPython( const std::vector<StorageT> & v, const CspType & typ
 template<typename StorageT>
 struct FromPython<std::vector<StorageT>>
 {
-    static std::vector<StorageT> impl( PyObject * o, const CspType & type )
+    static std::vector<StorageT> impl( PyObject * o, const CspType & arrayType )
     {
-        assert( type.type() == CspType::Type::ARRAY );
-        const CspType & elemType = *static_cast<const CspArrayType &>( type ).elemType();
+        assert( arrayType.type() == CspType::Type::ARRAY );
 
         using ElemT = typename CspType::Type::toCArrayElemType<StorageT>::type;
 
+        const CspType & elemType = *static_cast<const CspArrayType &>( arrayType ).elemType();
+
         std::vector<StorageT> out;
-        //fast path list and tuples since we can size up front
+        //fast path for list and tuple since we can size up front
         if( PyList_Check( o ) )
         {
             size_t size = PyList_GET_SIZE( o );

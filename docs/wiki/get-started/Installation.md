@@ -1,20 +1,20 @@
-## `pip`
+## Pre-requisites
 
-We ship binary wheels to install CSP on MacOS and Linux via `pip`:
+You need Python >=3.8 on your machine to install csp.
+
+## Install with `pip`
 
 ```bash
 pip install csp
 ```
 
-## `conda`
-
-CSP is available on `conda` for Linux and Mac:
+## Install with `conda`
 
 ```bash
-conda install csp -c conda-forge
+conda install csp --channel conda-forge
 ```
 
 ## Source installation
 
-For other platforms, follow the instructions to [build CSP from
+For other platforms and for development installations, [build `csp` from
 source](Build-CSP-from-Source).

@@ -1,7 +1,9 @@
 import math
-import numpy as np
-import typing
+from datetime import datetime, timedelta
 from functools import lru_cache
+from typing import List, TypeVar, get_origin
+
+import numpy as np
 
 import csp
 from csp.impl.types.tstype import ts
@@ -53,8 +55,8 @@ __all__ = [
     "tanh",
 ]
 
-T = typing.TypeVar("T")
-U = typing.TypeVar("U")
+T = TypeVar("T")
+U = TypeVar("U")
 
 
 @node(cppimpl=_cspmathimpl.bitwise_not)
@@ -70,7 +72,7 @@ def not_(x: ts[bool]) -> ts[bool]:
 
 
 @node
-def andnode(x: [ts[bool]]) -> ts[bool]:
+def andnode(x: List[ts[bool]]) -> ts[bool]:
     if csp.valid(x):
         return all(x.validvalues())
 
@@ -82,7 +84,7 @@ def and_(*inputs):
 
 
 @node
-def ornode(x: [ts[bool]]) -> ts[bool]:
+def ornode(x: List[ts[bool]]) -> ts[bool]:
     if csp.valid(x):
         return any(x.validvalues())
 
@@ -269,8 +271,20 @@ def define_binary_op(name, op_lambda):
         if csp.valid(x, y):
             return op_lambda(x, y)
 
+    # Special case: datetime - datetime returns timedelta
+    @_node_internal_use(name=name)
+    def datetime_sub_type(x: ts[datetime], y: ts[datetime]) -> ts[timedelta]:
+        if csp.valid(x, y):
+            return op_lambda(x, y)
+
+    # Special case: datetime +/- timedelta returns datetime
+    @_node_internal_use(name=name)
+    def datetime_timedelta_type(x: ts[datetime], y: ts[timedelta]) -> ts[datetime]:
+        if csp.valid(x, y):
+            return op_lambda(x, y)
+
     def comp(x: ts["T"], y: ts["U"]):
-        if typing.get_origin(x.tstype.typ) in [Numpy1DArray, NumpyNDArray] or typing.get_origin(y.tstype.typ) in [
+        if get_origin(x.tstype.typ) in [Numpy1DArray, NumpyNDArray] or get_origin(y.tstype.typ) in [
             Numpy1DArray,
             NumpyNDArray,
         ]:
@@ -279,6 +293,10 @@ def define_binary_op(name, op_lambda):
             return float_type(x, y)
         elif x.tstype.typ is int and y.tstype.typ is int:
             return int_type(x, y)
+        elif name == "sub" and x.tstype.typ is datetime and y.tstype.typ is datetime:
+            return datetime_sub_type(x, y)
+        elif name in ("add", "sub") and x.tstype.typ is datetime and y.tstype.typ is timedelta:
+            return datetime_timedelta_type(x, y)
         return generic_type(x, y)
 
     comp.__name__ = name
@@ -326,7 +344,7 @@ def define_unary_op(name, op_lambda):
             return op_lambda(x)
 
     def comp(x: ts["T"]):
-        if typing.get_origin(x.tstype.typ) in [Numpy1DArray, NumpyNDArray]:
+        if get_origin(x.tstype.typ) in [Numpy1DArray, NumpyNDArray]:
             return numpy_type(x)
         elif x.tstype.typ is float:
             return float_type(x)

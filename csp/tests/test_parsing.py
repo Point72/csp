@@ -47,21 +47,21 @@ class TestParsing(unittest.TestCase):
         with self.assertRaisesRegex(CspParseError, "Invalid use of 'with_shape'"):
 
             @csp.node
-            def foo(x: [str]):
-                __outputs__([ts[int]].with_shape(x=1))
+            def foo(x: List[str]):
+                __outputs__(List[ts[int]].with_shape(x=1))
                 pass
 
         with self.assertRaisesRegex(CspParseError, "__outputs__ must all be named or be single output, cant be both"):
 
             @csp.node
-            def foo(x: [str]):
+            def foo(x: List[str]):
                 __outputs__(ts[int], x=ts[bool])
                 pass
 
         with self.assertRaisesRegex(CspParseError, "__outputs__ single unnamed arg only"):
 
             @csp.node
-            def foo(x: [str]):
+            def foo(x: List[str]):
                 __outputs__(ts[int], ts[bool])
                 pass
 
@@ -70,7 +70,7 @@ class TestParsing(unittest.TestCase):
         ):
 
             @csp.node
-            def foo(x: [str]) -> Outputs(ts[int], ts[bool]):
+            def foo(x: List[str]) -> Outputs(ts[int], ts[bool]):
                 pass
 
         with self.assertRaisesRegex(
@@ -78,7 +78,7 @@ class TestParsing(unittest.TestCase):
         ):
 
             @csp.node
-            def foo(x: [str]) -> Outputs(ts[int], x=ts[bool]):
+            def foo(x: List[str]) -> Outputs(ts[int], x=ts[bool]):
                 pass
 
         with self.assertRaisesRegex(
@@ -86,7 +86,7 @@ class TestParsing(unittest.TestCase):
         ):
 
             @csp.node
-            def foo(x: [str]) -> Outputs(ts[int]):
+            def foo(x: List[str]) -> Outputs(ts[int]):
                 __outputs__(ts[int])
                 pass
 
@@ -96,7 +96,7 @@ class TestParsing(unittest.TestCase):
         ):
 
             @csp.node
-            def foo(x: [str]):
+            def foo(x: List[str]):
                 x = 1
                 __outputs__(ts[int])
 
@@ -107,16 +107,15 @@ class TestParsing(unittest.TestCase):
                 __outputs__(ts[int])
                 pass
 
-        if sys.version_info.major > 3 or sys.version_info.minor >= 8:
-            with self.assertRaisesRegex(CspParseError, "position only arguments are not supported in csp nodes"):
+        with self.assertRaisesRegex(CspParseError, "position only arguments are not supported in csp nodes"):
 
-                @csp.node
-                def posonly_sample(
-                    posonlyargs,
-                    /,
-                ):
-                    __outputs__(ts[int])
-                    pass
+            @csp.node
+            def posonly_sample(
+                posonlyargs,
+                /,
+            ):
+                __outputs__(ts[int])
+                pass
 
         with self.assertRaisesRegex(CspParseError, "csp.node and csp.graph args must be type annotated"):
 
@@ -945,12 +944,20 @@ class TestParsing(unittest.TestCase):
             return {"x": csp.const(5), "y": csp.const(6.0)}
 
         @csp.graph
+        def graph() -> Outputs(out={str: ts[int]}):
+            return __return__(out={"x": csp.const(5), "y": csp.const(6.0)})
+
+        @csp.graph
         def graph() -> Outputs([ts[int]]):
             return [csp.const(5), csp.const(6.0)]
 
         @csp.graph
         def graph() -> [ts[int]]:
             return [csp.const(5), csp.const(6.0)]
+
+        @csp.graph
+        def graph() -> Outputs(out=[ts[int]]):
+            return __return__(out=[csp.const(5), csp.const(6.0)])
 
         # basket types with promotion
         @csp.graph
@@ -979,6 +986,21 @@ class TestParsing(unittest.TestCase):
         def graph() -> [ts[int]]:
             __return__([csp.const(5), csp.const(6.0)])
 
+    def test_none_output_annotation(self):
+        """Test that -> None annotation is properly parsed for nodes and graphs with no outputs."""
+
+        @csp.node
+        def node_with_none_output(x: ts[int]) -> None:
+            if csp.ticked(x):
+                print(x)
+
+        @csp.graph
+        def graph_with_none_output() -> None:
+            node_with_none_output(csp.const(1))
+
+        # Should parse and run without errors
+        csp.run(graph_with_none_output, starttime=datetime(2020, 1, 1), endtime=datetime(2020, 1, 1, 0, 0, 1))
+
     def test_list_inside_callable(self):
         """was a bug "Empty list inside callable annotation raises exception" """
 
@@ -1005,7 +1027,7 @@ class TestParsing(unittest.TestCase):
         def main():
             g(g2())
 
-        with self.assertRaisesRegex(ArgTypeMismatchError, ".*Expected typing.Dict.*got.*"):
+        with self.assertRaises(TypeError):
             main()
 
     def test_bad_parse_message(self):
@@ -1282,11 +1304,9 @@ class TestParsing(unittest.TestCase):
 
         # tests bug found with multiple dictionary baskets getting bound to same shape
         @csp.graph
-        def g() -> (
-            csp.Outputs(
-                i=csp.OutputBasket(Dict[str, csp.ts[int]], shape=["V1"]),
-                s=csp.OutputBasket(Dict[str, csp.ts[str]], shape=["V2"]),
-            )
+        def g() -> csp.Outputs(
+            i=csp.OutputBasket(Dict[str, csp.ts[int]], shape=["V1"]),
+            s=csp.OutputBasket(Dict[str, csp.ts[str]], shape=["V2"]),
         ):
             i_v1 = csp.curve(int, [(timedelta(hours=10), 1), (timedelta(hours=30), 1)])
             s_v2 = csp.curve(str, [(timedelta(hours=30), "val1")])
@@ -1751,11 +1771,11 @@ class TestParsing(unittest.TestCase):
         @csp.node
         def n_cont() -> ts[bool]:
             with csp.alarms():
-                a: ts[[bool]] = csp.alarm([bool])
-                b: ts[[[int]]] = csp.alarm([[int]])
-                c: ts[{str: int}] = csp.alarm({str: int})
-                d: ts[{str: [int]}] = csp.alarm({str: [int]})  # dict of lists
-                e: ts[[{str: bool}]] = csp.alarm([{str: bool}])  # list of dicts
+                a: ts[List[bool]] = csp.alarm(List[bool])
+                b: ts[List[List[int]]] = csp.alarm(List[List[int]])
+                c: ts[Dict[str, int]] = csp.alarm(Dict[str, int])
+                d: ts[Dict[str : List[int]]] = csp.alarm(Dict[str, List[int]])  # dict of lists
+                e: ts[List[Dict[str, bool]]] = csp.alarm(List[Dict[str, bool]])  # list of dicts
 
             with csp.start():
                 csp.schedule_alarm(a, timedelta(seconds=1), [True])
@@ -1931,11 +1951,9 @@ class TestParsing(unittest.TestCase):
 
         # named multiple
         @csp.graph
-        def g11() -> (
-            csp.Outputs(
-                d1=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
-                d2=csp.OutputBasket(Dict[str, ts[int]], shape=["v3", "v4"]),
-            )
+        def g11() -> csp.Outputs(
+            d1=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
+            d2=csp.OutputBasket(Dict[str, ts[int]], shape=["v3", "v4"]),
         ):
             x1 = csp.timer(timedelta(seconds=1), 1)
             x2 = csp.timer(timedelta(seconds=1), 2)
@@ -1944,11 +1962,9 @@ class TestParsing(unittest.TestCase):
             __return__(d1={"v1": x1, "v2": x2}, d2={"v3": x3, "v4": x4})
 
         @csp.graph
-        def g12() -> (
-            csp.Outputs(
-                d1=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
-                d2=csp.OutputBasket(Dict[str, ts[int]], shape=["v3", "v4"]),
-            )
+        def g12() -> csp.Outputs(
+            d1=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
+            d2=csp.OutputBasket(Dict[str, ts[int]], shape=["v3", "v4"]),
         ):
             x1 = csp.timer(timedelta(seconds=1), 1)
             x2 = csp.timer(timedelta(seconds=1), 2)
@@ -1971,24 +1987,20 @@ class TestParsing(unittest.TestCase):
             csp.output(d["v2"], 4)
 
         @csp.graph
-        def g13() -> (
-            csp.Outputs(
-                l=csp.OutputBasket(List[ts[int]], shape=2),
-                d=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
-                s=ts[str],
-            )
+        def g13() -> csp.Outputs(
+            l=csp.OutputBasket(List[ts[int]], shape=2),
+            d=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
+            s=ts[str],
         ):
             x1 = csp.timer(timedelta(seconds=1), 1)
             x = n2(x1)
             __return__(l=x.l, d=x.d, s=csp.timer(timedelta(seconds=1), "a"))
 
         @csp.graph
-        def g14() -> (
-            csp.Outputs(
-                l=csp.OutputBasket(List[ts[int]], shape=2),
-                d=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
-                s=ts[str],
-            )
+        def g14() -> csp.Outputs(
+            l=csp.OutputBasket(List[ts[int]], shape=2),
+            d=csp.OutputBasket(Dict[str, ts[int]], shape=["v1", "v2"]),
+            s=ts[str],
         ):
             x1 = csp.timer(timedelta(seconds=1), 1)
             x = n2(x1)

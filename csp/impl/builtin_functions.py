@@ -319,6 +319,12 @@ def remove_dynamic_key(basket: GenericTSTypes["T"].TS_TYPE, key: Any):
 
 
 @csp_builtin
+def in_realtime() -> bool:
+    """Returns whether the running engine is in realtime or sim mode"""
+    raise RuntimeError("Unexpected use of csp.in_realtime, csp.in_realtime can only be used inside a node")
+
+
+@csp_builtin
 def engine_start_time() -> datetime:
     """Returns the engine run start time (can be used both in nodes and graphs)"""
     from csp.impl.wiring import GraphRunInfo

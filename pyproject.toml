@@ -1,11 +1,15 @@
 [build-system]
 requires = [
-    "cmake",
-    "oldest-supported-numpy",
-    "pyarrow>=7.0.0",
+    "cmake<3.27",
+    "deprecated",  # Because used in csp.impl.struct, which is used in autogen
+    # oldest numpy 2 we can
+    "numpy>=2,<2.1; python_version < '3.13'",
+    "numpy>=2,<2.2",
+    "pyarrow>=15,<23",
     "ruamel.yaml",
     "scikit-build",
-    "setuptools>=69",
+    "setuptools>=69,<74",
+    "typing-extensions",
 ]
 build-backend="setuptools.build_meta"
 
@@ -14,19 +18,21 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.0.4"
-requires-python = ">=3.8"
+version = "0.14.0"
+requires-python = ">=3.10"
 
 dependencies = [
-    "backports.zoneinfo; python_version<'3.9'",
-    "numpy",
+    "deprecated",
+    "numpy>=1",
     "packaging",
     "pandas",
     "psutil",
-    "pyarrow>=7.0.0",
+    "pyarrow>=15,<23",
+    "pydantic>=2",
     "pytz",
     "ruamel.yaml",
     "sqlalchemy",
+    "typing-extensions",
 ]
 
 classifiers = [
@@ -34,11 +40,10 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 
@@ -54,17 +59,17 @@ Tracker = "https://github.com/point72/csp/issues"
 [project.optional-dependencies]
 develop = [
     # build/dist
-    "bump2version>=1.0.0",
+    "bump-my-version",
     "build",
     "ruamel.yaml",
     "scikit-build",
     "twine",
     "wheel",
     # lint
-    "codespell>=2.2.6,<2.3",
-    "isort>=5,<6",
-    "mdformat>=0.7.17,<0.8",
-    "ruff>=0.3,<0.4",
+    "codespell>=2.4,<2.5",
+    "mdformat>=0.7.19,<0.8",
+    "mdformat-tables>=1,<1.1",
+    "ruff>=0.9,<0.15",
     # test
     "pytest",
     "pytest-asyncio",
@@ -75,13 +80,14 @@ develop = [
     "pillow",
     # adapters
     "httpx>=0.20,<1",  # kafka
+    "perspective-python>=2",  # perspective
+    "ipywidgets",  # perspective
     "polars",  # parquet
     "psutil",  # test_engine/test_history
-    "slack-sdk>=3",  # slack
     "sqlalchemy",  # db
-    "requests",  # symphony
     "threadpoolctl",  # test_random
     "tornado",  # profiler, perspective, websocket
+    "python-rapidjson", # websocket
 ]
 showgraph = [
     "graphviz",
@@ -95,6 +101,7 @@ test = [
     "pytest-cov",
     "pytest-sugar",
     "httpx>=0.20,<1",
+    "perspective-python",
     "polars",
     "psutil",
     "requests",
@@ -104,17 +111,43 @@ test = [
     "tornado",
 ]
 symphony = [
-    "requests",
+    "csp-adapter-symphony",
 ]
 slack = [
-    "slack-sdk>=3",
+    "csp-adapter-slack",
 ]
+
+[tool.bumpversion]
+current_version = "0.14.0"
+commit = false
+tag = false
+commit_args = "-s"
+
+[[tool.bumpversion.files]]
+filename = "csp/__init__.py"
+search = '__version__ = "{current_version}"'
+replace = '__version__ = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "setup.py"
+search = 'version="{current_version}"'
+replace = 'version="{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "CMakeLists.txt"
+search = 'project(csp VERSION "{current_version}")'
+replace = 'project(csp VERSION "{new_version}")'
 
 [tool.check-manifest]
 ignore = []
 
 [tool.cibuildwheel]
-build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
+build = "cp310-* cp311-* cp312-* cp313-*"
 test-command = "echo 'TODO'"
 test-requires = [
     "pytest",
@@ -136,26 +169,17 @@ skip = "*i686 musllinux*"
 manylinux-x86_64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
-before-all ="make dependencies-mac"
-archs = "x86_64"  # NOTE: we use gcc and we cannot cross compile for now
+before-all ="""
+make dependencies-mac
+export ACLOCAL_PATH="$(brew --prefix autoconf-archive)/share/aclocal:$(printenv ACLOCAL_PATH)"
+"""
+archs = "arm64"
 
 [tool.cibuildwheel.windows]
 before-all = "make dependencies-win"
 before-build = "make requirements"
-
 archs = "AMD64"
 skip = "*win32 *arm_64"
-
-[tool.isort]
-combine_as_imports = true
-include_trailing_comma = true
-line_length = 120
-profile = "black"
-
-default_section = "THIRDPARTY"
-sections = "FUTURE,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
-
-known_first_party = "csp"
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
@@ -163,6 +187,21 @@ testpaths = "csp/tests"
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+default-section = "third-party"
+known-first-party = ["csp"]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]

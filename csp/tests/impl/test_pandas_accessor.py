@@ -1,8 +1,9 @@
+import unittest
+from datetime import date, datetime, timedelta
+
 import numpy as np
 import pandas as pd
 import pytest
-import unittest
-from datetime import date, datetime, timedelta
 
 import csp
 import csp.impl.pandas_accessor
@@ -164,22 +165,26 @@ class TestCspSeriesAccessor(unittest.TestCase):
         out = series.csp.synchronize(timedelta(seconds=10)).csp.run(
             starttime=datetime(2020, 1, 1), endtime=timedelta(minutes=1)
         )
-        target = pd.DatetimeIndex(["2020-01-01 00:00:02", "2020-01-01 00:00:02", "2020-01-01 00:00:02"])
+        target = pd.DatetimeIndex(
+            ["2020-01-01 00:00:02", "2020-01-01 00:00:02", "2020-01-01 00:00:02"], dtype="datetime64[ns]"
+        )
         pd.testing.assert_index_equal(out.index.get_level_values(1), target)
 
         out = series.csp.synchronize(timedelta(seconds=1)).csp.run(
             starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=10)
         )
-        target = pd.DatetimeIndex(["2020-01-01 00:00:01", "2020-01-01 00:00:01", "2020-01-01 00:00:03"])
+        target = pd.DatetimeIndex(
+            ["2020-01-01 00:00:01", "2020-01-01 00:00:01", "2020-01-01 00:00:03"], dtype="datetime64[ns]"
+        )
         pd.testing.assert_index_equal(out.index.get_level_values(1), target)
 
     def test_run(self):
         out = self.series.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
             ]
         )
         target = pd.Series([99.0, 103.0, 103.0], index=idx)
@@ -188,9 +193,9 @@ class TestCspSeriesAccessor(unittest.TestCase):
         out = self.series.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=3), tick_count=2)
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:03")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:03").as_unit("ns")),
             ]
         )
         target = pd.Series([99.0, 103.0, 103.0], index=idx)
@@ -201,16 +206,16 @@ class TestCspSeriesAccessor(unittest.TestCase):
         )
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:03")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:03").as_unit("ns")),
             ]
         )
         target = pd.Series([99.0, 103.0, 103.0], index=idx)
         pd.testing.assert_series_equal(out, target)
 
         out = self.series.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(0))
-        idx = pd.MultiIndex.from_tuples([("ABC", pd.Timestamp("2020-01-01"))])
+        idx = pd.MultiIndex.from_tuples([("ABC", pd.Timestamp("2020-01-01").as_unit("ns"))])
         target = pd.Series([99.0], index=idx)
         pd.testing.assert_series_equal(out, target)
 
@@ -242,10 +247,10 @@ class TestCspSeriesAccessor(unittest.TestCase):
         out = self.series.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=0))
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01").as_unit("ns")),
             ]
         )
         target = pd.Series([99.0, 98.0, 103.0, 102.0], index=idx)
@@ -312,10 +317,10 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         out = self.df.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
-                ("GJH", pd.Timestamp("2020-01-01")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
+                ("GJH", pd.Timestamp("2020-01-01").as_unit("ns")),
             ]
         )
         records = [
@@ -330,9 +335,9 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         out = self.df.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2), tick_count=1)
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
-                ("GJH", pd.Timestamp("2020-01-01")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
+                ("GJH", pd.Timestamp("2020-01-01").as_unit("ns")),
             ]
         )
         records = [("ABC Corp", 99.0, 100.0, "X"), ("DEF Corp", 103.0, 104.0, "Y"), ("GJH Corp", np.nan, 100.0, "X")]
@@ -345,9 +350,9 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         )
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
-                ("GJH", pd.Timestamp("2020-01-01")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
+                ("GJH", pd.Timestamp("2020-01-01").as_unit("ns")),
             ]
         )
         records = [("ABC Corp", 99.0, 100.0, "X"), ("DEF Corp", 103.0, 104.0, "Y"), ("GJH Corp", np.nan, 100.0, "X")]
@@ -358,10 +363,10 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         out = self.df.csp.ts_frame().csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
-                ("GJH", pd.Timestamp("2020-01-01")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
+                ("GJH", pd.Timestamp("2020-01-01").as_unit("ns")),
             ]
         )
         records = [(99.0, 100.0), (103.0, np.nan), (103.0, 104.0), (np.nan, 100.0)]
@@ -407,11 +412,11 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         out = self.df.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=0))
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01")),
-                ("GJH", pd.Timestamp("2020-01-01")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("GJH", pd.Timestamp("2020-01-01").as_unit("ns")),
             ]
         )
         records = [
@@ -508,10 +513,10 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         out = out.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
-                ("GJH", pd.Timestamp("2020-01-01")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
+                ("GJH", pd.Timestamp("2020-01-01").as_unit("ns")),
             ]
         )
         records = [C(bid=99.0, ask=100.0), C(bid=103.0), C(bid=103.0, ask=104.0), C(ask=100.0)]
@@ -528,9 +533,9 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         out = out.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
         idx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
             ]
         )
         records = [
@@ -571,7 +576,7 @@ class TestCspDataFrameAccessor(unittest.TestCase):
 
         # Make sure it can actually run
         out = out.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
-        idx = pd.MultiIndex.from_tuples([(0, pd.Timestamp("2020-01-01"))])
+        idx = pd.MultiIndex.from_tuples([(0, pd.Timestamp("2020-01-01").as_unit("ns"))])
         target = pd.Series([C(a=4.0, b="x", c=metadata["c"](fld=0))], index=idx)
         pd.testing.assert_series_equal(out, target)
 
@@ -581,7 +586,7 @@ class TestCspDataFrameAccessor(unittest.TestCase):
         self.assertEqual(out.dtype, TsDtype(MyStruct))
         out = out.csp.run(starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=2))
 
-        idx = pd.MultiIndex.from_tuples([(0, pd.Timestamp("2020-01-01"))])
+        idx = pd.MultiIndex.from_tuples([(0, pd.Timestamp("2020-01-01").as_unit("ns"))])
         target = pd.Series([MyStruct(a=4.0, c=SubStruct(fld=0))], index=idx)
         pd.testing.assert_series_equal(out, target)
 
@@ -652,13 +657,18 @@ class TestCspDataFrameAccessor(unittest.TestCase):
 class TestToCspSeriesAccessor(unittest.TestCase):
     def setUp(self) -> None:
         self.idx = pd.DatetimeIndex(
-            [pd.Timestamp("2020-01-01"), pd.Timestamp("2020-01-01 00:00:01"), pd.Timestamp("2020-01-01 00:00:02")]
+            [
+                pd.Timestamp("2020-01-01"),
+                pd.Timestamp("2020-01-01 00:00:01"),
+                pd.Timestamp("2020-01-01 00:00:02"),
+            ],
+            dtype="datetime64[ns]",
         )
         self.midx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:02")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
             ]
         )
 
@@ -797,21 +807,27 @@ class TestToCspSeriesAccessor(unittest.TestCase):
 class TestToCspFrameAccessor(unittest.TestCase):
     def setUp(self) -> None:
         self.idx = pd.DatetimeIndex(
-            [pd.Timestamp("2020-01-01"), pd.Timestamp("2020-01-01 00:00:01"), pd.Timestamp("2020-01-01 00:00:02")]
+            [
+                pd.Timestamp("2020-01-01"),
+                pd.Timestamp("2020-01-01 00:00:01"),
+                pd.Timestamp("2020-01-01 00:00:02"),
+            ],
+            dtype="datetime64[ns]",
         )
         self.midx = pd.MultiIndex.from_tuples(
             [
-                ("ABC", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01")),
-                ("DEF", pd.Timestamp("2020-01-01 00:00:01")),
-                ("GJH", pd.Timestamp("2020-01-01 00:00:02")),
+                ("ABC", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01").as_unit("ns")),
+                ("DEF", pd.Timestamp("2020-01-01 00:00:01").as_unit("ns")),
+                ("GJH", pd.Timestamp("2020-01-01 00:00:02").as_unit("ns")),
             ]
         )
         bid = pd.Series([99.0, 103.0, np.nan, np.nan], index=self.midx)
         ask = pd.Series([100.0, np.nan, 104.0, 100.0], index=self.midx)
-        sector = ["X", "Y", "Z", "X"]
-        name = ["ABC Corp", "DEF Corp", "DEF Corp", "GJH Corp"]
-        self.df = pd.DataFrame({"name": name, "bid": bid, "ask": ask, "sector": sector}, index=self.midx)
+        # Use object dtype for strings to match csp output (pandas 3.0 defaults to StringDtype)
+        sector = pd.Series(["X", "Y", "Z", "X"], index=self.midx, dtype=object)
+        name = pd.Series(["ABC Corp", "DEF Corp", "DEF Corp", "GJH Corp"], index=self.midx, dtype=object)
+        self.df = pd.DataFrame({"name": name, "bid": bid, "ask": ask, "sector": sector})
 
     def test_single_index(self):
         df = self.df.reset_index(level=0, drop=True)

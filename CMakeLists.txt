@@ -2,7 +2,7 @@
 # Project Configuration #
 #########################
 cmake_minimum_required(VERSION 3.20.0)
-project(csp VERSION "0.0.4")
+project(csp VERSION "0.14.0")
 set(CMAKE_CXX_STANDARD 20)
 
 ###################################################################################################################################################
@@ -67,9 +67,12 @@ option(CSP_MANYLINUX "Build for python's manylinux setup" OFF)
 option(CSP_USE_VCPKG "Build with vcpkg dependencies" ON)
 option(CSP_USE_CCACHE "Build with ccache caching" OFF)
 option(CSP_USE_LD_CLASSIC_MAC "On macOS, link with ld_classic" OFF)
+option(CSP_ENABLE_ASAN "Build with address sanitizer" OFF)
+option(CSP_ENABLE_UBSAN "Build with undefined behavior sanitizer" OFF)
 
 # Extension options
 option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" ON)
+option(CSP_BUILD_ARROW_ADAPTER "Build arrow adapter" ON)
 option(CSP_BUILD_PARQUET_ADAPTER "Build parquet adapter" ON)
 option(CSP_BUILD_WS_CLIENT_ADAPTER "Build ws client adapter" ON)
 
@@ -194,6 +197,7 @@ else()
         -O3 \
         -g0 \
         -Wall \
+        -Werror \
         -Wno-deprecated-declarations \
         -Wno-deprecated \
         ")
@@ -203,7 +207,24 @@ else()
             -Wno-maybe-uninitialized \
             ")
         endif()
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 17)
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-assume-unique-vtables")
+            endif()
+        endif()
     endif()
+endif()
+
+if(CSP_ENABLE_ASAN)
+    message(STATUS "Enabling Address Sanitizer")
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address -fno-omit-frame-pointer)
+endif()
+
+if(CSP_ENABLE_UBSAN)
+    message(STATUS "Enabling Undefined Behavior Sanitizer")
+    add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=undefined -fno-omit-frame-pointer)
 endif()
 
 
@@ -223,45 +244,7 @@ message("\n${Green}CMake Search Path: ${CMAKE_MODULE_PATH}${ColorReset}")
 ###################################################################################################################################################
 # Helpers #
 ###########
-# FIXME: consolidate this function with Findcsp_autogen.cmake
-function(csp_autogen MODULE_NAME DEST_FILENAME HEADER_NAME_OUTVAR SOURCE_NAME_OUTVAR)
-    string( REPLACE "." "\/" MODULE_FILENAME ${MODULE_NAME} )
-    string( JOIN "." MODULE_FILENAME ${MODULE_FILENAME} "py" )
-
-    add_custom_target( mkdir_autogen_${MODULE_NAME}
-        ALL COMMAND ${CMAKE_COMMAND} -E make_directory
-        "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen" )
-
-    # VARARGS done by position
-    if(ARGV4)
-        set(CSP_AUTOGEN_EXTRA_ARGS "${ARGV4}")
-    else()
-        set(CSP_AUTOGEN_EXTRA_ARGS "")
-    endif()
-
-    cmake_path(SET CSP_AUTOGEN_MODULE_PATH NORMALIZE "${CMAKE_SOURCE_DIR}/csp/build/csp_autogen.py")
-    cmake_path(SET CSP_AUTOGEN_DESTINATION_FOLDER NORMALIZE "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen")
-    cmake_path(SET CSP_AUTOTGEN_CPP_OUT NORMALIZE "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.cpp")
-    cmake_path(SET CSP_AUTOTGEN_H_OUT NORMALIZE "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.h")
-
-    if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-        set(CSP_AUTOGEN_PYTHONPATH ${PROJECT_BINARY_DIR}/lib/${CMAKE_BUILD_TYPE};${CMAKE_SOURCE_DIR};%PYTHONPATH% )
-    else()
-        set(CSP_AUTOGEN_PYTHONPATH ${PROJECT_BINARY_DIR}/lib:${CMAKE_SOURCE_DIR}:$$PYTHONPATH )
-    endif()
-
-    add_custom_command(OUTPUT "${CSP_AUTOTGEN_CPP_OUT}" "${CSP_AUTOTGEN_H_OUT}"
-        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CSP_AUTOGEN_PYTHONPATH}" ${Python_EXECUTABLE} ${CSP_AUTOGEN_MODULE_PATH} -m ${MODULE_NAME} -d ${CSP_AUTOGEN_DESTINATION_FOLDER} -o ${DEST_FILENAME} ${CSP_AUTOGEN_EXTRA_ARGS}
-        COMMENT "generating csp c++ types from module ${MODULE_NAME}"
-        DEPENDS mkdir_autogen_${MODULE_NAME} 
-                    ${CMAKE_SOURCE_DIR}/csp/build/csp_autogen.py
-                    ${CMAKE_SOURCE_DIR}/${MODULE_FILENAME}
-                    csptypesimpl
-    )
-
-    set(${SOURCE_NAME_OUTVAR} "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.cpp" PARENT_SCOPE )
-    set(${HEADER_NAME_OUTVAR} "${CMAKE_CURRENT_BINARY_DIR}/csp_autogen/${DEST_FILENAME}.h" PARENT_SCOPE )
-endfunction()
+find_package(csp_autogen REQUIRED)
 
 
 ###################################################################################################################################################
@@ -270,6 +253,10 @@ endfunction()
 find_package(DepsBase REQUIRED)
 
 # Adapter dependencies
+if(CSP_BUILD_ARROW_ADAPTER)
+    find_package(DepsArrowAdapter REQUIRED)
+endif()
+
 if(CSP_BUILD_KAFKA_ADAPTER)
     find_package(DepsKafkaAdapter REQUIRED)
 endif()

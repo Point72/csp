@@ -1,3 +1,6 @@
+#ifndef _IN_CSP_CPPNODES_STATSIMPL_H
+#define _IN_CSP_CPPNODES_STATSIMPL_H
+
 #include <csp/engine/CppNode.h>
 #include <csp/engine/WindowBuffer.h>
 
@@ -5,11 +8,9 @@
 #include <numeric>
 #include <set>
 #include <type_traits>
-
-#ifdef __linux__
-#include <ext/pb_ds/assoc_container.hpp>
-#include <ext/pb_ds/tree_policy.hpp>
-#endif
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/ranked_index.hpp>
 
 namespace csp::cppnodes
 {
@@ -395,6 +396,11 @@ class Variance
 
         void add( double x )
         {
+            // Track consecutive values to avoid numerical errors when all values are identical
+            // This approach is taken from the pandas rolling variance logic 
+            m_consecutiveValueCount = ( m_consecutiveValueCount && x == m_lastValue ? m_consecutiveValueCount + 1 : 1 );
+            m_lastValue = x;
+
             m_count++;
             m_dx = x - m_mean;
             m_mean += m_dx / m_count;
@@ -417,12 +423,18 @@ class Variance
         void reset()
         {
             m_mean = m_unnormVar = m_count = 0;
+            m_consecutiveValueCount = 0;
         }
 
         double compute() const
         {
             if( m_count > m_ddof )
+            {
+                // Special case for homogeneous window, modelled off of pandas impl
+                if( m_consecutiveValueCount >= m_count ) [[unlikely]]
+                    return 0;
                 return ( m_unnormVar < 0 ? 0 : m_unnormVar / ( m_count - m_ddof ) );
+            }
 
             return std::numeric_limits<double>::quiet_NaN();
         }
@@ -434,6 +446,10 @@ class Variance
         double m_dx;
         double m_count;
         int64_t m_ddof;
+
+        // Below variables are used to eliminate numerical errors when all values in the window are identical
+        double m_lastValue;
+        int64_t m_consecutiveValueCount;
 };
 
 class WeightedVariance
@@ -454,6 +470,12 @@ class WeightedVariance
         {
             if( w <= 0 )
                 return;
+            
+            // See comment in Variance::add on handling homogeneous data streams
+            m_consecutiveValueCount = ( m_consecutiveValueCount && x == m_lastValue ? m_consecutiveValueCount + 1 : 1 );
+            m_lastValue = x;
+
+            m_count++;
             m_wsum += w;
             m_dx = x - m_wmean;
             m_wmean += ( w / m_wsum ) * m_dx;
@@ -462,6 +484,10 @@ class WeightedVariance
 
         void remove( double x, double w )
         {
+            if( w <= 0 )
+                return;
+            
+            m_count--;
             m_wsum -= w;
             if( m_wsum < EPSILON )
             {
@@ -476,12 +502,18 @@ class WeightedVariance
         void reset()
         {
             m_wsum = m_wmean = m_unnormWVar = 0;
+            m_consecutiveValueCount = m_count = 0;
         }
 
         double compute() const
         {
             if( m_wsum > m_ddof )
+            {
+                // Special case for homogeneous window, modelled off of pandas impl
+                if( m_consecutiveValueCount >= m_count ) [[unlikely]]
+                    return 0;
                 return ( m_unnormWVar < 0 ? 0 : m_unnormWVar / ( m_wsum - m_ddof ) );
+            }
 
             return std::numeric_limits<double>::quiet_NaN();
         }
@@ -493,6 +525,11 @@ class WeightedVariance
         double m_unnormWVar;
         double m_dx;
         int64_t m_ddof;
+
+        // Below variables are used to eliminate numerical errors when all values in the window are identical
+        int64_t m_count;
+        double m_lastValue;
+        int64_t m_consecutiveValueCount;
 };
 
 class Covariance
@@ -739,7 +776,7 @@ class StandardError
 
         double compute() const
         {
-            return ( m_count > m_ddof ? sqrt( m_var.compute() / ( m_count - m_ddof ) ) : std::numeric_limits<double>::quiet_NaN() );
+            return ( m_count > m_ddof ? sqrt( m_var.compute() / m_count ) : std::numeric_limits<double>::quiet_NaN() );
         }
 
     private:
@@ -785,7 +822,7 @@ class WeightedStandardError
 
         double compute() const
         {
-            return ( m_wsum > m_ddof && m_wsum > EPSILON ? sqrt( m_var.compute() / ( m_wsum - m_ddof ) ) : std::numeric_limits<double>::quiet_NaN() );
+            return ( m_wsum > m_ddof && m_wsum > EPSILON ? sqrt( m_var.compute() / m_wsum ) : std::numeric_limits<double>::quiet_NaN() );
         }
 
     private:
@@ -1084,19 +1121,8 @@ class WeightedKurtosis
         bool m_excess;
 };
 
-#ifdef __linux__
-template<typename Comparator>
-using ost = __gnu_pbds::tree<double, __gnu_pbds::null_type, Comparator, __gnu_pbds::rb_tree_tag,
-    __gnu_pbds::tree_order_statistics_node_update>;
-
-template<typename Comparator>
-void ost_erase( ost<Comparator> &t, double & v )
-{
-    int rank = t.order_of_key( v );
-    auto it = t.find_by_order( rank );
-    t.erase( it );
-}
-#endif
+template <typename Comparator>
+using ost = boost::multi_index::multi_index_container<double, boost::multi_index::indexed_by<boost::multi_index::ranked_non_unique<boost::multi_index::identity<double>, Comparator>>>;
 
 class Quantile
 {
@@ -1139,11 +1165,7 @@ class Quantile
 
         void remove( double x )
         {
-        #ifdef __linux__
-            ost_erase( m_tree, x );
-        #else
             m_tree.erase( m_tree.find( x ) );
-        #endif
         }
 
         void reset()
@@ -1162,113 +1184,60 @@ class Quantile
             double target = std::get<double>( m_quants[index]._data ) * ( m_tree.size() - 1 );
             int ft = floor( target );
             int ct = ceil( target );
+            auto fIt = m_tree.get<0>().nth( ft );
+            auto cIt = ( ft == ct ) ? fIt : std::next( fIt );
 
             double qtl = 0.0;
-        #ifdef __linux__
             switch ( m_interpolation )
             {
-                case LINEAR:
-                    if( ft == target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        double lower = *m_tree.find_by_order( ft );
-                        double higher = *m_tree.find_by_order( ct );
-                        qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
-                    }
-                    break;
-                case LOWER:
-                    qtl = *m_tree.find_by_order( ft );
-                    break;
-                case HIGHER:
-                    qtl = *m_tree.find_by_order( ct );
-                    break;
-                case MIDPOINT:
-                    if( ft == target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        double lower = *m_tree.find_by_order( ft );
-                        double higher = *m_tree.find_by_order( ct );
-                        qtl = ( higher+lower ) / 2;
-                    }
-                    break;
-                case NEAREST:
-                    if( target - ft < ct - target )
-                    {
-                        qtl = *m_tree.find_by_order( ft );
-                    }
-                    else
-                    {
-                        qtl = *m_tree.find_by_order( ct );
-                    }
-                    break;
-                default:
-                    break;
+            case LINEAR:
+                if ( ft == target )
+                {
+                    qtl = *fIt;
+                }
+                else
+                {
+                    double lower = *fIt;
+                    double higher = *cIt;
+                    qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
+                }
+                break;
+            case LOWER:
+                qtl = *fIt;
+                break;
+            case HIGHER:
+                qtl = *cIt;
+                break;
+            case MIDPOINT:
+                if ( ft == target )
+                {
+                    qtl = *fIt;
+                }
+                else
+                {
+                    double lower = *fIt;
+                    double higher = *cIt;
+                    qtl = ( higher + lower ) / 2;
+                }
+                break;
+            case NEAREST:
+                if ( target - ft < ct - target )
+                {
+                    qtl = *fIt;
+                }
+                else
+                {
+                    qtl = *cIt;
+                }
+                break;
+            default:
+                break;
             }
-        #else
-            auto it = m_tree.begin();
-            std::advance( it, ft );
-            switch ( m_interpolation )
-            {
-                case LINEAR:
-                    if( ft == target )
-                    {
-                        qtl = *it;
-                    }
-                    else
-                    {
-                        double lower = *it;
-                        double higher = *++it;
-                        qtl = ( 1 - target + ft ) * lower + ( 1 - ct + target ) * higher;
-                    }
-                    break;
-                case LOWER:
-                    qtl = *it;
-                    break;
-                case HIGHER:
-                    qtl = ( ft == ct ? *it : *++it );
-                    break;
-                case MIDPOINT:
-                    if( ft == target )
-                    {
-                        qtl = *it;
-                    }
-                    else
-                    {
-                        double lower = *it;
-                        double higher = *++it;
-                        qtl = ( higher+lower ) / 2;
-                    }
-                    break;
-                case NEAREST:
-                    if( target - ft <= ct - target )
-                    {
-                        qtl = *it;
-                    }
-                    else
-                    {
-                        qtl = *++it;
-                    }
-                    break;
-                default:
-                    break;
-            }
-        #endif
             return qtl;
         }
 
     private:
-    
-    #ifdef __linux__
-        ost<std::less_equal<double>> m_tree;
-    #else
-        std::multiset<double> m_tree;
-    #endif
+        ost<std::less<double>> m_tree;
         std::vector<Dictionary::Data> m_quants;
         int64_t m_interpolation;
 };
@@ -1348,7 +1317,7 @@ class Rank
 
         void add( double x )
         {
-            if( unlikely( isnan( x ) ) )
+            if( isnan( x ) ) [[unlikely]]
             {
                 if( m_nanopt == KEEP )
                     m_lastval = std::numeric_limits<double>::quiet_NaN();
@@ -1356,120 +1325,75 @@ class Rank
             else
             {
                 m_lastval = x;
-            #ifdef __linux__
                 if( m_method == MAX )
                     m_maxtree.insert( x );
                 else
                     m_mintree.insert( x );
-            #else
-                m_tree.insert( x );
-            #endif
             }
         }
 
         void remove( double x )
         {
-            if( likely( !isnan( x ) ) )
+            if( !isnan( x ) ) [[likely]]
             {
-            #ifdef __linux__
-                if( m_method == MAX )
-                    ost_erase( m_maxtree, x );
+                if ( m_method == MAX )
+                    m_maxtree.erase ( m_maxtree.find( x ) );
                 else
-                    ost_erase( m_mintree, x );
-            #else
-                m_tree.erase( m_tree.find( x ) );
-            #endif
+                    m_mintree.erase ( m_mintree.find( x ) );
             }
         }
 
         void reset()
         {
-        #ifdef __linux__
             if( m_method == MAX )
                 m_maxtree.clear();
             else
                 m_mintree.clear();
-        #else
-            m_tree.clear();
-        #endif
         }
 
         double compute() const
         {
             // Verify tree is not empty and lastValue is valid
             // Last value can only ever be NaN if the "keep" nan option is used
-        #ifdef __linux__
-            if( likely( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) )
+            if( !isnan( m_lastval ) && ( ( m_method == MAX && m_maxtree.size() > 0 ) || m_mintree.size() > 0 ) ) [[likely]]
             {
                 switch( m_method )
                 {
                     case MIN:
                     {
-                        if( m_mintree.size() == 1 )
+                        if ( m_mintree.size() == 1 )
                             return 0;
-                        return m_mintree.order_of_key( m_lastval );
+                        return m_mintree.get<0>().find_rank( m_lastval );
                     }
                     case MAX:
                     {
-                        if( m_maxtree.size() == 1 )
+                        if ( m_maxtree.size() == 1 )
                             return 0;
-                        return m_maxtree.size() - 1 - m_maxtree.order_of_key( m_lastval );
+                        return m_maxtree.size() - 1 - m_maxtree.get<0>().find_rank( m_lastval );
                     }
                     case AVG:
                     {
-                        // Need to iterate to find average rank
-                        if( m_mintree.size() == 1 )
+                        if ( m_mintree.size() == 1 )
                             return 0;
-
-                        int min_rank = m_mintree.order_of_key( m_lastval );
+                        
+                        int min_rank = m_mintree.get<0>().find_rank( m_lastval );
                         int max_rank = min_rank;
-                        auto it = m_mintree.find_by_order( min_rank );
+                        auto it = m_mintree.get<0>().nth( min_rank );
                         it++;
-                        for( ; it != m_mintree.end() && *it == m_lastval ; it++ ) max_rank++;
+                        for( ; it != m_mintree.end() && *it == m_lastval ; it++ ) max_rank++; // While this is in theory O(n), in reality this loop is only interated once, since there are likely no duplicate values or very few.
                         return ( double )( min_rank + max_rank ) / 2;
                     }
-
                     default:
                         break;
                 }
             }
-        #else
-            if( likely( !isnan( m_lastval ) && m_tree.size() > 0 ) )
-            {
-                switch( m_method )
-                {
-                    case MIN:
-                    {
-                        return std::distance( m_tree.begin(), m_tree.find( m_lastval ) );
-                    }
-                    case MAX:
-                    {
-                        auto end_range = m_tree.equal_range( m_lastval ).second;
-                        return std::distance( m_tree.begin(), std::prev( end_range ) );
-                    }
-                    case AVG:
-                    {
-                        auto range = m_tree.equal_range( m_lastval );
-                        return std::distance( m_tree.begin(), range.first ) + ( double )std::distance( range.first, std::prev( range.second ) ) / 2;
-                    }
-                    default:
-                        break;
-                }
-            }
-        #endif
-
             return std::numeric_limits<double>::quiet_NaN();
         }
 
     private:
-
-    #ifdef __linux__
-        ost<std::less_equal<double>> m_mintree;
-        ost<std::greater_equal<double>> m_maxtree;
-    #else
-        std::multiset<double> m_tree;
-    #endif
-        double m_lastval;
+        ost<std::less<double>> m_mintree;
+        ost<std::greater<double>> m_maxtree;
+        double m_lastval = std::numeric_limits<double>::quiet_NaN();
 
         int64_t m_method;
         int64_t m_nanopt;
@@ -1564,16 +1488,16 @@ class EMA
 
         void add( double x )
         {
-            if( unlikely( m_first ) && !isnan( x ) )
+            if( m_first && !isnan( x ) ) [[unlikely]]
             {
                 m_ema = x;
                 m_first = false;
             }
-            else if( unlikely( isnan( x ) ) && !m_ignore_na )
+            else if( isnan( x ) && !m_ignore_na && !m_first ) [[unlikely]]
             {
                 m_offset++;
             }
-            else if( likely( !isnan( x ) ) )
+            else if( !isnan( x ) ) [[likely]]
             {
                 double delta = x - m_ema;
                 if( m_offset == 1 )
@@ -1582,8 +1506,9 @@ class EMA
                 }
                 else
                 {
-                    m_ema = ( pow( m_ema * ( 1 - m_alpha ), m_offset ) + m_alpha * x ) /
+                    m_ema = ( m_ema * pow( ( 1 - m_alpha ), m_offset ) + m_alpha * x ) / 
                         ( pow( 1 - m_alpha, m_offset ) + m_alpha );
+                    m_offset = 1;
                 }
             }
         }
@@ -1599,6 +1524,8 @@ class EMA
 
         double compute() const
         {
+            if( m_first ) [[unlikely]]
+                return std::numeric_limits<double>::quiet_NaN();
             return m_ema;
         }
 
@@ -1631,7 +1558,7 @@ class AdjustedEMA
 
         void add( double x )
         {
-            if( likely( !isnan( x ) ) )
+            if( !isnan( x ) ) [[likely]]
             {
                 double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
                 m_ema *= decay_factor;
@@ -1649,7 +1576,7 @@ class AdjustedEMA
 
         void remove( double x )
         {
-            if( likely( !isnan( x ) ) )
+            if( !isnan( x ) ) [[likely]]
             {
                 double lookback = ( m_ignore_na ? m_horizon - m_nan_count : m_horizon - m_offset + 1 );
                 double decay_factor = pow( m_decay, lookback );
@@ -1703,50 +1630,56 @@ class AlphaDebiasEMA
             m_adjust = adjust;
             reset();
         }
-
-        AlphaDebiasEMA( AlphaDebiasEMA && rhs ) = default;
-
-        AlphaDebiasEMA & operator=( AlphaDebiasEMA && rhs ) = default;
-
+        
         void add( double x )
         {
-            if( m_first )
+            if( !isnan( x ) ) [[likely]]
             {
-                m_wsum = 1;
-                m_sqsum = 1;
-                m_first = false;
-            }
-            else if( likely( !isnan( x ) ) )
-            {
-                double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
-                m_wsum *= decay_factor;
-                m_sqsum *= decay_factor * decay_factor;
-                m_offset = 1;
-
-                double w0;
-                if( m_adjust )
-                    w0 = 1.0;
+                if( m_first ) [[unlikely]]
+                {
+                    m_wsum = 1;
+                    m_sqsum = 1;
+                    m_first = false;
+                }
                 else
-                    w0 = 1 - m_decay;
-                m_sqsum += pow( w0, 2 );
-                m_wsum += w0;
+                {
+                    double decay_factor = ( m_ignore_na ? m_decay : pow( m_decay, m_offset ) );
+                    m_wsum *= decay_factor;
+                    m_sqsum *= decay_factor * decay_factor;
+                    m_offset = 1;
+
+                    double w0;
+                    if( m_adjust )
+                        w0 = 1.0;
+                    else
+                        w0 = 1 - m_decay;
+                    m_sqsum += w0 * w0;
+                    m_wsum += w0;
+                    if( !m_adjust )
+                    {
+                        double correction = decay_factor + w0;
+                        m_wsum /= correction;
+                        m_sqsum /= ( correction * correction );
+                    }
+                }
             }
             else
             {
-                m_offset++;
+                if( !m_first ) [[likely]]
+                    m_offset++;
                 m_nan_count++;
             }
         }
 
         void remove( double x )
         {
-            if( likely( !isnan( x ) ))
+            if( !isnan( x ) ) [[likely]]
             {
                 double lookback = ( m_ignore_na ? m_horizon - m_nan_count : m_horizon - m_offset + 1 );
                 double wh = pow( m_decay, lookback );
                 if( !m_adjust )
                     wh *= ( 1- m_decay );
-                m_sqsum -= pow( wh, 2 );
+                m_sqsum -= wh * wh;
                 m_wsum -= wh;
                 if( m_wsum < EPSILON || m_sqsum < EPSILON )
                 {
@@ -1767,7 +1700,7 @@ class AlphaDebiasEMA
 
         double compute() const
         {
-            double wsum_sq = pow( m_wsum, 2 );
+            double wsum_sq = m_wsum * m_wsum;
             if( abs( wsum_sq - m_sqsum ) > EPSILON )
                 return wsum_sq / ( wsum_sq - m_sqsum );
             else
@@ -1789,33 +1722,63 @@ class AlphaDebiasEMA
 
 class HalflifeEMA
 {
-    public:
-        HalflifeEMA() = default;
+public:
+    HalflifeEMA() = default;
 
-        HalflifeEMA( TimeDelta halflife, DateTime start )
+    HalflifeEMA( TimeDelta halflife, DateTime start, bool )
+    {
+        m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
+        reset();
+    }
+
+    void add( double x, DateTime now )
+    {
+        if( m_last_tick.isNone() ) [[unlikely]]
+            m_ema = x;
+        else
         {
-            m_halflife = halflife;
+            double decay = 1 - exp( m_decay_factor * ( now - m_last_tick ).asNanoseconds() );
+            m_ema += decay * ( x - m_ema );
+        }
+        m_last_tick = now;
+    }
+
+    void reset()
+    {
+        m_ema = std::numeric_limits<double>::quiet_NaN();
+        m_last_tick = DateTime::NONE();
+    }
+
+    double compute() const
+    {
+        return m_ema;
+    }
+
+private:
+    double    m_ema;
+    double    m_decay_factor;
+    DateTime  m_last_tick;
+};
+
+class AdjustedHalflifeEMA
+{
+    public:
+        AdjustedHalflifeEMA() = default;
+
+        AdjustedHalflifeEMA( TimeDelta halflife, DateTime start, bool )
+        {
+            m_decay_factor = log( 0.5 ) / halflife.asNanoseconds();
             m_last_tick = start;
             reset();
         }
 
-        HalflifeEMA( HalflifeEMA && rhs ) = default;
-
-        HalflifeEMA & operator=( HalflifeEMA && rhs ) = default;
-
         void add( double x, DateTime now )
         {
-            if( likely( !isnan( x ) ) )
-            {
-                TimeDelta delta_t = now - m_last_tick;
-                double decay_duration = ( double )( delta_t.asNanoseconds() ) / ( m_halflife.asNanoseconds() );
-                double decay = exp( -( decay_duration ) * log( 2 ) );
-                m_ema *= decay;
-                m_norm *= decay;
-                m_ema += x;
-                m_norm++;
-                m_last_tick = now;
-            }
+            TimeDelta delta_t = now - m_last_tick;
+            double decay = exp( m_decay_factor * delta_t.asNanoseconds() );
+            m_ema = decay * m_ema + x;
+            m_norm = decay * m_norm + 1.0;
+            m_last_tick = now;
         }
 
         void reset()
@@ -1825,16 +1788,17 @@ class HalflifeEMA
 
         double compute() const
         {
-            return m_ema / m_norm;
+            if ( m_norm > 0 ) [[likely]]
+                return m_ema / m_norm;
+            return std::numeric_limits<double>::quiet_NaN();
         }
 
     private:
 
         double m_ema;
         double m_norm;
-        TimeDelta m_halflife;
+        double m_decay_factor;
         DateTime m_last_tick;
-
 };
 
 class HalflifeDebiasEMA
@@ -1842,29 +1806,30 @@ class HalflifeDebiasEMA
     public:
         HalflifeDebiasEMA() = default;
 
-        HalflifeDebiasEMA( TimeDelta halflife, DateTime start )
+        HalflifeDebiasEMA( TimeDelta halflife, DateTime start, bool adjust )
         {
-            m_halflife = halflife;
+            m_decay = log( 0.5 ) / halflife.asNanoseconds();
             m_last_tick = start;
+            m_adjust = adjust;
             reset();
         }
 
-        HalflifeDebiasEMA( HalflifeDebiasEMA && rhs ) = default;
-
-        HalflifeDebiasEMA & operator=( HalflifeDebiasEMA && rhs ) = default;
-
         void add( double x, DateTime now )
         {
-            if( likely( !isnan( x ) ) )
-            {
-                TimeDelta delta_t = now - m_last_tick;
-                double decay = exp( -( delta_t/m_halflife ) * log( 2 ) );
-                m_sqsum *= pow( decay, 2 );
-                m_wsum *= decay;
-                m_sqsum++;
-                m_wsum++;
-                m_last_tick = now;
-            }
+            TimeDelta delta_t = now - m_last_tick;
+            double decay_factor = exp( m_decay * delta_t.asNanoseconds() );
+            m_sqsum *= decay_factor * decay_factor;
+            m_wsum *= decay_factor;
+
+            double w0;
+            if( m_adjust )
+                w0 = 1.0;
+            else
+                w0 = 1 - m_decay;
+            m_sqsum += w0 * w0;
+            m_wsum += w0;
+
+            m_last_tick = now;
         }
 
         void reset()
@@ -1874,7 +1839,7 @@ class HalflifeDebiasEMA
 
         double compute() const
         {
-            double wsum_sq = pow( m_wsum, 2 );
+            double wsum_sq = m_wsum * m_wsum;
             if( wsum_sq != m_sqsum )
                 return wsum_sq / ( wsum_sq - m_sqsum );
             else
@@ -1885,7 +1850,8 @@ class HalflifeDebiasEMA
 
         double m_wsum;
         double m_sqsum;
-        TimeDelta m_halflife;
+        double m_decay;
+        bool   m_adjust;
         DateTime m_last_tick;
 };
 
@@ -1910,10 +1876,22 @@ struct NanCheck
     }
 };
 
+template <typename T, typename... Types>
+struct is_any_of : std::false_type {};
+
+template <typename T, typename First, typename... Rest>
+struct is_any_of<T, First, Rest...> { static constexpr bool value = std::is_same_v<T, First> || is_any_of<T, Rest...>::value; };
+
+template <typename T, typename... Types>
+inline constexpr bool is_any_of_v = is_any_of<T, Types...>::value;
+
 // Validates min_data_points and takes care of NaN handling
 template<typename T>
 class DataValidator
 {
+    static constexpr bool PROCESS_NA    = is_any_of_v<T, EMA, AdjustedEMA, AlphaDebiasEMA, Rank>;
+    static constexpr bool CONSIDER_NA   = is_any_of_v<T, First, Last>;
+
     public:
         DataValidator() = default;
 
@@ -1934,7 +1912,7 @@ class DataValidator
             if( isnan( x ) )
             {
                 m_nans++;
-                if( m_process_na || ( m_consider_na && !m_igna ) )
+                if( PROCESS_NA || ( CONSIDER_NA && !m_igna ) )
                     m_stat.add( x );
             }
             else
@@ -1962,7 +1940,7 @@ class DataValidator
             if( NanCheck::any_nan( args...) )
             {
                 m_nans--;
-                if( m_process_na || ( m_consider_na && !m_igna ) )
+                if( PROCESS_NA || ( CONSIDER_NA && !m_igna ) )
                     m_stat.remove( args... );
             }
             else
@@ -1975,7 +1953,7 @@ class DataValidator
         template<typename ...V>
         double compute( V... args )
         {
-            if( ( !m_igna && (m_nans > 0  && !m_consider_na ) ) || m_points < m_mdp )
+            if( ( !m_igna && (m_nans > 0  && !CONSIDER_NA ) ) || m_points < m_mdp )
                 return std::numeric_limits<double>::quiet_NaN();
 
             return m_stat.compute( args... );
@@ -2002,9 +1980,6 @@ class DataValidator
         int64_t m_mdp = 0;
         bool m_igna = false;
         T m_stat;
-        static constexpr bool m_process_na = ( std::is_same<T,EMA>::value || std::is_same<T,AdjustedEMA>::value || std::is_same<T,AlphaDebiasEMA>::value
-                        || std::is_same<T,HalflifeEMA>::value || std::is_same<T,HalflifeDebiasEMA>::value || std::is_same<T,Rank>::value );
-        static constexpr bool m_consider_na = ( std::is_same<T,First>::value || std::is_same<T,Last>::value );
 };
 
 
@@ -2061,11 +2036,6 @@ public:
             s_pending_recalc = true;
         }
 
-        if( csp.ticked( recalc ) )
-        {
-            s_pending_recalc = true;
-        }
-
         if( csp.ticked( sampler ) )
         {
             // Handle removals if needed
@@ -2096,8 +2066,10 @@ public:
 
             // Handle removals
             if( !s_removals.empty() && !s_pending_recalc )
+            {
                 std::swap( removals_.reserveSpace(), s_removals );
-            s_removals.clear();
+                s_removals.clear();
+            }
 
             if( s_pending_recalc && !s_value_buffer.empty() )
             {
@@ -2186,8 +2158,11 @@ protected:
 
     STATE_VAR( bool, s_first{true} );
     STATE_VAR( bool, s_expanding{false} );
+
     STATE_VAR( VariableSizeWindowBuffer<T>, s_value_buffer{} );
     STATE_VAR( VariableSizeWindowBuffer<DateTime>, s_time_buffer{} );
+
+    STATE_VAR( std::vector<T>, s_additions{} ); // only used for expanding window optimization
 
     TS_NAMED_OUTPUT_RENAMED( std::vector<T>, additions, additions_ );
     TS_NAMED_OUTPUT_RENAMED( std::vector<T>, removals, removals_ );
@@ -2213,9 +2188,14 @@ public:
     {
         if( csp.ticked( reset ) )
         {
-            s_value_buffer.clear();
-            s_time_buffer.clear();
-            s_pending_removals = 0;
+            if( s_expanding )
+                s_additions.clear();
+            else
+            {
+                s_value_buffer.clear();
+                s_time_buffer.clear();
+                s_pending_removals = 0;
+            }
         }
 
         if( csp.ticked( recalc ) )
@@ -2229,21 +2209,40 @@ public:
             if( csp.ticked( x ) )
             {
                 node -> validateShape();
-                s_value_buffer.push( x );
+                if( s_expanding )
+                    s_additions.push_back( x );
+                else
+                    s_value_buffer.push( x );
             }
             else
             {
                 node -> checkValid();
-                s_value_buffer.push( node -> createNan() );
+                if( s_expanding )
+                    s_additions.push_back( node -> createNan() );
+                else
+                    s_value_buffer.push( node -> createNan() );
             }
-            s_time_buffer.push( now() );
+            if( !s_expanding )
+                s_time_buffer.push( now() );
         }
 
         if( csp.ticked( trigger ) || ( s_first && csp.ticked( x ) && csp.ticked( sampler ) ) )
         {
             s_first = false;
 
-            DateTime threshold = ( s_expanding ? DateTime::MIN_VALUE() : now() - interval );
+            if( s_expanding )
+            {
+                // fast track expanding window calculations
+                // we just need to swap in all additions with no checks 
+                if( !s_additions.empty() )
+                {
+                    std::swap( additions_.reserveSpace(), s_additions );
+                    s_additions.clear(); // keep allocated memory
+                }
+                return;
+            }
+            
+            DateTime threshold = now() - interval;
             // Handle removals
             int64_t count = csp.count( sampler );
             std::vector<T>* removals = nullptr;
@@ -2334,3 +2333,5 @@ public:
 };
 
 }
+
+#endif // _IN_CSP_CPPNODES_STATSIMPL_H

@@ -5,26 +5,26 @@ EXTRA_ARGS :=
 #########
 .PHONY: requirements develop build build-debug build-conda install
 
+ASAN :=
+UBSAN :=
+
 requirements:  ## install python dev and runtime dependencies
-ifeq ($(OS),Windows_NT)
-	Powershell.exe -executionpolicy bypass -noprofile .\ci\scripts\windows\make_requirements.ps1
-else
-	python -m pip install toml
-	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["build-system"]["requires"]))'`
-	python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["project"]["optional-dependencies"]["develop"]))'`
-endif
+	python ci/scripts/requirements.py
 
 develop: requirements  ## install dependencies and build library
 	python -m pip install -e .[develop]
 
+develop-conda: ## install just the local library when developing in conda
+	CSP_USE_VCPKG=OFF pip install -U -e . --no-deps --no-build-isolation
+
 build:  ## build the library
-	python setup.py build build_ext --inplace
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) python setup.py build build_ext --inplace
 
 build-debug:  ## build the library ( DEBUG ) - May need a make clean when switching from regular build to build-debug and vice versa
-	SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) SKBUILD_CONFIGURE_OPTIONS="" DEBUG=1 python setup.py build build_ext --inplace
 
 build-conda:  ## build the library in Conda
-	python setup.py build build_ext --csp-no-vcpkg --inplace
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) python setup.py build build_ext --csp-no-vcpkg --inplace
 
 install:  ## install library
 	python -m pip install .
@@ -35,7 +35,6 @@ install:  ## install library
 .PHONY: lint-py lint-cpp lint lints fix-py fix-cpp fix format check checks
 
 lint-py:
-	python -m isort --check csp/ examples/ setup.py
 	python -m ruff check csp/ examples/ setup.py
 	python -m ruff format --check csp/ examples/ setup.py
 
@@ -54,7 +53,7 @@ lint: lint-py lint-docs ## run lints
 lints: lint
 
 fix-py:
-	python -m isort csp/ examples/ setup.py
+	python -m ruff check --fix csp/ examples/ setup.py
 	python -m ruff format csp/ examples/ setup.py
 
 fix-cpp:
@@ -79,11 +78,25 @@ checks: check
 #########
 # TESTS #
 #########
-.PHONY: test-py test-cpp coverage-py test tests
+.PHONY: test-py test-cpp test-py-sanitizer coverage-py test test-sanitizer tests
 
 TEST_ARGS :=
 test-py: ## Clean and Make unit tests
 	python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS)
+
+test-py-sanitizer: ## Clean and Make unit tests with sanitizers enabled
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+		ASAN_OPTIONS=detect_leaks=0,detect_stack_use_after_return=true,use_odr_indicator=1,strict_init_order=true,strict_string_checks=true \
+		DYLD_INSERT_LIBRARIES=$$($(CXX) -print-file-name=libclang_rt.asan_osx_dynamic.dylib) \
+		python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS); \
+	elif [ "$$(uname -s)" = "Linux" ]; then \
+		ASAN_OPTIONS=detect_leaks=0,detect_stack_use_after_return=true,use_odr_indicator=1,strict_init_order=true,strict_string_checks=true \
+		LD_PRELOAD=$$($(CXX) -print-file-name=libasan.so) \
+		python -m pytest -v csp/tests --junitxml=junit.xml $(TEST_ARGS); \
+	else \
+		echo "Unsupported platform: $$(uname -s)"; \
+		exit 1; \
+	fi
 
 test-cpp: ## Make C++ unit tests
 ifneq ($(OS),Windows_NT)
@@ -96,6 +109,8 @@ coverage-py:
 	python -m pytest -v csp/tests --junitxml=junit.xml --cov=csp --cov-report xml --cov-report html --cov-branch --cov-fail-under=80 --cov-report term-missing $(TEST_ARGS)
 
 test: test-cpp test-py  ## run the tests
+
+test-sanitizer: test-cpp test-py-sanitizer  ## run the tests
 
 # Alias
 tests: test
@@ -124,16 +139,16 @@ dockerdown:  ## spin up docker compose services for adapter testing
 .PHONY: show-version patch minor major
 
 show-version:
-	@ bump2version --dry-run --allow-dirty pyproject.toml --list | grep current | awk -F= '{print $$2}'
+	@ bump-my-version show current_version
 
 patch:
-	bump2version patch --no-commit
+	bump-my-version bump patch
 
 minor:
-	bump2version minor --no-commit
+	bump-my-version bump minor
 
 major:
-	bump2version major --no-commit
+	bump-my-version bump major
 
 ########
 # DIST #
@@ -191,20 +206,21 @@ endif
 .PHONY: dependencies-mac dependencies-debian dependencies-fedora dependencies-vcpkg dependencies-win
 
 dependencies-mac:  ## install dependencies for mac
-	HOMEBREW_NO_AUTO_UPDATE=1 brew install bison cmake flex make ninja
+	HOMEBREW_NO_AUTO_UPDATE=1 brew bundle install
 	brew unlink bison flex && brew link --force bison flex
 
-dependencies-debian:  ## install dependencies for linux
-	apt-get install -y automake bison cmake curl flex ninja-build tar unzip zip
+dependencies-debian:  ## install dependencies for linux - note that zip is needed by bootstrap_vcpkg.sh, do not remove
+	apt-get install -y autoconf autoconf-archive automake bison cmake curl flex libtool ninja-build pkg-config tar unzip zip
 
-dependencies-fedora:  ## install dependencies for linux
-	yum install -y automake bison ccache cmake curl flex perl-IPC-Cmd tar unzip zip
+dependencies-fedora:  ## install dependencies for linux - note that zip is needed by bootstrap_vcpkg.sh, do not remove
+	yum install -y autoconf autoconf-archive automake bison ccache cmake curl flex libtool perl-IPC-Cmd pkg-config tar unzip zip
 
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
 
 dependencies-win:  ## install dependencies via windows
-	choco install cmake curl winflexbison ninja unzip zip --no-progress -y
+	choco install cmake --version=3.31.6 --allow-downgrade
+	choco install curl winflexbison ninja unzip --no-progress -y
 
 ############################################################################################
 # Thanks to Francoise at marmelab.com for this

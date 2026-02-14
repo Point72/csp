@@ -5,6 +5,7 @@ import platform
 import subprocess
 import sys
 from shutil import which
+
 from skbuild import setup
 
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
@@ -18,9 +19,12 @@ CMAKE_OPTIONS = (
     ("CSP_BUILD_NO_CXX_ABI", "0"),
     ("CSP_BUILD_TESTS", "1"),
     ("CSP_MANYLINUX", "0"),
+    ("CSP_BUILD_ARROW_ADAPTER", "1"),
     ("CSP_BUILD_KAFKA_ADAPTER", "1"),
     ("CSP_BUILD_PARQUET_ADAPTER", "1"),
-    ("CSP_BUILD_WS_CLIENT_ADAPTER", str(int(platform.system() != "Windows"))),
+    ("CSP_BUILD_WS_CLIENT_ADAPTER", "1"),
+    ("CSP_ENABLE_ASAN", "0"),
+    ("CSP_ENABLE_UBSAN", "0"),
     # NOTE:
     # - omit vcpkg, need to test for presence
     # - omit ccache, need to test for presence
@@ -34,10 +38,33 @@ elif sys.platform == "win32":
 else:
     VCPKG_TRIPLET = None
 
+VCPKG_SHA = "9c5c2a0ab75aff5bcd08142525f6ff7f6f7ddeee"
+
 # This will be used for e.g. the sdist
 if CSP_USE_VCPKG:
     if not os.path.exists("vcpkg"):
-        subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
+        # Clone at the sha we want
+        subprocess.call(
+            [
+                "git",
+                "clone",
+                "https://github.com/Microsoft/vcpkg.git",
+            ],
+        )
+        subprocess.call(["git", "checkout", VCPKG_SHA], cwd="vcpkg")
+    else:
+        # Ensure that the sha matches what we expect
+        # First get the sha
+        sha = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd="vcpkg",
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        if sha != VCPKG_SHA:
+            raise RuntimeError(f"vcpkg sha {sha} does not match expected {VCPKG_SHA}")
     if not os.path.exists("vcpkg/ports"):
         subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
     if not os.path.exists("vcpkg/buildtrees"):
@@ -93,7 +120,8 @@ if platform.system() == "Windows":
         "14.1": "Visual Studio 15 2017",
         "14.2": "Visual Studio 16 2019",
         "14.3": "Visual Studio 17 2022",
-    }.get(str(dm.get_build_version()), "Visual Studio 15 2017")
+        "14.4": "Visual Studio 17 2022",
+    }.get(str(dm.get_build_version()), "Visual Studio 17 2022")
     cmake_args.extend(
         [
             "-G",
@@ -112,7 +140,7 @@ if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
 
 if platform.system() == "Darwin":
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = os.environ.get("OSX_DEPLOYMENT_TARGET", "10.15")
-    cmake_args.append(f'-DCMAKE_OSX_DEPLOYMENT_TARGET={os.environ.get("OSX_DEPLOYMENT_TARGET", "10.15")}')
+    cmake_args.append(f"-DCMAKE_OSX_DEPLOYMENT_TARGET={os.environ.get('OSX_DEPLOYMENT_TARGET', '10.15')}")
 
 if which("ccache") and os.environ.get("CSP_USE_CCACHE", "") != "0":
     cmake_args.append("-DCSP_USE_CCACHE=On")
@@ -121,7 +149,7 @@ print(f"CMake Args: {cmake_args}")
 
 setup(
     name="csp",
-    version="0.0.4",
+    version="0.14.0",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,

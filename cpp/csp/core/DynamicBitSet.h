@@ -1,7 +1,6 @@
 #ifndef _IN_CSP_CORE_DYNAMICBITSET_H
 #define _IN_CSP_CORE_DYNAMICBITSET_H
 
-#include <csp/core/Likely.h>
 #include <csp/core/Platform.h>
 #include <type_traits>
 
@@ -89,7 +88,7 @@ public:
     index_type find_next( index_type value ) const
     {
         auto [ node, bit ] = locateValue( value );
-        if( likely( bit != _bits - 1 ) )
+        if( bit != _bits - 1 ) [[likely]]
         {
             node_type shifted = m_nodes[ node ] >> ( bit + 1 );
             if( shifted )
@@ -102,7 +101,7 @@ public:
         }
         while( node < m_numNodes && !m_nodes[ node ] );
         
-        if( unlikely( node == m_numNodes ) )
+        if( node == m_numNodes ) [[unlikely]]
             return npos;
         else
             bit = ffs( m_nodes[ node ] ) - 1;
@@ -113,7 +112,7 @@ public:
     index_type find_prev( index_type value ) const
     {
         auto [ node, bit ] = locateValue( value );
-        if( likely( bit != 0 ) )
+        if( bit != 0 ) [[likely]]
         {
             auto shifted = m_nodes[ node ] << ( _bits - bit );
             if( shifted )
@@ -126,7 +125,7 @@ public:
         }
         while( node >= 0 && !( m_nodes[ node ] ) );
         
-        if( unlikely( node < 0 ) )
+        if( node < 0 ) [[unlikely]]
             return npos;
         else
             bit = _bits - clz( m_nodes[ node ] ) - 1;
@@ -141,7 +140,8 @@ public:
         {
             node_type * old = m_nodes;
             m_nodes = new node_type[ newNodes ];
-            memcpy( m_nodes, old, m_numNodes * sizeof( node_type ) );
+            if( m_numNodes > 0 ) [[likely]]
+                memcpy( m_nodes, old, m_numNodes * sizeof( node_type ) );
             memset( m_nodes + m_numNodes, 0, ( newNodes - m_numNodes ) * sizeof( node_type ) );
 
             m_numNodes = newNodes;

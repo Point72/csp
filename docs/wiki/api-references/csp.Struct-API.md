@@ -23,7 +23,7 @@ The variables `a`, `b`, `c` here define the struct members (similar to `__slots_
 
 **Defaults**: Note that members can be defined with default values, as `b` is here.
 
-**Unset fields**:  Note that struct fields can be "unset". Fields can be checked for existence with `hasattr(o, field)` and can be removed with `del o.field`.
+**Unset fields**: Note that struct fields can be "unset". Fields can be checked for existence with `hasattr(o, field)` and can be removed with `del o.field`.
 
 **Methods**: Note that you can define methods on structs just like any other python object.
 
@@ -64,6 +64,72 @@ csp.run( my_graph, starttime = datetime( 2020, 1, 1 ))
 
 `trades` is defined as a timeseries of `Trade` objects. On line 13 we access the `size` field of the `trades` timeseries, then accumulate the sizes to get `cumqty` edge.
 
+## List fields
+
+List fields in a `csp.Struct` can be specified as three different types - untyped Python list, typed regular list and typed `FastList`.
+
+A Python list field keeps its value as a Python object, it is not typed. It can be created by annotating the field as `list`.
+
+A regular list field is typed and internally implemented as a subclass of the Python list class, so it behaves exactly like Python list and passes the `isinstance` check for list. It can be created by annotating the field as `typing.List[T]` or `[T]`.
+
+A `FastList` field is typed and a more efficient implementation, implementing all Python list operations natively in C++. However, it doesn't pass `isinstance` check for list. It can be created by annotating the field as `csp.impl.types.typing_utils.FastList[T]`.
+
+Example of using Python list field:
+
+```python
+import csp
+
+class A(csp.Struct):
+    a: list
+
+s = A(a = [1, 'x'])
+
+s.a.append(True)
+
+print(f"Using Python list field: value {s.a}, type {type(s.a)}, is Python list: {isinstance(s.a, list)}")
+
+
+>>> Using Python list field: value [1, 'x', True], type <class 'list'>, is Python list: True
+```
+
+Example of using regular list field:
+
+```python
+from typing import List
+import csp
+
+class A(csp.Struct):
+    a: List[int]
+
+s = A(a = [1, 2])
+
+s.a.append(3)
+
+print(f"Using list field: value {s.a}, type {type(s.a)}, is Python list: {isinstance(s.a, list)}")
+
+
+>>> Using list field: value [1, 2, 3], type <class '_cspimpl.PyStructList'>, is Python list: True
+```
+
+Example of using `FastList` field:
+
+```python
+import csp
+from csp.impl.types.typing_utils import FastList
+
+class A(csp.Struct):
+    a: FastList[int]
+
+s = A(a = [1, 2])
+
+s.a.append(3)
+
+print(f"Using FastList field: value {s.a}, type {type(s.a)}, is Python list: {isinstance(s.a, list)}")
+
+
+>>> Using FastList field: value [1, 2, 3], type <class '_cspimpl.PyStructFastList'>, is Python list: False
+```
+
 ## Available methods
 
 - **`clear(self)`** clear all fields on the struct
@@ -75,9 +141,51 @@ csp.run( my_graph, starttime = datetime( 2020, 1, 1 ))
 - **`fromts(self, trigger=None, /, **kwargs)`**: similar to `collectts` above, `fromts` will create a ticking Struct timeseries from the valid values of all the provided inputs whenever any of them tick. `trigger` is an optional position-only argument which is used as a trigger timeseries for when to convert inputs into a struct tick. By default any input tick will generate a new struct of valid inputs
 - **`from_dict(self, dict)`**: convert a regular python dict to an instance of the struct
 - **`metadata(self)`**: returns the struct's metadata as a dictionary of key : type pairs
-- **`to_dict(self)`**: convert struct instance to a python dictionary
+- **`to_dict(self, callback=None, preserve_enums=False)`**: convert struct instance to a python dictionary, if callback is not None it is invoked for any values encountered when processing the struct that are not basic Python types, datetime types, tuples, lists, sets, dicts, csp.Structs, or csp.Enums. If preserve_enums=True, then enums are not converted to strings in the output dictionary.
+- **`postprocess_to_dict(cls, obj)`**: if this method is defined on a `csp.Struct` class, the `to_dict` method will invoke this method on the dict obtained after processing the struct of this class to allow for further customization.
+- **`to_dict_depr(self)`**: convert struct instance to a python dictionary. \[DEPRECATED\]: This is a python only and slower implementation of to_dict which will be removed.
+- **`to_json(self, callback=lambda x: x)`**: convert struct instance to a json string, callback is invoked for any values encountered when processing the struct that are not basic Python types, datetime types, tuples, lists, dicts, csp.Structs, or csp.Enums. The callback should convert the unhandled type to a combination of the known types.
 - **`all_fields_set(self)`**: returns `True` if all the fields on the struct are set. Note that this will not recursively check sub-struct fields
 
-# Note on inheritance
+## Note on inheritance
 
 `csp.Struct` types may inherit from each other, but **multiple inheritance is not supported**. Composition is usually a good choice in absence of multiple inheritance.
+
+## "Strict" Structs
+
+By default, CSP Struct objects allow any field to be unset. This means that accessing fields without checking `hasattr` first can cause an `AttributeError` at runtime. To improve safety, CSP Structs provide the `strict` metaclass parameter that can be set to `True` to enable "strict struct" semantics.
+
+### `strict` Parameter
+
+- **Default:** `False` (for backwards compatibility)
+- **When set to `True`:** Enforces *strict struct semantics* — required fields must be set at initialization.
+
+### Semantics when `strict=True`
+
+1. **Required Fields**
+
+   - Any field with a non‑optional type (e.g., `x: int`) **must be set** upon struct creation.
+   - If no value is passed and no default is provided for a required field, a `ValueError` is raised with the missing fields.
+
+1. **Optional Fields**
+
+   - Fields declared as `Optional[T]` or `T | None` may be set to `None`; internally, the data will still be stored as its native type.
+   - Fields must either have a default value, which can be `None`, or they must be initialized explicitly (but can be set to `None`).
+
+1. **Additional Constraints**
+
+- Note that `del struct.field` is not allowed for strict structs — this will raise an error. As a result, for any strict struct, `hasattr(struct, field)` always returns True for any defined field and never needs to be checked.
+- A non-strict struct may not inherit (directly or indirectly) from a strict base, and vice versa.
+
+1. **Example**
+
+   ```python
+   class MyStruct(csp.Struct, strict=True):
+       x: int                   # required
+       y: Optional[str] = None  # optional
+       z: bool | None           # optional (alternate syntax, and no default)
+
+   MyStruct(x=3, z=None) # good: y defaults to None
+   MyStruct(y="hello") # bad: required fields x and z are not set
+   MyStruct(x=None, z=None) # bad: cannot set field x to None as its not optional
+   ```

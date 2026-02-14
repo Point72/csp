@@ -33,7 +33,12 @@ public:
     //number of available ticks
     //note subtelty of returning m_writeIndex if we arent full, this is to account for cases where we were full
     //but buffer was grown ( m_count can be < m_capacity but m_count is not number of ticks available in that case )
-    uint32_t numTicks() const { return unlikely( !m_full ) ? m_writeIndex : m_capacity; }
+    uint32_t numTicks() const
+    {
+        if( !m_full ) [[unlikely]]
+            return m_writeIndex;
+        return m_capacity;
+    }
 
     uint32_t capacity() const { return m_capacity; }
     bool     full() const     { return m_full; }
@@ -85,7 +90,7 @@ inline TickBuffer<T>::~TickBuffer()
 template< typename T >
 inline void TickBuffer<T>::growBuffer( uint32_t new_capacity )
 {
-    if( unlikely( new_capacity <= m_capacity ) )
+    if( new_capacity <= m_capacity ) [[unlikely]]
         return;
 
     T * oldbuf = m_buffer;
@@ -132,11 +137,11 @@ inline void TickBuffer<T>::raiseRangeError( uint32_t index ) const {
 template< typename T >
 inline T & TickBuffer<T>::operator[]( uint32_t index )
 {
-    if (unlikely(index >= numTicks()))
+    if (index >= numTicks()) [[unlikely]]
         raiseRangeError(index);
 
     int64_t raw_index = int64_t( m_writeIndex ) - index - 1;
-    if( unlikely( raw_index < 0 ) )
+    if( raw_index < 0 ) [[unlikely]]
         raw_index += m_capacity;
     
     return m_buffer[ raw_index ];
@@ -156,10 +161,10 @@ T * TickBuffer<T>::flatten( uint32_t startIndex, uint32_t endIndex, uint32_t tai
     T * values = ( T * ) malloc( sizeof( T ) * ( len + tailPadding ) );
 
     int64_t raw_index = int64_t( m_writeIndex ) - startIndex - 1;
-    if( unlikely( raw_index < 0 ) )
+    if( raw_index < 0 ) [[unlikely]]
         raw_index += m_capacity;
 
-    if( unlikely( raw_index + len > m_capacity ) ) // buffer wraps around
+    if( raw_index + len > m_capacity ) [[unlikely]] // buffer wraps around
     {
         uint32_t beforeWrap = m_capacity - raw_index;
         // copy the values after the wrap (starting from index 0 on the raw buffer, and index beforeWrap on values

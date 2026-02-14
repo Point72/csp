@@ -10,19 +10,20 @@
 #include <csp/python/PyEngine.h>
 #include <csp/python/PyInputAdapterWrapper.h>
 
+static void * init_nparray()
+{
+    csp::python::AcquireGIL gil;
+    import_array();
+    return nullptr;
+}
+static void * s_init_array;
 
 namespace csp::python
 {
 
-static bool numpy_initialized = false;
-
 static InputAdapter * numpy_adapter_creator( csp::AdapterManager * manager, PyEngine * pyengine, PyObject * pyType, PushMode pushMode, PyObject * args )
 {
-    if( !numpy_initialized )
-    {
-        import_array()
-        numpy_initialized = true;
-    }  
+    s_init_array = init_nparray();
 
     PyObject * type;
     PyArrayObject * pyDatetimes = nullptr;

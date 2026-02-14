@@ -20,14 +20,24 @@ CspTypePtr & CspTypeFactory::typeFromPyType( PyObject * pyTypeObj )
     // List objects shouldn't be cached since they are temporary objects
     if( PyList_Check( pyTypeObj ) )
     {
-        if( PyList_GET_SIZE( ( PyObject * ) pyTypeObj ) != 1 )
-            CSP_THROW( TypeError, "Expected list types to be single element of sub-type" );
+        if( PyList_GET_SIZE( ( PyObject * ) pyTypeObj ) != 1 && PyList_GET_SIZE( ( PyObject * ) pyTypeObj ) != 2 )
+            CSP_THROW( TypeError, "Expected list types post-normalization to be one or two elements: sub-type and optional FastList flag" );
 
         PyObject *pySubType = PyList_GET_ITEM( pyTypeObj, 0 );
         if( !PyType_Check( pySubType ) )
             CSP_THROW( TypeError, "nested typed lists are not supported" );
+
+        bool useFastList = false;
+        if( PyList_GET_SIZE( ( PyObject * ) pyTypeObj ) == 2 )
+        {
+            PyObject *pyUseFastList = PyList_GET_ITEM( pyTypeObj, 1 );
+            if( !PyBool_Check( pyUseFastList ) || pyUseFastList != Py_True )
+                CSP_THROW( TypeError, "expected bool True as second list type argument" );
+            useFastList = true;
+        }
+
         CspTypePtr elemType = typeFromPyType( pySubType );
-        return CspArrayType::create( elemType );
+        return CspArrayType::create( elemType, useFastList );
     }
 
     PyTypeObject *pyType = (PyTypeObject*) pyTypeObj;

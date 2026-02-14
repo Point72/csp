@@ -1,8 +1,9 @@
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import csp
 from csp.adapters.websocket import RawTextMessageMapper, Status, WebsocketAdapterManager
+from csp.utils.datetime import utc_now
 
 
 @csp.node
@@ -24,9 +25,13 @@ def g(uri: str):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: e1_websocket_client <uri>")
+        sys.exit(1)
+
     csp.run(
         g,
-        starttime=datetime.utcnow(),
+        starttime=utc_now(),
         endtime=timedelta(minutes=1),
         realtime=True,
         uri=sys.argv[1],

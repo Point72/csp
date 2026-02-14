@@ -145,8 +145,9 @@ class TypedPyPushInputAdapter : public PyPushInputAdapter
 {
 public:
     TypedPyPushInputAdapter( Engine * engine, AdapterManager * manager, PyObjectPtr pyadapter, PyObject * pyType,
-                             PushMode pushMode, PushGroup * pushGroup ):
-        PyPushInputAdapter( engine, manager, pyadapter, pyType, pushMode, pushGroup )
+                             PushMode pushMode, PyObjectPtr pyPushGroup, PushGroup * pushGroup ):
+        PyPushInputAdapter( engine, manager, pyadapter, pyType, pushMode, pushGroup ),
+        m_pyPushGroup( pyPushGroup )
     {
     }
 
@@ -164,6 +165,9 @@ public:
                        << pyTypeToString( m_pyType.ptr() ) << "\" got type \"" << Py_TYPE( value ) -> tp_name << "\"" );
         }
     }
+
+private:
+    PyObjectPtr m_pyPushGroup;
 };
 
 struct PyPushInputAdapter_PyObject
@@ -198,11 +202,21 @@ struct PyPushInputAdapter_PyObject
         CSP_RETURN_NONE;
     }
 
+    static PyObject * shutdown_engine( PyPushInputAdapter_PyObject * self, PyObject * pyException )
+    {
+        CSP_BEGIN_METHOD;
+        
+        self -> adapter -> rootEngine() -> shutdown( PyEngine_shutdown_make_exception( pyException ) );
+
+        CSP_RETURN_NONE;
+    }
+
     static PyTypeObject PyType;
 };
 
 static PyMethodDef PyPushInputAdapter_PyObject_methods[] = {
-    { "push_tick", (PyCFunction) PyPushInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
+    { "push_tick",          (PyCFunction) PyPushInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
+    { "shutdown_engine",    (PyCFunction) PyPushInputAdapter_PyObject::shutdown_engine, METH_O, "shutdown_engine" },
     {NULL}
 };
 
@@ -279,7 +293,7 @@ static InputAdapter * pypushinputadapter_creator( csp::AdapterManager * manager,
                   [&]( auto tag )
                   {
                       pyAdapter -> adapter = pyengine -> engine() -> createOwnedObject<TypedPyPushInputAdapter<typename decltype(tag)::type>>( 
-                          manager, PyObjectPtr::own( ( PyObject * ) pyAdapter ), pyType, pushMode, pushGroup );
+                          manager, PyObjectPtr::own( ( PyObject * ) pyAdapter ), pyType, pushMode, PyObjectPtr::incref( pyPushGroup ), pushGroup );
                   } );
     
     return pyAdapter -> adapter;

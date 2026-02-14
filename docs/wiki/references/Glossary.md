@@ -1,4 +1,4 @@
-> \[!WARNING\]
+> [!WARNING]
 > This page is a work in progress.
 
 ## Table of Contents

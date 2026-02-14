@@ -8,12 +8,13 @@ see e5_adaptermanager_pushinput.py
 
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import csp
 from csp import ts
 from csp.impl.pushadapter import PushInputAdapter
 from csp.impl.wiring import py_push_adapter_def
+from csp.utils.datetime import utc_now
 
 
 # The Impl object is created at runtime when the graph is converted into the runtime engine
@@ -68,7 +69,7 @@ def my_graph():
 
 
 def main():
-    csp.run(my_graph, realtime=True, starttime=datetime.utcnow(), endtime=timedelta(seconds=2))
+    csp.run(my_graph, realtime=True, starttime=utc_now(), endtime=timedelta(seconds=2))
 
 
 if __name__ == "__main__":

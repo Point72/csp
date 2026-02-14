@@ -53,7 +53,7 @@ public:
 
     bool allValid() const
     {
-        if( likely( m_valid ) )
+        if( m_valid ) [[likely]]
             return m_valid;
 
         //Unforunately we have to loop over every input if we're not valid yet.  Originally we were counting
@@ -127,7 +127,7 @@ public:
                                                                      m_itEnd( itEnd ),
                                                                      m_elemId( 0 )
         {
-            if( m_it != m_itEnd && unlikely( !(*m_it ) -> valid() ) )
+            if( m_it != m_itEnd && !(*m_it ) -> valid() ) [[unlikely]]
                 ++(*this);
         }
 

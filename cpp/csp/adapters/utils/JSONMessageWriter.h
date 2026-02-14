@@ -20,6 +20,7 @@ public:
                                                         csp::CspType::Type::INT32,
                                                         csp::CspType::Type::INT64,
                                                         csp::CspType::Type::DOUBLE,
+                                                        csp::CspType::Type::DATE,
                                                         csp::CspType::Type::DATETIME,
                                                         csp::CspType::Type::ENUM,
                                                         csp::CspType::Type::STRING,
@@ -38,7 +39,7 @@ public:
             csp::CspType::Type::STRING
     >;
 
-    JSONMessageWriter( const Dictionary & properties ) : MessageWriter( MsgProtocol::JSON )
+    JSONMessageWriter( const Dictionary & properties )
     {
         m_doc.SetObject();
         m_datetimeWireType = utils::DateTimeWireType( properties.get<std::string>( "datetime_type" ) );

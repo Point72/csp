@@ -140,9 +140,10 @@ template< typename A, typename V = typename A::value_type >
 inline std::shared_ptr<::arrow::ArrayBuilder> makeArrayAndAttachToWriter( DialectGenericListWriterInterface::Ptr &listWriterInterface )
 {
     auto&& typedWriter = std::dynamic_pointer_cast<TypedDialectGenericListWriterInterface<V>>( listWriterInterface );
+    auto& listWriterInterfaceRef = *listWriterInterface;
     CSP_TRUE_OR_THROW( typedWriter != nullptr, TypeError,
                        "Expected " << typeid( TypedDialectGenericListWriterInterface<V> ).name() << " " << " got " <<
-                                   typeid( *listWriterInterface ).name() );
+                                   typeid( listWriterInterfaceRef ).name() );
 
     auto res = std::make_shared<A>();
     typedWriter -> setWriteFunction(

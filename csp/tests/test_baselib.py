@@ -2,15 +2,18 @@ import functools
 import itertools
 import logging
 import math
-import numpy as np
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum, auto
+from typing import List
+
+import numpy as np
 
 import csp
 from csp import ts
 from csp.baselib import _convert_ts_object_for_print
-from csp.impl.struct import defineStruct
+from csp.impl.struct import define_struct
+from csp.utils.datetime import utc_now
 
 
 class TestBaselib(unittest.TestCase):
@@ -210,7 +213,7 @@ class TestBaselib(unittest.TestCase):
         st = datetime(2020, 1, 1)
         td = timedelta(seconds=1)
         x = csp.curve(
-            [int],
+            List[int],
             [
                 (st, [1]),
                 (st + td * 1, [2, 3, 4]),
@@ -220,7 +223,7 @@ class TestBaselib(unittest.TestCase):
             ],
         )
         x2 = csp.curve(
-            [[int]],
+            List[List[int]],
             [
                 (st, [[1]]),
                 (st + td * 1, [[2, 3, 4]]),
@@ -662,7 +665,7 @@ class TestBaselib(unittest.TestCase):
         @csp.graph
         def my_graph():
             ticks = [MyStruct(key=chr(ord("A") + i % 5), value=i) for i in range(1000)]
-            ticks = csp.unroll(csp.const.using(T=[MyStruct])(ticks))
+            ticks = csp.unroll(csp.const.using(T=List[MyStruct])(ticks))
             demux = csp.DelayedDemultiplex(ticks, ticks.key, raise_on_bad_key=False)
 
             csp.add_graph_output("A", demux.demultiplex("A"))
@@ -679,8 +682,8 @@ class TestBaselib(unittest.TestCase):
             demux = csp.DelayedDemultiplex(csp.const(MyStruct()), csp.const("test"))
             demux.demultiplex(123)
 
-        with self.assertRaisesRegex(TypeError, "Conflicting type resolution for K when calling to _demultiplex"):
-            csp.run(my_graph2, starttime=datetime.utcnow())
+        with self.assertRaisesRegex(TypeError, "Conflicting type resolution for K"):
+            csp.run(my_graph2, starttime=utc_now())
 
     def test_delayed_collect(self):
         def g():
@@ -785,11 +788,11 @@ class TestBaselib(unittest.TestCase):
     def test_drop_dups(self):
         @csp.graph
         def g(d1: list, d2: list, d3: list, d4: list, d5: list):
-            d1 = csp.unroll(csp.const.using(T=[int])(d1))
-            d2 = csp.unroll(csp.const.using(T=[tuple])(d2))
-            d3 = csp.unroll(csp.const.using(T=[float])(d3))
-            d4 = csp.unroll(csp.const.using(T=[float])(d4))
-            d5 = csp.unroll(csp.const.using(T=[float])(d5))
+            d1 = csp.unroll(csp.const.using(T=List[int])(d1))
+            d2 = csp.unroll(csp.const.using(T=List[tuple])(d2))
+            d3 = csp.unroll(csp.const.using(T=List[float])(d3))
+            d4 = csp.unroll(csp.const.using(T=List[float])(d4))
+            d5 = csp.unroll(csp.const.using(T=List[float])(d5))
 
             csp.add_graph_output("d1", csp.drop_dups(d1))
             csp.add_graph_output("d2", csp.drop_dups(d2))
@@ -899,8 +902,8 @@ class TestBaselib(unittest.TestCase):
             e: MyEnum
             st: MyStruct
             o: MyObject
-            l: [int]
-            lb: [bool]
+            l: List[int]
+            lb: List[bool]
 
         @csp.node
         def random_gen(trigger: ts[object], typ: "T") -> ts["T"]:
@@ -947,7 +950,7 @@ class TestBaselib(unittest.TestCase):
                 return tick
 
         @csp.node
-        def accum_list(x: ts["T"]) -> ts[["T"]]:
+        def accum_list(x: ts["T"]) -> ts[List["T"]]:
             with csp.state():
                 s_nextcount = 1
                 s_accum = []
@@ -1074,7 +1077,7 @@ class TestBaselib(unittest.TestCase):
 
         # test log dominated graph (proper thread waiting/joining)
         fields = 1000
-        LargeStruct = defineStruct("LargeStruct", {f"{i}": int for i in range(fields)})  # struct with 1000 int fields
+        LargeStruct = define_struct("LargeStruct", {f"{i}": int for i in range(fields)})  # struct with 1000 int fields
         structs = []
         for i in range(60):
             struct = LargeStruct()
@@ -1092,7 +1095,7 @@ class TestBaselib(unittest.TestCase):
             csp.run(graph, starttime=st, endtime=timedelta(seconds=60))
 
         exp_out = [
-            f'CRITICAL:csp:{(st+timedelta(seconds=(i+1))).strftime("%Y-%m-%d %H:%M:%S")} x:{(structs[i])}'
+            f"CRITICAL:csp:{(st + timedelta(seconds=(i + 1))).strftime('%Y-%m-%d %H:%M:%S')} x:{(structs[i])}"
             for i in range(60)
         ]
         self.assertEqual(cm.output, exp_out)
@@ -1111,7 +1114,7 @@ class TestBaselib(unittest.TestCase):
 
         l = lambda x: "y:2.0" if x % 2 else "x:1.0"
         exp_out = [
-            f'CRITICAL:myVeryOwnLogger:{(st+timedelta(seconds=((i+2)//2))).strftime("%Y-%m-%d %H:%M:%S")} {l(i)}'
+            f"CRITICAL:myVeryOwnLogger:{(st + timedelta(seconds=((i + 2) // 2))).strftime('%Y-%m-%d %H:%M:%S')} {l(i)}"
             for i in range(120)
         ]
         self.assertEqual(cm.output, exp_out)
@@ -1127,21 +1130,23 @@ class TestBaselib(unittest.TestCase):
             csp.log(logging.CRITICAL, "z", z, logging.getLogger("logger3"))
             csp.add_graph_output("x", x)
 
-        with self.assertLogs("logger1", level="CRITICAL") as cm1, self.assertLogs(
-            "logger2", level="CRITICAL"
-        ) as cm2, self.assertLogs("logger3", level="CRITICAL") as cm3:
+        with (
+            self.assertLogs("logger1", level="CRITICAL") as cm1,
+            self.assertLogs("logger2", level="CRITICAL") as cm2,
+            self.assertLogs("logger3", level="CRITICAL") as cm3,
+        ):
             csp.run(graph, starttime=st, endtime=timedelta(seconds=60))
 
         exp_out_log1 = [
-            f'CRITICAL:logger1:{(st+timedelta(seconds=(i+1))).strftime("%Y-%m-%d %H:%M:%S")} x:{float(i+1)}'
+            f"CRITICAL:logger1:{(st + timedelta(seconds=(i + 1))).strftime('%Y-%m-%d %H:%M:%S')} x:{float(i + 1)}"
             for i in range(60)
         ]
         exp_out_log2 = [
-            f'CRITICAL:logger2:{(st+timedelta(seconds=(i+1))).strftime("%Y-%m-%d %H:%M:%S")} y:{float(i+2)}'
+            f"CRITICAL:logger2:{(st + timedelta(seconds=(i + 1))).strftime('%Y-%m-%d %H:%M:%S')} y:{float(i + 2)}"
             for i in range(60)
         ]
         exp_out_log3 = [
-            f'CRITICAL:logger3:{(st+timedelta(seconds=(i+1))).strftime("%Y-%m-%d %H:%M:%S")} z:{float(i+3)}'
+            f"CRITICAL:logger3:{(st + timedelta(seconds=(i + 1))).strftime('%Y-%m-%d %H:%M:%S')} z:{float(i + 3)}"
             for i in range(60)
         ]
         self.assertEqual(cm1.output, exp_out_log1)
@@ -1212,20 +1217,20 @@ class TestBaselib(unittest.TestCase):
                 "dynamic_b_d": csp.dynamic_cast(x_b, D),
             }
 
-        res = csp.run(g, starttime=datetime.utcnow(), endtime=timedelta())
+        res = csp.run(g, starttime=utc_now(), endtime=timedelta())
         self.assertEqual(res["static_b_d"][0][1], D(a=1, b=2.1))
         self.assertEqual(res["dynamic_bool_int"][0][1], 1)
         self.assertEqual(res["dynamic_b_d"][0][1], D(a=1, b=2.1))
 
         with self.assertRaisesRegex(TypeError, "Unable to csp.static_cast edge of type int to str"):
-            csp.run(csp.static_cast(x_int, str), starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(csp.static_cast(x_int, str), starttime=utc_now(), endtime=timedelta())
 
         with self.assertRaisesRegex(TypeError, "Unable to csp.static_cast edge of type int to bool"):
-            csp.run(csp.static_cast(x_int, bool), starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(csp.static_cast(x_int, bool), starttime=utc_now(), endtime=timedelta())
 
         # Runtime type check
         with self.assertRaisesRegex(TypeError, 'expected output type on .* to be of type "int" got type "float"'):
-            csp.run(csp.dynamic_cast(x_float, int), starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(csp.dynamic_cast(x_float, int), starttime=utc_now(), endtime=timedelta())
 
 
 if __name__ == "__main__":

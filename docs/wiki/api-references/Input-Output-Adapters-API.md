@@ -15,8 +15,6 @@
     - [Publishing](#publishing)
 - [DBReader](#dbreader)
   - [TimeAccessor](#timeaccessor)
-- [Symphony](#symphony)
-- [Slack](#slack)
 
 ## Kafka
 
@@ -101,7 +99,9 @@ KafkaAdapterManager.subscribe(
   field_map: typing.Union[dict,str] = None,
   meta_field_map: dict = None,
   push_mode: csp.PushMode = csp.PushMode.LAST_VALUE,
-  adjust_out_of_order_time: bool = False
+  adjust_out_of_order_time: bool = False,
+  tick_timestamp_from_field: str = None,
+  include_msg_before_start_time: bool = True,
 ):
 ```
 
@@ -119,7 +119,9 @@ KafkaAdapterManager.subscribe(
   - **`"key"`**: key of the message
 - **`push_mode`**: `csp.PushMode` (LAST_VALUE, NON_COLLAPSING, BURST)
 - **`adjust_out_of_order_time`**: in some cases it has been seen that kafka can produce out of order messages, even for the same key.
-  This allows the adapter to be more laz and allow it through by forcing time to max(time, prev time)
+  This allows the adapter to be more laz and allow it through by forcing time to max(time, prev time). Only applicable during sim replay
+- **`tick_timestamp_from_field`**: Allow overriding the time we push the tick into the engine based on this field on the struct. Only applicable during sim replay
+- **`include_msg_before_start_time`**: Include messages from Kafka with times (either the time from Kafka or from the message as specified with `tick_timestamp_from_field`) before the engine start time. This is separate from the `start_offset` specified on the manager level, since that determines where to start reading from Kafka, and is not aware of custom timestamps.
 
 Similarly, you can publish on topics using the following method:
 
@@ -350,11 +352,3 @@ Both of these calls expect `typ` to be a `csp.Struct` type.
 `subscribe` is used to subscribe to a stream for the given symbol (symbol_column is required when creating DBReader)
 
 `subscribe_all` is used to retrieve all the data resulting from the request as a single timeseries.
-
-## Symphony
-
-The Symphony adapter allows for reading and writing of messages from the [Symphony](https://symphony.com/) message platform using [`requests`](https://requests.readthedocs.io/en/latest/) and the [Symphony SDK](https://docs.developers.symphony.com/).
-
-## Slack
-
-The Slack adapter allows for reading and writing of messages from the [Slack](https://slack.com) message platform using the [Slack Python SDK](https://slack.dev/python-slack-sdk/).

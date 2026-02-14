@@ -1,28 +1,30 @@
+from datetime import datetime, timedelta
+from typing import Dict, List, TypeVar, Union
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
 from pandas.api.extensions import register_dataframe_accessor, register_series_accessor
 from pandas.core.arrays import ExtensionArray
-from typing import Dict, List, TypeVar, Union
 
 import csp
 from csp import ts
 from csp.impl.pandas_ext_type import TsDtype, is_csp_type
-from csp.impl.struct import defineNestedStruct
+from csp.impl.struct import define_nested_struct
 from csp.impl.wiring.edge import Edge
+from csp.utils.datetime import utc_now
 
 T = TypeVar("T")
 
 
 @csp.node
-def _basket_valid(xs: [ts[object]]) -> ts[bool]:
+def _basket_valid(xs: List[ts[object]]) -> ts[bool]:
     if csp.valid(xs):
         csp.make_passive(xs)
         return True
 
 
 @csp.node
-def _basket_synchronize(xs: [ts["T"]], threshold: timedelta) -> csp.OutputBasket(List[ts["T"]], shape_of="xs"):
+def _basket_synchronize(xs: List[ts["T"]], threshold: timedelta) -> csp.OutputBasket(List[ts["T"]], shape_of="xs"):
     with csp.alarms():
         a_end = csp.alarm(bool)
 
@@ -166,7 +168,7 @@ class CspSeriesAccessor(object):
     @staticmethod
     def _validate(obj):
         if not is_csp_type(obj):
-            raise AttributeError("Cannot use 'csp' accessor on objects of " "dtype '{}'.".format(obj.dtype))
+            raise AttributeError("Cannot use 'csp' accessor on objects of dtype '{}'.".format(obj.dtype))
 
     def _infer_dtype(self, data):
         try:
@@ -368,7 +370,7 @@ class CspSeriesAccessor(object):
         :returns: A new Series of type corresponding to the underlying edge type (TsDtype.subtype),
             with the same index as the original series, containing the snapped value of each Edge.
         """
-        starttime = starttime or datetime.utcnow()
+        starttime = starttime or utc_now()
         return self.run(starttime, timeout, True, tick_count=1, snap=True)
 
     def show_graph(self):
@@ -545,7 +547,7 @@ class CspDataFrameAccessor(object):
             a time in the future (to schedule a snap at, i.e. the next minute)
         :returns: A new DataFrame with the same indices where every Edge is replaced by it's snapped value.
         """
-        starttime = starttime or datetime.utcnow()
+        starttime = starttime or utc_now()
         return self.run(starttime, timeout, True, tick_count=1, snap=True)
 
     def sample(self, trigger: Union[timedelta, np.timedelta64, pd.Timedelta, ts[object]], inplace: bool = False):
@@ -615,7 +617,7 @@ class CspDataFrameAccessor(object):
             datatree[parts[-1]] = self._obj[col]
 
         if not struct_type:
-            struct_type = defineNestedStruct("_C", metadata, defaults)
+            struct_type = define_nested_struct("_C", metadata, defaults)
 
         if not data:
             return csp.null_ts(struct_type)
@@ -662,7 +664,7 @@ class ToCspFrameAccessor(object):
 
 
 @csp.node
-def _collect_numpy(x: [ts[object]], dim: int) -> ts[object]:
+def _collect_numpy(x: List[ts[object]], dim: int) -> ts[object]:
     with csp.state():
         s_array = np.array([np.nan for _ in range(dim)], dtype=object)
 

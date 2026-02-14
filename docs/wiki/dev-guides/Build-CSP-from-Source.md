@@ -45,7 +45,7 @@ test                           run the tests
 
 ## Prerequisites
 
-CSP has a few system-level dependencies which you can install from your machine package manager. Other package managers like `conda`, `nix`, etc, should also work fine. Currently, CSP relies on the `GNU` compiler toolchain only.
+CSP has a few system-level dependencies which you can install from your machine package manager. Other package managers like `conda`, `nix`, etc, should also work fine.
 
 ## Building with Conda on Linux
 
@@ -96,7 +96,7 @@ micromamba activate csp
 make build-conda
 
 # finally install into the csp conda environment
-make develop
+make develop-conda
 ```
 
 ### A note about dependencies
@@ -124,9 +124,6 @@ git submodule update --init --recursive
 ```bash
 # for vcpkg
 sudo make dependencies-debian
-# or
-# sudo apt-get install -y automake bison cmake curl flex ninja-build tar unzip zip
-
 # for g++
 sudo apt install build-essential
 ```
@@ -136,9 +133,6 @@ sudo apt install build-essential
 ```bash
 # for vcpkg
 sudo make dependencies-fedora
-# or
-# yum install -y automake bison cmake curl flex perl-IPC-Cmd tar unzip zip
-
 # for g++
 sudo dnf group install "Development Tools"
 ```
@@ -150,8 +144,6 @@ sudo dnf group install "Development Tools"
 ```bash
 # for vcpkg
 make dependencies-mac
-# or
-# brew install bison cmake flex make ninja
 ```
 
 ### Install Python dependencies
@@ -160,11 +152,6 @@ Python build and develop dependencies are specified in the `pyproject.toml`, but
 
 ```bash
 make requirements
-
-# or
-# python -m pip install toml
-# python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["build-system"]["requires"]))'`
-# python -m pip install `python -c 'import toml; c = toml.load("pyproject.toml"); print("\n".join(c["project"]["optional-dependencies"]["develop"]))'`
 ```
 
 Note that these dependencies would otherwise be installed normally as part of [PEP517](https://peps.python.org/pep-0517/) / [PEP518](https://peps.python.org/pep-0518/).
@@ -178,8 +165,6 @@ make build
 
 # on aarch64 linux, comment the above command and use this instead
 # VCPKG_FORCE_SYSTEM_BINARIES=1 make build
-# or
-# python setup.py build build_ext --inplace
 ```
 
 ### Building on `aarch64` Linux
@@ -196,56 +181,43 @@ By default, we pull and build dependencies with [vcpkg](https://vcpkg.io/en/). W
 
 ## Lint and Autoformat
 
-CSP has listing and auto formatting.
+CSP has linting and auto formatting.
 
-| Language | Linter         | Autoformatter  | Description |
-| :------- | :------------- | :------------- | :---------- |
-| C++      | `clang-format` | `clang-format` | Style       |
-| Python   | `ruff`         | `ruff`         | Style       |
-| Python   | `isort`        | `isort`        | Imports     |
+| Language | Linter         | Autoformatter  | Description    |
+| :------- | :------------- | :------------- | :------------- |
+| C++      | `clang-format` | `clang-format` | Style          |
+| Python   | `ruff`         | `ruff`         | Style, Imports |
+| Markdown | `mdformat`     | `mdformat`     | Style          |
+| Markdown | `codespell`    |                | Spelling       |
 
 **C++ Linting**
 
 ```bash
 make lint-cpp
-# or
-# clang-format --dry-run -Werror -i -style=file `find ./cpp/ -name "*.*pp"`
 ```
 
 **C++ Autoformatting**
 
 ```bash
 make fix-cpp
-# or
-# clang-format -i -style=file `find ./cpp/ -name "*.*pp"`
 ```
 
 **Python Linting**
 
 ```bash
 make lint-py
-# or
-# python -m isort --check csp/ setup.py
-# python -m ruff check csp/ setup.py
-# python -m ruff format --check csp/ setup.py
 ```
 
 **Python Autoformatting**
 
 ```bash
 make fix-py
-# or
-# python -m isort csp/ setup.py
-# python -m ruff format csp/ setup.py
 ```
 
 **Documentation Linting**
 
 ```bash
 make lint-docs
-# or
-# python -m mdformat --check docs/wiki/ README.md examples/README.md
-# python -m codespell_lib docs/wiki/ README.md examples/README.md
 ```
 
 **Documentation Autoformatting**

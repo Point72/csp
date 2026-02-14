@@ -1,9 +1,7 @@
 import collections
 import gc
-import numpy as np
 import os
 import pickle
-import psutil
 import random
 import re
 import sys
@@ -12,6 +10,12 @@ import traceback
 import typing
 import unittest
 from datetime import datetime, timedelta
+from typing import Callable, Dict, List
+
+import numpy as np
+import psutil
+import pytest
+from pytz import UTC
 
 import csp
 from csp import PushMode, ts
@@ -19,6 +23,9 @@ from csp.impl.types.instantiation_type_resolver import ArgTypeMismatchError, TSA
 from csp.impl.wiring.delayed_node import DelayedNodeWrapperDef
 from csp.impl.wiring.runtime import build_graph
 from csp.lib import _csptestlibimpl
+from csp.utils.datetime import utc_now
+
+USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
 
 @csp.graph
@@ -410,6 +417,75 @@ class TestEngine(unittest.TestCase):
         result = csp.run(times(x), starttime=datetime(2020, 2, 7, 9), endtime=timedelta(seconds=10))[0]
         self.assertEqual([v[0] for v in result], [v[1] for v in result])
 
+    def test_csp_in_realtime__historical(self):
+        @csp.node
+        def is_in_realtime(x: ts[bool]) -> ts[bool]:
+            if csp.ticked(x):
+                return csp.in_realtime()
+
+        @csp.graph
+        def g() -> ts[bool]:
+            # Symbolic curve of expected booleans
+            times = csp.curve(
+                bool,
+                [(datetime(2025, 12, 24), False)],
+            )
+            csp.add_graph_output("in_realtime", is_in_realtime(times))
+
+        outputs = csp.run(g, starttime=datetime(2025, 12, 24), endtime=datetime(2025, 12, 25), realtime=False)
+        assert outputs
+        assert outputs["in_realtime"][0][1] is False
+
+    def test_csp_in_realtime__realtime(self):
+        def utc_now() -> datetime:
+            return datetime.now(UTC)
+
+        @csp.node
+        def is_in_realtime(x: ts[bool]) -> ts[bool]:
+            if csp.ticked(x):
+                return csp.in_realtime()
+
+        @csp.graph
+        def g() -> ts[bool]:
+            # Symbolic curve of expected booleans
+            times = csp.curve(
+                bool,
+                [(timedelta(seconds=10), True)],
+            )
+            csp.add_graph_output("in_realtime", is_in_realtime(times))
+            csp.stop_engine(times)
+
+        outputs = csp.run(g, starttime=utc_now(), endtime=utc_now() + timedelta(seconds=30), realtime=True)
+        assert outputs
+        assert outputs["in_realtime"][0][1] is True
+
+    @pytest.mark.skipif(not os.environ.get("CSP_ENGINE_FLAKY_TESTS"), reason="potentially flaky test")
+    def test_csp_in_realtime(self):
+        def utc_now() -> datetime:
+            return datetime.now(UTC)
+
+        @csp.node
+        def is_in_realtime(x: ts[bool]) -> ts[bool]:
+            if csp.ticked(x):
+                assert csp.in_realtime() == x
+                return csp.in_realtime()
+
+        @csp.graph
+        def g() -> ts[bool]:
+            # Symbolic curve of expected booleans
+            times = csp.curve(
+                bool,
+                [(utc_now() - timedelta(seconds=3), False), (utc_now() + timedelta(seconds=3), True)],
+            )
+            csp.add_graph_output("in_realtime", is_in_realtime(times))
+
+        outputs = csp.run(
+            g, starttime=utc_now() - timedelta(seconds=5), endtime=utc_now() + timedelta(seconds=10), realtime=True
+        )
+        assert outputs
+        assert outputs["in_realtime"][0][1] is False
+        assert outputs["in_realtime"][1][1] is True
+
     def test_stop_engine(self):
         @csp.node
         def stop(x: ts[bool]) -> ts[bool]:
@@ -420,6 +496,26 @@ class TestEngine(unittest.TestCase):
 
         result = csp.run(stop, csp.timer(timedelta(seconds=1)), starttime=datetime(2020, 5, 19))[0]
         self.assertEqual(len(result), 5)
+
+    def test_tvar_validation_context_lifetime(self):
+        import gc
+
+        from csp.impl.types.pydantic_type_resolver import TVarValidationContext
+
+        def count_contexts():
+            return sum(1 for o in gc.get_objects() if type(o) is TVarValidationContext)
+
+        @csp.node
+        def echo(x: ts[int]) -> ts[int]:
+            return x
+
+        gc.collect(0)
+        before = count_contexts()
+        csp.build_graph(echo, realtime=False, x=csp.const(1))
+        gc.collect(0)
+        after = count_contexts()
+
+        self.assertEqual(before, after)
 
     def test_class_member_node(self):
         class ClassWithNodes:
@@ -451,7 +547,7 @@ class TestEngine(unittest.TestCase):
     def test_with_support(self):
         # This test case tests a parsing bug that we had, where "with" statement at the main function block was causing parse error
         class ValueSetter(object):
-            def __init__(self, l: typing.List[int]):
+            def __init__(self, l: List[int]):
                 self._l = l
 
             def __enter__(self):
@@ -461,7 +557,7 @@ class TestEngine(unittest.TestCase):
                 self._l.append(2)
 
         @csp.node
-        def my_node(inp: ts[bool]) -> ts[[int]]:
+        def my_node(inp: ts[bool]) -> ts[List[int]]:
             with csp.state():
                 l = []
             with ValueSetter(l):
@@ -548,7 +644,7 @@ class TestEngine(unittest.TestCase):
         else:
             expected_str = "referenced before assignment"
         with self.assertRaisesRegex(UnboundLocalError, expected_str):
-            csp.run(foo, csp.const(1), csp.const(1, delay=timedelta(1)), starttime=datetime.utcnow())
+            csp.run(foo, csp.const(1), csp.const(1, delay=timedelta(1)), starttime=utc_now())
 
     def test_cell_access(self):
         '''was a bug "PyNode crashes on startup when cellvars are generated"'''
@@ -574,9 +670,9 @@ class TestEngine(unittest.TestCase):
 
             csp.output(o1, 1)
 
-        res = csp.run(
-            node, csp.const(1), [csp.const(1)], csp.const(100), [csp.const(200)], 5, starttime=datetime.utcnow()
-        )["o2"][0]
+        res = csp.run(node, csp.const(1), [csp.const(1)], csp.const(100), [csp.const(200)], 5, starttime=utc_now())[
+            "o2"
+        ][0]
         self.assertEqual(res[1], 100 + 200 + 2)
 
         # Test arguments in cellvars werent being processed correctly
@@ -587,7 +683,7 @@ class TestEngine(unittest.TestCase):
             f = lambda: s
             return x * f()
 
-        res = csp.run(node2, csp.const(1), 5, starttime=datetime.utcnow())[0][0]
+        res = csp.run(node2, csp.const(1), 5, starttime=utc_now())[0][0]
         self.assertEqual(res[1], 5)
 
         # scalar and ts in cellvar
@@ -600,7 +696,7 @@ class TestEngine(unittest.TestCase):
             f = lambda: x * s
             return f()
 
-        res = csp.run(node3, csp.const(1), 5, starttime=datetime.utcnow())[0][0]
+        res = csp.run(node3, csp.const(1), 5, starttime=utc_now())[0][0]
         self.assertEqual(res[1], 5)
 
     def test_stop_time(self):
@@ -799,6 +895,55 @@ class TestEngine(unittest.TestCase):
                 b[t].append(v)
         self.assertEqual(results["b"], list(b.items()))
 
+    def test_adapter_manager_engine_shutdown(self):
+        from csp.impl.adaptermanager import AdapterManagerImpl, ManagedSimInputAdapter
+        from csp.impl.wiring import py_managed_adapter_def
+
+        class TestAdapterManager:
+            def __init__(self):
+                self._impl = None
+
+            def subscribe(self):
+                return TestAdapter(self)
+
+            def _create(self, engine, memo):
+                self._impl = TestAdapterManagerImpl(engine)
+                return self._impl
+
+        class TestAdapterManagerImpl(AdapterManagerImpl):
+            def __init__(self, engine):
+                super().__init__(engine)
+
+            def start(self, starttime, endtime):
+                pass
+
+            def stop(self):
+                pass
+
+            def process_next_sim_timeslice(self, now):
+                try:
+                    [].pop()
+                except IndexError as e:
+                    self.shutdown_engine(e)
+
+        class TestAdapterImpl(ManagedSimInputAdapter):
+            def __init__(self, manager_impl):
+                pass
+
+        TestAdapter = py_managed_adapter_def("TestAdapter", TestAdapterImpl, ts[int], TestAdapterManager)
+
+        def graph():
+            adapter = TestAdapterManager()
+            nc = adapter.subscribe()
+            csp.add_graph_output("nc", nc)
+
+        try:
+            csp.run(graph, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+        except IndexError:
+            tb = traceback.format_exc()
+
+        self.assertTrue("[].pop()" in tb and "process_next_sim_timeslice" in tb)
+
     def test_feedback(self):
         # Dummy example
         class Request(csp.Struct):
@@ -848,17 +993,23 @@ class TestEngine(unittest.TestCase):
         ## Test exceptions
         def graph():
             fb = csp.feedback(int)
-            with self.assertRaisesRegex(
-                TypeError,
-                re.escape(r"""In function _bind: Expected csp.impl.types.tstype.TsType[""")
-                + ".*"
-                + re.escape(r"""('T')] for argument 'x', got 1 (int)"""),
-            ):
+            if USE_PYDANTIC:
+                msg = ".*value passed to argument of type TsType must be an instance of Edge.*"
+            else:
+                msg = (
+                    re.escape(r"""In function _bind: Expected csp.impl.types.tstype.TsType[""")
+                    + ".*"
+                    + re.escape(r"""('T')] for argument 'x', got 1 (int)""")
+                )
+            with self.assertRaisesRegex(TypeError, msg):
                 fb.bind(1)
 
-            with self.assertRaisesRegex(
-                TypeError, re.escape(r"""In function _bind: Expected ts[T] for argument 'x', got ts[str](T=int)""")
-            ):
+            if USE_PYDANTIC:
+                msg = re.escape("cannot validate ts[str] as ts[int]: <class 'str'> is not a subclass of <class 'int'>")
+            else:
+                msg = re.escape(r"""In function _bind: Expected ts[T] for argument 'x', got ts[str](T=int)""")
+
+            with self.assertRaisesRegex(TypeError, msg):
                 fb.bind(csp.const("123"))
 
             fb.bind(csp.const(1))
@@ -872,43 +1023,51 @@ class TestEngine(unittest.TestCase):
             csp.print("test", fb.out())
 
         with self.assertRaisesRegex(RuntimeError, "unbound csp.feedback used in graph"):
-            csp.run(unbound_graph, starttime=datetime.utcnow())
+            csp.run(unbound_graph, starttime=utc_now())
 
     def test_list_feedback_typecheck(self):
         @csp.graph
-        def g() -> csp.ts[[int]]:
-            fb = csp.feedback([int])
-            with self.assertRaisesRegex(
-                TypeError, re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
-            ):
+        def g() -> csp.ts[List[int]]:
+            fb = csp.feedback(List[int])
+            if USE_PYDANTIC:
+                msg = re.escape(
+                    "cannot validate ts[int] as ts[typing.List[int]]: <class 'int'> is not a subclass of <class 'list'>"
+                )
+            else:
+                msg = re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
+            with self.assertRaisesRegex(TypeError, msg):
                 fb.bind(csp.const(42))
 
             fb.bind(csp.const([42]))
             return fb.out()
 
-        res = csp.run(g, starttime=datetime.utcnow())
+        res = csp.run(g, starttime=utc_now())
         self.assertEqual(res[0][0][1], [42])
 
         # Test Typing.List which was a bug "crash on feedback tick"
         @csp.graph
-        def g() -> csp.ts[typing.List[int]]:
-            fb = csp.feedback(typing.List[int])
-            with self.assertRaisesRegex(
-                TypeError, re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
-            ):
+        def g() -> csp.ts[List[int]]:
+            fb = csp.feedback(List[int])
+            if USE_PYDANTIC:
+                msg = re.escape(
+                    "cannot validate ts[int] as ts[typing.List[int]]: <class 'int'> is not a subclass of <class 'list'>"
+                )
+            else:
+                msg = re.escape(r"""Expected ts[T] for argument 'x', got ts[int](T=typing.List[int])""")
+            with self.assertRaisesRegex(TypeError, msg):
                 fb.bind(csp.const(42))
 
             fb.bind(csp.const([42]))
             return fb.out()
 
-        res = csp.run(g, starttime=datetime.utcnow())
+        res = csp.run(g, starttime=utc_now())
         self.assertEqual(res[0][0][1], [42])
 
     def test_list_inside_callable(self):
         '''was a bug "Empty list inside callable annotation raises exception"'''
 
         @csp.graph
-        def graph(v: typing.Dict[str, typing.Callable[[], str]]):
+        def graph(v: Dict[str, Callable[[], str]]):
             pass
 
         csp.run(graph, {"x": (lambda v: v)}, starttime=datetime(2020, 6, 17))
@@ -951,13 +1110,16 @@ class TestEngine(unittest.TestCase):
             # Should never get here
             self.assertFalse(True)
         except Exception as e:
-            self.assertIsInstance(e, TSArgTypeMismatchError)
+            self.assertIsInstance(e, TypeError)
             traceback_list = list(
                 filter(lambda v: v.startswith("File"), (map(str.strip, traceback.format_exc().split("\n"))))
             )
             self.assertTrue(__file__ in traceback_list[-1])
             self.assertLessEqual(len(traceback_list), 10)
-            self.assertEqual(str(e), "In function aux: Expected ts[T] for argument 'my_arg', got None")
+            if USE_PYDANTIC:
+                self.assertIn("value passed to argument of type TsType must be an instance of Edge", str(e))
+            else:
+                self.assertEqual(str(e), "In function aux: Expected ts[T] for argument 'my_arg', got None")
 
     def test_union_type_check(self):
         '''was a bug "Add support for typing.Union in type checking layer"'''
@@ -969,10 +1131,13 @@ class TestEngine(unittest.TestCase):
         build_graph(graph, 1)
         build_graph(graph, 1.1)
         build_graph(graph, "s")
-        with self.assertRaisesRegex(
-            TypeError,
-            "In function graph: Expected typing.Union\\[int, float, str\\] for argument 'x', got \\[1.1\\] \\(list\\)",
-        ):
+        if USE_PYDANTIC:
+            # Pydantic's error reporting for unions is a bit quirky, as it reports a validation error for each sub-type
+            # that fails to validate
+            msg = "3 validation errors for graph"
+        else:
+            msg = "In function graph: Expected typing.Union\\[.*\\] for argument 'x', got \\[1.1\\] \\(list\\)"
+        with self.assertRaisesRegex(TypeError, msg):
             build_graph(graph, [1.1])
 
         @csp.graph
@@ -982,10 +1147,11 @@ class TestEngine(unittest.TestCase):
         build_graph(graph, csp.const(1))
         build_graph(graph, csp.const(1.1))
         build_graph(graph, csp.const("s"))
-        with self.assertRaisesRegex(
-            TypeError,
-            "In function graph: Expected ts\\[typing.Union\\[int, float, str\\]\\] for argument 'x', got ts\\[typing.List\\[float\\]\\]",
-        ):
+        if USE_PYDANTIC:
+            msg = "cannot validate ts\\[typing.List\\[float\\]\\] as ts\\[typing.Union\\[.*\\]\\]"
+        else:
+            msg = "In function graph: Expected ts\\[typing.Union\\[.*\\]\\] for argument 'x', got ts\\[typing.List\\[float\\]\\]"
+        with self.assertRaisesRegex(TypeError, msg):
             build_graph(graph, csp.const([1.1]))
 
     def test_realtime_timers(self):
@@ -993,7 +1159,7 @@ class TestEngine(unittest.TestCase):
         rv = csp.run(
             csp.timer,
             timedelta(seconds=1),
-            starttime=datetime.utcnow(),
+            starttime=utc_now(),
             endtime=timedelta(seconds=3),
             realtime=True,
             queue_wait_time=timedelta(seconds=0.001),
@@ -1006,13 +1172,13 @@ class TestEngine(unittest.TestCase):
             csp.add_graph_output("s", csp.const(s))
             csp.add_graph_output("i", csp.const(i))
 
-        rv = csp.run(my_graph, s="sss", i=42, starttime=datetime.utcnow(), endtime=timedelta(seconds=1))
+        rv = csp.run(my_graph, s="sss", i=42, starttime=utc_now(), endtime=timedelta(seconds=1))
         self.assertEqual(1, len(rv["s"]))
         self.assertEqual(rv["s"][0][1], "sss")
         self.assertEqual(1, len(rv["i"]))
         self.assertEqual(rv["i"][0][1], 42)
 
-        rv = csp.run(my_graph, "sss", 42, starttime=datetime.utcnow(), endtime=timedelta(seconds=1))
+        rv = csp.run(my_graph, "sss", 42, starttime=utc_now(), endtime=timedelta(seconds=1))
         self.assertEqual(1, len(rv["s"]))
         self.assertEqual(rv["s"][0][1], "sss")
         self.assertEqual(1, len(rv["i"]))
@@ -1056,7 +1222,7 @@ class TestEngine(unittest.TestCase):
                 import time
 
                 time.sleep(delay.total_seconds())
-                return datetime.utcnow()
+                return utc_now()
 
         @csp.graph
         def graph(count: int, allow_deviation: bool) -> ts[datetime]:
@@ -1065,14 +1231,14 @@ class TestEngine(unittest.TestCase):
             csp.stop_engine(csp.filter(stop_cond, stop_cond))
             return x
 
-        results = csp.run(graph, 4, False, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)[0]
+        results = csp.run(graph, 4, False, starttime=utc_now(), endtime=timedelta(seconds=30), realtime=True)[0]
         self.assertEqual(len(results), 4)
 
         self.assertTrue(all((results[i][0] - results[i - 1][0]) == timer_interval for i in range(1, len(results))))
         # Assert lag from engine -> wallclock on last tick is greater than minimum expected amount
         self.assertGreater(results[-1][1] - results[-1][0], (delay - timer_interval) * len(results))
 
-        results = csp.run(graph, 5, True, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)[0]
+        results = csp.run(graph, 5, True, starttime=utc_now(), endtime=timedelta(seconds=30), realtime=True)[0]
         self.assertEqual(len(results), 5)
         eps = timedelta()
         # Windows clock resolution is...
@@ -1086,7 +1252,7 @@ class TestEngine(unittest.TestCase):
 
     def test_list_comprehension_bug(self):
         @csp.node
-        def list_comprehension_bug_node(n_seconds: int, input: csp.ts["T"]) -> csp.ts[["T"]]:
+        def list_comprehension_bug_node(n_seconds: int, input: csp.ts["T"]) -> csp.ts[List["T"]]:
             with csp.start():
                 csp.set_buffering_policy(input, tick_history=timedelta(seconds=30))
 
@@ -1101,6 +1267,10 @@ class TestEngine(unittest.TestCase):
         rv = csp.run(list_comprehension_bug_graph, starttime=datetime(2020, 1, 1))["Bucket"]
         self.assertEqual([v[1][0] for v in rv[10:]], list(range(20)))
 
+    @unittest.skipIf(
+        os.environ.get("ASAN_OPTIONS") is not None,
+        reason="Test skipped when AddressSanitizer is enabled, RSS usage is much larger than usual",
+    )
     def test_alarm_leak(self):
         """this was a leak in Scheduler.cpp"""
 
@@ -1123,8 +1293,8 @@ class TestEngine(unittest.TestCase):
             gc.collect()
         end_mem = proc_info.memory_info().rss
 
-        # 5MB leeway, the leak resulted in 50MB+ leak
-        self.assertLess(end_mem - start_mem, 5000000)
+        # 15MB leeway, the leak resulted in 50MB+ leak
+        self.assertLess(end_mem - start_mem, 15000000)
 
     def test_multiple_alarms_bug(self):
         @csp.node
@@ -1188,7 +1358,7 @@ class TestEngine(unittest.TestCase):
             pass
 
         csp.run(g.using(X=int).using(Y=float), 1, 2, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=10))
-        with self.assertRaises(ArgTypeMismatchError):
+        with self.assertRaises(TypeError):
             csp.run(g.using(X=int).using(Y=str), 1, 2, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=10))
 
     def test_null_nodes(self):
@@ -1201,7 +1371,7 @@ class TestEngine(unittest.TestCase):
         def g():
             assert_never_ticks.using(T=str)(csp.null_ts(str))
             assert_never_ticks(csp.null_ts(str))
-            with self.assertRaises(TSArgTypeMismatchError):
+            with self.assertRaises(TypeError):
                 assert_never_ticks.using(T=int)(csp.null_ts(str))
 
         csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=10))
@@ -1235,7 +1405,7 @@ class TestEngine(unittest.TestCase):
             all_good = False
             try:
                 x = csp.timer(timedelta(seconds=1), True)
-                csp.run(x, starttime=datetime.utcnow(), endtime=timedelta(seconds=60), realtime=True)
+                csp.run(x, starttime=utc_now(), endtime=timedelta(seconds=60), realtime=True)
             except KeyboardInterrupt:
                 all_good = True
 
@@ -1363,7 +1533,7 @@ class TestEngine(unittest.TestCase):
         adapter = py_push_adapter_def("adapter", PushInputAdapter, ts[int])
         csp.run(
             adapter(),
-            starttime=datetime.utcnow(),
+            starttime=utc_now(),
             endtime=timedelta(seconds=0.5),
             realtime=True,
             queue_wait_time=timedelta(days=1),
@@ -1396,12 +1566,12 @@ class TestEngine(unittest.TestCase):
             csp.stop_engine(stop)
             return x
 
-        runner = csp.run_on_thread(g, 5, starttime=datetime.utcnow(), endtime=timedelta(seconds=60), realtime=True)
+        runner = csp.run_on_thread(g, 5, starttime=utc_now(), endtime=timedelta(seconds=60), realtime=True)
         res = runner.join()[0]
         self.assertEqual(len(res), 5)
 
         # midway stop
-        runner = csp.run_on_thread(g, 50000, starttime=datetime.utcnow(), endtime=timedelta(minutes=30), realtime=True)
+        runner = csp.run_on_thread(g, 50000, starttime=utc_now(), endtime=timedelta(minutes=30), realtime=True)
         import time
 
         time.sleep(1)
@@ -1426,8 +1596,8 @@ class TestEngine(unittest.TestCase):
 
         @csp.node
         def basket_wrapper(l: [csp.ts[float]], d: {str: csp.ts[float]}) -> csp.Outputs(
-            l=csp.OutputBasket(typing.List[csp.ts[float]], shape_of="l"),
-            d=csp.OutputBasket(typing.Dict[str, csp.ts[float]], shape_of="d"),
+            l=csp.OutputBasket(List[csp.ts[float]], shape_of="l"),
+            d=csp.OutputBasket(Dict[str, csp.ts[float]], shape_of="d"),
         ):
             if csp.ticked(l):
                 ticked_value_types = set(map(type, l.tickedvalues()))
@@ -1540,7 +1710,7 @@ class TestEngine(unittest.TestCase):
             endtime=timedelta(seconds=10),
         )
         self.assertEqual(res3["o"][0][1], 6)
-        with self.assertRaises(TSArgTypeMismatchError):
+        with self.assertRaises(TypeError):
             csp.run(
                 main,
                 False,
@@ -1558,31 +1728,41 @@ class TestEngine(unittest.TestCase):
         def my_graph(x: csp.ts[int]) -> csp.ts[str]:
             return x
 
-        with self.assertRaises(TSArgTypeMismatchError) as ctxt:
-            csp.run(my_graph, csp.const(1), starttime=datetime.utcnow())
-        self.assertEqual(str(ctxt.exception), "In function my_graph: Expected ts[str] for return value, got ts[int]")
+        with self.assertRaises(TypeError) as ctxt:
+            csp.run(my_graph, csp.const(1), starttime=utc_now())
+        if USE_PYDANTIC:
+            self.assertIn(
+                "cannot validate ts[int] as ts[str]: <class 'int'> is not a subclass of <class 'str'>",
+                str(ctxt.exception),
+            )
+        else:
+            self.assertEqual(
+                str(ctxt.exception), "In function my_graph: Expected ts[str] for return value, got ts[int]"
+            )
 
         @csp.graph
-        def dictbasket_graph(x: csp.ts[int]) -> {str: csp.ts[str]}:
+        def dictbasket_graph(x: csp.ts[int]) -> Dict[str, csp.ts[str]]:
             return csp.output({"a": x})
 
-        with self.assertRaises(ArgTypeMismatchError) as ctxt:
-            csp.run(dictbasket_graph, csp.const(1), starttime=datetime.utcnow())
-        self.assertRegex(
-            str(ctxt.exception),
-            "In function dictbasket_graph: Expected typing\.Dict\[str, .* for return value, got \{'a': .* \(dict\)",
-        )
+        if USE_PYDANTIC:
+            msg = re.escape("cannot validate ts[int] as ts[str]: <class 'int'> is not a subclass of <class 'str'>")
+        else:
+            msg = (
+                "In function dictbasket_graph: Expected typing\.Dict\[str, .* for return value, got \{'a': .* \(dict\)"
+            )
+        with self.assertRaisesRegex(TypeError, msg):
+            csp.run(dictbasket_graph, csp.const(1), starttime=utc_now())
 
         @csp.graph
-        def listbasket_graph(x: csp.ts[int]) -> [csp.ts[str]]:
+        def listbasket_graph(x: csp.ts[int]) -> List[csp.ts[str]]:
             return csp.output([x])
 
-        with self.assertRaises(ArgTypeMismatchError) as ctxt:
-            csp.run(listbasket_graph, csp.const(1), starttime=datetime.utcnow())
-        self.assertRegex(
-            str(ctxt.exception),
-            "In function listbasket_graph: Expected typing\.List\[.* for return value, got \[.* \(list\)",
-        )
+        if USE_PYDANTIC:
+            msg = re.escape("cannot validate ts[int] as ts[str]: <class 'int'> is not a subclass of <class 'str'>")
+        else:
+            msg = "In function listbasket_graph: Expected typing\.List\[.* for return value, got \[.* \(list\)"
+        with self.assertRaisesRegex(TypeError, msg):
+            csp.run(listbasket_graph, csp.const(1), starttime=utc_now())
 
     def test_global_context(self):
         try:
@@ -1688,12 +1868,12 @@ class TestEngine(unittest.TestCase):
 
     def test_unnamed_basket_return(self):
         @csp.node
-        def n(x: {str: csp.ts["T"]}) -> csp.OutputBasket(typing.Dict[str, csp.ts["T"]], shape_of="x"):
+        def n(x: {str: csp.ts["T"]}) -> csp.OutputBasket(Dict[str, csp.ts["T"]], shape_of="x"):
             if csp.ticked(x):
                 return csp.output({k: v for k, v in x.tickeditems()})
 
         @csp.node
-        def n2(x: [csp.ts["T"]]) -> csp.OutputBasket(typing.List[csp.ts["T"]], shape_of="x"):
+        def n2(x: [csp.ts["T"]]) -> csp.OutputBasket(List[csp.ts["T"]], shape_of="x"):
             if csp.ticked(x):
                 return csp.output({k: v for k, v in x.tickeditems()})
 
@@ -1719,13 +1899,13 @@ class TestEngine(unittest.TestCase):
     def test_delayed_edge(self):
         x = csp.DelayedEdge(ts[int])
         with self.assertRaisesRegex(RuntimeError, "Encountered unbound DelayedEdge"):
-            csp.run(x, starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(x, starttime=utc_now(), endtime=timedelta())
 
         self.assertFalse(x.is_bound())
         x.bind(csp.const(123))
         self.assertTrue(x.is_bound())
 
-        res = csp.run(x, starttime=datetime.utcnow(), endtime=timedelta())[0][0][1]
+        res = csp.run(x, starttime=utc_now(), endtime=timedelta())[0][0][1]
         self.assertEqual(res, 123)
 
         with self.assertRaisesRegex(
@@ -1735,19 +1915,21 @@ class TestEngine(unittest.TestCase):
             x.bind(csp.const(456))
 
         # Type check
-        with self.assertRaisesRegex(
-            TypeError, re.escape(r"""Expected ts[T] for argument 'edge', got ts[int](T=str)""")
-        ):
+        if USE_PYDANTIC:
+            msg = r"""cannot validate ts[int] as ts[str]: <class 'int'> is not a subclass of <class 'str'>"""
+        else:
+            msg = r"""Expected ts[T] for argument 'edge', got ts[int](T=str)"""
+        with self.assertRaisesRegex(TypeError, re.escape(msg)):
             y = csp.DelayedEdge(ts[str])
             y.bind(csp.const(123))
 
         # Null default
         z = csp.DelayedEdge(ts[int], default_to_null=True)
         self.assertFalse(z.is_bound())
-        res = csp.run(z, starttime=datetime.utcnow(), endtime=timedelta())[0]
+        res = csp.run(z, starttime=utc_now(), endtime=timedelta())[0]
         self.assertEqual(len(res), 0)
         z.bind(csp.const(123))
-        res = csp.run(z, starttime=datetime.utcnow(), endtime=timedelta())[0][0][1]
+        res = csp.run(z, starttime=utc_now(), endtime=timedelta())[0][0][1]
         self.assertEqual(res, 123)
 
         # Should raise at this point
@@ -1773,7 +1955,7 @@ class TestEngine(unittest.TestCase):
             RuntimeError,
             r"Illegal cycle found in graph, path:\n\t\*\* unroll -> collect -> unroll -> collect -> unroll \*\*  -> _binary_op -> GraphOutputAdapter",
         ):
-            csp.run(g, starttime=datetime.utcnow(), endtime=timedelta())
+            csp.run(g, starttime=utc_now(), endtime=timedelta())
 
     def test_delayed_edge_derived_type(self):
         class Base(csp.Struct):
@@ -1802,30 +1984,28 @@ class TestEngine(unittest.TestCase):
         def g() -> csp.ts[Base]:
             return MyDelayedNode().output
 
-        res = csp.run(g, starttime=datetime.utcnow(), endtime=timedelta())[0][0][1]
+        res = csp.run(g, starttime=utc_now(), endtime=timedelta())[0][0][1]
         self.assertEqual(res, Derived(a=1, b=2))
 
     def test_realtime_flag(self):
         def g(expected_realtime: bool):
             self.assertEqual(expected_realtime, csp.is_configured_realtime())
 
-        csp.run(g, False, starttime=datetime.utcnow(), endtime=timedelta())
-        csp.run(g, True, starttime=datetime.utcnow(), endtime=timedelta(), realtime=True)
+        csp.run(g, False, starttime=utc_now(), endtime=timedelta())
+        csp.run(g, True, starttime=utc_now(), endtime=timedelta(), realtime=True)
 
     def test_graph_shape_bug(self):
         """Address an assertion error bug that we had on returning list baskets with specified shape"""
 
         @csp.graph
         def aux(x: [ts[float]], y: {str: ts[float]}) -> csp.Outputs(
-            o1=csp.OutputBasket(typing.List[ts[float]], shape_of="x"),
-            o2=csp.OutputBasket(typing.Dict[str, ts[float]], shape_of="y"),
+            o1=csp.OutputBasket(List[ts[float]], shape_of="x"),
+            o2=csp.OutputBasket(Dict[str, ts[float]], shape_of="y"),
         ):
             return csp.output(o1=x, o2=y)
 
         @csp.graph
-        def g() -> (
-            csp.Outputs(o1=csp.OutputBasket(typing.List[ts[float]]), o2=csp.OutputBasket(typing.Dict[str, ts[float]]))
-        ):
+        def g() -> csp.Outputs(o1=csp.OutputBasket(List[ts[float]]), o2=csp.OutputBasket(Dict[str, ts[float]])):
             res = aux([csp.const(1.0), csp.const(2.0)], {"3": csp.const(3.0), "4": csp.const(4.0)})
             return csp.output(o1=res.o1, o2=res.o2)
 
@@ -1903,7 +2083,7 @@ class TestEngine(unittest.TestCase):
         def g(x: ts[int]) -> csp.Outputs(a=ts[int], b=ts[int]):
             return csp.output(**f(x))
 
-        res = csp.run(g, csp.const(1), starttime=datetime.utcnow(), endtime=timedelta())
+        res = csp.run(g, csp.const(1), starttime=utc_now(), endtime=timedelta())
         self.assertEqual(res["a"][0][1], 1)
         self.assertEqual(res["b"][0][1], 3)
 
@@ -2094,7 +2274,7 @@ class TestEngine(unittest.TestCase):
 
         stopped = [False, False, False]
         with self.assertRaises(KeyboardInterrupt):
-            csp.run(g, stopped, starttime=datetime.utcnow(), endtime=timedelta(seconds=60), realtime=True)
+            csp.run(g, stopped, starttime=utc_now(), endtime=timedelta(seconds=60), realtime=True)
 
         for element in stopped:
             self.assertTrue(element)
@@ -2117,7 +2297,7 @@ class TestEngine(unittest.TestCase):
 
         rti = RTI()
         with self.assertRaises(KeyboardInterrupt):
-            csp.run(g2, rti, starttime=datetime.utcnow(), endtime=timedelta(seconds=60), realtime=True)
+            csp.run(g2, rti, starttime=utc_now(), endtime=timedelta(seconds=60), realtime=True)
 
         for element in rti.stopped:
             self.assertTrue(element)

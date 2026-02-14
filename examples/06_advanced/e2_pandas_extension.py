@@ -2,16 +2,18 @@
 This example illustrates how csp edges can be used inside a pandas data frame via the pandas extension type mechanism.
 """
 
-import numpy as np
-import pandas as pd
 import random
 from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
 
 import csp
 import csp.impl.pandas_accessor  # This registers the "csp" accessors on pd.Series and pd.DataFrame
 from csp.impl.pandas_ext_type import TsDtype
 from csp.random import brownian_motion
 from csp.stats import numpy_to_list
+from csp.utils.datetime import utc_now
 
 
 def main():
@@ -65,7 +67,7 @@ def main():
     print(weighted_price)
     print()
     print("Run the weighted price as a graph...")
-    for timestamp, value in weighted_price.run(starttime=datetime.utcnow(), endtime=timedelta(seconds=6)):
+    for timestamp, value in weighted_price.run(starttime=utc_now(), endtime=timedelta(seconds=6)):
         print(timestamp, value)
     print()
     print()
@@ -76,7 +78,7 @@ def main():
         print(df_agg)
         print()
         print("Run the aggregate frame as of now")
-        print(df_agg.csp.run(datetime.utcnow(), timedelta(seconds=6)))
+        print(df_agg.csp.run(utc_now(), timedelta(seconds=6)))
         print()
     print()
     print()

@@ -1,7 +1,7 @@
 import argparse
 import importlib
-import importlib.util
 import importlib.machinery
+import importlib.util
 import os.path
 import sys
 import types
@@ -14,16 +14,19 @@ spec = importlib.util.spec_from_loader("csp", loader)
 csp_mod = importlib.util.module_from_spec(spec)
 sys.modules["csp"] = csp_mod
 
-from csp.impl.struct import Struct  # noqa: E402
 from csp.impl.enum import Enum  # noqa: E402
+from csp.impl.struct import Struct  # noqa: E402
 
 
 def struct_type(type_info):
-    return f"""csp::autogen::{type_info['pytype'].__name__}::Ptr"""
+    # If struct pytype is None then we are dealing with a generic csp.Struct field type
+    if type_info["pytype"] is None:
+        return "csp::StructPtr"
+    return f"""csp::autogen::{type_info["pytype"].__name__}::Ptr"""
 
 
 def enum_type(type_info):
-    return f"""csp::autogen::{type_info['pytype'].__name__}"""
+    return f"""csp::autogen::{type_info["pytype"].__name__}"""
 
 
 def array_type(type_info):
@@ -173,7 +176,7 @@ public:
 
     enum_ enum_value() const {{ return ( enum_ ) value(); }}
 
-    static constexpr uint32_t num_types() {{ return {len( [ x for x in enum_type ] )}; }}
+    static constexpr uint32_t num_types() {{ return {len([x for x in enum_type])}; }}
 
     static bool static_init();
 
@@ -498,7 +501,7 @@ class Derived(Test):
     flt: float
 
 
-# Test2 = csp.impl.struct.defineStruct( 'Test2', { 'A' + str(i) : bool for i in range(25 )})
+# Test2 = csp.impl.struct.define_struct( 'Test2', { 'A' + str(i) : bool for i in range(25 )})
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

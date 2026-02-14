@@ -15,8 +15,6 @@ public:
 
     csp::StructPtr asStruct( void * bytes, size_t size ) override;
 
-    MsgProtocol protocol() const override { return MsgProtocol::RAW_BYTES; }
-
     static MessageStructConverter * create( const CspTypePtr & type, const Dictionary & properties )
     {
         return new RawBytesMessageStructConverter( type, properties );

@@ -22,7 +22,7 @@ public:
     }
 
     //override nextPullEvent so we can release GIL while we wait
-    PushPullInputAdapter::PullDataEvent * nextPullEvent() override
+    PushPullEvent * nextPullEvent() override
     {
         ReleaseGIL release;
         return PushPullInputAdapter::nextPullEvent();
@@ -61,18 +61,20 @@ class TypedPyPushPullInputAdapter : public PyPushPullInputAdapter
 {
 public:
     TypedPyPushPullInputAdapter( Engine * engine, AdapterManager * manager, PyObjectPtr pyadapter, PyObject * pyType,
-                                 PushMode pushMode, PushGroup * pushGroup ):
-        PyPushPullInputAdapter( engine, manager, pyadapter, pyType, pushMode, pushGroup )
+                                 PushMode pushMode, PyObjectPtr pyPushGroup, PushGroup * pushGroup ):
+        PyPushPullInputAdapter( engine, manager, pyadapter, pyType, pushMode, pushGroup ),
+        m_pyPushGroup( pyPushGroup )
     {
     }
 
     void pushPyTick( bool live, PyObject * time, PyObject * value, PushBatch * batch ) override
     {
+        DateTime t = fromPython<DateTime>( time );
         try
         {
             if( !validatePyType( this -> dataType(), m_pyType.ptr(), value ) )
                 CSP_THROW( TypeError, "" );
-            pushTick<T>( live, fromPython<DateTime>( time ), std::move( fromPython<T>( value, *this -> dataType() ) ), batch );
+            pushTick<T>( live, t, std::move( fromPython<T>( value, *this -> dataType() ) ), batch );
         }
         catch( const TypeError & )
         {
@@ -80,6 +82,9 @@ public:
                        << pyTypeToString( m_pyType.ptr() ) << "\" got type \"" << Py_TYPE( value ) -> tp_name << "\"" );
         }
     }
+
+private:
+    PyObjectPtr m_pyPushGroup;
 };
 
 struct PyPushPullInputAdapter_PyObject
@@ -119,12 +124,22 @@ struct PyPushPullInputAdapter_PyObject
         CSP_RETURN_NONE;
     }
 
+    static PyObject * shutdown_engine( PyPushPullInputAdapter_PyObject * self, PyObject * pyException )
+    {
+        CSP_BEGIN_METHOD;
+        
+        self -> adapter -> rootEngine() -> shutdown( PyEngine_shutdown_make_exception( pyException ) );
+
+        CSP_RETURN_NONE;
+    }
+
     static PyTypeObject PyType;
 };
 
 static PyMethodDef PyPushPullInputAdapter_PyObject_methods[] = {
-    { "push_tick", (PyCFunction) PyPushPullInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
-    { "flag_replay_complete", (PyCFunction) PyPushPullInputAdapter_PyObject::flagReplayComplete, METH_VARARGS, "finish replay ticks" },
+    { "push_tick",              (PyCFunction) PyPushPullInputAdapter_PyObject::pushTick, METH_VARARGS, "push new tick" },
+    { "flag_replay_complete",   (PyCFunction) PyPushPullInputAdapter_PyObject::flagReplayComplete, METH_VARARGS, "finish replay ticks" },
+    { "shutdown_engine",        (PyCFunction) PyPushPullInputAdapter_PyObject::shutdown_engine, METH_O, "shutdown engine" },
     {NULL}
 };
 
@@ -198,7 +213,7 @@ static InputAdapter * pypushpullinputadapter_creator( csp::AdapterManager * mana
                   [&]( auto tag )
                   {
                       pyAdapter -> adapter = pyengine -> engine() -> createOwnedObject<TypedPyPushPullInputAdapter<typename decltype(tag)::type>>( 
-                          manager, PyObjectPtr::own( ( PyObject * ) pyAdapter ), pyType, pushMode, pushGroup );
+                          manager, PyObjectPtr::own( ( PyObject * ) pyAdapter ), pyType, pushMode, PyObjectPtr::incref( pyPushGroup ), pushGroup );
                   } );
     
     return pyAdapter -> adapter;

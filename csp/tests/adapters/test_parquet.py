@@ -1,18 +1,20 @@
 import math
-import numpy
 import os
+import tempfile
+import unittest
+from datetime import datetime, timedelta
+
+import numpy
 import pandas
 import polars
 import pyarrow
 import pyarrow.parquet
 import pytz
-import tempfile
-import unittest
-from datetime import datetime, timedelta
 
 import csp
 from csp.adapters.output_adapters.parquet import ParquetOutputConfig
 from csp.adapters.parquet import ParquetReader, ParquetWriter
+from csp.utils.datetime import utc_now
 
 
 class PriceQuantity(csp.Struct):
@@ -203,10 +205,11 @@ class TestParquet(unittest.TestCase):
                 csp.run(graph, starttime=start_time)
                 df = pandas.read_parquet(filename)
                 expected_columns = {}
+                # pandas 3.0+: need to explicitly force ns unit and UTC tz, no longer the default
                 if timestamp_column_name:
-                    expected_columns[timestamp_column_name] = [
-                        start_time + timedelta(seconds=sec + 1) for sec in range(10)
-                    ]
+                    expected_columns[timestamp_column_name] = pandas.date_range(
+                        start=start_time + timedelta(seconds=1), periods=10, unit="ns", freq="1s", tz="UTC"
+                    )
                 expected_columns.update(
                     {
                         "x": list(range(1, 11)),
@@ -239,7 +242,10 @@ class TestParquet(unittest.TestCase):
 
             expected_df = pandas.DataFrame.from_dict(
                 {
-                    "timestamp": [start_time + timedelta(seconds=sec + 1) for sec in range(10)],
+                    # pandas 3.0+: need to explicitly force ns unit and UTC tz, no longer the default
+                    "timestamp": pandas.date_range(
+                        start=start_time + timedelta(seconds=1), periods=10, unit="ns", freq="1s", tz="UTC"
+                    ),
                     "x": list(range(1, 11)),
                     "y": list(map(float, range(0, 100, 10))),
                 }
@@ -854,7 +860,7 @@ class TestParquet(unittest.TestCase):
                 b=True,
                 i=123,
                 d=123.456,
-                dt=datetime.utcnow(),
+                dt=utc_now(),
                 dte=date.today(),
                 t=time(1, 2, 3),
                 s="hello hello",
@@ -1087,6 +1093,113 @@ class TestParquet(unittest.TestCase):
             self.assertEqual(len(struct_df), 1)
             self.assertEqual(struct_df["csp_time"][0].tzinfo.key, "UTC")
             self.assertEqual(struct_df["csp_time"][0].timestamp(), start.timestamp())
+
+    def test_parquet_read(self):
+        from csp.impl.types.typing_utils import CspTypingUtils
+
+        def _run_test(dts, items, item_type):
+            df = polars.DataFrame({"timestamp": dts, "data": items})
+            with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as tmp_folder:
+                file_name = os.path.join(tmp_folder, "data.parquet")
+                df.write_parquet(file_name)
+                table = pyarrow.parquet.read_table(file_name)
+                new_schema = pyarrow.schema(
+                    [pyarrow.field("timestamp", pyarrow.timestamp("us")), pyarrow.field("data", item_type)]
+                )
+                pyarrow.parquet.write_table(table.cast(new_schema), file_name)
+
+                @csp.graph
+                def my_graph() -> csp.ts[MyStruct]:
+                    reader = ParquetReader(file_name, time_column="timestamp")
+                    return reader.subscribe_all(MyStruct, MyStruct.default_field_map())
+
+                read_data = csp.run(my_graph, starttime=dts[0], endtime=dts[-1])
+            self.assertEqual([tup[0] for tup in read_data[0]], dts, "timestamps don't match")
+            structs = [tup[1] for tup in read_data[0]]
+            if CspTypingUtils.is_numpy_array_type(MyStruct.__full_metadata_typed__["data"]):
+                self.assertEqual([struct.data.tolist() for struct in structs], items)
+            else:
+                self.assertEqual([struct.data for struct in structs], items)
+
+        NUM_ITEMS = 10
+        dts = [datetime.now() + timedelta(seconds=i) for i in range(NUM_ITEMS)]
+
+        # Strings
+        class MyStruct(csp.Struct):
+            data: str
+
+        _run_test(dts, ["test" for i in range(NUM_ITEMS)], pyarrow.string())
+        # Binary
+        _run_test(dts, ["test" for i in range(NUM_ITEMS)], pyarrow.binary())
+        # Large String
+        _run_test(dts, ["test" for i in range(NUM_ITEMS)], pyarrow.large_string())
+        # Large Binary
+        _run_test(dts, ["test" for i in range(NUM_ITEMS)], pyarrow.large_binary())
+
+        class MyStruct(csp.Struct):
+            data: csp.typing.Numpy1DArray[str]
+
+        # List of Strings
+        _run_test(dts, [["test"] * i for i in range(NUM_ITEMS)], pyarrow.list_(pyarrow.string()))
+        # List of Binary Strings
+        _run_test(dts, [["test"] * i for i in range(NUM_ITEMS)], pyarrow.list_(pyarrow.binary()))
+        # List of Large Strings
+        _run_test(dts, [["test"] * i for i in range(NUM_ITEMS)], pyarrow.list_(pyarrow.large_string()))
+        # List of Large Binary Strings
+        _run_test(dts, [["test"] * i for i in range(NUM_ITEMS)], pyarrow.list_(pyarrow.large_binary()))
+        # Large List of Strings
+        _run_test(dts, [["test"] * i for i in range(NUM_ITEMS)], pyarrow.large_list(pyarrow.string()))
+        # Large List of Binary Strings
+        _run_test(dts, [["test"] * i for i in range(NUM_ITEMS)], pyarrow.large_list(pyarrow.binary()))
+        # Large List of Large Strings
+        _run_test(dts, [["test"] * i for i in range(NUM_ITEMS)], pyarrow.large_list(pyarrow.large_string()))
+        # Large List of Large Binary Strings
+        _run_test(dts, [["test"] * i for i in range(NUM_ITEMS)], pyarrow.large_list(pyarrow.large_binary()))
+
+        ## Ints
+        class MyStruct(csp.Struct):
+            data: int
+
+        # Ints
+        _run_test(dts, [i for i in range(NUM_ITEMS)], pyarrow.int64())
+
+        class MyStruct(csp.Struct):
+            data: csp.typing.Numpy1DArray[int]
+
+        # List of Ints
+        _run_test(dts, [[i] * i for i in range(NUM_ITEMS)], pyarrow.list_(pyarrow.int64()))
+        # Large List of Ints
+        _run_test(dts, [[i] * i for i in range(NUM_ITEMS)], pyarrow.large_list(pyarrow.int64()))
+
+        ## Floats
+        class MyStruct(csp.Struct):
+            data: float
+
+        # Floats
+        _run_test(dts, [float(i) for i in range(NUM_ITEMS)], pyarrow.float64())
+
+        class MyStruct(csp.Struct):
+            data: csp.typing.Numpy1DArray[float]
+
+        # List of Floats
+        _run_test(dts, [[float(i)] * i for i in range(NUM_ITEMS)], pyarrow.list_(pyarrow.float64()))
+        # Large List of Floats
+        _run_test(dts, [[float(i)] * i for i in range(NUM_ITEMS)], pyarrow.large_list(pyarrow.float64()))
+
+        ## Bools
+        class MyStruct(csp.Struct):
+            data: bool
+
+        # Bool
+        _run_test(dts, [True for i in range(NUM_ITEMS)], pyarrow.bool_())
+
+        class MyStruct(csp.Struct):
+            data: csp.typing.Numpy1DArray[bool]
+
+        # List of Bools
+        _run_test(dts, [[True] * i for i in range(NUM_ITEMS)], pyarrow.list_(pyarrow.bool_()))
+        # Large List of Bools
+        _run_test(dts, [[True] * i for i in range(NUM_ITEMS)], pyarrow.large_list(pyarrow.bool_()))
 
 
 if __name__ == "__main__":

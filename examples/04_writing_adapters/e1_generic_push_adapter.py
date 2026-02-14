@@ -5,9 +5,10 @@ from a non-csp engine thread into the csp engine.
 
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import csp
+from csp.utils.datetime import utc_now
 
 
 # This will be run be some separate thread
@@ -53,7 +54,7 @@ def my_graph():
 
 
 def main():
-    csp.run(my_graph, realtime=True, starttime=datetime.utcnow(), endtime=timedelta(seconds=2))
+    csp.run(my_graph, realtime=True, starttime=utc_now(), endtime=timedelta(seconds=2))
 
 
 if __name__ == "__main__":

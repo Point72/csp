@@ -36,7 +36,7 @@ DECLARE_CPPNODE(use_struct_generic)
       switchCspType(  m_fieldAccess -> type(), [this,&copy]( auto tag )
       {
         using ElemT  = typename decltype(tag)::type;
-        if(std::is_same<ElemT, binding_int_t>()) {
+        if(std::is_same<ElemT, int>()) {
           m_fieldAccess -> setValue( copy.get(), 0);
         }
       });

@@ -1,8 +1,9 @@
 import collections
 import inspect
-import numpy
 import typing
 from abc import ABCMeta, abstractmethod
+
+import numpy
 
 import csp.typing
 from csp.impl.types import tstype
@@ -10,7 +11,7 @@ from csp.impl.types.common_definitions import ArgKind, BasketKind, InputDef, Out
 from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
 from csp.impl.types.numpy_type_util import map_numpy_dtype_to_python_type
 from csp.impl.types.tstype import AttachType, SnapKeyType, SnapType, TsType, isTsDynamicBasket
-from csp.impl.types.typing_utils import CspTypingUtils
+from csp.impl.types.typing_utils import CspTypingUtils, FastList
 from csp.impl.wiring.edge import Edge
 
 
@@ -34,7 +35,7 @@ class UpcastRegistry(object):
             if CspTypingUtils.is_generic_container(expected_type):
                 expected_type_base = CspTypingUtils.get_orig_base(expected_type)
                 if expected_type_base is new_type:
-                    return expected_type
+                    return expected_type_base  # If new_type is Generic and expected type is Generic[T], return Generic
                 if CspTypingUtils.is_generic_container(new_type):
                     expected_origin = CspTypingUtils.get_origin(expected_type)
                     new_type_origin = CspTypingUtils.get_origin(new_type)
@@ -99,14 +100,7 @@ class ContainerTypeVarResolutionError(TypeError):
 class TypeMismatchError(TypeError):
     @classmethod
     def pretty_typename(cls, typ):
-        if CspTypingUtils.is_generic_container(typ):
-            return str(typ)
-        elif CspTypingUtils.is_forward_ref(typ):
-            return cls.pretty_typename(typ.__forward_arg__)
-        elif isinstance(typ, type):
-            return typ.__name__
-        else:
-            return str(typ)
+        return CspTypingUtils.pretty_typename(typ)
 
     @classmethod
     def get_tvar_info_str(cls, tvar_info):
@@ -250,7 +244,13 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
 
     def _is_expected_generic_meta(self, typ, expected_generic_meta):
         is_generic_container = CspTypingUtils.is_generic_container(typ)
-        return (is_generic_container and CspTypingUtils.get_origin(typ) is expected_generic_meta) or (
+        return (
+            is_generic_container
+            and (
+                CspTypingUtils.get_origin(typ) is expected_generic_meta
+                or (expected_generic_meta is typing.List and CspTypingUtils.get_origin(typ) is FastList)
+            )
+        ) or (
             not is_generic_container
             and isinstance(expected_generic_meta, typ)
             and issubclass(expected_generic_meta, typ)
@@ -387,7 +387,15 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
     def _is_scalar_value_matching_spec(self, inp_def_type, arg):
         if inp_def_type is typing.Any:
             return True
-        if UpcastRegistry.instance().resolve_type(inp_def_type, type(arg), raise_on_error=False) is inp_def_type:
+        if CspTypingUtils.is_callable(inp_def_type):
+            return callable(arg)
+        resolved_type = UpcastRegistry.instance().resolve_type(inp_def_type, type(arg), raise_on_error=False)
+        if resolved_type is inp_def_type:
+            return True
+        elif (
+            CspTypingUtils.is_generic_container(inp_def_type)
+            and CspTypingUtils.get_orig_base(inp_def_type) is resolved_type
+        ):
             return True
         if CspTypingUtils.is_union_type(inp_def_type):
             types = inp_def_type.__args__
@@ -551,10 +559,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
             else:
                 return False
         if len(arg) == 0:
-            if raise_on_error:
-                raise ContainerTypeVarResolutionError(self._function_name, tvar, arg)
-            else:
-                return None
+            return container_typ
         res = None
         if isinstance(arg, set):
             first_val = arg.__iter__().__next__()

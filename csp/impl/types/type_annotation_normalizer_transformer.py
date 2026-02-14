@@ -51,6 +51,8 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
         return node
 
     def visit_Subscript(self, node):
+        # We choose to avoid parsing here
+        # to maintain current behavior of allowing empty lists in our types
         return node
 
     def visit_List(self, node):
@@ -60,7 +62,7 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
             raise InvalidTypeAnnotationError(self._f.name, self._cur_arg, node.elts)
         node = ast.Subscript(
             value=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="List", ctx=ast.Load()),
-            slice=ast.Index(value=self.visit(node.elts[0])),
+            slice=self.visit(node.elts[0]),
             ctx=ast.Load(),
         )
         return node
@@ -73,7 +75,7 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
             raise InvalidTypeAnnotationError(self._f.name, node.arg, node.elts)
         node = ast.Subscript(
             value=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="Set", ctx=ast.Load()),
-            slice=ast.Index(value=self.visit(node.elts[0])),
+            slice=self.visit(node.elts[0]),
             ctx=ast.Load(),
         )
         return node
@@ -86,10 +88,7 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
             raise InvalidTypeAnnotationError(self._f.name, node.arg, node)
         node = ast.Subscript(
             value=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="Dict", ctx=ast.Load()),
-            slice=ast.Index(
-                value=ast.Tuple(elts=[self.visit(node.keys[0]), self.visit(node.values[0])], ctx=ast.Load()),
-                ctx=ast.Load(),
-            ),
+            slice=ast.Tuple(elts=[self.visit(node.keys[0]), self.visit(node.values[0])], ctx=ast.Load()),
             ctx=ast.Load(),
         )
         return node
@@ -98,17 +97,10 @@ class TypeAnnotationNormalizerTransformer(ast.NodeTransformer):
         return node
 
     def visit_Constant(self, node):
-        if not self._cur_arg:
+        if not self._cur_arg or not isinstance(node.value, str):
             return node
-
-        if self._cur_arg:
-            return ast.Call(
-                func=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="TypeVar", ctx=ast.Load()),
-                args=[node],
-                keywords=[],
-            )
-        else:
-            return node
-
-    def visit_Str(self, node):
-        return self.visit_Constant(node)
+        return ast.Call(
+            func=ast.Attribute(value=ast.Name(id="typing", ctx=ast.Load()), attr="TypeVar", ctx=ast.Load()),
+            args=[node],
+            keywords=[],
+        )

@@ -224,12 +224,12 @@ bool SingleTableParquetReader::skipRow()
 
 bool SingleTableParquetReader::readNextRow()
 {
-    if( unlikely( m_curTable == nullptr ) )
+    if( m_curTable == nullptr ) [[unlikely]]
     {
         return false;
     }
 
-    if( unlikely( m_curTableNextRow >= m_curTable -> num_rows() ) )
+    if( m_curTableNextRow >= m_curTable -> num_rows() ) [[unlikely]]
     {
         if( !readNextRowGroup() )
         {
@@ -565,11 +565,11 @@ bool MultipleFileParquetReader::skipRow()
             ++successfulSkips;
         }
     }
-    if(unlikely(successfulSkips == 0))
+    if(successfulSkips == 0) [[unlikely]]
     {
         return false;
     }
-    if(unlikely(successfulSkips!=m_columnReaders.size()))
+    if(successfulSkips!=m_columnReaders.size()) [[unlikely]]
     {
         CSP_THROW(RuntimeException, "Input files are not alligned - some columns have more data than the others");
     }

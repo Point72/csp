@@ -174,6 +174,7 @@ csp.unroll(x: ts[['T']]) → ts['T']
 Given a timeseries of a *list* of values, unroll will "unroll" the values in the list into a timeseries of the elements.
 `unroll` will ensure to preserve the order across all list ticks.
 Ticks will be unrolled in subsequent engine cycles.
+For a detailed explanation of this behavior, see the documentation on [duplicate timestamps](Execution-Modes#handling-duplicate-timestamps).
 
 ## `csp.collect`
 
@@ -287,7 +288,7 @@ Args:
 
 - **`x`**: the input timeseries to demultiplex
 - **`key`**: a ticking timeseries of the current key to output to
-- **`keys`**: a list of expected keys that will define the shape of the output basket.  The list of keys must be known at graph building time
+- **`keys`**: a list of expected keys that will define the shape of the output basket. The list of keys must be known at graph building time
 - **`raise_on_bad_key`**: if `True` an exception will be raised of key ticks with an unrecognized key (defaults to `False`)
 
 ## `csp.dynamic_demultiplex`
@@ -360,10 +361,10 @@ Given a mathematical expression, and a set of timeseries corresponding to variab
 
 Args:
 
-- **`expression_str`**: an expression, as per the [C++ Mathematical Expression Library](http://www.partow.net/programming/exprtk/) (see [readme](http://www.partow.net/programming/exprtk/code/readme.txt)
+- **`expression_str`**: an expression, as per the [C++ Mathematical Expression Library](http://www.partow.net/programming/exprtk/) (see [readme](http://www.partow.net/programming/exprtk/code/readme.txt))
 - **`inputs`**: a dict basket of timeseries. The keys will correspond to the variables in the expression. The timeseries can be of float or string
-- **`state_vars`**: an optional dictionary of variables to be held in state between executions, and assignable within the expression.  Keys are the variable names and values are the starting values
+- **`state_vars`**: an optional dictionary of variables to be held in state between executions, and assignable within the expression. Keys are the variable names and values are the starting values
 - **`trigger`**: an optional trigger for when to calculate. By default will calculate on any input tick
 - **`functions`**: an optional dictionary whose keys are function names that can be used in the expression, and whose values are of the form `(("arg1", ..), "function body")`, for example `{"foo": (("x","y"), "x\*y")}`
-- **`constants`**: an optional dictionary of constants.  Keys are constant names and values are their values
+- **`constants`**: an optional dictionary of constants. Keys are constant names and values are their values
 - **`output_ndarray`**: if `True`, output ndarray (1D) instead of float. Note that to output `ndarray`, the expression needs to use return like `return [a, b, c]`. The length of the array can vary between ticks.

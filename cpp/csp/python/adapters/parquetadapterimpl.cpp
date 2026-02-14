@@ -17,13 +17,15 @@
 #include <csp/python/PyCppNode.h>
 #include <csp/python/PyNodeWrapper.h>
 #include <csp/python/NumpyConversions.h>
-#include <arrow/python/pyarrow.h>
+#include <arrow/c/abi.h>
+#include <arrow/c/bridge.h>
 #include <arrow/io/memory.h>
-#include <arrow/ipc/reader.h>
+#include <arrow/table.h>
 #include <locale>
 #include <codecvt>
 
 using namespace csp::adapters::parquet;
+
 //using namespace csp::cppnodes;
 //namespace csp::adapters::parquet
 namespace csp::cppnodes
@@ -53,7 +55,7 @@ DECLARE_CPPNODE( parquet_dict_basket_writer )
 
     INVOKE()
     {
-        if( unlikely( filename_provider.ticked() ) )
+        if( filename_provider.ticked() ) [[unlikely]]
         {
             s_outputWriter -> onFileNameChange( filename_provider.lastValue() );
         }
@@ -76,21 +78,6 @@ REGISTER_CPPNODE( csp::cppnodes, parquet_dict_basket_writer );
 
 namespace
 {
-
-struct PyArrowInitializer
-{
-    static inline bool ensureInitialized()
-    {
-        static bool initialized = false;
-        if( unlikely( !initialized ) )
-        {
-            if( arrow::py::import_pyarrow() != 0 )
-                CSP_THROW( csp::python::PythonPassthrough, "" );
-            initialized = true;
-        }
-        return initialized;
-    }
-};
 
 class FileNameGenerator : public csp::Generator<std::string, csp::DateTime, csp::DateTime>
 {
@@ -145,7 +132,6 @@ public:
     ArrowTableGenerator( PyObject *wrappedGenerator )
             : m_wrappedGenerator( csp::python::PyObjectPtr::incref( wrappedGenerator ) )
     {
-        PyArrowInitializer::ensureInitialized();
     }
 
     void init( csp::DateTime start, csp::DateTime end ) override
@@ -173,34 +159,30 @@ public:
         {
             CSP_THROW( csp::python::PythonPassthrough, "" );
         }
-        if( nextVal == nullptr )
+        if( nextValPtr.get() == nullptr )
         {
             return false;
         }
 
-        if(!PyBytes_Check( nextVal ))
+        if( !PyCapsule_IsValid( nextValPtr.get(), "arrow_array_stream" ) )
         {
-            CSP_THROW( csp::TypeError, "Invalid arrow buffer type, expected bytes got " << Py_TYPE( nextVal ) -> tp_name );
+            CSP_THROW( csp::TypeError, "Invalid arrow data, expected PyCapsule got " << Py_TYPE( nextValPtr.get() ) -> tp_name );
         }
-        const char * data = PyBytes_AsString( nextVal );
-        if( !data )
-            CSP_THROW( csp::python::PythonPassthrough, "" );
-        auto size = PyBytes_Size(nextVal);
-        m_data = csp::python::PyObjectPtr::incref(nextVal);
-        std::shared_ptr<arrow::io::BufferReader> bufferReader = std::make_shared<arrow::io::BufferReader>(
-                reinterpret_cast<const uint8_t *>(data), size );
-        std::shared_ptr<arrow::ipc::RecordBatchStreamReader> reader = arrow::ipc::RecordBatchStreamReader::Open(bufferReader.get()).ValueOrDie();
-        auto result = reader->ToTable();
-        if (!(result.ok()))
-            CSP_THROW(csp::RuntimeException, "Failed read arrow table from buffer");
-        value = std::move(result.ValueUnsafe());
+        // Extract the record batch
+        struct ArrowArrayStream * c_stream = reinterpret_cast<struct ArrowArrayStream*>( PyCapsule_GetPointer( nextValPtr.get(), "arrow_array_stream" ) );
+        auto reader_result = arrow::ImportRecordBatchReader( c_stream );
+        if( !reader_result.ok() )
+            CSP_THROW( csp::ValueError, "Failed to load record batches through PyCapsule C Data interface: " << reader_result.status().ToString() );
+        auto reader = std::move( reader_result.ValueUnsafe() );
+        auto table_result = arrow::Table::FromRecordBatchReader( reader.get() );
+        if( !table_result.ok() )
+            CSP_THROW( csp::ValueError, "Failed to load table from record batches " << table_result.status().ToString() );
+        value = std::move( table_result.ValueUnsafe() );
         return true;
     }
 private:
     csp::python::PyObjectPtr m_wrappedGenerator;
     csp::python::PyObjectPtr m_iter;
-    // We need to keep the last buffer in memory since arrow doesn't copy it but can refer to strings in it
-    csp::python::PyObjectPtr m_data;
 };
 
 template< typename CspCType>
@@ -303,7 +285,7 @@ public:
                                                          PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
         }
 
-        auto elementSize = PyArray_DESCR( arrayObject ) -> elsize;
+        auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( arrayObject ) );
         auto ndim        = PyArray_NDIM( arrayObject );
 
         CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
@@ -451,7 +433,7 @@ public:
     {
         auto arrayObject = reinterpret_cast<PyArrayObject *>(csp::python::toPythonBorrowed( list ));
         std::wstring_convert<std::codecvt_utf8<char32_t>,char32_t> converter;
-        auto elementSize = PyArray_DESCR( arrayObject ) -> elsize;
+        auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( arrayObject ) );
         auto wideValue = converter.from_bytes( value );
         auto nElementsToCopy = std::min( int(elementSize / sizeof(char32_t)), int( wideValue.size() + 1 ) );
         std::copy_n( wideValue.c_str(), nElementsToCopy, reinterpret_cast<char32_t*>(PyArray_GETPTR1( arrayObject, index )) );
@@ -685,8 +667,9 @@ static PyModuleDef _parquetadapterimpl_module = {
 PyMODINIT_FUNC PyInit__parquetadapterimpl( void )
 {
     PyObject *m;
-
+    
     m = PyModule_Create( &_parquetadapterimpl_module );
+
     if( m == NULL )
     {
         return NULL;

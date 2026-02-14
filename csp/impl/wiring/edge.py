@@ -1,3 +1,6 @@
+import inspect
+
+
 class Edge:
     __slots__ = ["tstype", "nodedef", "output_idx", "basket_idx"]
 
@@ -192,12 +195,18 @@ class Edge:
     def __getattr__(self, key):
         from csp.impl.struct import Struct
 
-        if issubclass(self.tstype.typ, Struct):
+        typ = super().__getattribute__("tstype").typ
+        if inspect.isclass(typ) and issubclass(typ, Struct):
             import csp
 
-            elemtype = self.tstype.typ.metadata(typed=True).get(key)
+            elemtype = typ.metadata(typed=True).get(key)
             if elemtype is None:
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.tstype.typ.__name__, key))
+            if typ.is_strict() and key in typ.optional_fields():
+                raise AttributeError(
+                    "Cannot access optional field '%s' on strict struct object '%s' at graph time"
+                    % (key, self.tstype.typ.__name__)
+                )
             return csp.struct_field(self, key, elemtype)
 
         raise AttributeError("'Edge' object has no attribute '%s'" % (key))

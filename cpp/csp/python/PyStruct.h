@@ -25,21 +25,21 @@ class CSPTYPESIMPL_EXPORT DialectStructMeta : public StructMeta
 {
 public:
     DialectStructMeta( PyTypeObject * pyType, const std::string & name, 
-                       const Fields & fields, std::shared_ptr<StructMeta> base = nullptr );
+                       const Fields & fields, bool isStrict, std::shared_ptr<StructMeta> base = nullptr );
     ~DialectStructMeta() {}
 
-    PyTypeObject * pyType() const { return m_pyType; }
+    PyTypeObject * pyType() const { return m_pyType.get(); }
 
     const StructField * field( PyObject * attr ) const
     {
-        PyObject * field = PyDict_GetItem( ( ( PyStructMeta * ) m_pyType ) -> attrDict.get(), attr );
-        if( likely( field != nullptr ) )
+        PyObject * field = PyDict_GetItem( ( ( PyStructMeta * ) m_pyType.get() ) -> attrDict.get(), attr );
+        if( field != nullptr ) [[likely]]
             return ( StructField * ) PyCapsule_GetPointer( field, nullptr );
         return nullptr;
     }
 
 private:
-    PyTypeObject * m_pyType;   //borrowed reference from type that is holding this instance
+    PyTypeObjectPtr m_pyType;
 };
 
 
@@ -77,6 +77,10 @@ struct CSPTYPESIMPL_EXPORT PyStruct : public PyObject
 
     static PyTypeObject PyType;
 };
+
+// Array struct field printing function
+template<typename ElemT>
+void repr_array( const std::vector<ElemT> & val, const CspType & elemType, std::string & tl_repr, bool show_unset );
 
 }
 

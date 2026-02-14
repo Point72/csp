@@ -1,5 +1,8 @@
 name: Conda End-to-end Test
 
+env:
+  SANITIZER_CI_SCHEDULE: '25 6 * * 5'
+
 on:
   push:
     branches:
@@ -18,6 +21,16 @@ on:
       - README.md
       - "docs/**"
   workflow_dispatch:
+    inputs:
+      sanitizer:
+        description: "Run sanitized build"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # Run conda CI on Monday and Thursday at 1:25am EST (06:25 UTC)
+    # Run conda sanitized builds on Fridays at 1:25 am EST (06:25 UTC)
+    - cron: '25 6 * * 1,4,5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -28,62 +41,93 @@ permissions:
   checks: write
 
 jobs:
+    initialize:
+      runs-on: ubuntu-24.04
+      outputs:
+        SANITIZER: ${{ steps.setupmanual.outputs.SANITIZER || steps.setupschedule.outputs.SANITIZER }}
+      steps:
+        - name: Display and Setup Build Args (Manual)
+          id: setupmanual
+          run: |
+            echo "Sanitizer: $SANITIZER"
+            echo "SANITIZER=$SANITIZER" >> $GITHUB_OUTPUT
+          env:
+            SANITIZER: ${{ github.event.inputs.sanitizer }}
+          if: ${{ github.event_name == 'workflow_dispatch' }}
+
+        - name: Display and Setup Build Args (Schedule)
+          id: setupschedule
+          run: |
+            echo "Sanitizer: $SANITIZER"
+            echo "SANITIZER=$SANITIZER" >> $GITHUB_OUTPUT
+          env:
+            SANITIZER: ${{ github.event.schedule == env.SANITIZER_CI_SCHEDULE }}
+          if: ${{ github.event_name == 'schedule' }}
+
     build:
+      needs:
+          - initialize
       strategy:
         matrix:
           os:
-            - ubuntu-22.04
+            - ubuntu-24.04
             - macos-14
-            - macos-12
-            - windows-2019
+            - windows-2022
       runs-on: ${{ matrix.os }}
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
 
-        - uses: mamba-org/setup-micromamba@v1
+        - uses: mamba-org/setup-micromamba@v2
           with:
-            micromamba-version: '1.5.7-0'
+            micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-unix.yml
             init-shell: >-
               bash
             cache-environment: true
+            cache-downloads: true
             post-cleanup: 'all'
           if: ${{ runner.os != 'Windows' }}
 
-        - uses: mamba-org/setup-micromamba@v1
+        - uses: mamba-org/setup-micromamba@v2
           with:
-            micromamba-version: '1.5.7-0'
+            micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-win.yml
             init-shell: >-
               cmd.exe
             cache-environment: true
+            cache-downloads: true
             post-cleanup: 'all'
           if: ${{ runner.os == 'Windows' }}
 
         - name: Set up Caches
           uses: ./.github/actions/setup-caches
           with:
-            cibuildwheel: 'cp312'
+            vcpkg: false
 
         - name: Python Lint Steps
           run: make lint
           shell: micromamba-shell {0}
           if: ${{ runner.os != 'Windows' }}
 
-        - name: Python Lint Steps ( Windows )
+        - name: Python Lint Steps (Windows)
           run: make lint
           shell: cmd /C call {0}
           if: ${{ runner.os == 'Windows' }}
 
-        - name: Python Build Steps
+        - name: Python Build Steps (Linux)
+          run: make build-conda ${{ needs.initialize.outputs.SANITIZER == 'true' && 'ASAN="ON" UBSAN="ON"' || '' }}
+          shell: micromamba-shell {0}
+          if: ${{ runner.os == 'Linux' }}
+
+        - name: Python Build Steps (macOS)
           run: make build-conda
           shell: micromamba-shell {0}
-          if: ${{ runner.os != 'Windows' }}
+          if: ${{ runner.os == 'macOS' }}
 
-        - name: Python Build Steps ( Windows )
+        - name: Python Build Steps (Windows)
           env:
-            CSP_GENERATOR: "Visual Studio 16 2019"
+            CSP_GENERATOR: "Visual Studio 17 2022"
           run: make build-conda
           shell: cmd /C call {0}
           if: ${{ runner.os == 'Windows' }}
@@ -91,7 +135,12 @@ jobs:
         - name: Python Test Steps
           run: make test
           shell: micromamba-shell {0}
-          if: ${{ runner.os != 'Windows' }}
+          if: ${{ runner.os != 'Windows' && needs.initialize.outputs.SANITIZER == 'false' }}
+
+        - name: Python Test Steps (Sanitizer)
+          run: make test-sanitizer
+          shell: micromamba-shell {0}
+          if: ${{ runner.os != 'Windows' && needs.initialize.outputs.SANITIZER == 'true' }}
 
         - name: Python Test Steps ( Windows )
           run: make test

@@ -1,15 +1,36 @@
 import itertools
+import os
 
 from csp.impl.constants import UNSET
+from csp.impl.error_handling import fmt_errors
 from csp.impl.types import tstype
 from csp.impl.types.common_definitions import ArgKind, InputDef, OutputBasketContainer, OutputDef
 from csp.impl.types.generic_values_resolver import GenericValuesResolver
 from csp.impl.types.instantiation_type_resolver import InputInstanceTypeResolver
-from csp.impl.types.tstype import ts
+from csp.impl.types.tstype import AttachType, ts
 from csp.impl.wiring.context import Context
 from csp.impl.wiring.edge import Edge
 from csp.impl.wiring.outputs import OutputsContainer
 from csp.impl.wiring.special_output_names import UNNAMED_OUTPUT_NAME
+
+USE_PYDANTIC: bool = os.environ.get("CSP_PYDANTIC", True)
+
+if USE_PYDANTIC:
+    from pydantic import (
+        ValidationError,
+        ValidationInfo,
+        WrapValidator,
+        create_model,
+        field_validator,
+        model_validator,
+    )
+    from typing_extensions import Annotated
+
+    from csp.impl.types.pydantic_type_resolver import TVarValidationContext
+    from csp.impl.types.pydantic_types import adjust_annotations, make_snap_validator
+
+    INPUT_PREFIX = "inp_"
+    OUTPUT_PREFIX = "out_"
 
 
 class Signature:
@@ -34,6 +55,61 @@ class Signature:
         self._alarms = [x for x in self._inputs if x.kind.is_alarm()]
         self._scalars = [x for x in self._inputs if x.kind.is_scalar()]
         self._num_alarms = len(self._alarms)
+
+        self._input_model, self._output_model = self._create_pydantic_models(
+            self._name, self._inputs, self._outputs, self._defaults
+        )
+
+    def _create_pydantic_models(self, name, inputs, outputs, defaults):
+        if USE_PYDANTIC:
+            # Prefix all names with INPUT_PREFIX to avoid conflicts with pydantic names (i.e. model_validate)
+            input_fields = {}
+            for defn in inputs:
+                if defn.kind != ArgKind.ALARM:
+                    default = defaults.get(defn.name, ...)
+                    typ = adjust_annotations(defn.typ, make_optional=True)
+                    if defn.kind.is_scalar():  # Allow for SnapType and SnapKeyType
+                        typ = Annotated[typ, WrapValidator(make_snap_validator(defn.typ))]
+                    input_fields[f"{INPUT_PREFIX}{defn.name}"] = (typ, default)
+            output_fields = {
+                f"{OUTPUT_PREFIX}{defn.name}" if defn.name else OUTPUT_PREFIX: (adjust_annotations(defn.typ), ...)
+                for defn in outputs
+            }
+
+            def validate_tvars(self, info: ValidationInfo):
+                if not isinstance(info.context, TVarValidationContext):
+                    raise TypeError("Validation context is not a TVarValidationContext")
+                info.context.resolve_tvars()
+                return info.context.revalidate(self)
+
+            def track_fields(cls, v, info):
+                if not isinstance(info.context, TVarValidationContext):
+                    raise TypeError("Validation context is not a TVarValidationContext")
+                info.context.field_name = info.field_name
+                return v
+
+            # https://docs.pydantic.dev/latest/concepts/models/#dynamic-model-creation
+            config = {"arbitrary_types_allowed": True, "extra": "forbid", "validate_default": True}
+            validators = {
+                "validate_tvars": model_validator(mode="after")(validate_tvars),
+                "track_fields": field_validator("*", mode="before")(track_fields),
+            }
+            try:
+                input_model = create_model(
+                    f"{INPUT_PREFIX}{name}", __config__=config, __validators__=validators, **input_fields
+                )
+            except Exception as err:
+                raise TypeError(f"Could not create pydantic model for inputs of {self._name}.\n{err}") from None
+            try:
+                output_model = create_model(
+                    f"{OUTPUT_PREFIX}{name}", __config__=config, __validators__=validators, **output_fields
+                )
+            # except AttributeError:  # i.e. for OutputBasketContainer
+            #    output_model = None
+            except Exception as err:
+                raise TypeError(f"Could not create pydantic model for outputs of {self._name}.\n{err}") from None
+            return input_model, output_model
+        return None, None
 
     def copy(self, drop_alarms=False):
         if drop_alarms:
@@ -86,14 +162,11 @@ class Signature:
 
         return flat_args
 
-    def parse_inputs(self, forced_tvars, *args, allow_subtypes=True, allow_none_ts=False, **kwargs):
-        from csp.utils.object_factory_registry import Injected
+    def parse_inputs(self, forced_tvars, *args, allow_none_ts=False, **kwargs):
+        if USE_PYDANTIC:
+            return self._parse_inputs_pydantic(forced_tvars, *args, allow_none_ts=allow_none_ts, **kwargs)
 
         flat_args = self.flatten_args(*args, **kwargs)
-
-        for i, arg in enumerate(flat_args):
-            if isinstance(arg, Injected):
-                flat_args[i] = arg.value
 
         type_resolver = InputInstanceTypeResolver(
             function_name=self._name,
@@ -133,6 +206,49 @@ class Signature:
                             resolved_input[k] = cast_int_to_float(resolved_input[k])
 
         return tuple(type_resolver.ts_inputs), tuple(type_resolver.scalar_inputs), type_resolver.tvars
+
+    def _parse_inputs_pydantic(self, forced_tvars, *args, allow_none_ts=False, **kwargs):
+        new_kwargs = {}
+        for k, v in kwargs.items():
+            new_kwargs[f"{INPUT_PREFIX}{k}"] = v
+        # Replacement of flat_args
+        # TODO: What if too many args passed in?
+        for arg, inp in zip(args, self._inputs[self._num_alarms :]):
+            if inp.name in kwargs:
+                raise TypeError('%s got multiple value for argument "%s"' % (self._name, inp.name))
+
+            new_kwargs[f"{INPUT_PREFIX}{inp.name}"] = arg
+
+        context = TVarValidationContext(forced_tvars=forced_tvars, allow_none_ts=allow_none_ts)
+        try:
+            input_model = self._input_model.model_validate(new_kwargs, context=context)
+        except ValidationError as e:
+            raise TypeError(f"Input type validation error(s).\n{fmt_errors(e, INPUT_PREFIX)}") from None
+        # Normally, you would just grab the non-alarm ts and sclar inputs off the input model, but there are two complexities
+        # 1. AttachType is initially classified as a ts input but needs to be returned as a scalar input (for historical reasons)
+        # 2. Pydantic does a shallow copy on validation, which is different from csp behavior, and especially certain
+        #   examples involving adapters that pass mutable lists/dicts/sets, so we carve out an exception here for those types
+        ts_inputs = []
+        scalar_inputs = []
+        for x in self._inputs:
+            if x.kind.is_alarm():
+                continue
+            validated_value = getattr(input_model, f"{INPUT_PREFIX}{x.name}")
+            if x.kind.is_any_ts():
+                if isinstance(validated_value, AttachType):
+                    scalar_inputs.append(validated_value)
+                else:
+                    ts_inputs.append(validated_value)
+            elif x.kind.is_scalar():
+                original_value = new_kwargs.get(f"{INPUT_PREFIX}{x.name}")
+                if isinstance(validated_value, (list, dict, set)) and validated_value == original_value:
+                    scalar_inputs.append(original_value)
+                else:
+                    scalar_inputs.append(validated_value)
+        ts_inputs = tuple(ts_inputs)
+        scalar_inputs = tuple(scalar_inputs)
+
+        return ts_inputs, scalar_inputs, context.tvars
 
     def _create_alarms(self, tvars):
         alarms = []
@@ -273,3 +389,7 @@ class Signature:
     @property
     def scalars(self):
         return self._scalars
+
+    @property
+    def defaults(self):
+        return self._defaults

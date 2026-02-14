@@ -10,6 +10,7 @@
     - [Download release artifacts from github actions](#download-release-artifacts-from-github-actions)
     - [Optionally upload to testpypi to test "pip install"](#optionally-upload-to-testpypi-to-test-pip-install)
     - [Upload to pypi](#upload-to-pypi)
+  - [Releasing to conda-forge](#releasing-to-conda-forge)
 - [Dealing with release mistakes](#dealing-with-release-mistakes)
 
 ## Doing a "normal" release
@@ -71,25 +72,24 @@ your users.
 ### Preparing and tagging a release
 
 Follow these steps when it's time to tag a new release. Before doing
-this, you will need to ensure `bump2version` is installed into your
+this, you will need to ensure `bump-my-version` is installed into your
 development environment.
 
-> \[!NOTE\]
-> The following steps assume you have a personal fork of csp.
-> If you are working from the main `Point72/csp` repo, use `origin`
-> instead of `upstream` in the git commands. Specifically,
-> `git pull origin main --tags` in the step 1,
-> and `git push origin main --follow-tags` in step 7.
+> [!NOTE]
+> If you are working on the main `Point72/csp` repository, set the
+> remote as `origin` in all git commands. If you are working off a personal fork,
+> use the corresponding remote of the main repository (e.g. `upstream`).
+> Ensure tags are still pushed to `Point72/csp` directly.
 
 1. Ensure your local clone of `csp` is synced up with GitHub, including
    any tags that have been pushed since you last synced:
 
    ```bash
-   git pull upstream main --tags
+   git pull <remote> main --tags
    ```
 
 1. Make a branch and update version numbers in your local clone using
-   the `bump2version` integration in the Makefile.
+   the `bump-my-version` integration in the Makefile.
 
    First, make a branch that will be pushed to the main `csp`
    repository. Using a name like `release/v0.3.4` should avoid any
@@ -99,8 +99,8 @@ development environment.
    git checkout -b release/v0.x.x
    ```
 
-   For example, for a bugfix release, `bump2version` will automatically
-   update the codebase to use the next bugfix version number if you do:
+   You can update the version number in the codebase using `bump-my-version`. For a
+   bugfix release, you would do:
 
    ```bash
    make patch
@@ -108,7 +108,8 @@ development environment.
 
    Similarly, `make minor` and `make major` will update the version
    numbers for minor and major releases, respectively. Double-check
-   that the version numbers have been updated correctly with `git  diff`, and then `git commit -s` the change.
+   that the version numbers have been updated correctly with
+   `git diff`, and then `git commit -s` the change.
 
 1. Push your branch to GitHub, and trigger a "full" test run on the branch.
 
@@ -118,24 +119,25 @@ development environment.
    button is selected, and click the green "Run workflow" button to
    launch the test run.
 
-1. Propose a pull request from the branch containing the version number updated. Add a link to the successful full test run for reviewers.
+1. Propose a pull request from the branch containing the version number updated.
+   Add a link to the successful full test run for reviewers.
 
 1. Review and merge the pull request. Make sure you delete the branch
    afterwards.
 
 1. Tag the release
 
-   Use the version number `bump2version` generated and make sure the
+   Use the version number `bump-my-version` generated and make sure the
    tag name begins with a `v`.
 
    ```bash
    git tag v0.2.0
    ```
 
-1. Push the tag to GitHub
+1. Push the tag to GitHub using the tag name created in the previous step.
 
    ```bash
-   git push upstream main --follow-tags
+   git push <remote> tag v0.2.0
    ```
 
    You will need access in the repository settings to be able to push
@@ -204,8 +206,9 @@ cd ..
 
 You should end up with a copy of the wheel files and source distribution
 associated with the GitHub release. You should verify that all files
-were successfully downloaded. Currently there are 6 MacOS wheels and 4
-linux wheels. There should only be one source distribution.
+were successfully downloaded. Currently we support 4 versions of Python
+and MacOS, Linux, and Windows, so there should be 12 total wheels and
+one source distribution.
 
 Optionally, you can lint the release artifacts with
 
@@ -248,6 +251,17 @@ like
 View at:
 https://pypi.org/project/csp/<version number>/
 ```
+
+### Releasing to conda-forge
+
+The `conda-forge` release process is largely automated. Maintainers who
+are listed under the `extra.recipe-maintainers` field in the `csp`
+recipe hosted in [the conda-forge feedstock
+repository](https://github.com/conda-forge/csp-feedstock/blob/main/recipe/meta.yaml)
+should be automatically subscribed to notifications for the
+repository. The [conda-forge maintainer documentation](https://conda-forge.org/docs/maintainer/updating_pkgs/)
+has the relevant guidelines and procedures, and should be read thoroughly before
+making any changes.
 
 ## Dealing with release mistakes
 

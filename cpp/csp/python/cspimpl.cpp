@@ -5,6 +5,7 @@
 #include <csp/python/PyNode.h>
 #include <frameobject.h>
 #include <traceback.h>
+
 namespace csp::python
 {
 
@@ -115,6 +116,16 @@ static PyObject *_set_capture_cpp_backtrace( PyObject *, PyObject *args )
     CSP_RETURN_NONE;
 }
 
+static PyObject * _csp_in_realtime( PyObject*, PyObject * nodeptr )
+{
+    CSP_BEGIN_METHOD;
+
+    csp::Node * node = reinterpret_cast<csp::Node *>( fromPython<uint64_t>( nodeptr ) );
+    return toPython( node -> rootEngine() -> inRealtime() );
+
+    CSP_RETURN_NULL;
+}
+
 
 static PyMethodDef _cspimpl_methods[] = {
     {"_csp_now",                    (PyCFunction) _csp_now,                   METH_O, "current engine time"},
@@ -124,6 +135,7 @@ static PyMethodDef _cspimpl_methods[] = {
     {"create_traceback",            (PyCFunction) _create_traceback,          METH_VARARGS,   "internal"},
     {"_csp_engine_stats",           (PyCFunction) _engine_stats,              METH_O, "engine statistics"},
     {"set_capture_cpp_backtrace",   (PyCFunction) _set_capture_cpp_backtrace, METH_VARARGS,   "internal"},
+    {"_csp_in_realtime",            (PyCFunction) _csp_in_realtime,           METH_O, "is running engine in realtime mode"},
     {nullptr}
 };
 
@@ -140,6 +152,7 @@ PyMODINIT_FUNC PyInit__cspimpl(void)
     PyObject* m;
 
     m = PyModule_Create( &_cspimpl_module);
+
     if( m == NULL )
         return NULL;
 

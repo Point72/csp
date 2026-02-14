@@ -6,6 +6,8 @@
 #include <csp/engine/AdapterManager.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/PushInputAdapter.h>
+#include <librdkafka/rdkafkacpp.h>
+#include <atomic>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -65,8 +67,6 @@ public:
     PushInputAdapter * getInputAdapter( CspTypePtr & type, PushMode pushMode, const Dictionary & properties );
     OutputAdapter * getOutputAdapter( CspTypePtr & type, const Dictionary & properties );
 
-    KafkaConsumer * getConsumer( const std::string & topic, const Dictionary & properties );
-
     RdKafka::Conf * getConsumerConf() { return m_consumerConf.get(); }
 
     const Dictionary::Value & startOffsetProperty() const { return m_startOffsetProperty; }
@@ -75,22 +75,42 @@ public:
 
     void forceShutdown( const std::string & err );
 
+    void markConsumerReplayDone( KafkaConsumer * consumer, const std::string & topic );
+    void onMessage( RdKafka::Message * msg ) const;
+    
 private:
 
     using TopicKeyPair = std::pair<std::string, std::string>;
 
+    KafkaConsumer * getConsumer( const Dictionary & properties );
     void setConfProperties( RdKafka::Conf * conf, const Dictionary & properties );
     void pollProducers();
-    void forceConsumerReplayComplete();
 
     KafkaSubscriber * getSubscriber( const std::string & topic, const std::string & key, const Dictionary & properties );
     KafkaPublisher * getStaticPublisher( const TopicKeyPair & pair, const Dictionary & properties );
     KafkaPublisher * getDynamicPublisher( const std::string & topic, const Dictionary & properties );
 
+    struct TopicData
+    {
+        //Key -> Subscriber
+        using SubscriberMap = std::unordered_map<std::string, std::vector<KafkaSubscriber*>>;
+        using ConsumerMap   = std::unordered_map<KafkaConsumer *, bool>;
+        ConsumerMap        consumers;
+        SubscriberMap      subscribers;
+        KafkaSubscriber *  wildcardSubscriber = nullptr;
+        std::atomic<bool>  flaggedReplayComplete = false;
+
+        void addSubscriber( KafkaConsumer * consumer, const std::string & key, KafkaSubscriber * subscriber );        
+        void markConsumerReplayDone( KafkaConsumer * consumer );
+        void markReplayComplete();
+    };
+    
+    using TopicMap = std::unordered_map<std::string,TopicData>;
+    TopicMap                                   m_topics;
+    
     using ConsumerVector = std::vector<std::shared_ptr<KafkaConsumer>>;
     ConsumerVector                             m_consumerVector;
-    using ConsumerMap = std::unordered_map<std::string, std::shared_ptr<KafkaConsumer>>;
-    ConsumerMap                                m_consumerMap;
+    
 
     using StaticPublishers = std::unordered_map<TopicKeyPair, std::unique_ptr<KafkaPublisher>, hash::hash_pair>;
     StaticPublishers                           m_staticPublishers;
@@ -109,7 +129,8 @@ private:
     std::shared_ptr<RdKafka::Producer>         m_producer;
     std::unique_ptr<RdKafka::DeliveryReportCb> m_producerCb;
     std::unique_ptr<std::thread>               m_producerPollThread;
-    volatile bool                              m_producerPollThreadActive;
+    std::atomic<bool>                          m_producerPollThreadActive;
+    std::atomic<bool>                          m_unrecoverableError;
 
     std::unique_ptr<RdKafka::Conf>             m_consumerConf;
     std::unique_ptr<RdKafka::Conf>             m_producerConf;

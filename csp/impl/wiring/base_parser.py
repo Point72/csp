@@ -2,7 +2,6 @@ import ast
 import copy
 import inspect
 import re
-import sys
 import textwrap
 import typing
 from abc import ABCMeta, abstractmethod
@@ -194,6 +193,16 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
                     if tstype.isTsType(typ.__args__[0]):
                         return ArgKind.DYNAMIC_BASKET_TS, BasketKind.DYNAMIC_DICT
                     return ArgKind.BASKET_TS, BasketKind.DICT
+        elif CspTypingUtils.is_union_type(typ):
+            args = [arg for arg in typing.get_args(typ) if arg is not None and arg is not type(None)]
+            args_ts_status = [
+                argkind.is_any_ts() for argkind, _basket_kind in [cls._resolve_input_type_kind(arg) for arg in args]
+            ]
+            if all(args_ts_status):
+                return ArgKind.TS, None
+            elif not any(args_ts_status):
+                return ArgKind.SCALAR, None
+            raise ValueError(f"Cannot mix TS and non-TS types in a union {typ}")
         return ArgKind.SCALAR, None
 
     @staticmethod
@@ -310,7 +319,11 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         lineno = None
         for i, body_item in enumerate(body):
             lineno = body_item.lineno
-            if isinstance(body_item, ast.Expr) and isinstance(body_item.value, ast.Str):
+            if (
+                isinstance(body_item, ast.Expr)
+                and isinstance(body_item.value, ast.Constant)
+                and isinstance(body_item.value.value, str)
+            ):
                 # last_doc_string_item = i
                 continue
             break
@@ -350,7 +363,13 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         NOTE: the node_parser will overload this function to set enforce_shape to true
         """
         # evaluate the returns statement
-        output_dictionary_type = ContainerTypeNormalizer.normalize_type(self._eval_expr(returns))
+        ret_type = self._eval_expr(returns)
+
+        # Handle -> None annotation: explicitly return empty tuple for no outputs
+        if ret_type is None:
+            return tuple()
+
+        output_dictionary_type = ContainerTypeNormalizer.normalize_type(ret_type)
 
         if not (isinstance(output_dictionary_type, type) and issubclass(output_dictionary_type, Outputs)):
             # try to wrap in outputs
@@ -412,7 +431,7 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         if args.vararg or args.kwarg:
             raise CspParseError("*args and **kwargs arguments are not supported in csp nodes")
 
-        if (sys.version_info.major > 3 or sys.version_info.minor >= 8) and args.posonlyargs:
+        if args.posonlyargs:
             raise CspParseError("position only arguments are not supported in csp nodes")
 
         inputs = []
@@ -477,10 +496,7 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
 
     @classmethod
     def _create_ast_module(cls, body):
-        if sys.version_info.major > 3 or sys.version_info.minor >= 8:
-            return ast.Module(body, [])
-        else:
-            return ast.Module(body)
+        return ast.Module(body, [])
 
     def _compile_function(self, newfuncdef):
         modast = self._create_ast_module([newfuncdef])

@@ -37,7 +37,7 @@ static void PyListBasketOutputProxy_dealloc( PyListBasketOutputProxy * self )
 {
     CSP_BEGIN_METHOD;
     self -> ~PyListBasketOutputProxy();
-    Py_TYPE( self ) -> tp_free( self ); 
+    PyListBasketOutputProxy::PyType.tp_free( self ); 
     CSP_RETURN;
 }
 
@@ -182,7 +182,7 @@ static void PyDictBasketOutputProxy_dealloc( PyDictBasketOutputProxy * self )
 {
     CSP_BEGIN_METHOD;
     self -> ~PyDictBasketOutputProxy();
-    Py_TYPE( self ) -> tp_free( self ); 
+    PyDictBasketOutputProxy::PyType.tp_free( self ); 
     CSP_RETURN;
 }
 
@@ -306,7 +306,7 @@ static void PyDynamicBasketOutputProxy_dealloc( PyDynamicBasketOutputProxy * sel
 {
     CSP_BEGIN_METHOD;
     self -> ~PyDynamicBasketOutputProxy();
-    Py_TYPE( self ) -> tp_free( self );
+    PyDynamicBasketOutputProxy::PyType.tp_free( self );
     CSP_RETURN;
 }
 

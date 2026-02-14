@@ -16,7 +16,18 @@ public:
         csp::Exception( exType, r, file, func, line )
     {
         //Fetch the current error to clear out the error indicator while the stack gets unwound
+        //We own the references to all the members assigned in PyErr_Fetch
+        //We need to hold the reference since PyErr_Restore takes back a reference to each of its arguments
         PyErr_Fetch( &m_type, &m_value, &m_traceback );
+    }
+
+    PythonPassthrough( PyObject * pyException ) :
+        csp::Exception( "", "" )
+    {
+        // Note: all of these methods return strong references, so we own them like in the other constructor
+        m_type = PyObject_Type( pyException );
+        m_value = PyObject_Str( pyException );
+        m_traceback = PyException_GetTraceback( pyException );
     }
 
     void restore()
@@ -39,7 +50,6 @@ private:
     PyObject * m_type;
     PyObject * m_value;
     PyObject * m_traceback;
-
 };
 
 CSP_DECLARE_EXCEPTION( AttributeError, ::csp::Exception );

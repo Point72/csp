@@ -1,8 +1,9 @@
 import copy
+from datetime import timedelta
+from typing import Union
+
 import numpy as np
 import pytz
-import typing
-from datetime import timedelta
 
 from csp import null_ts
 from csp.impl.__cspimpl import _cspimpl
@@ -48,7 +49,7 @@ _npcurve = input_adapter_def(
 )
 
 
-def curve(typ: type, data: typing.Union[list, tuple], push_mode: PushMode = PushMode.NON_COLLAPSING):
+def curve(typ: type, data: Union[list, tuple], push_mode: PushMode = PushMode.NON_COLLAPSING):
     if isinstance(data, tuple):
         if len(data) != 2 or not all(isinstance(x, np.ndarray) for x in data):
             raise ValueError("for numpy curves, must pass tuple of two ndarrays as data")

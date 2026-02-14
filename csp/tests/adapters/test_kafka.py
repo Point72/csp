@@ -16,7 +16,6 @@ from csp.adapters.kafka import (
 )
 from csp.utils.datetime import utc_now
 
-
 from .kafka_utils import _precreate_topic
 
 
@@ -206,9 +205,7 @@ class TestKafka:
         _precreate_topic(kafkaadapter, topic)
         symbols = ["AAPL", "MSFT"]
         count = 50
-        results = csp.run(
-            graph, symbols, count * 2, starttime=utc_now(), endtime=timedelta(seconds=10), realtime=True
-        )
+        results = csp.run(graph, symbols, count * 2, starttime=utc_now(), endtime=timedelta(seconds=10), realtime=True)
         for symbol in symbols:
             pub = results[f"pall_{symbol}"]
             sub = results[f"sall_{symbol}"]

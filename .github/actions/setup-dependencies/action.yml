@@ -6,12 +6,12 @@ inputs:
     type: choice
     description: "cibuildwheel run"
     options:
-      - 'cp38'
       - 'cp39'
       - 'cp310'
       - 'cp311'
       - 'cp312'
-    default: 'cp39'
+      - 'cp313'
+    default: 'cp311'
 
 runs:
   using: 'composite'

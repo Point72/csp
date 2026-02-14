@@ -274,6 +274,14 @@ DECLARE_CPPNODE( exprtk_impl )
             csp.make_passive( inputs );
     }
 
+    virtual ~exprtk_impl() 
+    {
+        // Need to release the expression before clearing values/symbol table
+        // https://github.com/ArashPartow/exprtk/blob/cc1b800c2bd1ac3ac260478c915d2aec6f4eb41c/readme.txt#L909
+        s_expr.release();
+        s_valuesContainer.clear();
+    }
+
     INVOKE()
     {
         if( use_trigger )
@@ -291,9 +299,9 @@ DECLARE_CPPNODE( exprtk_impl )
             }
         }
 
-        if( likely( csp.valid( inputs ) ) )
+        if( csp.valid( inputs ) ) [[likely]]
         {
-            if( unlikely( !s_isCompiled ) )
+            if( !s_isCompiled ) [[unlikely]]
                 compile_expression();
 
             const CspType* outputType = unnamed_output().type();

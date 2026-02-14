@@ -23,6 +23,8 @@ CMAKE_OPTIONS = (
     ("CSP_BUILD_KAFKA_ADAPTER", "1"),
     ("CSP_BUILD_PARQUET_ADAPTER", "1"),
     ("CSP_BUILD_WS_CLIENT_ADAPTER", "1"),
+    ("CSP_ENABLE_ASAN", "0"),
+    ("CSP_ENABLE_UBSAN", "0"),
     # NOTE:
     # - omit vcpkg, need to test for presence
     # - omit ccache, need to test for presence
@@ -36,10 +38,33 @@ elif sys.platform == "win32":
 else:
     VCPKG_TRIPLET = None
 
+VCPKG_SHA = "9c5c2a0ab75aff5bcd08142525f6ff7f6f7ddeee"
+
 # This will be used for e.g. the sdist
 if CSP_USE_VCPKG:
     if not os.path.exists("vcpkg"):
-        subprocess.call(["git", "clone", "https://github.com/Microsoft/vcpkg.git"])
+        # Clone at the sha we want
+        subprocess.call(
+            [
+                "git",
+                "clone",
+                "https://github.com/Microsoft/vcpkg.git",
+            ],
+        )
+        subprocess.call(["git", "checkout", VCPKG_SHA], cwd="vcpkg")
+    else:
+        # Ensure that the sha matches what we expect
+        # First get the sha
+        sha = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd="vcpkg",
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        if sha != VCPKG_SHA:
+            raise RuntimeError(f"vcpkg sha {sha} does not match expected {VCPKG_SHA}")
     if not os.path.exists("vcpkg/ports"):
         subprocess.call(["git", "submodule", "update", "--init", "--recursive"])
     if not os.path.exists("vcpkg/buildtrees"):
@@ -124,7 +149,7 @@ print(f"CMake Args: {cmake_args}")
 
 setup(
     name="csp",
-    version="0.11.3",
+    version="0.14.0",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,

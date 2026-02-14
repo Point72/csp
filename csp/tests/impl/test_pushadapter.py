@@ -10,6 +10,7 @@ from csp import PushMode, ts
 from csp.impl.adaptermanager import AdapterManagerImpl
 from csp.impl.pushadapter import PushBatch, PushGroup, PushInputAdapter
 from csp.impl.wiring import py_push_adapter_def
+from csp.utils.datetime import utc_now
 
 
 class MyPushAdapterManager:
@@ -140,14 +141,14 @@ class TestPushAdapter(unittest.TestCase):
 
         csp.run(
             graph,
-            starttime=datetime.utcnow(),
+            starttime=utc_now(),
             endtime=timedelta(1),
             realtime=True,
             queue_wait_time=timedelta(seconds=0),
         )
         csp.run(
             graph,
-            starttime=datetime.utcnow(),
+            starttime=utc_now(),
             endtime=timedelta(1),
             realtime=True,
             queue_wait_time=timedelta(seconds=0.1),
@@ -238,7 +239,7 @@ class TestPushAdapter(unittest.TestCase):
             stop = csp.filter(stop, stop)
             csp.stop_engine(stop)
 
-        result = csp.run(graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=30), realtime=True)["v"]
+        result = csp.run(graph, starttime=utc_now(), endtime=timedelta(seconds=30), realtime=True)["v"]
         result = list(x[1] for x in result)
         self.assertEqual(result, expected)
 
@@ -284,7 +285,7 @@ class TestPushAdapter(unittest.TestCase):
             csp.print("adapter", adapter)
 
         with self.assertRaisesRegex(TypeError, "Dummy exception message"):
-            csp.run(graph, starttime=datetime.utcnow(), realtime=True)
+            csp.run(graph, starttime=utc_now(), realtime=True)
         self.assertEqual(status["count"], 1)
 
     def test_help(self):

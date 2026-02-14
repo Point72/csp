@@ -75,12 +75,14 @@ class NodeParser(BaseParser):
     _CSP_ENGINE_STATS_FUNC = "_csp_engine_stats"
 
     _CSP_STOP_ENGINE_FUNC = "_csp_stop_engine"
+    _CSP_IN_REALTIME_FUNC = "_csp_in_realtime"
     _LOCAL_METHODS = {
         _CSP_NOW_FUNC: _cspimpl._csp_now,
         _CSP_ENGINE_START_TIME_FUNC: _cspimpl._csp_engine_start_time,
         _CSP_ENGINE_END_TIME_FUNC: _cspimpl._csp_engine_end_time,
         _CSP_STOP_ENGINE_FUNC: _cspimpl._csp_stop_engine,
         _CSP_ENGINE_STATS_FUNC: _cspimpl._csp_engine_stats,
+        _CSP_IN_REALTIME_FUNC: _cspimpl._csp_in_realtime,
     }
 
     _SPECIAL_BLOCKS_METH = {"alarms", "state", "start", "stop", "outputs"}
@@ -586,6 +588,13 @@ class NodeParser(BaseParser):
             func=ast.Name(id=self._CSP_NOW_FUNC, ctx=ast.Load()), args=[self._node_proxy_expr()], keywords=[]
         )
 
+    def _parse_in_realtime(self, node):
+        if len(node.args) or len(node.keywords):
+            raise CspParseError("csp.in_realtime takes no arguments", node.lineno)
+        return ast.Call(
+            func=ast.Name(id=self._CSP_IN_REALTIME_FUNC, ctx=ast.Load()), args=[self._node_proxy_expr()], keywords=[]
+        )
+
     def _parse_stop_engine(self, node):
         args = [self._node_proxy_expr()] + node.args
         return ast.Call(func=ast.Name(id=self._CSP_STOP_ENGINE_FUNC, ctx=ast.Load()), args=args, keywords=node.keywords)
@@ -848,9 +857,13 @@ class NodeParser(BaseParser):
         start_and_body = [ast.Expr(value=ast.Yield(value=None))] + del_vars + start_and_body
         newbody = init_block + start_and_body
 
-        newfuncdef = ast.FunctionDef(name=self._name, body=newbody, returns=None)
-        newfuncdef.args = self._create_ast_args(
-            posonlyargs=[], args=[], kwonlyargs=[], defaults=[], vararg=None, kwarg=None, kw_defaults=[]
+        newfuncdef = ast.FunctionDef(
+            name=self._name,
+            args=self._create_ast_args(
+                posonlyargs=[], args=[], kwonlyargs=[], defaults=[], vararg=None, kwarg=None, kw_defaults=[]
+            ),
+            body=newbody,
+            returns=None,
         )
         newfuncdef.decorator_list = []
 
@@ -888,6 +901,7 @@ class NodeParser(BaseParser):
             "csp.make_passive": cls._make_single_proxy_arg_func_resolver(builtin_functions.make_passive),
             "csp.make_active": cls._make_single_proxy_arg_func_resolver(builtin_functions.make_active),
             "csp.remove_dynamic_key": cls._parse_remove_dynamic_key,
+            "csp.in_realtime": cls._parse_in_realtime,
             # omit this as its handled in a special case
             # 'csp.alarm': cls._parse_alarm,
             "csp.schedule_alarm": cls._parse_schedule_alarm,

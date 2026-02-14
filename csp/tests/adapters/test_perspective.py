@@ -2,13 +2,16 @@ import unittest
 from datetime import date, datetime, timedelta
 
 import csp
+from csp.utils.datetime import utc_now
 
 try:
     from csp.adapters.perspective import PerspectiveAdapter
     from csp.impl.pandas_perspective import CspPerspectiveMultiTable, CspPerspectiveTable
     from csp.impl.perspective_common import PerspectiveWidget, is_perspective3
+
+    HAS_PERSPECTIVE = True
 except ImportError:
-    raise unittest.SkipTest("skipping perspective tests")
+    HAS_PERSPECTIVE = False
 
 
 class MyStruct(csp.Struct):
@@ -30,6 +33,7 @@ def my_graph(output={}):
 
 
 class TestPerspectiveAdapter(unittest.TestCase):
+    @unittest.skipIf(not HAS_PERSPECTIVE, "Test requires perspective")
     def test_adapter(self):
         output = {}
-        csp.run(my_graph, output, starttime=datetime.utcnow(), endtime=timedelta(seconds=1))
+        csp.run(my_graph, output, starttime=utc_now(), endtime=timedelta(seconds=1))

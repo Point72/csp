@@ -321,7 +321,7 @@ DECLARE_CPPNODE( drop_nans )
 
     INVOKE()
     {
-        if( likely( !isnan( x ) ) )
+        if( !isnan( x ) ) [[likely]]
             RETURN( x );
     }
 };
@@ -375,7 +375,7 @@ DECLARE_CPPNODE( unroll )
             {
                 auto & v = x.lastValue<ArrayT>();
                 size_t sz = v.size();
-                if( likely( sz > 0 ) )
+                if( sz > 0 ) [[likely]]
                 {
                     size_t idx = 0;
                     if( !s_pending )
@@ -705,6 +705,9 @@ DECLARE_CPPNODE( struct_fromts )
                 );
         }
 
+        if( !out.get() -> validate() ) [[unlikely]]
+            CSP_THROW( ValueError, "Struct " << cls.value() -> name() << " is not valid; required fields " << out -> formatAllUnsetStrictFields() << " did not tick" );
+
         CSP_OUTPUT( std::move( out ) );
     }
 
@@ -758,6 +761,9 @@ DECLARE_CPPNODE( struct_collectts )
                            }
                 );
         }
+        
+        if( !out.get() -> validate() ) [[unlikely]]
+            CSP_THROW( ValueError, "Struct " << cls.value() -> name() << " is not valid; required fields " << out -> formatAllUnsetStrictFields() << " did not tick" );
 
         CSP_OUTPUT( std::move( out ) );
     }

@@ -65,7 +65,7 @@ class NumPyIterator
 
         NumPyIterator( PyObject * arr )
         {
-            if( unlikely( !PyArray_Check( arr ) ) )
+            if( !PyArray_Check( arr ) ) [[unlikely]]
                 CSP_THROW( csp::TypeError, "Expected NumPy array type, got " << Py_TYPE( arr ) -> tp_name );
             setup( ( PyArrayObject * ) arr );
         }
@@ -107,7 +107,7 @@ class NumPyIterator
         void verify_arr( PyArrayObject * arr )
         {
             auto expType = PyArray_DescrFromType( NPY_TYPE<T>::value );
-            if( unlikely( PyObject_RichCompareBool( ( PyObject * ) PyArray_DESCR( arr ), ( PyObject * ) expType, Py_EQ ) ) != 1 )
+            if( PyObject_RichCompareBool( ( PyObject * ) PyArray_DESCR( arr ), ( PyObject * ) expType, Py_EQ ) != 1 ) [[unlikely]]
             {
                 CSP_THROW( csp::TypeError,
                             "Expected array of type " << PyObjectPtr::own( PyObject_Repr( ( PyObject * ) expType ) )
@@ -225,7 +225,7 @@ PyObject* createZerosWithShape( PyObject* t )
 template<typename C>
 inline PyObject* computeArray( const PyShape & shp, std::vector<C> & elem, bool s_first )
 {
-    if( unlikely( s_first ) )
+    if( s_first ) [[unlikely]]
         CSP_THROW( ValueError, NPY_SHAPE_ERROR );
     PyObject* out = PyArray_EMPTY( shp.m_dims.size(), &shp.m_dims[0], NPY_DOUBLE, 0 );
     for( NumPyIterator iter( out ); iter; ++iter )
@@ -253,7 +253,7 @@ public:
     {
         PyObject* arr = x.lastValue().get();
         PyShape shp( arr );
-        if( unlikely( s_first ) )
+        if( s_first ) [[unlikely]]
             s_shp = shp;
         else
             s_shp.validateShape( arr );
@@ -285,7 +285,7 @@ public:
     {
         PyObject* arr = x.lastValue().get();
         PyShape shp( arr );
-        if( unlikely( s_first ) )
+        if( s_first ) [[unlikely]]
             s_shp = shp;
         else
             s_shp.validateShape( arr );
@@ -464,7 +464,7 @@ protected:
         PyArrayObject * xval = ( PyArrayObject* )x.lastValue().get();
         PyArrayObject * yval = ( PyArrayObject* )y.lastValue().get();
 
-        if( unlikely( s_first ) )
+        if( s_first ) [[unlikely]]
         {
             s_shp = PyShape( xval );
             s_first = false;
@@ -555,7 +555,7 @@ public:
         }
         if( csp.ticked( additions ) )
         {
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = additions.lastValue()[0].get();
                 s_shp = PyShape( arr );
@@ -714,7 +714,7 @@ public:
             const std::vector<PyObjectPtr> & add_x = x_add.lastValue();
             const std::vector<PyObjectPtr> & weights = w_add.lastValue();
 
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = add_x[0].get();
                 s_shp = PyShape( arr );
@@ -850,7 +850,7 @@ DECLARE_CPPNODE ( _np_quantile )
         }
         if( csp.ticked( additions ) )
         {
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = additions.lastValue()[0].get();
                 s_shp = PyShape( arr );
@@ -933,7 +933,7 @@ DECLARE_CPPNODE( _np_exp_halflife )
         if( csp.ticked( sampler ) && csp.ticked( x ) )
         {
             PyObject* arr = x.lastValue().get();
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 s_shp = PyShape( arr );
                 s_elem.reserve( s_shp.m_n );
@@ -988,7 +988,7 @@ DECLARE_CPPNODE( _np_matrix_compute )
         if( csp.ticked( additions ) )
         {
             const std::vector<PyObjectPtr> & add_x = additions.lastValue();
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = add_x[0].get();
                 if( PyArray_NDIM( (PyArrayObject * ) arr ) != 1 )
@@ -1082,7 +1082,7 @@ DECLARE_CPPNODE( _np_weighted_matrix_compute )
         {
             const std::vector<PyObjectPtr> & add_x = x_add.lastValue();
             const std::vector<double> & add_w = w_add.lastValue();
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = add_x[0].get();
                 if( PyArray_NDIM( (PyArrayObject * ) arr ) != 1 )
@@ -1187,7 +1187,7 @@ public:
             const std::vector<PyObjectPtr> & add_y = y_add.lastValue();
             const std::vector<PyObjectPtr> & weights = w_add.lastValue();
 
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 PyObject* arr = add_x[0].get();
                 s_shp = PyShape( arr );
@@ -1268,7 +1268,7 @@ DECLARE_CPPNODE( _np_arg_min_max )
         if( csp.ticked( x ) && csp.ticked( sampler ) )
         {
             PyObject* arr = x.lastValue().get();
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
             {
                 s_shp = PyShape( arr );
                 s_elem.reserve( s_shp.m_n );
@@ -1295,18 +1295,18 @@ DECLARE_CPPNODE( _np_arg_min_max )
 
         if( csp.ticked( trigger ) )
         {
-            if( unlikely( s_first ) )
+            if( s_first ) [[unlikely]]
                 CSP_THROW( ValueError, NPY_SHAPE_ERROR );
             PyObject * date_type = PyUnicode_FromString( "<M8[ns]" );
             PyArray_Descr *descr;
             PyArray_DescrConverter( date_type, &descr );
             Py_XDECREF( date_type );
-            DateTime * values = new DateTime[s_elem.size()];
+            
+            PyObject * out = PyArray_NewFromDescr( &PyArray_Type, descr, s_shp.m_dims.size(), &s_shp.m_dims[0], NULL, NULL, 0, NULL );
+            DateTime * values = static_cast<DateTime *>( PyArray_DATA( ( PyArrayObject * )out ) );
             for( size_t i = 0; i < s_elem.size(); ++i )
                 values[i] = s_elem[i].compute_dt();
-
-            PyObject * out = PyArray_NewFromDescr( &PyArray_Type, descr, s_shp.m_dims.size(), &s_shp.m_dims[0], NULL, values, 0, NULL );
-            PyArray_ENABLEFLAGS( ( PyArrayObject * ) out, NPY_ARRAY_OWNDATA );
+            
             RETURN( PyObjectPtr::own( out ) );
         }
     }

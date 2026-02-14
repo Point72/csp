@@ -1,11 +1,12 @@
 #
 # The csp.feedback construct is used to introduce cycles in the acyclical graph
 #
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import csp
 import csp.showgraph
 from csp import ts
+from csp.utils.datetime import utc_now
 
 
 class Order(csp.Struct):
@@ -80,7 +81,7 @@ def main():
     if show_graph:
         csp.showgraph.show_graph(my_graph)
     else:
-        csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5), realtime=False)
+        csp.run(my_graph, starttime=utc_now(), endtime=timedelta(seconds=5), realtime=False)
 
 
 if __name__ == "__main__":

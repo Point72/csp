@@ -44,7 +44,9 @@ class AdapterDefMeta(type):
     def _instantiate(self, __forced_tvars, name, *args, **kwargs):
         return self._instantiate_func(__forced_tvars, name, args=args, kwargs=kwargs)
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args, push_mode=PushMode.NON_COLLAPSING, **kwargs):
+        if cls.is_input:
+            kwargs["push_mode"] = push_mode
         return cls._instantiate(None, None, *args, **kwargs)
 
     def using(cls, name=None, **__forced_tvars):
@@ -184,6 +186,7 @@ def _adapterdef(BaseDef, name, create_method, out_type, manager_type, memoize=Tr
             "memoize": memoize,
             "force_memoize": force_memoize,
             "_impl": create_method,
+            "is_input": is_input,
         },
     )
     return adaptertype

@@ -2,7 +2,7 @@
 # Project Configuration #
 #########################
 cmake_minimum_required(VERSION 3.20.0)
-project(csp VERSION "0.11.3")
+project(csp VERSION "0.14.0")
 set(CMAKE_CXX_STANDARD 20)
 
 ###################################################################################################################################################
@@ -67,6 +67,8 @@ option(CSP_MANYLINUX "Build for python's manylinux setup" OFF)
 option(CSP_USE_VCPKG "Build with vcpkg dependencies" ON)
 option(CSP_USE_CCACHE "Build with ccache caching" OFF)
 option(CSP_USE_LD_CLASSIC_MAC "On macOS, link with ld_classic" OFF)
+option(CSP_ENABLE_ASAN "Build with address sanitizer" OFF)
+option(CSP_ENABLE_UBSAN "Build with undefined behavior sanitizer" OFF)
 
 # Extension options
 option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" ON)
@@ -211,6 +213,18 @@ else()
             endif()
         endif()
     endif()
+endif()
+
+if(CSP_ENABLE_ASAN)
+    message(STATUS "Enabling Address Sanitizer")
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address -fno-omit-frame-pointer)
+endif()
+
+if(CSP_ENABLE_UBSAN)
+    message(STATUS "Enabling Undefined Behavior Sanitizer")
+    add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=undefined -fno-omit-frame-pointer)
 endif()
 
 

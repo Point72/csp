@@ -1,6 +1,5 @@
 # utils for dealing with typing types
 import collections
-import sys
 import types
 import typing
 import weakref
@@ -44,7 +43,7 @@ class FastList(typing.List, typing.Generic[T]):  # Need to inherit from Generic[
         )
 
 
-class CspTypingUtils39:
+class CspTypingUtils310:
     _ORIGIN_COMPAT_MAP = {list: typing.List, set: typing.Set, dict: typing.Dict, tuple: typing.Tuple}
     _ARRAY_ORIGINS = (csp.typing.Numpy1DArray, csp.typing.NumpyNDArray)
     _GENERIC_ALIASES = (typing._GenericAlias, typing.GenericAlias)
@@ -82,7 +81,16 @@ class CspTypingUtils39:
 
     @classmethod
     def is_union_type(cls, typ):
-        return isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union
+        return (isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union) or isinstance(
+            typ, types.UnionType
+        )
+
+    @classmethod
+    def is_optional_type(cls, typ):
+        if cls.is_union_type(typ):
+            args = typing.get_args(typ)
+            return type(None) in args
+        return False
 
     @classmethod
     def is_literal_type(cls, typ):
@@ -111,20 +119,7 @@ class CspTypingUtils39:
             return str(typ)
 
 
-CspTypingUtils = CspTypingUtils39
-
-
-if sys.version_info >= (3, 10):
-
-    class CspTypingUtils310(CspTypingUtils39):
-        # To support PEP 604
-        @classmethod
-        def is_union_type(cls, typ):
-            return (isinstance(typ, typing._GenericAlias) and typ.__origin__ is typing.Union) or isinstance(
-                typ, types.UnionType
-            )
-
-    CspTypingUtils = CspTypingUtils310
+CspTypingUtils = CspTypingUtils310
 
 
 class TsTypeValidator:

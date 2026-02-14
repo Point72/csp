@@ -14,6 +14,7 @@ import pytz
 import csp
 from csp.adapters.output_adapters.parquet import ParquetOutputConfig
 from csp.adapters.parquet import ParquetReader, ParquetWriter
+from csp.utils.datetime import utc_now
 
 
 class PriceQuantity(csp.Struct):
@@ -204,10 +205,11 @@ class TestParquet(unittest.TestCase):
                 csp.run(graph, starttime=start_time)
                 df = pandas.read_parquet(filename)
                 expected_columns = {}
+                # pandas 3.0+: need to explicitly force ns unit and UTC tz, no longer the default
                 if timestamp_column_name:
-                    expected_columns[timestamp_column_name] = [
-                        start_time + timedelta(seconds=sec + 1) for sec in range(10)
-                    ]
+                    expected_columns[timestamp_column_name] = pandas.date_range(
+                        start=start_time + timedelta(seconds=1), periods=10, unit="ns", freq="1s", tz="UTC"
+                    )
                 expected_columns.update(
                     {
                         "x": list(range(1, 11)),
@@ -240,7 +242,10 @@ class TestParquet(unittest.TestCase):
 
             expected_df = pandas.DataFrame.from_dict(
                 {
-                    "timestamp": [start_time + timedelta(seconds=sec + 1) for sec in range(10)],
+                    # pandas 3.0+: need to explicitly force ns unit and UTC tz, no longer the default
+                    "timestamp": pandas.date_range(
+                        start=start_time + timedelta(seconds=1), periods=10, unit="ns", freq="1s", tz="UTC"
+                    ),
                     "x": list(range(1, 11)),
                     "y": list(map(float, range(0, 100, 10))),
                 }
@@ -855,7 +860,7 @@ class TestParquet(unittest.TestCase):
                 b=True,
                 i=123,
                 d=123.456,
-                dt=datetime.utcnow(),
+                dt=utc_now(),
                 dte=date.today(),
                 t=time(1, 2, 3),
                 s="hello hello",

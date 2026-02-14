@@ -47,6 +47,8 @@ class KafkaAdapterManager:
         rd_kafka_conf_options=None,
         debug: bool = False,
         poll_timeout: timedelta = timedelta(seconds=1),
+        rd_kafka_consumer_conf_options=None,
+        rd_kafka_producer_conf_options=None,
     ):
         """
         :param broker - broker URL
@@ -65,13 +67,17 @@ class KafkaAdapterManager:
         if not group_id:
             start_offset = start_offset if start_offset is not None else KafkaStartOffset.LATEST
 
-        consumer_properties = {
-            "group.id": group_id,
-            # To get end of partition notification for live / not live flag
-            "enable.partition.eof": "true",
-        }
+        consumer_properties = rd_kafka_consumer_conf_options.copy() if rd_kafka_consumer_conf_options else {}
+        if {"group.id", "enable.partition.eof"}.intersection(consumer_properties.keys()):
+            raise ValueError(
+                "'group.id' and 'enable.partition.eof' are not settable with rd_kafka_consumer_conf_options "
+            )
+        consumer_properties["group.id"] = group_id
+        # To get end of partition notification for live / not live flag
+        consumer_properties["enable.partition.eof"] = "true"
 
-        producer_properties = {"queue.buffering.max.messages": str(max_queue_size)}
+        producer_properties = rd_kafka_producer_conf_options.copy() if rd_kafka_producer_conf_options else {}
+        producer_properties["queue.buffering.max.messages"] = str(max_queue_size)
 
         conf_properties = {
             "bootstrap.servers": broker,
@@ -174,7 +180,7 @@ class KafkaAdapterManager:
                 )
             properties["tick_timestamp_from_field"] = tick_timestamp_from_field
 
-        return _kafka_input_adapter_def(self, ts_type, properties, push_mode)
+        return _kafka_input_adapter_def(self, ts_type, properties, push_mode=push_mode)
 
     def publish(
         self,
@@ -212,7 +218,7 @@ class KafkaAdapterManager:
 
     def status(self, push_mode=csp.PushMode.NON_COLLAPSING):
         ts_type = Status
-        return status_adapter_def(self, ts_type, push_mode)
+        return status_adapter_def(self, ts_type, push_mode=push_mode)
 
     def __hash__(self):
         return hash((self._group_id_prefix, hash_mutable(self._properties)))

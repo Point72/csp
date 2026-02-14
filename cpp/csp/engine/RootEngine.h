@@ -165,7 +165,7 @@ inline Scheduler::Handle RootEngine::scheduleCallback( Scheduler::Handle reserve
 
 inline Scheduler::Handle RootEngine::scheduleCallback( Scheduler::Handle reservedHandle, DateTime time, Scheduler::Callback cb )
 {
-    if( unlikely( time < m_now ) )
+    if( time < m_now ) [[unlikely]]
         CSP_THROW( ValueError, "Cannot schedule event in the past.  new time: " << time << " now: " << m_now );
 
     return m_scheduler.scheduleCallback( reservedHandle, time, std::move( cb ) ); 
@@ -173,7 +173,7 @@ inline Scheduler::Handle RootEngine::scheduleCallback( Scheduler::Handle reserve
 
 inline Scheduler::Handle RootEngine::rescheduleCallback( Scheduler::Handle id, csp::DateTime time )
 {
-    if( unlikely( time < m_now ) )
+    if( time < m_now ) [[unlikely]]
         CSP_THROW( ValueError, "Cannot schedule event in the past. new time: " << time << " now: " << m_now );
 
     return m_scheduler.rescheduleCallback( id, time );

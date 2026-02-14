@@ -1,5 +1,6 @@
 import unittest
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 from numpy import nan
@@ -27,7 +28,7 @@ class TestPandas(unittest.TestCase):
             self.assertEqual(out[2][0], start + 3 * dt2)
 
         ## First Tick
-        idx = pd.DatetimeIndex([start + dt2])
+        idx = pd.DatetimeIndex([start + dt2], dtype="datetime64[ns]")
         target = pd.DataFrame({"x": [2], "y": [1]}, index=idx)
         pd.testing.assert_frame_equal(out1[0][1], target)
         pd.testing.assert_frame_equal(out2[0][1], target)
@@ -37,7 +38,7 @@ class TestPandas(unittest.TestCase):
         # Notes:
         # - pandas is a bit inconsistent with whether or not it sets freq on the DateTimeIndex, so we drop for comparison.
         # - when there is missing data in an integer column, it uses float NaN and hence the column becomes float type
-        idx = pd.DatetimeIndex([start + dt2, start + dt2 + dt1, start + dt2 + 2 * dt1])
+        idx = pd.DatetimeIndex([start + dt2, start + dt2 + dt1, start + dt2 + 2 * dt1], dtype="datetime64[ns]")
         target = pd.DataFrame({"x": [2, 3, 4], "y": [1.0, nan, 2.0]}, index=idx)
         out1[1][1].index.freq = None
         pd.testing.assert_frame_equal(out1[1][1], target)
@@ -50,7 +51,8 @@ class TestPandas(unittest.TestCase):
 
         ## Third Tick
         idx = pd.DatetimeIndex(
-            [start + dt2, start + dt2 + dt1, start + dt2 + 2 * dt1, start + dt2 + 3 * dt1, start + dt2 + 4 * dt1]
+            [start + dt2, start + dt2 + dt1, start + dt2 + 2 * dt1, start + dt2 + 3 * dt1, start + dt2 + 4 * dt1],
+            dtype="datetime64[ns]",
         )
         target = pd.DataFrame({"x": [2, 3, 4, 5, 6], "y": [1.0, nan, 2.0, nan, 3.0]}, index=idx)
         out1[2][1].index.freq = None
@@ -83,7 +85,7 @@ class TestPandas(unittest.TestCase):
             self.assertEqual(out[1][0], start + 2 * dt2)
 
         ## First Tick
-        idx = pd.DatetimeIndex([start + dt2])
+        idx = pd.DatetimeIndex([start + dt2], dtype="datetime64[ns]")
         target = pd.DataFrame({"x": [2], "y": [1]}, index=idx)
         pd.testing.assert_frame_equal(out1[0][1], target)
         pd.testing.assert_frame_equal(out2[0][1], target)
@@ -93,17 +95,17 @@ class TestPandas(unittest.TestCase):
         # Notes:
         # - pandas is a bit inconsistent with whether or not it sets freq on the DateTimeIndex, so we drop for comparison.
         # - when there is missing data in an integer column, it uses float NaN and hence the column becomes float type
-        idx = pd.DatetimeIndex([start + dt2, start + dt2 + dt1, start + dt2 + 2 * dt1])
+        idx = pd.DatetimeIndex([start + dt2, start + dt2 + dt1, start + dt2 + 2 * dt1], dtype="datetime64[ns]")
         target = pd.DataFrame({"x": [nan, 3.0, 4.0], "y": [1.0, nan, 2.0]}, index=idx)
         out1[1][1].index.freq = None
         pd.testing.assert_frame_equal(out1[1][1], target)
 
-        idx = pd.DatetimeIndex([start + dt2 + dt1, start + dt2 + 2 * dt1])
+        idx = pd.DatetimeIndex([start + dt2 + dt1, start + dt2 + 2 * dt1], dtype="datetime64[ns]")
         target = pd.DataFrame({"x": [3, 4], "y": [nan, 2.0]}, index=idx)
         out2[1][1].index.freq = None
         pd.testing.assert_frame_equal(out2[1][1], target)
 
-        idx = pd.DatetimeIndex([start + dt2 + 2 * dt1])
+        idx = pd.DatetimeIndex([start + dt2 + 2 * dt1], dtype="datetime64[ns]")
         target = pd.DataFrame({"x": [4], "y": [2]}, index=idx)
         out3[1][1].index.freq = None
         pd.testing.assert_frame_equal(out3[1][1], target)
@@ -135,19 +137,19 @@ class TestPandas(unittest.TestCase):
         target = pd.DataFrame({"x": pd.Series(dtype="int64"), "y": pd.Series(dtype="int64")}, index=idx)
         pd.testing.assert_frame_equal(out1[0][1], target)
 
-        idx = pd.DatetimeIndex([start + dt1])
+        idx = pd.DatetimeIndex([start + dt1], dtype="datetime64[ns]")
         target = pd.DataFrame({"x": [1], "y": [nan]}, index=idx)
         pd.testing.assert_frame_equal(out1[1][1], target)
         pd.testing.assert_frame_equal(out1[2][1], target)
 
-        idx = pd.DatetimeIndex([start + dt1, start + dt2])
+        idx = pd.DatetimeIndex([start + dt1, start + dt2], dtype="datetime64[ns]")
         target = pd.DataFrame({"x": [1, 2], "y": [nan, 1.0]}, index=idx)
         pd.testing.assert_frame_equal(out1[3][1], target)
 
         ## out2
         self.assertEqual(len(out2), 1)
         self.assertEqual(out2[0][0], start + dt2)
-        idx = pd.DatetimeIndex([start + dt2])
+        idx = pd.DatetimeIndex([start + dt2], dtype="datetime64[ns]")
         target = pd.DataFrame({"x": [2], "y": [1]}, index=idx)
         out2[0][1].index.freq = None
         pd.testing.assert_frame_equal(out2[0][1], target)
@@ -201,9 +203,16 @@ class TestDataFrame(unittest.TestCase):
         df = csp.DataFrame({("A", "x"): x, ("B", "x"): csp.const("Test"), ("A", "y"): y, ("B", "y"): csp.const(start)})
         out = csp.run(lambda: df.to_pandas_ts(("A", "y"), 2, ("A", "x")), starttime=start, endtime=end)[0]
         self.assertEqual(len(out), 3)
-        idx = pd.DatetimeIndex([start + dt2 + dt1, start + dt2 + 2 * dt1])
+        idx = pd.DatetimeIndex([start + dt2 + dt1, start + dt2 + 2 * dt1], dtype="datetime64[ns]")
         target = pd.DataFrame(
-            {("A", "x"): [3, 4], ("B", "x"): ["Test", "Test"], ("A", "y"): [1, 2], ("B", "y"): [start, start]},
+            {
+                ("A", "x"): [3, 4],
+                ("B", "x"): ["Test", "Test"],
+                ("A", "y"): [1, 2],
+                ("B", "y"): [
+                    pd.Timestamp(start.replace(tzinfo=ZoneInfo("UTC")).timestamp() * 1e9, unit="ns") for i in range(2)
+                ],
+            },
             index=idx,
         )
         self.assertEqual(out[1][0], start + dt2 + 2 * dt1)

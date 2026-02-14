@@ -203,7 +203,7 @@ void ParquetInputAdapterManager::stop()
 
 DateTime ParquetInputAdapterManager::processNextSimTimeSlice( DateTime time )
 {
-    if( unlikely( !m_reader || !m_reader -> hasData() ) )
+    if( !m_reader || !m_reader -> hasData() ) [[unlikely]]
     {
         return DateTime::NONE();
     }
@@ -223,7 +223,7 @@ DateTime ParquetInputAdapterManager::processNextSimTimeSlice( DateTime time )
         }
         nextDataTime = m_timestampColumnAdapter -> getCurValue<DateTime>();
     }
-    if( unlikely( nextDataTime.value().isNone() || ( !m_endTime.isNone() && ( m_endTime - m_time_shift ) < nextDataTime ) ) )
+    if( nextDataTime.value().isNone() || ( !m_endTime.isNone() && ( m_endTime - m_time_shift ) < nextDataTime ) ) [[unlikely]]
     {
         return DateTime::NONE();
     }
@@ -250,7 +250,7 @@ DateTime ParquetInputAdapterManager::processNextSimTimeSlice( DateTime time )
         nextDataTime = m_reader -> hasData() ? m_timestampColumnAdapter -> getCurValue<DateTime>() : DateTime::NONE();
     } while( !nextDataTime.value().isNone() && nextDataTime == data_reference_time );
 
-    if( unlikely( nextDataTime -> isNone() ) )
+    if( nextDataTime -> isNone() ) [[unlikely]]
     {
         return DateTime::NONE();
     }

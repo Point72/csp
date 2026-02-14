@@ -289,7 +289,7 @@ void StructMeta::initialize( Struct * s ) const
 
 void StructMeta::copyFrom( const Struct * src, Struct * dest )
 {
-    if( unlikely( src == dest ) )
+    if( src == dest ) [[unlikely]]
         return;
 
     const StructMeta * meta = commonBase( src -> meta(), dest -> meta() );
@@ -304,7 +304,7 @@ void StructMeta::copyFrom( const Struct * src, Struct * dest )
 
 void StructMeta::deepcopyFrom( const Struct * src, Struct * dest )
 {
-    if( unlikely( src == dest ) )
+    if( src == dest ) [[unlikely]]
         return;
 
     const StructMeta * meta = commonBase( src -> meta(), dest -> meta() );
@@ -353,7 +353,7 @@ void StructMeta::copyFromImpl( const Struct * src, Struct * dest, bool deepcopy 
 
 void StructMeta::updateFrom( const Struct * src, Struct * dest )
 {
-    if( unlikely( src == dest ) )
+    if( src == dest ) [[unlikely]]
         return;
 
     const StructMeta * meta = commonBase( src -> meta(), dest -> meta() );
@@ -449,7 +449,7 @@ size_t StructMeta::hash( const Struct * x ) const
     static thread_local size_t s_recursionDepth = 0;
     ScopedIncrement guard( s_recursionDepth );
 
-    if ( unlikely( s_recursionDepth > MAX_RECURSION_DEPTH ) )
+    if ( s_recursionDepth > MAX_RECURSION_DEPTH ) [[unlikely]]
         CSP_THROW( RecursionError,
             "Exceeded max recursion depth of " << MAX_RECURSION_DEPTH << " in " << name() << "::hash(), cannot hash cyclic data structure" );
 

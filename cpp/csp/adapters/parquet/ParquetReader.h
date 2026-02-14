@@ -173,7 +173,7 @@ public:
     {
         for( int i = 0; i < nRows; ++i )
         {
-            if(unlikely(!skipRow()))
+            if(!skipRow()) [[unlikely]]
             {
                 return false;
             }

@@ -33,7 +33,7 @@ public:
     const StructField * field( PyObject * attr ) const
     {
         PyObject * field = PyDict_GetItem( ( ( PyStructMeta * ) m_pyType.get() ) -> attrDict.get(), attr );
-        if( likely( field != nullptr ) )
+        if( field != nullptr ) [[likely]]
             return ( StructField * ) PyCapsule_GetPointer( field, nullptr );
         return nullptr;
     }

@@ -60,7 +60,7 @@ bool InputAdapter::consumeTick( const T & value )
 {
     if constexpr( CspType::Type::fromCType<T>::type == CspType::TypeTraits::STRUCT )
     {
-        if( unlikely( !( value -> validate() ) ) )
+        if( !( value -> validate() ) ) [[unlikely]]
             CSP_THROW( ValueError, "Struct " << value -> meta() -> name() << " from adapter type " << name() 
                 << " is not valid; required fields " << value -> formatAllUnsetStrictFields() << " were not set on init" );
     }
@@ -69,7 +69,7 @@ bool InputAdapter::consumeTick( const T & value )
     {
         case PushMode::LAST_VALUE:
         {
-            if( unlikely( rootEngine() -> cycleCount() == lastCycleCount() ) )
+            if( rootEngine() -> cycleCount() == lastCycleCount() ) [[unlikely]]
                 m_timeseries -> lastValueTyped<T>() = value;
             else
                 this -> outputTickTyped<T>( rootEngine() -> now(), value );
@@ -82,7 +82,7 @@ bool InputAdapter::consumeTick( const T & value )
             CSP_ASSERT( static_cast<const CspArrayType * >( type() ) -> elemType() -> type() == CspType::Type::fromCType<T>::type );
 
             using ArrayT = typename CspType::Type::toCArrayType<T>::type;
-            if( likely( rootEngine() -> cycleCount() != lastCycleCount() ) )
+            if( rootEngine() -> cycleCount() != lastCycleCount() ) [[likely]]
             {
                 //ensure we reuse vector memory in our buffer by using reserve api and 
                 //clearing existing value if any
@@ -95,7 +95,7 @@ bool InputAdapter::consumeTick( const T & value )
 
         case PushMode::NON_COLLAPSING:
         {
-            if( unlikely( rootEngine() -> cycleCount() == lastCycleCount() ) )
+            if( rootEngine() -> cycleCount() == lastCycleCount() ) [[unlikely]]
                 return false;
 
             this -> outputTickTyped<T>( rootEngine() -> now(), value );

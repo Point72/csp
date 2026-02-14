@@ -22,9 +22,9 @@ public:
 
     T & valueAtIndex( uint32_t index )
     {
-        if( likely( m_buffer != nullptr ) )
+        if( m_buffer != nullptr ) [[likely]]
             return ( *m_buffer )[index];
-        if( unlikely( index != 0 ) )
+        if( index != 0 ) [[unlikely]]
             CSP_THROW( RangeError, "Accessing value past index 0 when no buffering policy is set" );
         return m_lastValue;
     }
@@ -37,18 +37,23 @@ public:
     void setBuffer( uint32_t capacity, bool swap )
     {
         m_buffer = new TickBuffer<T>( capacity );
-        if( unlikely( swap ) )
+        if( swap ) [[unlikely]]
             m_buffer -> push_back( m_lastValue );
     }
 
     T & value()                          { return m_lastValue; }
     const T & value() const              { return const_cast<TickBufferAccess<T> *>( this ) -> value(); }
-    uint32_t numTicks() const            { return ( unlikely( m_buffer != nullptr ) ? m_buffer -> numTicks() : 1 ); }
+    uint32_t numTicks() const
+    {
+        if( m_buffer != nullptr ) [[unlikely]]
+            return m_buffer -> numTicks();
+        return 1;
+    }
     TickBuffer<T> * buffer()             { return m_buffer; }
     const TickBuffer<T> * buffer() const { return const_cast<TickBufferAccess<T> *>( this ) -> buffer(); }
 
     void setValue( const T & val )       { m_lastValue = val; }
-    void reset()                         { if( unlikely( m_buffer != nullptr ) ) m_buffer -> clear(); }
+    void reset()                         { if( m_buffer != nullptr ) [[unlikely]] m_buffer -> clear(); }
 
 private:
     TickBuffer<T> * m_buffer;
@@ -84,7 +89,12 @@ public:
 
     uint32_t numTicks() const                    { return ( m_count > 0 ? m_timeline.numTicks() : 0 ); }
     uint32_t count() const                       { return m_count; }
-    DateTime lastTime() const                    { return unlikely( m_timeline.buffer() != nullptr ) ? timeAtIndex( 0 ) : m_timeline.value(); }
+    DateTime lastTime() const
+    {
+        if( m_timeline.buffer() != nullptr ) [[unlikely]]
+            return timeAtIndex( 0 );
+        return m_timeline.value();
+    }
     DateTime timeAtIndex( uint32_t index ) const;
 
     //reserveSpaceForTick exposed for use by BURST
@@ -165,17 +175,17 @@ public:
     {
         m_count++;
         auto * timeBuffer = m_timeline.buffer();
-        if( likely( !timeBuffer ) )
+        if( !timeBuffer ) [[likely]]
         {
             m_timeline.setValue( timestamp );
             return m_dataline.value();
         }
 
         auto * dataBuffer = m_dataline.buffer();
-        if( unlikely( !m_bufferTimeWindowPolicy.isNone() && timeBuffer -> full() ) )
+        if( !m_bufferTimeWindowPolicy.isNone() && timeBuffer -> full() ) [[unlikely]]
         {
             auto diff = timestamp - timeBuffer -> valueAtIndex( timeBuffer -> capacity() - 1 );
-            if( unlikely( diff <= m_bufferTimeWindowPolicy ) )
+            if( diff <= m_bufferTimeWindowPolicy ) [[unlikely]]
             {
                 //consider new size... if we double we will end up storing more than requested
                 //if we increase perfectly, it might get expensive quickly.  Will go for accuracy in first attempt
@@ -197,7 +207,9 @@ public:
 
     T & lastValue()
     {
-        return unlikely( m_dataline.buffer() != nullptr ) ? valueAtIndex( 0 ) : m_dataline.value();
+        if( m_dataline.buffer() != nullptr ) [[unlikely]]
+            return valueAtIndex( 0 );
+        return m_dataline.value();
     }
 
     T & valueAtIndex( int32_t index )
@@ -213,7 +225,7 @@ public:
     {
         if( tickCount > 1 )
         {
-            if( likely( !m_timeline.buffer() ) )
+            if( !m_timeline.buffer() ) [[likely]]
                 initializeBuffers( tickCount );
             else
             {
@@ -226,7 +238,7 @@ public:
 
     void setTickTimeWindowPolicy( TimeDelta window )
     {
-        if( likely( !m_timeline.buffer() ) )
+        if( !m_timeline.buffer() ) [[likely]]
             initializeBuffers( 1 );
         m_bufferTimeWindowPolicy = window;
     }
@@ -355,7 +367,7 @@ TimeSeries::getValueIndexRange(DateTime time, DuplicatePolicyEnum duplicatePolic
     while (startI.index < endI.index) {
         DateTimeWithIndex midI{dateTimeWithIndexGetter((startI.index + endI.index + 1) / 2)};
         if (midI.time <= time) {
-            if (unlikely(midI.index == endI.index)) {
+            if (midI.index == endI.index) [[unlikely]] {
                 // We know that there are only 2 elements in the range. We know that startI.time > time and
                 // endI.time <= time. So we know that we need to select endI as the candidate time
                 startI = endI;

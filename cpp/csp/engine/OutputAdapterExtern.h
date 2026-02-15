@@ -2,25 +2,38 @@
 #define _IN_CSP_ENGINE_OUTPUT_ADAPTER_EXTERN_H
 
 /*
- * This file wraps an external OutputAdapter implementation into a C++ OutputAdapter
- * communicating across the ABI-stable C interface.
-*/
+ * C++ wrapper for external Output Adapters using the C ABI interface.
+ *
+ * This class wraps an adapter implemented in C (or any language with C FFI)
+ * and integrates it with the CSP engine's OutputAdapter interface.
+ */
+
+#include <csp/engine/OutputAdapter.h>
+#include <csp/engine/c/OutputAdapter.h>
 
 namespace csp
 {
-    
-    class OutputAdapterExtern : public OutputAdapter
-    {
-    public:
-        OutputAdapterExtern(/* parameters to construct the external adapter */);
-        ~OutputAdapterExtern();
 
-        void executeImpl();
+class OutputAdapterExtern final : public OutputAdapter
+{
+public:
+    OutputAdapterExtern( Engine * engine, const CspTypePtr & type,
+                         const CCspOutputAdapterVTable & vtable );
+    ~OutputAdapterExtern() override;
 
-    private:
-        struct COutputAdapter* c_adapter_; // Opaque pointer to the C Output Adapter
-    };
+    const char* name() const override { return "OutputAdapterExtern"; }
 
+    void start() override;
+    void stop() override;
+    void executeImpl() override;
+
+private:
+    CCspOutputAdapterVTable m_vtable;
+    DateTime m_startTime;
+    DateTime m_endTime;
 };
 
-#endif
+}
+
+#endif /* _IN_CSP_ENGINE_OUTPUT_ADAPTER_EXTERN_H */
+

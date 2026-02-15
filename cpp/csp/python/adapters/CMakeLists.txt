@@ -46,5 +46,3 @@ if(CSP_BUILD_WS_CLIENT_ADAPTER)
     target_link_libraries(websocketadapterimpl csp_core csp_engine cspimpl csp_websocket_client_adapter)
     install(TARGETS websocketadapterimpl RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR})
 endif()
-
-add_subdirectory(c)

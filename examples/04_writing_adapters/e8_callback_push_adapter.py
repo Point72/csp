@@ -6,8 +6,8 @@ to be ticked depends on state that must be read on the engine thread, or when th
 value should be deferred until consumption time.
 
 This example uses CallablePyPushInputAdapter from _csptestlibimpl, which overrides
-transformRawEvent / deleteRawEvent / restoreRawEvent in C++ to call the
-pushed Python callable and convert the result into a csp tick.
+transformRawEvent in C++ to invoke the pushed Python callable and convert the
+result into a csp tick.
 """
 
 import threading

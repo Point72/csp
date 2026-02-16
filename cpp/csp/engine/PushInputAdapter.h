@@ -91,27 +91,21 @@ public:
     void pushTick( T &&value, PushBatch *batch = nullptr );
 
     //called from engine processing thread
-    //will delete event if processed, returns true if processed
-    bool consumeEvent( PushEvent *, std::vector<PushGroup *> & dirtyGroups );
+    //returns nullptr if event was consumed, otherwise returns the (possibly transformed) event for reconsuming on a later cycle
+    //reconsuming=true indicates the event was already transformed and should not be transformed again
+    PushEvent * consumeEvent( PushEvent *, std::vector<PushGroup *> & dirtyGroups, bool reconsuming = false );
 
-    // Override to transform a raw event into a new parsed event for the csp engine
+    // Override to transform a raw event into a new parsed event for the csp engine.
+    // The implementation must:
+    //   - delete the original raw event
+    //   - preserve event properties (e.g. isGroupEnd flag) on the new event
     virtual PushEvent * transformRawEvent( PushEvent * raw_event ) { return nullptr; };
-    // Override to delete the original raw event after its parsed event has been consumed
-    virtual void deleteRawEvent( PushEvent * raw_event ) { delete raw_event; };
-    // Override to reconcile raw_event and parsed_event when the parsed event was not consumed.
-    // The subclass must delete the parsed_event here as consumeEvent only deletes it on consumption.
-    virtual void restoreRawEvent( PushEvent * raw_event, PushEvent * parsed_event ) {};
 
 private:
 
-    // When enabled, consumeEvent will route events through the transformRawEvent/deleteRawEvent/restoreRawEvent
-    // hooks instead of consuming them directly. This allows subclasses to apply arbitrary transformations on pushed ticks
-    // before they are delivered to the csp engine.
-    //
-    // Event ownership with the flag enabled:
-    //   - transformRawEvent produces a new parsed event from the original raw event
-    //   - If consumed: the parsed event is deleted by consumeEvent, and the raw event is deleted via deleteRawEvent
-    //   - If not consumed: restoreRawEvent is called — the subclass must clean up the parsed event there
+    // When enabled, consumeEvent will call transformRawEvent on the first pass to convert pushed events
+    // before consumption. On reconsuming (from PendingPushEvents), the transform is skipped since
+    // the event was already transformed on the first pass.
     bool m_transformEvents = false;
     PushGroup * m_group;
 };
@@ -136,20 +130,20 @@ inline void PushInputAdapter::pushTick( T &&value, PushBatch *batch )
     rootEngine() -> schedulePushEvent( event );
 }
 
-inline bool PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushGroup *> & dirtyGroups )
+inline PushEvent * PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushGroup *> & dirtyGroups, bool reconsuming )
 {
-    if( m_group && m_group -> state == PushGroup::LOCKED )
-        return false;
-
-    bool isGroupEnd = event -> isGroupEnd();
-
-    PushEvent * callback_event = event;
-
-    if( m_transformEvents )
+    // transform the raw event, if enabled and not reconsuming
+    if( m_transformEvents && !reconsuming )
     {
-        event = transformRawEvent( callback_event );
+        PushEvent * raw_event = event;
+        event = transformRawEvent( raw_event );
         CSP_ASSERT( event != nullptr );
     }
+
+    if( m_group && m_group -> state == PushGroup::LOCKED )
+        return event;
+
+    bool isGroupEnd = event -> isGroupEnd();
 
     bool consumed = switchCspType( dataType(),
                                    [ event ]( auto tag )
@@ -161,19 +155,6 @@ inline bool PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushG
                                            delete tevent;
                                        return consumed;
                                    } );
-    if( m_transformEvents )
-    {
-        if( consumed )
-        {
-            // Parsed event was consumed (deleted) so delete the original event to avoid leaking memory
-            deleteRawEvent( callback_event );
-        }
-        else
-        {
-            // Parsed event was not consumed so restore the original event so that it can be consumed again later.
-            restoreRawEvent( callback_event, event );
-        }
-    }
 
     if( m_group )
     {
@@ -191,7 +172,10 @@ inline bool PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushG
         }
     }
 
-    return consumed;
+    if( consumed )
+        return nullptr;
+    else
+        return event;
 }
 
 inline void PushBatch::append( PushEvent * event )

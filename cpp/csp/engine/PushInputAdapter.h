@@ -80,7 +80,7 @@ class PushInputAdapter : public InputAdapter
 public:
     PushInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode,
                       PushGroup * group = nullptr, bool transformEvents = false )
-        : InputAdapter( engine, type, pushMode ), m_transformEvents(transformEvents), m_group( group )
+        : InputAdapter( engine, type, pushMode ), m_group( group ), m_transformEvents( transformEvents )
     {
     }
 
@@ -103,11 +103,11 @@ public:
 
 private:
 
+    PushGroup * m_group;
     // When enabled, consumeEvent will call transformRawEvent on the first pass to convert pushed events
     // before consumption. On reconsuming (from PendingPushEvents), the transform is skipped since
     // the event was already transformed on the first pass.
-    bool m_transformEvents = false;
-    PushGroup * m_group;
+    bool        m_transformEvents = false;
 };
 
 template<typename T>

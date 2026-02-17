@@ -128,7 +128,7 @@ void RootEngine::processPushEventQueue( PushEvent * event, std::vector<PushGroup
     {
         PushEvent * next = event -> next;
 
-        auto pending_event = event -> adapter() -> consumeEvent( event, dirtyGroups );
+        auto * pending_event = event -> adapter() -> consumeEvent( event, dirtyGroups );
         if( pending_event != nullptr )
             m_pendingPushEvents.addPendingEvent( pending_event );
 

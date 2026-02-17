@@ -19,7 +19,7 @@ extern "C" {
  * @param interval_ms  Interval between pushes in milliseconds
  * @return             VTable structure to pass to ccsp_push_input_adapter_extern_create
  */
-CCspPushInputAdapterVTable example_push_input_adapter_create_int(int interval_ms);
+CCspPushInputAdapterVTable example_push_input_adapter_create_int( int interval_ms );
 
 /*
  * Create an example push input adapter that generates random doubles.
@@ -27,7 +27,7 @@ CCspPushInputAdapterVTable example_push_input_adapter_create_int(int interval_ms
  * @param interval_ms  Interval between pushes in milliseconds
  * @return             VTable structure
  */
-CCspPushInputAdapterVTable example_push_input_adapter_create_double(int interval_ms);
+CCspPushInputAdapterVTable example_push_input_adapter_create_double( int interval_ms );
 
 /*
  * Create an example push input adapter that echoes strings from a callback.
@@ -36,12 +36,14 @@ CCspPushInputAdapterVTable example_push_input_adapter_create_double(int interval
  * @param user_data    User data passed to the callback
  * @return             VTable structure
  */
-typedef const char* (*ExampleStringCallback)(void* user_data);
+typedef const char * ( *ExampleStringCallback )( void * user_data );
 CCspPushInputAdapterVTable example_push_input_adapter_create_string(
-    ExampleStringCallback get_string, void* user_data);
+    ExampleStringCallback get_string, void * user_data );
 
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_PUSH_INPUT_ADAPTER_H */
 
 #endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_PUSH_INPUT_ADAPTER_H */

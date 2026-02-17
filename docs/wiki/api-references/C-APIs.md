@@ -17,6 +17,7 @@ This document provides a complete reference for the CSP C API, which allows adap
 - [Engine Access](#engine-access)
 - [Input Access](#input-access)
 - [Adapter Managers](#adapter-managers)
+- [Python Bridge Functions](#python-bridge-functions)
 
 ______________________________________________________________________
 
@@ -486,7 +487,7 @@ CCspErrorCode ccsp_dictionary_get_datetime(CCspDictionaryHandle dict, const char
 CCspErrorCode ccsp_dictionary_get_timedelta(CCspDictionaryHandle dict, const char* key, CCspTimeDelta* out_value);
 
 // Returns pointer to internal string data (valid while dictionary exists)
-CCspErrorCode ccsp_dictionary_get_string(CCspDictionaryHandle dict, const char* key, 
+CCspErrorCode ccsp_dictionary_get_string(CCspDictionaryHandle dict, const char* key,
                                          const char** out_data, size_t* out_length);
 
 // Returns handle to nested dictionary (must NOT be freed - owned by parent)
@@ -544,14 +545,14 @@ void process_config(CCspDictionaryHandle config)
     // Direct access with defaults
     int32_t port = ccsp_dictionary_get_int32_or(config, "port", 9092);
     const char* host = ccsp_dictionary_get_string_or(config, "host", "localhost");
-    
+
     // Type-safe access with error handling
     const char* topic_data = NULL;
     size_t topic_len = 0;
     if (ccsp_dictionary_get_string(config, "topic", &topic_data, &topic_len) != CCSP_OK) {
         // Handle missing required field
     }
-    
+
     // Iteration
     CCspDictIteratorHandle iter = ccsp_dictionary_iter_create(config);
     const char* key;
@@ -722,20 +723,20 @@ void process_struct(CCspStructHandle s)
     // Get struct meta (type info)
     CCspStructMetaHandle meta = ccsp_struct_meta(s);
     printf("Struct type: %s\n", ccsp_struct_meta_name(meta));
-    
+
     // Iterate over fields
     size_t field_count = ccsp_struct_meta_field_count(meta);
     for (size_t i = 0; i < field_count; i++) {
         CCspStructFieldHandle field = ccsp_struct_meta_field_by_index(meta, i);
         const char* name = ccsp_struct_field_name(field);
         CCspType type = ccsp_struct_field_type(field);
-        
+
         // Check if field is set
         if (!ccsp_struct_field_is_set(s, field)) {
             printf("  %s: <unset>\n", name);
             continue;
         }
-        
+
         // Print based on type
         switch (type) {
             case CCSP_TYPE_INT64: {
@@ -754,7 +755,7 @@ void process_struct(CCspStructHandle s)
             // ... handle other types
         }
     }
-    
+
     // Direct access by name
     double price;
     if (ccsp_struct_get_double_by_name(s, "price", &price) == CCSP_OK) {
@@ -770,16 +771,16 @@ void create_order(CCspStructMetaHandle order_meta)
         // Handle error
         return;
     }
-    
+
     // Set fields
     CCspStructFieldHandle symbol_field = ccsp_struct_meta_field_by_name(order_meta, "symbol");
     ccsp_struct_set_string(order, symbol_field, "AAPL", 4);
-    
+
     CCspStructFieldHandle qty_field = ccsp_struct_meta_field_by_name(order_meta, "quantity");
     ccsp_struct_set_int64(order, qty_field, 100);
-    
+
     // Use struct...
-    
+
     // Cleanup
     ccsp_struct_destroy(order);
 }
@@ -1129,6 +1130,166 @@ CCspErrorCode ccsp_managed_sim_input_adapter_push_datetime(
 
 ______________________________________________________________________
 
+## Python Bridge Functions
+
+CSP provides bridge functions that consume C API capsules and create native adapter objects. These functions are essential for integrating C API adapters with CSP's Python wiring layer.
+
+### Available Bridge Functions
+
+These functions are available in `csp.impl.__cspimpl._cspimpl`:
+
+| Function                        | Description                                                      |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `_c_api_push_input_adapter`     | Creates `PushInputAdapterExtern` from an input adapter capsule   |
+| `_c_api_output_adapter`         | Creates `OutputAdapterExtern` from an output adapter capsule     |
+| `_c_api_adapter_manager_bridge` | Converts C API adapter manager capsule to CSP-compatible capsule |
+
+### `_c_api_push_input_adapter`
+
+Creates a native push input adapter from a C API capsule.
+
+**Signature:**
+
+```python
+_cspimpl._c_api_push_input_adapter(
+    mgr,        # Adapter manager (or None)
+    engine,     # CSP engine
+    pytype,     # Python type for the timeseries
+    push_mode,  # PushMode enum value
+    args        # Tuple: (capsule, push_group_or_none)
+)
+```
+
+**Parameters:**
+
+- `mgr`: Adapter manager capsule or `None`
+- `engine`: CSP engine object
+- `pytype`: Python type (e.g., `int`, `str`) for the output timeseries
+- `push_mode`: `csp.PushMode` value
+- `args`: Tuple containing:
+  - Capsule with name `"csp.c.InputAdapterCapsule"` containing `CCspPushInputAdapterVTable`
+  - Push group capsule or `None`
+
+**Returns:** Native adapter wrapper compatible with CSP's wiring layer
+
+### `_c_api_output_adapter`
+
+Creates a native output adapter from a C API capsule.
+
+**Signature:**
+
+```python
+_cspimpl._c_api_output_adapter(
+    mgr,        # Adapter manager (or None)
+    engine,     # CSP engine
+    args        # Tuple: (input_type, capsule)
+)
+```
+
+**Parameters:**
+
+- `mgr`: Adapter manager capsule or `None`
+- `engine`: CSP engine object
+- `args`: Tuple containing:
+  - Input type (Python type, e.g., `int`)
+  - Capsule with name `"csp.c.OutputAdapterCapsule"` containing `CCspOutputAdapterVTable`
+
+**Returns:** Native adapter wrapper compatible with CSP's wiring layer
+
+### `_c_api_adapter_manager_bridge`
+
+Converts a C API adapter manager capsule to a CSP-compatible adapter manager capsule. This is essential for using C API adapter managers with CSP's wiring layer.
+
+**Signature:**
+
+```python
+_cspimpl._c_api_adapter_manager_bridge(
+    engine,     # CSP engine
+    capsule     # C API adapter manager capsule
+)
+```
+
+**Parameters:**
+
+- `engine`: CSP engine object (from the `_create()` method or graph wiring)
+- `capsule`: Capsule with name `"csp.c.AdapterManagerCapsule"` containing `CCspAdapterManagerVTable`
+
+**Returns:** A capsule compatible with CSP's adapter manager wiring (name `"adapterMgr"`, containing `AdapterManagerExtern*`)
+
+**Usage in Adapter Manager class:**
+
+```python
+class MyAdapterManager:
+    def __init__(self, config):
+        self._config = config
+        self._push_group = PushGroup()
+
+    def _create(self, engine, memo):
+        """Called by CSP wiring layer to create the manager."""
+        # Create C API capsule from your native module
+        c_api_capsule = _my_native_module._create_adapter_manager(self._config)
+
+        # Bridge to CSP-compatible format
+        return _cspimpl._c_api_adapter_manager_bridge(engine, c_api_capsule)
+
+    def subscribe(self, ts_type, **kwargs):
+        return _managed_input_adapter_def(self, ts_type, **kwargs)
+```
+
+The bridge function:
+
+1. Extracts the `CCspAdapterManagerVTable` from the C API capsule
+1. Creates an `AdapterManagerExtern` wrapper that owns the VTable
+1. Clears the original capsule's destructor to prevent double-free
+1. Returns a new capsule that CSP's wiring layer can use
+
+### Capsule Names
+
+The bridge functions expect capsules with specific names:
+
+| Adapter Type       | Capsule Name                    |
+| ------------------ | ------------------------------- |
+| Push Input Adapter | `"csp.c.InputAdapterCapsule"`   |
+| Output Adapter     | `"csp.c.OutputAdapterCapsule"`  |
+| Adapter Manager    | `"csp.c.AdapterManagerCapsule"` |
+
+### Usage Pattern
+
+```python
+from csp.impl.__cspimpl import _cspimpl
+from csp.impl.wiring import input_adapter_def
+from . import _my_native_module
+
+def _create_my_adapter(mgr, engine, pytype, push_mode, scalars):
+    # Create capsule from your C code
+    capsule = _my_native_module._my_input_adapter(interval_ms=100)
+
+    # Pass to CSP bridge
+    return _cspimpl._c_api_push_input_adapter(
+        mgr, engine, pytype, push_mode, (capsule, None)
+    )
+
+my_adapter = input_adapter_def(
+    "my_adapter",
+    _create_my_adapter,
+    ts["T"],
+    typ="T",
+    interval_ms=int,
+)
+```
+
+### Ownership Transfer
+
+When you pass a capsule to a bridge function:
+
+1. The VTable is extracted from the capsule
+1. A native adapter (`PushInputAdapterExtern` or `OutputAdapterExtern`) is created
+1. **Ownership of the VTable is transferred** to the native adapter
+1. The capsule's destructor is cleared to prevent double-free
+1. The adapter's destructor will call `vtable.destroy()` when the graph ends
+
+______________________________________________________________________
+
 ## Thread Safety
 
 | Function Category                                 | Thread Safety                                         |
@@ -1155,4 +1316,5 @@ ______________________________________________________________________
 ## See Also
 
 - [Write C API Adapters](../how-tos/Write-C-API-Adapters.md) - How-to guide
-- [Example Adapters](../../cpp/csp/adapters/c/example/) - Reference implementations
+- [C API Adapter Example](../../../examples/05_cpp/4_c_api_adapter/) - C implementation
+- [Rust Adapter Example](../../../examples/05_cpp/5_c_api_adapter_rust/) - Rust implementation

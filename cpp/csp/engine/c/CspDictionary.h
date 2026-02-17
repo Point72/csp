@@ -11,6 +11,7 @@
 #ifndef _IN_CSP_ENGINE_C_CSPDICTIONARY_H
 #define _IN_CSP_ENGINE_C_CSPDICTIONARY_H
 
+#include <csp/engine/c/CspExport.h>
 #include <csp/engine/c/CspError.h>
 #include <csp/engine/c/CspTime.h>
 #include <stddef.h>
@@ -69,7 +70,7 @@ typedef enum {
  * Returns:
  *   1 if the key exists, 0 if not (or if dict is NULL)
  */
-int ccsp_dictionary_exists( CCspDictionaryHandle dict, const char * key );
+CSP_C_API_EXPORT int ccsp_dictionary_exists( CCspDictionaryHandle dict, const char * key );
 
 /*
  * ccsp_dictionary_size - Get the number of entries in the dictionary
@@ -80,7 +81,7 @@ int ccsp_dictionary_exists( CCspDictionaryHandle dict, const char * key );
  * Returns:
  *   Number of entries, or 0 if dict is NULL
  */
-size_t ccsp_dictionary_size( CCspDictionaryHandle dict );
+CSP_C_API_EXPORT size_t ccsp_dictionary_size( CCspDictionaryHandle dict );
 
 /*
  * ccsp_dictionary_is_empty - Check if the dictionary is empty
@@ -91,7 +92,7 @@ size_t ccsp_dictionary_size( CCspDictionaryHandle dict );
  * Returns:
  *   1 if empty (or NULL), 0 if has entries
  */
-int ccsp_dictionary_is_empty( CCspDictionaryHandle dict );
+CSP_C_API_EXPORT int ccsp_dictionary_is_empty( CCspDictionaryHandle dict );
 
 /*
  * ccsp_dictionary_get_type - Get the type of a value in the dictionary
@@ -103,20 +104,20 @@ int ccsp_dictionary_is_empty( CCspDictionaryHandle dict );
  * Returns:
  *   CCspDictValueType indicating the type, or CCSP_DICT_TYPE_NONE if not found
  */
-CCspDictValueType ccsp_dictionary_get_type( CCspDictionaryHandle dict, const char * key );
+CSP_C_API_EXPORT CCspDictValueType ccsp_dictionary_get_type( CCspDictionaryHandle dict, const char * key );
 
 /* ============================================================================
  * Type-Safe Getters (return error if type mismatch or key not found)
  * ============================================================================ */
 
-CCspErrorCode ccsp_dictionary_get_bool( CCspDictionaryHandle dict, const char * key, int8_t * out_value );
-CCspErrorCode ccsp_dictionary_get_int32( CCspDictionaryHandle dict, const char * key, int32_t * out_value );
-CCspErrorCode ccsp_dictionary_get_uint32( CCspDictionaryHandle dict, const char * key, uint32_t * out_value );
-CCspErrorCode ccsp_dictionary_get_int64( CCspDictionaryHandle dict, const char * key, int64_t * out_value );
-CCspErrorCode ccsp_dictionary_get_uint64( CCspDictionaryHandle dict, const char * key, uint64_t * out_value );
-CCspErrorCode ccsp_dictionary_get_double( CCspDictionaryHandle dict, const char * key, double * out_value );
-CCspErrorCode ccsp_dictionary_get_datetime( CCspDictionaryHandle dict, const char * key, CCspDateTime * out_value );
-CCspErrorCode ccsp_dictionary_get_timedelta( CCspDictionaryHandle dict, const char * key, CCspTimeDelta * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_bool( CCspDictionaryHandle dict, const char * key, int8_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_int32( CCspDictionaryHandle dict, const char * key, int32_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_uint32( CCspDictionaryHandle dict, const char * key, uint32_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_int64( CCspDictionaryHandle dict, const char * key, int64_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_uint64( CCspDictionaryHandle dict, const char * key, uint64_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_double( CCspDictionaryHandle dict, const char * key, double * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_datetime( CCspDictionaryHandle dict, const char * key, CCspDateTime * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_timedelta( CCspDictionaryHandle dict, const char * key, CCspTimeDelta * out_value );
 
 /*
  * ccsp_dictionary_get_string - Get a string value
@@ -132,7 +133,7 @@ CCspErrorCode ccsp_dictionary_get_timedelta( CCspDictionaryHandle dict, const ch
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char * key,
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char * key,
                                           const char ** out_data, size_t * out_length );
 
 /*
@@ -148,7 +149,7 @@ CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char 
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * key,
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * key,
                                         CCspDictionaryHandle * out_dict );
 
 /* ============================================================================
@@ -158,14 +159,14 @@ CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * 
  * These return the default value if the key doesn't exist or has the wrong type.
  */
 
-int8_t   ccsp_dictionary_get_bool_or( CCspDictionaryHandle dict, const char * key, int8_t default_value );
-int32_t  ccsp_dictionary_get_int32_or( CCspDictionaryHandle dict, const char * key, int32_t default_value );
-uint32_t ccsp_dictionary_get_uint32_or( CCspDictionaryHandle dict, const char * key, uint32_t default_value );
-int64_t  ccsp_dictionary_get_int64_or( CCspDictionaryHandle dict, const char * key, int64_t default_value );
-uint64_t ccsp_dictionary_get_uint64_or( CCspDictionaryHandle dict, const char * key, uint64_t default_value );
-double   ccsp_dictionary_get_double_or( CCspDictionaryHandle dict, const char * key, double default_value );
-CCspDateTime ccsp_dictionary_get_datetime_or( CCspDictionaryHandle dict, const char * key, CCspDateTime default_value );
-CCspTimeDelta ccsp_dictionary_get_timedelta_or( CCspDictionaryHandle dict, const char * key, CCspTimeDelta default_value );
+CSP_C_API_EXPORT int8_t   ccsp_dictionary_get_bool_or( CCspDictionaryHandle dict, const char * key, int8_t default_value );
+CSP_C_API_EXPORT int32_t  ccsp_dictionary_get_int32_or( CCspDictionaryHandle dict, const char * key, int32_t default_value );
+CSP_C_API_EXPORT uint32_t ccsp_dictionary_get_uint32_or( CCspDictionaryHandle dict, const char * key, uint32_t default_value );
+CSP_C_API_EXPORT int64_t  ccsp_dictionary_get_int64_or( CCspDictionaryHandle dict, const char * key, int64_t default_value );
+CSP_C_API_EXPORT uint64_t ccsp_dictionary_get_uint64_or( CCspDictionaryHandle dict, const char * key, uint64_t default_value );
+CSP_C_API_EXPORT double   ccsp_dictionary_get_double_or( CCspDictionaryHandle dict, const char * key, double default_value );
+CSP_C_API_EXPORT CCspDateTime ccsp_dictionary_get_datetime_or( CCspDictionaryHandle dict, const char * key, CCspDateTime default_value );
+CSP_C_API_EXPORT CCspTimeDelta ccsp_dictionary_get_timedelta_or( CCspDictionaryHandle dict, const char * key, CCspTimeDelta default_value );
 
 /*
  * ccsp_dictionary_get_string_or - Get a string with default
@@ -182,7 +183,7 @@ CCspTimeDelta ccsp_dictionary_get_timedelta_or( CCspDictionaryHandle dict, const
  * Returns:
  *   Pointer to string data (borrowed from dict or default_value)
  */
-const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const char * key,
+CSP_C_API_EXPORT const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const char * key,
                                             const char * default_value, size_t * out_length );
 
 /* ============================================================================
@@ -211,7 +212,7 @@ const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const cha
  * Returns:
  *   Iterator handle, or NULL on error
  */
-CCspDictIteratorHandle ccsp_dictionary_iter_create( CCspDictionaryHandle dict );
+CSP_C_API_EXPORT CCspDictIteratorHandle ccsp_dictionary_iter_create( CCspDictionaryHandle dict );
 
 /*
  * ccsp_dictionary_iter_destroy - Destroy an iterator
@@ -219,7 +220,7 @@ CCspDictIteratorHandle ccsp_dictionary_iter_create( CCspDictionaryHandle dict );
  * Parameters:
  *   iter - Iterator handle
  */
-void ccsp_dictionary_iter_destroy( CCspDictIteratorHandle iter );
+CSP_C_API_EXPORT void ccsp_dictionary_iter_destroy( CCspDictIteratorHandle iter );
 
 /*
  * ccsp_dictionary_iter_next - Advance to the next entry
@@ -231,7 +232,7 @@ void ccsp_dictionary_iter_destroy( CCspDictIteratorHandle iter );
  * Returns:
  *   1 if there is a next entry, 0 if iteration is complete
  */
-int ccsp_dictionary_iter_next( CCspDictIteratorHandle iter, const char ** out_key );
+CSP_C_API_EXPORT int ccsp_dictionary_iter_next( CCspDictIteratorHandle iter, const char ** out_key );
 
 /*
  * ccsp_dictionary_iter_value_type - Get the type of the current value
@@ -244,19 +245,19 @@ int ccsp_dictionary_iter_next( CCspDictIteratorHandle iter, const char ** out_ke
  * Returns:
  *   Type of the current value
  */
-CCspDictValueType ccsp_dictionary_iter_value_type( CCspDictIteratorHandle iter );
+CSP_C_API_EXPORT CCspDictValueType ccsp_dictionary_iter_value_type( CCspDictIteratorHandle iter );
 
 /* Type-safe value getters for current iterator position */
-CCspErrorCode ccsp_dictionary_iter_get_bool( CCspDictIteratorHandle iter, int8_t * out_value );
-CCspErrorCode ccsp_dictionary_iter_get_int32( CCspDictIteratorHandle iter, int32_t * out_value );
-CCspErrorCode ccsp_dictionary_iter_get_uint32( CCspDictIteratorHandle iter, uint32_t * out_value );
-CCspErrorCode ccsp_dictionary_iter_get_int64( CCspDictIteratorHandle iter, int64_t * out_value );
-CCspErrorCode ccsp_dictionary_iter_get_uint64( CCspDictIteratorHandle iter, uint64_t * out_value );
-CCspErrorCode ccsp_dictionary_iter_get_double( CCspDictIteratorHandle iter, double * out_value );
-CCspErrorCode ccsp_dictionary_iter_get_datetime( CCspDictIteratorHandle iter, CCspDateTime * out_value );
-CCspErrorCode ccsp_dictionary_iter_get_timedelta( CCspDictIteratorHandle iter, CCspTimeDelta * out_value );
-CCspErrorCode ccsp_dictionary_iter_get_string( CCspDictIteratorHandle iter, const char ** out_data, size_t * out_length );
-CCspErrorCode ccsp_dictionary_iter_get_dict( CCspDictIteratorHandle iter, CCspDictionaryHandle * out_dict );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_bool( CCspDictIteratorHandle iter, int8_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_int32( CCspDictIteratorHandle iter, int32_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_uint32( CCspDictIteratorHandle iter, uint32_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_int64( CCspDictIteratorHandle iter, int64_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_uint64( CCspDictIteratorHandle iter, uint64_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_double( CCspDictIteratorHandle iter, double * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_datetime( CCspDictIteratorHandle iter, CCspDateTime * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_timedelta( CCspDictIteratorHandle iter, CCspTimeDelta * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_string( CCspDictIteratorHandle iter, const char ** out_data, size_t * out_length );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_iter_get_dict( CCspDictIteratorHandle iter, CCspDictionaryHandle * out_dict );
 
 #ifdef __cplusplus
 }

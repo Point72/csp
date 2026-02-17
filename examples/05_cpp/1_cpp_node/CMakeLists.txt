@@ -100,7 +100,7 @@ find_package(CSP REQUIRED)
 message("${Cyan}Found CSP:\n\tincludes in: ${CSP_INCLUDE_DIR}\n\tlibraries in: ${CSP_LIBS_DIR}${ColorReset}")
 include_directories(${CSP_INCLUDE_DIR})
 
-add_library(piglatin SHARED piglatin.cpp)
+add_library(piglatin SHARED cpp/piglatin.cpp)
 target_link_libraries(piglatin ${CSP_LIBRARY})
 
 install(TARGETS piglatin LIBRARY DESTINATION piglatin)

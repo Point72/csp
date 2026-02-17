@@ -40,7 +40,7 @@ typedef struct ManagedAdapterState {
  * ManagedOutputState - State for a single output adapter in the manager
  */
 typedef struct ManagedOutputState {
-    ManagedAdapterState* shared;
+    ManagedAdapterState * shared;
     char topic[64];       /* e.g., Kafka topic name */
     int messages_sent;
 } ManagedOutputState;
@@ -57,7 +57,7 @@ typedef struct ManagedOutputState {
  * Returns:
  *   VTable for use with ccsp_adapter_manager_extern_create
  */
-CCspAdapterManagerVTable example_managed_adapter_create(const char* name);
+CCspAdapterManagerVTable example_managed_adapter_create( const char * name );
 
 /*
  * example_managed_output_adapter_create - Create output adapter for manager
@@ -72,8 +72,14 @@ CCspAdapterManagerVTable example_managed_adapter_create(const char* name);
  *   VTable for use with ccsp_adapter_manager_create_output_adapter
  */
 CCspOutputAdapterVTable example_managed_output_adapter_create(
-    ManagedAdapterState* shared_state,
-    const char* topic);
+    ManagedAdapterState * shared_state,
+    const char * topic );
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_MANAGED_ADAPTER_H */
 
 #ifdef __cplusplus
 }

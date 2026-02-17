@@ -104,7 +104,7 @@ include_directories(${CSP_INCLUDE_DIR})
 find_package(csp_autogen REQUIRED)
 csp_autogen(mystruct.struct mystruct STRUCT_AUTOGEN_HEADER STRUCT_AUTOGEN_SOURCE)
 
-add_library(mystruct SHARED struct.cpp ${STRUCT_AUTOGEN_SOURCE})
+add_library(mystruct SHARED cpp/struct.cpp ${STRUCT_AUTOGEN_SOURCE})
 target_link_libraries(mystruct ${CSP_LIBRARY})
 target_include_directories(mystruct PRIVATE "${CMAKE_BINARY_DIR}/csp_autogen")
 set_target_properties(mystruct PROPERTIES PUBLIC_HEADER "${STRUCT_AUTOGEN_HEADER}")

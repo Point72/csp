@@ -107,7 +107,7 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
         CSP_THROW( KeyError, "StructMeta missing __metadata__" );
 
     PyObject * optFields = PyDict_GetItemString( dict, "__optional_fields__" );
-    if( !optFields ) 
+    if( !optFields )
         CSP_THROW( TypeError, "StructMeta missing __optional_fields__" );
 
     StructMeta::Fields fields;
@@ -126,7 +126,7 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
             if( rv == -1 )
                 CSP_THROW( PythonPassthrough, "" );
             optional = rv;
-                
+
             if( !PyType_Check( type ) && !PyList_Check( type ) )
                 CSP_THROW( TypeError, "Struct metadata for key " << keystr << " expected a type, got " << PyObjectPtr::incref( type ) );
 
@@ -246,7 +246,7 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
                                   |                              |
                               PyStruct  --------------------------
     */
-    
+
     PyObject * strict_enabled = PyDict_GetItemString( dict, "__strict_enabled__" );
     if( !strict_enabled )
         CSP_THROW( KeyError, "StructMeta missing __strict_enabled__" );
@@ -415,6 +415,25 @@ static PyMethodDef PyStructMeta_methods[] = {
     {NULL}
 };
 
+// Getter for _struct_meta_capsule - exposes StructMeta* as a capsule for C API usage
+static PyObject * PyStructMeta_get_struct_meta_capsule( PyStructMeta * m, void * /* closure */ )
+{
+    if( !m -> structMeta )
+    {
+        Py_RETURN_NONE;
+    }
+
+    // Return a capsule containing the raw StructMeta pointer
+    // The capsule does NOT own the pointer - the PyStructMeta owns it via shared_ptr
+    return PyCapsule_New( m -> structMeta.get(), nullptr, nullptr );
+}
+
+static PyGetSetDef PyStructMeta_getset[] = {
+    { "_struct_meta_capsule", (getter)PyStructMeta_get_struct_meta_capsule, nullptr,
+      "Get a capsule containing the StructMeta pointer for C API usage", nullptr },
+    { NULL }
+};
+
 PyTypeObject PyStructMeta::PyType = {
     PyVarObject_HEAD_INIT(nullptr, 0)
     "_cspimpl.PyStructMeta",   /* tp_name */
@@ -446,7 +465,7 @@ PyTypeObject PyStructMeta::PyType = {
     0,                         /* tp_iternext */
     PyStructMeta_methods,      /* tp_methods */
     0,                         /* tp_members */
-    0,                         /* tp_getset */
+    PyStructMeta_getset,       /* tp_getset */
     &PyType_Type,              /* tp_base */
     0,                         /* tp_dict */
     0,                         /* tp_descr_get */
@@ -477,7 +496,7 @@ PyObject * getattr_( const StructField * field, const Struct * struct_ )
 PyObject * getarrayattr_( const StructField * field, const PyStruct * pystruct )
 {
     assert( field -> type() -> type() == CspType::Type::ARRAY );
-    
+
     const CspArrayType * arrayType = static_cast<const CspArrayType *>( field -> type().get() );
     PyObject *v = ArraySubTypeSwitch::invoke( arrayType -> elemType(), [ field, pystruct ]( auto tag )
     {
@@ -500,7 +519,7 @@ PyObject * PyStruct::getattr( PyObject * attr )
     {
         if( field -> isNone( struct_.get() ) )
             return Py_None;
-        
+
         //For efficiency reasons we set err here rather than rely on exceptions, since this
         //can get called pretty regularly, ie getattr( s, "f", default ) or hasattr checks
         //we also pass the attribute as the exception for efficiency, expensive to format a nice error here
@@ -548,7 +567,7 @@ void PyStruct::setattr( Struct * s, PyObject * attr, PyObject * value )
                 typedField -> clearValue( struct_ );
             }
         } );
-        
+
     }
     catch( const TypeError & err )
     {

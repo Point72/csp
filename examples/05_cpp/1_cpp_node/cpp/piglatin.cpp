@@ -22,15 +22,15 @@ DECLARE_CPPNODE(piglatin)
 
     INVOKE()
     {
-      if(csp.ticked(x) && csp.valid(x))
-      {
-        std::string str = x.lastValue();
-        if (capitalize)
+        if( csp.ticked( x ) && csp.valid( x ) )
         {
-          std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+            std::string str = x.lastValue();
+            if( capitalize )
+            {
+                std::transform( str.begin(), str.end(), str.begin(), ::toupper );
+            }
+            RETURN( str.substr( 1, std::string::npos ) + str[0] + ( capitalize ? "AY" : "ay" ) );
         }
-        RETURN(str.substr(1, std::string::npos) + str[0] + (capitalize ? "AY" : "ay"));
-      }
     }
 };
 
@@ -47,15 +47,15 @@ static PyModuleDef _piglatin_module = {
     NULL, NULL, NULL, NULL, NULL
 };
 
-PyMODINIT_FUNC PyInit__piglatin(void)
+PyMODINIT_FUNC PyInit__piglatin( void )
 {
-    PyObject* m;
+    PyObject * m;
 
-    m = PyModule_Create(&_piglatin_module);
-    if(m == NULL)
+    m = PyModule_Create( &_piglatin_module );
+    if( m == NULL )
         return NULL;
 
-    if(!csp::python::InitHelper::instance().execute(m))
+    if( !csp::python::InitHelper::instance().execute( m ) )
         return NULL;
 
     return m;

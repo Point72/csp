@@ -14,6 +14,7 @@
 #ifndef _IN_CSP_ENGINE_C_OUTPUTADAPTER_H
 #define _IN_CSP_ENGINE_C_OUTPUTADAPTER_H
 
+#include <csp/engine/c/CspExport.h>
 #include <csp/engine/c/CspType.h>
 #include <csp/engine/c/CspValue.h>
 #include <csp/engine/c/CspTime.h>
@@ -45,39 +46,39 @@ typedef struct CCspOutputAdapterImpl* CCspOutputAdapterHandle;
 /*
  * Check if the input is valid (has ticked at least once)
  */
-int ccsp_input_is_valid(CCspInputHandle input);
+CSP_C_API_EXPORT int ccsp_input_is_valid(CCspInputHandle input);
 
 /*
  * Get the number of ticks available in the input buffer
  */
-int32_t ccsp_input_num_ticks(CCspInputHandle input);
+CSP_C_API_EXPORT int32_t ccsp_input_num_ticks(CCspInputHandle input);
 
 /*
  * Get the type of the input
  */
-CCspType ccsp_input_get_type(CCspInputHandle input);
+CSP_C_API_EXPORT CCspType ccsp_input_get_type(CCspInputHandle input);
 
 /*
  * Get the last value from the input.
  * The value is borrowed - do not free it, and do not use after execute() returns.
  */
-CCspErrorCode ccsp_input_get_last_value(CCspInputHandle input, CCspValue* out_value);
+CSP_C_API_EXPORT CCspErrorCode ccsp_input_get_last_value(CCspInputHandle input, CCspValue* out_value);
 
 /*
  * Get value at a specific index in the buffer.
  * Index 0 is the most recent, negative indices go back in history.
  */
-CCspErrorCode ccsp_input_get_value_at(CCspInputHandle input, int32_t index, CCspValue* out_value);
+CSP_C_API_EXPORT CCspErrorCode ccsp_input_get_value_at(CCspInputHandle input, int32_t index, CCspValue* out_value);
 
 /*
  * Get the timestamp of the value at a specific index.
  */
-CCspErrorCode ccsp_input_get_time_at(CCspInputHandle input, int32_t index, CCspDateTime* out_time);
+CSP_C_API_EXPORT CCspErrorCode ccsp_input_get_time_at(CCspInputHandle input, int32_t index, CCspDateTime* out_time);
 
 /*
  * Get the timestamp of the last value.
  */
-CCspDateTime ccsp_input_get_last_time(CCspInputHandle input);
+CSP_C_API_EXPORT CCspDateTime ccsp_input_get_last_time(CCspInputHandle input);
 
 /* ============================================================================
  * Engine access functions
@@ -86,12 +87,12 @@ CCspDateTime ccsp_input_get_last_time(CCspInputHandle input);
 /*
  * Get current engine time
  */
-CCspDateTime ccsp_engine_now(CCspEngineHandle engine);
+CSP_C_API_EXPORT CCspDateTime ccsp_engine_now(CCspEngineHandle engine);
 
 /*
  * Get current cycle count
  */
-uint64_t ccsp_engine_cycle_count(CCspEngineHandle engine);
+CSP_C_API_EXPORT uint64_t ccsp_engine_cycle_count(CCspEngineHandle engine);
 
 /* ============================================================================
  * Output Adapter Callbacks (VTable)
@@ -162,7 +163,7 @@ typedef struct CCspOutputAdapterVTable {
  * Note: The returned handle should be returned to Python via capsule,
  * which will then be registered with the CSP graph.
  */
-CCspOutputAdapterHandle ccsp_output_adapter_extern_create(
+CSP_C_API_EXPORT CCspOutputAdapterHandle ccsp_output_adapter_extern_create(
     CCspEngineHandle engine,
     CCspType input_type,
     const CCspOutputAdapterVTable* vtable
@@ -173,7 +174,7 @@ CCspOutputAdapterHandle ccsp_output_adapter_extern_create(
  * This is typically called by CSP when the graph is destroyed.
  * The destroy callback in the vtable will be invoked.
  */
-void ccsp_output_adapter_extern_destroy(CCspOutputAdapterHandle adapter);
+CSP_C_API_EXPORT void ccsp_output_adapter_extern_destroy(CCspOutputAdapterHandle adapter);
 
 /* ============================================================================
  * Convenience functions for common output patterns
@@ -183,29 +184,29 @@ void ccsp_output_adapter_extern_destroy(CCspOutputAdapterHandle adapter);
  * Get last value as string (convenience for string outputs).
  * Returns borrowed pointer valid until next execute() call.
  */
-CCspErrorCode ccsp_input_get_last_string(CCspInputHandle input,
+CSP_C_API_EXPORT CCspErrorCode ccsp_input_get_last_string(CCspInputHandle input,
                                           const char** out_data,
                                           size_t* out_length);
 
 /*
  * Get last value as int64 (convenience for int outputs)
  */
-CCspErrorCode ccsp_input_get_last_int64(CCspInputHandle input, int64_t* out_value);
+CSP_C_API_EXPORT CCspErrorCode ccsp_input_get_last_int64(CCspInputHandle input, int64_t* out_value);
 
 /*
  * Get last value as double (convenience for double outputs)
  */
-CCspErrorCode ccsp_input_get_last_double(CCspInputHandle input, double* out_value);
+CSP_C_API_EXPORT CCspErrorCode ccsp_input_get_last_double(CCspInputHandle input, double* out_value);
 
 /*
  * Get last value as bool (convenience for bool outputs)
  */
-CCspErrorCode ccsp_input_get_last_bool(CCspInputHandle input, int8_t* out_value);
+CSP_C_API_EXPORT CCspErrorCode ccsp_input_get_last_bool(CCspInputHandle input, int8_t* out_value);
 
 /*
  * Get last value as datetime (convenience for datetime outputs)
  */
-CCspErrorCode ccsp_input_get_last_datetime(CCspInputHandle input, CCspDateTime* out_value);
+CSP_C_API_EXPORT CCspErrorCode ccsp_input_get_last_datetime(CCspInputHandle input, CCspDateTime* out_value);
 
 #ifdef __cplusplus
 }

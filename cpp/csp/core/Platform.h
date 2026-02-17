@@ -28,6 +28,15 @@
 #define CSPIMPL_EXPORT __declspec(dllimport)
 #endif
 
+// C API export macro - used for ABI-stable C functions
+// On Windows: export from cspimpl.dll
+// On Unix: ensure symbols have default visibility
+#ifdef CSPIMPL_EXPORTS
+#define CSP_C_API_EXPORT __declspec(dllexport)
+#else
+#define CSP_C_API_EXPORT __declspec(dllimport)
+#endif
+
 #define START_PACKED __pragma( pack(push, 1) )
 #define END_PACKED   __pragma( pack(pop))
 
@@ -73,7 +82,7 @@ inline uint8_t clz(uint8_t n)  { return clz(static_cast<uint32_t>(n)) - 24; }
 
 template<typename U, std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
 inline uint8_t ffs(U n)
-{ 
+{
     unsigned long index = 0;
     if (_BitScanForward(&index, n))
 	    return index + 1;
@@ -92,6 +101,9 @@ inline uint8_t ffs(uint64_t n)
 
 #define CSPIMPL_EXPORT
 #define CSPTYPESIMPL_EXPORT
+
+// C API export macro - ensure symbols have default visibility for external use
+#define CSP_C_API_EXPORT __attribute__((visibility("default")))
 
 #define DLL_LOCAL __attribute__ ((visibility ("hidden")))
 

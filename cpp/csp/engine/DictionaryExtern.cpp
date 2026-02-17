@@ -18,7 +18,7 @@ struct CCspDictIteratorImpl
     csp::Dictionary::const_iterator current;
     csp::Dictionary::const_iterator end;
     bool started;  // Have we called next() at least once?
-    
+
     CCspDictIteratorImpl( const csp::Dictionary * d )
         : dict( d )
         , current( d -> begin() )
@@ -92,10 +92,10 @@ CCspDictValueType ccsp_dictionary_get_type( CCspDictionaryHandle dict, const cha
 {
     if( !dict || !key ) return CCSP_DICT_TYPE_NONE;
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
-    
+
     if( !d -> exists( key ) )
         return CCSP_DICT_TYPE_NONE;
-    
+
     try
     {
         const csp::Dictionary::Value & value = d -> getUntypedValue( key );
@@ -118,7 +118,7 @@ CCspErrorCode ccsp_dictionary_get_bool( CCspDictionaryHandle dict, const char * 
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -149,7 +149,7 @@ CCspErrorCode ccsp_dictionary_get_int32( CCspDictionaryHandle dict, const char *
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -180,7 +180,7 @@ CCspErrorCode ccsp_dictionary_get_uint32( CCspDictionaryHandle dict, const char 
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -211,7 +211,7 @@ CCspErrorCode ccsp_dictionary_get_int64( CCspDictionaryHandle dict, const char *
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -242,7 +242,7 @@ CCspErrorCode ccsp_dictionary_get_uint64( CCspDictionaryHandle dict, const char 
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -273,7 +273,7 @@ CCspErrorCode ccsp_dictionary_get_double( CCspDictionaryHandle dict, const char 
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -304,7 +304,7 @@ CCspErrorCode ccsp_dictionary_get_datetime( CCspDictionaryHandle dict, const cha
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -336,7 +336,7 @@ CCspErrorCode ccsp_dictionary_get_timedelta( CCspDictionaryHandle dict, const ch
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -369,7 +369,7 @@ CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char 
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -403,7 +403,7 @@ CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * 
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -559,7 +559,7 @@ const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const cha
             *out_length = 0;
         return default_value;
     }
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     try
     {
@@ -571,7 +571,7 @@ const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const cha
                 *out_length = 0;
             return default_value;
         }
-        
+
         const std::string & str = d -> get<std::string>( key );
         if( out_length )
             *out_length = str.size();
@@ -594,7 +594,7 @@ const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const cha
 CCspDictIteratorHandle ccsp_dictionary_iter_create( CCspDictionaryHandle dict )
 {
     if( !dict ) return nullptr;
-    
+
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
     auto * iter = new CCspDictIteratorImpl( d );
     return reinterpret_cast<CCspDictIteratorHandle>( iter );
@@ -610,9 +610,9 @@ void ccsp_dictionary_iter_destroy( CCspDictIteratorHandle iter )
 int ccsp_dictionary_iter_next( CCspDictIteratorHandle iter, const char ** out_key )
 {
     if( !iter || !out_key ) return 0;
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
-    
+
     if( !impl -> started )
     {
         impl -> started = true;
@@ -621,10 +621,10 @@ int ccsp_dictionary_iter_next( CCspDictIteratorHandle iter, const char ** out_ke
     {
         ++( impl -> current );
     }
-    
+
     if( impl -> current == impl -> end )
         return 0;
-    
+
     *out_key = impl -> current.key().c_str();
     return 1;
 }
@@ -632,11 +632,11 @@ int ccsp_dictionary_iter_next( CCspDictIteratorHandle iter, const char ** out_ke
 CCspDictValueType ccsp_dictionary_iter_value_type( CCspDictIteratorHandle iter )
 {
     if( !iter ) return CCSP_DICT_TYPE_NONE;
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
         return CCSP_DICT_TYPE_NONE;
-    
+
     const csp::Dictionary::Value & value = impl -> current.getUntypedValue();
     return variantIndexToType( value.index() );
 }
@@ -648,14 +648,14 @@ CCspErrorCode ccsp_dictionary_iter_get_bool( CCspDictIteratorHandle iter, int8_t
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         *out_value = impl -> current.value<bool>() ? 1 : 0;
@@ -675,14 +675,14 @@ CCspErrorCode ccsp_dictionary_iter_get_int32( CCspDictIteratorHandle iter, int32
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         *out_value = impl -> current.value<int32_t>();
@@ -702,14 +702,14 @@ CCspErrorCode ccsp_dictionary_iter_get_uint32( CCspDictIteratorHandle iter, uint
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         *out_value = impl -> current.value<uint32_t>();
@@ -729,14 +729,14 @@ CCspErrorCode ccsp_dictionary_iter_get_int64( CCspDictIteratorHandle iter, int64
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         *out_value = impl -> current.value<int64_t>();
@@ -756,14 +756,14 @@ CCspErrorCode ccsp_dictionary_iter_get_uint64( CCspDictIteratorHandle iter, uint
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         *out_value = impl -> current.value<uint64_t>();
@@ -783,14 +783,14 @@ CCspErrorCode ccsp_dictionary_iter_get_double( CCspDictIteratorHandle iter, doub
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         *out_value = impl -> current.value<double>();
@@ -810,14 +810,14 @@ CCspErrorCode ccsp_dictionary_iter_get_datetime( CCspDictIteratorHandle iter, CC
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         csp::DateTime dt = impl -> current.value<csp::DateTime>();
@@ -838,14 +838,14 @@ CCspErrorCode ccsp_dictionary_iter_get_timedelta( CCspDictIteratorHandle iter, C
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         csp::TimeDelta td = impl -> current.value<csp::TimeDelta>();
@@ -866,14 +866,14 @@ CCspErrorCode ccsp_dictionary_iter_get_string( CCspDictIteratorHandle iter, cons
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         const std::string & str = impl -> current.value<std::string>();
@@ -895,14 +895,14 @@ CCspErrorCode ccsp_dictionary_iter_get_dict( CCspDictIteratorHandle iter, CCspDi
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
+
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
     if( !impl -> started || impl -> current == impl -> end )
     {
         ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "iterator not positioned" );
         return CCSP_ERROR_INVALID_ARGUMENT;
     }
-    
+
     try
     {
         csp::DictionaryPtr nested = impl -> current.value<csp::DictionaryPtr>();

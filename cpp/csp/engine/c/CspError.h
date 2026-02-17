@@ -7,6 +7,7 @@
 #ifndef _IN_CSP_ENGINE_C_CSPERROR_H
 #define _IN_CSP_ENGINE_C_CSPERROR_H
 
+#include <csp/engine/c/CspExport.h>
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -29,19 +30,19 @@ typedef enum {
 } CCspErrorCode;
 
 /* Get the last error code for the current thread */
-CCspErrorCode ccsp_get_last_error(void);
+CSP_C_API_EXPORT CCspErrorCode ccsp_get_last_error(void);
 
 /* Get the last error message for the current thread (may be NULL) */
-const char* ccsp_get_last_error_message(void);
+CSP_C_API_EXPORT const char* ccsp_get_last_error_message(void);
 
 /* Clear the last error for the current thread */
-void ccsp_clear_error(void);
+CSP_C_API_EXPORT void ccsp_clear_error(void);
 
 /*
  * Set an error (for adapter implementations).
  * The message is copied internally.
  */
-void ccsp_set_error(CCspErrorCode code, const char* message);
+CSP_C_API_EXPORT void ccsp_set_error(CCspErrorCode code, const char* message);
 
 /*
  * Helper macro for checking and returning on error

@@ -18,6 +18,7 @@
 #ifndef _IN_CSP_ENGINE_C_INPUTADAPTER_H
 #define _IN_CSP_ENGINE_C_INPUTADAPTER_H
 
+#include <csp/engine/c/CspExport.h>
 #include <csp/engine/c/CspType.h>
 #include <csp/engine/c/CspValue.h>
 #include <csp/engine/c/CspTime.h>
@@ -121,7 +122,7 @@ typedef struct CCspPushInputAdapterVTable {
  * @param vtable     Callback table (copied, caller can free after this returns)
  * @return           Handle to the adapter, or NULL on error
  */
-CCspPushInputAdapterHandle ccsp_push_input_adapter_extern_create(
+CSP_C_API_EXPORT CCspPushInputAdapterHandle ccsp_push_input_adapter_extern_create(
     CCspEngineHandle engine,
     CCspType type,
     CCspPushMode push_mode,
@@ -133,7 +134,7 @@ CCspPushInputAdapterHandle ccsp_push_input_adapter_extern_create(
  * Destroy an external push input adapter.
  * This is typically called by CSP when the graph is destroyed.
  */
-void ccsp_push_input_adapter_extern_destroy(CCspPushInputAdapterHandle adapter);
+CSP_C_API_EXPORT void ccsp_push_input_adapter_extern_destroy(CCspPushInputAdapterHandle adapter);
 
 /* ============================================================================
  * Push Functions (Thread-Safe)
@@ -149,7 +150,7 @@ void ccsp_push_input_adapter_extern_destroy(CCspPushInputAdapterHandle adapter);
  * @param value    Value to push
  * @param batch    Optional batch handle (can be NULL for unbatched push)
  */
-CCspErrorCode ccsp_push_input_adapter_push_value(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_value(
     CCspPushInputAdapterHandle adapter,
     const CCspValue* value,
     CCspPushBatchHandle batch
@@ -157,47 +158,47 @@ CCspErrorCode ccsp_push_input_adapter_push_value(
 
 /* Type-specific push functions (more efficient, avoid CCspValue overhead) */
 
-CCspErrorCode ccsp_push_input_adapter_push_bool(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_bool(
     CCspPushInputAdapterHandle adapter, int8_t value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_int8(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_int8(
     CCspPushInputAdapterHandle adapter, int8_t value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_uint8(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_uint8(
     CCspPushInputAdapterHandle adapter, uint8_t value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_int16(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_int16(
     CCspPushInputAdapterHandle adapter, int16_t value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_uint16(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_uint16(
     CCspPushInputAdapterHandle adapter, uint16_t value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_int32(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_int32(
     CCspPushInputAdapterHandle adapter, int32_t value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_uint32(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_uint32(
     CCspPushInputAdapterHandle adapter, uint32_t value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_int64(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_int64(
     CCspPushInputAdapterHandle adapter, int64_t value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_uint64(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_uint64(
     CCspPushInputAdapterHandle adapter, uint64_t value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_double(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_double(
     CCspPushInputAdapterHandle adapter, double value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_datetime(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_datetime(
     CCspPushInputAdapterHandle adapter, CCspDateTime value, CCspPushBatchHandle batch);
 
-CCspErrorCode ccsp_push_input_adapter_push_timedelta(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_timedelta(
     CCspPushInputAdapterHandle adapter, CCspTimeDelta value, CCspPushBatchHandle batch);
 
 /*
  * Push a string value.
  * The string data is copied internally.
  */
-CCspErrorCode ccsp_push_input_adapter_push_string(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_string(
     CCspPushInputAdapterHandle adapter,
     const char* data, size_t length,
     CCspPushBatchHandle batch
@@ -207,7 +208,7 @@ CCspErrorCode ccsp_push_input_adapter_push_string(
  * Push a struct value.
  * The struct is copied internally.
  */
-CCspErrorCode ccsp_push_input_adapter_push_struct(
+CSP_C_API_EXPORT CCspErrorCode ccsp_push_input_adapter_push_struct(
     CCspPushInputAdapterHandle adapter,
     CCspStructHandle value,
     CCspPushBatchHandle batch
@@ -226,19 +227,19 @@ CCspErrorCode ccsp_push_input_adapter_push_struct(
  * @param engine  Engine handle
  * @return        Handle to the batch, or NULL on error
  */
-CCspPushBatchHandle ccsp_push_batch_create(CCspEngineHandle engine);
+CSP_C_API_EXPORT CCspPushBatchHandle ccsp_push_batch_create(CCspEngineHandle engine);
 
 /*
  * Flush a push batch, releasing all pending events to the engine.
  * The batch can be reused after flushing.
  */
-void ccsp_push_batch_flush(CCspPushBatchHandle batch);
+CSP_C_API_EXPORT void ccsp_push_batch_flush(CCspPushBatchHandle batch);
 
 /*
  * Destroy a push batch.
  * Any unflushed events are flushed before destruction.
  */
-void ccsp_push_batch_destroy(CCspPushBatchHandle batch);
+CSP_C_API_EXPORT void ccsp_push_batch_destroy(CCspPushBatchHandle batch);
 
 /* ============================================================================
  * Push Group Management
@@ -251,12 +252,12 @@ void ccsp_push_batch_destroy(CCspPushBatchHandle batch);
  *
  * @return  Handle to the group, or NULL on error
  */
-CCspPushGroupHandle ccsp_push_group_create(void);
+CSP_C_API_EXPORT CCspPushGroupHandle ccsp_push_group_create(void);
 
 /*
  * Destroy a push group.
  */
-void ccsp_push_group_destroy(CCspPushGroupHandle group);
+CSP_C_API_EXPORT void ccsp_push_group_destroy(CCspPushGroupHandle group);
 
 #ifdef __cplusplus
 }

@@ -14,6 +14,7 @@
 #ifndef _IN_CSP_ENGINE_C_ADAPTER_MANAGER_H
 #define _IN_CSP_ENGINE_C_ADAPTER_MANAGER_H
 
+#include <csp/engine/c/CspExport.h>
 #include <csp/engine/c/CspError.h>
 #include <csp/engine/c/CspTime.h>
 #include <csp/engine/c/OutputAdapter.h>
@@ -146,7 +147,7 @@ typedef struct CCspAdapterManagerVTable {
  * Returns:
  *   Handle to the new adapter manager
  */
-CCspAdapterManagerHandle ccsp_adapter_manager_extern_create(
+CSP_C_API_EXPORT CCspAdapterManagerHandle ccsp_adapter_manager_extern_create(
     CCspEngineHandle engine,
     const CCspAdapterManagerVTable* vtable);
 
@@ -158,7 +159,7 @@ CCspAdapterManagerHandle ccsp_adapter_manager_extern_create(
  * Parameters:
  *   manager  - Handle to the adapter manager
  */
-void ccsp_adapter_manager_extern_destroy(CCspAdapterManagerHandle manager);
+CSP_C_API_EXPORT void ccsp_adapter_manager_extern_destroy(CCspAdapterManagerHandle manager);
 
 /* ============================================================================
  * Engine and Time Access
@@ -173,7 +174,7 @@ void ccsp_adapter_manager_extern_destroy(CCspAdapterManagerHandle manager);
  * Returns:
  *   Engine handle for use with other C API functions
  */
-CCspEngineHandle ccsp_adapter_manager_engine(CCspAdapterManagerHandle manager);
+CSP_C_API_EXPORT CCspEngineHandle ccsp_adapter_manager_engine(CCspAdapterManagerHandle manager);
 
 /*
  * ccsp_adapter_manager_start_time - Get graph start time
@@ -186,7 +187,7 @@ CCspEngineHandle ccsp_adapter_manager_engine(CCspAdapterManagerHandle manager);
  * Returns:
  *   Start time in nanoseconds since epoch
  */
-CCspDateTime ccsp_adapter_manager_start_time(CCspAdapterManagerHandle manager);
+CSP_C_API_EXPORT CCspDateTime ccsp_adapter_manager_start_time(CCspAdapterManagerHandle manager);
 
 /*
  * ccsp_adapter_manager_end_time - Get graph end time
@@ -199,7 +200,7 @@ CCspDateTime ccsp_adapter_manager_start_time(CCspAdapterManagerHandle manager);
  * Returns:
  *   End time in nanoseconds since epoch
  */
-CCspDateTime ccsp_adapter_manager_end_time(CCspAdapterManagerHandle manager);
+CSP_C_API_EXPORT CCspDateTime ccsp_adapter_manager_end_time(CCspAdapterManagerHandle manager);
 
 /* ============================================================================
  * Adapter Creation from Manager
@@ -222,7 +223,7 @@ CCspDateTime ccsp_adapter_manager_end_time(CCspAdapterManagerHandle manager);
  * Returns:
  *   Handle to the new output adapter
  */
-CCspOutputAdapterHandle ccsp_adapter_manager_create_output_adapter(
+CSP_C_API_EXPORT CCspOutputAdapterHandle ccsp_adapter_manager_create_output_adapter(
     CCspAdapterManagerHandle manager,
     CCspType input_type,
     const CCspOutputAdapterVTable* vtable);
@@ -241,7 +242,7 @@ CCspOutputAdapterHandle ccsp_adapter_manager_create_output_adapter(
  * Returns:
  *   Handle to the new push input adapter
  */
-CCspPushInputAdapterHandle ccsp_adapter_manager_create_push_input_adapter(
+CSP_C_API_EXPORT CCspPushInputAdapterHandle ccsp_adapter_manager_create_push_input_adapter(
     CCspAdapterManagerHandle manager,
     CCspType type,
     CCspPushMode push_mode,
@@ -277,7 +278,7 @@ typedef enum {
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CCspErrorCode ccsp_adapter_manager_push_status(
+CSP_C_API_EXPORT CCspErrorCode ccsp_adapter_manager_push_status(
     CCspAdapterManagerHandle manager,
     CCspStatusLevel level,
     int64_t err_code,
@@ -305,7 +306,7 @@ CCspErrorCode ccsp_adapter_manager_push_status(
  * Returns:
  *   Handle to the managed sim input adapter
  */
-CCspManagedSimInputAdapterHandle ccsp_adapter_manager_create_managed_sim_input_adapter(
+CSP_C_API_EXPORT CCspManagedSimInputAdapterHandle ccsp_adapter_manager_create_managed_sim_input_adapter(
     CCspAdapterManagerHandle manager,
     CCspType type,
     CCspPushMode push_mode);
@@ -323,15 +324,15 @@ CCspManagedSimInputAdapterHandle ccsp_adapter_manager_create_managed_sim_input_a
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CCspErrorCode ccsp_managed_sim_input_adapter_push_bool(
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_bool(
     CCspManagedSimInputAdapterHandle adapter, int8_t value);
-CCspErrorCode ccsp_managed_sim_input_adapter_push_int64(
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_int64(
     CCspManagedSimInputAdapterHandle adapter, int64_t value);
-CCspErrorCode ccsp_managed_sim_input_adapter_push_double(
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_double(
     CCspManagedSimInputAdapterHandle adapter, double value);
-CCspErrorCode ccsp_managed_sim_input_adapter_push_string(
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_string(
     CCspManagedSimInputAdapterHandle adapter, const char* data, size_t length);
-CCspErrorCode ccsp_managed_sim_input_adapter_push_datetime(
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_datetime(
     CCspManagedSimInputAdapterHandle adapter, CCspDateTime value);
 
 #ifdef __cplusplus

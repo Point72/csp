@@ -5,7 +5,7 @@ This is a small example to create a custom C++ node.
 Compile:
 
 ```bash
-python setup.py build build_ext --inplace
+hatch-build --hooks-only -t wheel
 ```
 
 Run:

@@ -19,7 +19,7 @@ extern "C" {
  * @param prefix  Prefix string to print before each value (can be NULL)
  * @return        VTable structure to pass to ccsp_output_adapter_extern_create
  */
-CCspOutputAdapterVTable example_output_adapter_create(const char* prefix);
+CCspOutputAdapterVTable example_output_adapter_create( const char * prefix );
 
 /*
  * Alternative: Get an adapter that logs to a specific file descriptor.
@@ -28,11 +28,13 @@ CCspOutputAdapterVTable example_output_adapter_create(const char* prefix);
  * @param prefix  Prefix string (can be NULL)
  * @return        VTable structure
  */
-CCspOutputAdapterVTable example_output_adapter_create_fd(int fd, const char* prefix);
+CCspOutputAdapterVTable example_output_adapter_create_fd( int fd, const char * prefix );
 
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_OUTPUT_ADAPTER_H */
 
 #endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_OUTPUT_ADAPTER_H */
 

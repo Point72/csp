@@ -21,7 +21,10 @@
   - [Building and Linking](#building-and-linking)
   - [Python Integration](#python-integration)
     - [Create Python Bindings (C code)](#create-python-bindings-c-code)
-    - [Create Python Wrapper](#create-python-wrapper)
+    - [Create Python Wrapper with Bridge Functions](#create-python-wrapper-with-bridge-functions)
+    - [CSP Bridge Functions](#csp-bridge-functions)
+    - [Managed Adapter Python Wrapper](#managed-adapter-python-wrapper)
+    - [Use Managed Adapters in Your Graph](#use-managed-adapters-in-your-graph)
     - [Use in Your Graph](#use-in-your-graph)
 - [See Also](#see-also)
 
@@ -500,19 +503,29 @@ make
 
 ### Python Integration
 
-To use your C adapter from Python, you need to create a Python extension module that wraps the C functions.
+To use your C adapter from Python, you need to:
+
+1. Create a Python extension module that wraps your C functions and returns capsules
+1. Write Python bridge functions that pass capsules to CSP's adapter bridge
+1. Define adapters using `input_adapter_def` / `output_adapter_def`
 
 #### Create Python Bindings (C code)
+
+Your C extension should create capsules wrapping the VTables:
 
 ```c
 #include <Python.h>
 #include <csp/python/c/PyOutputAdapter.h>
+#include <csp/python/c/PyInputAdapter.h>
 #include "my_adapter.h"
 
-static PyObject* create_log_adapter_py(PyObject* self, PyObject* args)
+// Output adapter - returns a capsule
+static PyObject* create_log_adapter_py(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-    const char* prefix = NULL;
-    if (!PyArg_ParseTuple(args, "|s", &prefix)) {
+    static char* kwlist[] = {"prefix", NULL};
+    const char* prefix = "";
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|s", kwlist, &prefix)) {
         return NULL;
     }
 
@@ -522,11 +535,32 @@ static PyObject* create_log_adapter_py(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    return ccsp_py_create_output_adapter_capsule(&vtable);
+    // Create a capsule that CSP's bridge can consume
+    return ccsp_py_create_output_adapter_capsule_owned(&vtable);
+}
+
+// Input adapter - returns a capsule
+static PyObject* create_input_adapter_py(PyObject* self, PyObject* args, PyObject* kwargs)
+{
+    static char* kwlist[] = {"interval_ms", NULL};
+    int interval_ms = 100;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|i", kwlist, &interval_ms)) {
+        return NULL;
+    }
+
+    CCspPushInputAdapterVTable vtable = create_my_input_adapter(interval_ms);
+    if (!vtable.destroy) {
+        PyErr_SetString(PyExc_MemoryError, "Failed to create adapter");
+        return NULL;
+    }
+
+    return ccsp_py_create_input_adapter_capsule_owned(&vtable);
 }
 
 static PyMethodDef methods[] = {
-    {"_log_adapter", create_log_adapter_py, METH_VARARGS, "Create log adapter"},
+    {"_log_adapter", (PyCFunction)create_log_adapter_py, METH_VARARGS | METH_KEYWORDS, "Create log adapter"},
+    {"_my_input_adapter", (PyCFunction)create_input_adapter_py, METH_VARARGS | METH_KEYWORDS, "Create input adapter"},
     {NULL, NULL, 0, NULL}
 };
 
@@ -539,31 +573,228 @@ PyMODINIT_FUNC PyInit_my_adapter(void) {
 }
 ```
 
-#### Create Python Wrapper
+#### Create Python Wrapper with Bridge Functions
+
+CSP provides bridge functions that consume capsules and create native adapters. These are essential for integrating C API adapters with CSP's wiring layer.
 
 ```python
 # my_adapter.py
 from csp import ts
-from csp.impl.wiring import output_adapter_def
-from csp.lib import my_adapter as _impl
+from csp.impl.__cspimpl import _cspimpl
+from csp.impl.wiring import input_adapter_def, output_adapter_def
+from . import _my_adapter_impl  # Your C extension
 
+def _create_input_bridge(mgr, engine, pytype, push_mode, scalars):
+    """
+    Bridge function for input adapters.
+
+    The wiring layer calls this with:
+    - mgr: adapter manager (or None)
+    - engine: CSP engine
+    - pytype: Python type for the timeseries
+    - push_mode: PushMode enum value
+    - scalars: tuple of scalar arguments from the adapter_def
+    """
+    # Extract your parameters from scalars
+    # For standalone adapters: scalars[0] is typ, scalars[1] is interval_ms
+    interval_ms = scalars[1] if len(scalars) > 1 else 100
+
+    # Create the VTable capsule using your C function
+    capsule = _my_adapter_impl._my_input_adapter(interval_ms=interval_ms)
+
+    # Pass to CSP bridge which creates PushInputAdapterExtern
+    # Arguments: (capsule, push_group_or_none)
+    return _cspimpl._c_api_push_input_adapter(
+        mgr, engine, pytype, push_mode, (capsule, None)
+    )
+
+def _create_output_bridge(mgr, engine, scalars):
+    """
+    Bridge function for output adapters.
+
+    The wiring layer calls this with:
+    - mgr: adapter manager (or None)
+    - engine: CSP engine
+    - scalars: tuple of scalar arguments from the adapter_def
+    """
+    # Extract your parameters
+    prefix = scalars[0] if scalars else ""
+
+    # Create the VTable capsule
+    capsule = _my_adapter_impl._log_adapter(prefix=prefix)
+
+    # Pass to CSP bridge which creates OutputAdapterExtern
+    # Arguments: (input_type, capsule)
+    return _cspimpl._c_api_output_adapter(mgr, engine, (int, capsule))
+
+# Define input adapter
+my_input = input_adapter_def(
+    "my_input_adapter",
+    _create_input_bridge,
+    ts["T"],
+    typ="T",
+    interval_ms=int,
+)
+
+# Define output adapter
 LogAdapter = output_adapter_def(
     "LogAdapter",
-    _impl._log_adapter,
+    _create_output_bridge,
     input=ts["T"],
     prefix=str,
 )
+```
+
+#### CSP Bridge Functions
+
+CSP provides three bridge functions in `_cspimpl`:
+
+| Function                        | Purpose                                         | Arguments                                                 |
+| ------------------------------- | ----------------------------------------------- | --------------------------------------------------------- |
+| `_c_api_push_input_adapter`     | Creates PushInputAdapterExtern from capsule     | `(mgr, engine, pytype, push_mode, (capsule, push_group))` |
+| `_c_api_output_adapter`         | Creates OutputAdapterExtern from capsule        | `(mgr, engine, (input_type, capsule))`                    |
+| `_c_api_adapter_manager_bridge` | Converts C API manager to CSP-compatible format | `(engine, capsule)`                                       |
+
+These functions:
+
+1. Extract the VTable from the capsule
+1. Create the appropriate native adapter (`PushInputAdapterExtern`, `OutputAdapterExtern`, or `AdapterManagerExtern`)
+1. Transfer ownership of the VTable to prevent double-free
+1. Return a wrapper object compatible with CSP's wiring layer
+
+#### Managed Adapter Python Wrapper
+
+For adapter managers, you need to create a Python class that wraps your C manager and its adapters:
+
+```python
+# managed_adapter.py
+import csp
+from csp import ts
+from csp.impl.__cspimpl import _cspimpl
+from csp.impl.pushadapter import PushGroup
+from csp.impl.wiring import input_adapter_def, output_adapter_def
+from . import _my_native_module  # Your C/Rust extension
+
+
+class MyAdapterManager:
+    """
+    Python wrapper for a C API adapter manager.
+
+    The adapter manager pattern allows coordinating multiple adapters that share:
+    - Startup/shutdown coordination
+    - Push groups for batched event processing
+    - Common configuration
+    """
+
+    def __init__(self, prefix: str = ""):
+        self._prefix = prefix
+        self._push_group = PushGroup()
+        self._properties = {"prefix": prefix}
+
+    def subscribe(self, ts_type=int, interval_ms=100, push_mode=csp.PushMode.NON_COLLAPSING):
+        """Create an input adapter managed by this manager."""
+        return _managed_input_def(
+            self, ts_type, interval_ms=interval_ms,
+            push_mode=push_mode, push_group=self._push_group
+        )
+
+    def publish(self, x, prefix=None):
+        """Create an output adapter managed by this manager."""
+        return _managed_output_def(self, x, prefix=prefix or self._prefix)
+
+    def _create(self, engine, memo):
+        """
+        Called by CSP wiring layer to create the native manager.
+
+        This is the key integration point - it bridges the C API capsule
+        to CSP's expected format.
+        """
+        # Create C API adapter manager capsule
+        c_api_capsule = _my_native_module._my_adapter_manager(engine, self._properties)
+
+        # Bridge to CSP format (returns AdapterManagerExtern* wrapped in capsule)
+        return _cspimpl._c_api_adapter_manager_bridge(engine, c_api_capsule)
+
+
+def _create_managed_input(mgr_capsule, engine, pytype, push_mode, scalars):
+    """Bridge function for managed input adapters."""
+    # Extract interval_ms from scalars
+    interval_ms = 100
+    for s in scalars:
+        if isinstance(s, int) and not isinstance(s, bool):
+            interval_ms = s
+            break
+
+    # Create VTable capsule
+    capsule = _my_native_module._my_input_adapter(interval_ms=interval_ms)
+
+    # Extract push group (last element if present)
+    push_group = None
+    if scalars and "PushGroup" in type(scalars[-1]).__name__:
+        push_group = scalars[-1]
+
+    # Pass manager capsule (not None) to bridge
+    return _cspimpl._c_api_push_input_adapter(
+        mgr_capsule, engine, pytype, push_mode, (capsule, push_group)
+    )
+
+
+def _create_managed_output(mgr_capsule, engine, scalars):
+    """Bridge function for managed output adapters."""
+    prefix = scalars[1] if len(scalars) > 1 else ""
+    capsule = _my_native_module._my_output_adapter(prefix=prefix)
+    return _cspimpl._c_api_output_adapter(mgr_capsule, engine, (int, capsule))
+
+
+# Managed adapter definitions - note the manager_type argument
+_managed_input_def = input_adapter_def(
+    "my_managed_input",
+    _create_managed_input,
+    ts["T"],
+    MyAdapterManager,  # <-- manager type
+    typ="T",
+    interval_ms=int,
+    push_group=(object, None),  # Accept push_group kwarg
+)
+
+_managed_output_def = output_adapter_def(
+    "my_managed_output",
+    _create_managed_output,
+    MyAdapterManager,  # <-- manager type
+    input=ts["T"],
+    prefix=str,
+)
+```
+
+#### Use Managed Adapters in Your Graph
+
+```python
+import csp
+from datetime import datetime, timedelta
+from my_adapter import MyAdapterManager
+
+@csp.graph
+def my_graph():
+    # Create a manager - all adapters share this instance
+    mgr = MyAdapterManager(prefix="[MyApp] ")
+
+    # Subscribe and publish through the manager
+    data = mgr.subscribe(int, interval_ms=100)
+    mgr.publish(data)
+
+csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10))
 ```
 
 #### Use in Your Graph
 
 ```python
 import csp
-from my_adapter import LogAdapter
+from datetime import datetime, timedelta
+from my_adapter import my_input, LogAdapter
 
 @csp.graph
 def my_graph():
-    data = csp.timer(timedelta(seconds=1), "tick")
+    data = my_input(int, interval_ms=100)
     LogAdapter(data, prefix="[MyApp] ")
 
 csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10))
@@ -574,4 +805,4 @@ csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10))
 - [C API Reference](../api-references/C-APIs.md) - Complete API documentation
 - [Write Output Adapters](Write-Output-Adapters.md) - Python output adapters
 - [Write Realtime Input Adapters](Write-Realtime-Input-Adapters.md) - Python input adapters
-- [Example: C API Adapter](../../examples/04_writing_adapters/e8_c_api_adapter.py) - Working example
+- [C API Adapter Example](../../../examples/05_cpp/4_c_api_adapter/) - Working example

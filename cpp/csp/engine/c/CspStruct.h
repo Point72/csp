@@ -16,6 +16,7 @@
 #ifndef _IN_CSP_ENGINE_C_CSPSTRUCT_H
 #define _IN_CSP_ENGINE_C_CSPSTRUCT_H
 
+#include <csp/engine/c/CspExport.h>
 #include <csp/engine/c/CspError.h>
 #include <csp/engine/c/CspType.h>
 #include <csp/engine/c/CspTime.h>
@@ -53,7 +54,7 @@ typedef void * CCspStructFieldHandle;
  *   Pointer to null-terminated string (borrowed, do not free)
  *   NULL if meta is NULL
  */
-const char * ccsp_struct_meta_name( CCspStructMetaHandle meta );
+CSP_C_API_EXPORT const char * ccsp_struct_meta_name( CCspStructMetaHandle meta );
 
 /*
  * ccsp_struct_meta_field_count - Get the number of fields in a struct type
@@ -64,7 +65,7 @@ const char * ccsp_struct_meta_name( CCspStructMetaHandle meta );
  * Returns:
  *   Number of fields, or 0 if meta is NULL
  */
-size_t ccsp_struct_meta_field_count( CCspStructMetaHandle meta );
+CSP_C_API_EXPORT size_t ccsp_struct_meta_field_count( CCspStructMetaHandle meta );
 
 /*
  * ccsp_struct_meta_field_by_index - Get field handle by index
@@ -76,7 +77,7 @@ size_t ccsp_struct_meta_field_count( CCspStructMetaHandle meta );
  * Returns:
  *   Handle to StructField, or NULL if index out of range
  */
-CCspStructFieldHandle ccsp_struct_meta_field_by_index( CCspStructMetaHandle meta, size_t index );
+CSP_C_API_EXPORT CCspStructFieldHandle ccsp_struct_meta_field_by_index( CCspStructMetaHandle meta, size_t index );
 
 /*
  * ccsp_struct_meta_field_by_name - Get field handle by name
@@ -88,7 +89,7 @@ CCspStructFieldHandle ccsp_struct_meta_field_by_index( CCspStructMetaHandle meta
  * Returns:
  *   Handle to StructField, or NULL if not found
  */
-CCspStructFieldHandle ccsp_struct_meta_field_by_name( CCspStructMetaHandle meta, const char * name );
+CSP_C_API_EXPORT CCspStructFieldHandle ccsp_struct_meta_field_by_name( CCspStructMetaHandle meta, const char * name );
 
 /*
  * ccsp_struct_meta_field_name_by_index - Get field name by index
@@ -101,7 +102,7 @@ CCspStructFieldHandle ccsp_struct_meta_field_by_name( CCspStructMetaHandle meta,
  *   Pointer to null-terminated string (borrowed, do not free)
  *   NULL if index out of range
  */
-const char * ccsp_struct_meta_field_name_by_index( CCspStructMetaHandle meta, size_t index );
+CSP_C_API_EXPORT const char * ccsp_struct_meta_field_name_by_index( CCspStructMetaHandle meta, size_t index );
 
 /*
  * ccsp_struct_meta_is_strict - Check if struct type is strict
@@ -114,7 +115,7 @@ const char * ccsp_struct_meta_field_name_by_index( CCspStructMetaHandle meta, si
  * Returns:
  *   1 if strict, 0 otherwise
  */
-int ccsp_struct_meta_is_strict( CCspStructMetaHandle meta );
+CSP_C_API_EXPORT int ccsp_struct_meta_is_strict( CCspStructMetaHandle meta );
 
 /* ============================================================================
  * StructField Functions (Field Metadata)
@@ -130,7 +131,7 @@ int ccsp_struct_meta_is_strict( CCspStructMetaHandle meta );
  *   Pointer to null-terminated string (borrowed, do not free)
  *   NULL if field is NULL
  */
-const char * ccsp_struct_field_name( CCspStructFieldHandle field );
+CSP_C_API_EXPORT const char * ccsp_struct_field_name( CCspStructFieldHandle field );
 
 /*
  * ccsp_struct_field_type - Get the CSP type of a field
@@ -141,7 +142,7 @@ const char * ccsp_struct_field_name( CCspStructFieldHandle field );
  * Returns:
  *   CCspType enum value, or CCSP_TYPE_UNKNOWN if field is NULL
  */
-CCspType ccsp_struct_field_type( CCspStructFieldHandle field );
+CSP_C_API_EXPORT CCspType ccsp_struct_field_type( CCspStructFieldHandle field );
 
 /*
  * ccsp_struct_field_is_optional - Check if a field is optional
@@ -152,7 +153,7 @@ CCspType ccsp_struct_field_type( CCspStructFieldHandle field );
  * Returns:
  *   1 if optional, 0 otherwise
  */
-int ccsp_struct_field_is_optional( CCspStructFieldHandle field );
+CSP_C_API_EXPORT int ccsp_struct_field_is_optional( CCspStructFieldHandle field );
 
 /* ============================================================================
  * Struct Instance Functions
@@ -167,7 +168,7 @@ int ccsp_struct_field_is_optional( CCspStructFieldHandle field );
  * Returns:
  *   Handle to StructMeta, or NULL if s is NULL
  */
-CCspStructMetaHandle ccsp_struct_meta( CCspStructHandle s );
+CSP_C_API_EXPORT CCspStructMetaHandle ccsp_struct_meta( CCspStructHandle s );
 
 /*
  * ccsp_struct_field_is_set - Check if a field is set on a struct instance
@@ -179,7 +180,7 @@ CCspStructMetaHandle ccsp_struct_meta( CCspStructHandle s );
  * Returns:
  *   1 if set, 0 if not set or on error
  */
-int ccsp_struct_field_is_set( CCspStructHandle s, CCspStructFieldHandle field );
+CSP_C_API_EXPORT int ccsp_struct_field_is_set( CCspStructHandle s, CCspStructFieldHandle field );
 
 /*
  * ccsp_struct_field_is_none - Check if an optional field is explicitly None
@@ -191,7 +192,7 @@ int ccsp_struct_field_is_set( CCspStructHandle s, CCspStructFieldHandle field );
  * Returns:
  *   1 if None, 0 otherwise
  */
-int ccsp_struct_field_is_none( CCspStructHandle s, CCspStructFieldHandle field );
+CSP_C_API_EXPORT int ccsp_struct_field_is_none( CCspStructHandle s, CCspStructFieldHandle field );
 
 /* ============================================================================
  * Field Value Getters
@@ -201,18 +202,18 @@ int ccsp_struct_field_is_none( CCspStructHandle s, CCspStructFieldHandle field )
  * CCSP_ERROR_TYPE_MISMATCH is returned if the field type doesn't match.
  * ============================================================================ */
 
-CCspErrorCode ccsp_struct_get_bool( CCspStructHandle s, CCspStructFieldHandle field, int8_t * out_value );
-CCspErrorCode ccsp_struct_get_int8( CCspStructHandle s, CCspStructFieldHandle field, int8_t * out_value );
-CCspErrorCode ccsp_struct_get_uint8( CCspStructHandle s, CCspStructFieldHandle field, uint8_t * out_value );
-CCspErrorCode ccsp_struct_get_int16( CCspStructHandle s, CCspStructFieldHandle field, int16_t * out_value );
-CCspErrorCode ccsp_struct_get_uint16( CCspStructHandle s, CCspStructFieldHandle field, uint16_t * out_value );
-CCspErrorCode ccsp_struct_get_int32( CCspStructHandle s, CCspStructFieldHandle field, int32_t * out_value );
-CCspErrorCode ccsp_struct_get_uint32( CCspStructHandle s, CCspStructFieldHandle field, uint32_t * out_value );
-CCspErrorCode ccsp_struct_get_int64( CCspStructHandle s, CCspStructFieldHandle field, int64_t * out_value );
-CCspErrorCode ccsp_struct_get_uint64( CCspStructHandle s, CCspStructFieldHandle field, uint64_t * out_value );
-CCspErrorCode ccsp_struct_get_double( CCspStructHandle s, CCspStructFieldHandle field, double * out_value );
-CCspErrorCode ccsp_struct_get_datetime( CCspStructHandle s, CCspStructFieldHandle field, CCspDateTime * out_value );
-CCspErrorCode ccsp_struct_get_timedelta( CCspStructHandle s, CCspStructFieldHandle field, CCspTimeDelta * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_bool( CCspStructHandle s, CCspStructFieldHandle field, int8_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_int8( CCspStructHandle s, CCspStructFieldHandle field, int8_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_uint8( CCspStructHandle s, CCspStructFieldHandle field, uint8_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_int16( CCspStructHandle s, CCspStructFieldHandle field, int16_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_uint16( CCspStructHandle s, CCspStructFieldHandle field, uint16_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_int32( CCspStructHandle s, CCspStructFieldHandle field, int32_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_uint32( CCspStructHandle s, CCspStructFieldHandle field, uint32_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_int64( CCspStructHandle s, CCspStructFieldHandle field, int64_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_uint64( CCspStructHandle s, CCspStructFieldHandle field, uint64_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_double( CCspStructHandle s, CCspStructFieldHandle field, double * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_datetime( CCspStructHandle s, CCspStructFieldHandle field, CCspDateTime * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_timedelta( CCspStructHandle s, CCspStructFieldHandle field, CCspTimeDelta * out_value );
 
 /*
  * ccsp_struct_get_string - Get a string field value
@@ -226,7 +227,7 @@ CCspErrorCode ccsp_struct_get_timedelta( CCspStructHandle s, CCspStructFieldHand
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle field,
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle field,
                                       const char ** out_data, size_t * out_length );
 
 /*
@@ -240,7 +241,7 @@ CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle 
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CCspErrorCode ccsp_struct_get_enum( CCspStructHandle s, CCspStructFieldHandle field, int32_t * out_ordinal );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_enum( CCspStructHandle s, CCspStructFieldHandle field, int32_t * out_ordinal );
 
 /*
  * ccsp_struct_get_struct - Get a nested struct field value
@@ -253,7 +254,7 @@ CCspErrorCode ccsp_struct_get_enum( CCspStructHandle s, CCspStructFieldHandle fi
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle field,
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle field,
                                       CCspStructHandle * out_struct );
 
 /* ============================================================================
@@ -263,12 +264,12 @@ CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle 
  * Less efficient than caching the field handle for repeated access.
  * ============================================================================ */
 
-CCspErrorCode ccsp_struct_get_bool_by_name( CCspStructHandle s, const char * name, int8_t * out_value );
-CCspErrorCode ccsp_struct_get_int32_by_name( CCspStructHandle s, const char * name, int32_t * out_value );
-CCspErrorCode ccsp_struct_get_int64_by_name( CCspStructHandle s, const char * name, int64_t * out_value );
-CCspErrorCode ccsp_struct_get_double_by_name( CCspStructHandle s, const char * name, double * out_value );
-CCspErrorCode ccsp_struct_get_datetime_by_name( CCspStructHandle s, const char * name, CCspDateTime * out_value );
-CCspErrorCode ccsp_struct_get_string_by_name( CCspStructHandle s, const char * name,
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_bool_by_name( CCspStructHandle s, const char * name, int8_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_int32_by_name( CCspStructHandle s, const char * name, int32_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_int64_by_name( CCspStructHandle s, const char * name, int64_t * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_double_by_name( CCspStructHandle s, const char * name, double * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_datetime_by_name( CCspStructHandle s, const char * name, CCspDateTime * out_value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_string_by_name( CCspStructHandle s, const char * name,
                                               const char ** out_data, size_t * out_length );
 
 /* ============================================================================
@@ -278,18 +279,18 @@ CCspErrorCode ccsp_struct_get_string_by_name( CCspStructHandle s, const char * n
  * CCSP_ERROR_TYPE_MISMATCH is returned if the field type doesn't match.
  * ============================================================================ */
 
-CCspErrorCode ccsp_struct_set_bool( CCspStructHandle s, CCspStructFieldHandle field, int8_t value );
-CCspErrorCode ccsp_struct_set_int8( CCspStructHandle s, CCspStructFieldHandle field, int8_t value );
-CCspErrorCode ccsp_struct_set_uint8( CCspStructHandle s, CCspStructFieldHandle field, uint8_t value );
-CCspErrorCode ccsp_struct_set_int16( CCspStructHandle s, CCspStructFieldHandle field, int16_t value );
-CCspErrorCode ccsp_struct_set_uint16( CCspStructHandle s, CCspStructFieldHandle field, uint16_t value );
-CCspErrorCode ccsp_struct_set_int32( CCspStructHandle s, CCspStructFieldHandle field, int32_t value );
-CCspErrorCode ccsp_struct_set_uint32( CCspStructHandle s, CCspStructFieldHandle field, uint32_t value );
-CCspErrorCode ccsp_struct_set_int64( CCspStructHandle s, CCspStructFieldHandle field, int64_t value );
-CCspErrorCode ccsp_struct_set_uint64( CCspStructHandle s, CCspStructFieldHandle field, uint64_t value );
-CCspErrorCode ccsp_struct_set_double( CCspStructHandle s, CCspStructFieldHandle field, double value );
-CCspErrorCode ccsp_struct_set_datetime( CCspStructHandle s, CCspStructFieldHandle field, CCspDateTime value );
-CCspErrorCode ccsp_struct_set_timedelta( CCspStructHandle s, CCspStructFieldHandle field, CCspTimeDelta value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_bool( CCspStructHandle s, CCspStructFieldHandle field, int8_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_int8( CCspStructHandle s, CCspStructFieldHandle field, int8_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_uint8( CCspStructHandle s, CCspStructFieldHandle field, uint8_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_int16( CCspStructHandle s, CCspStructFieldHandle field, int16_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_uint16( CCspStructHandle s, CCspStructFieldHandle field, uint16_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_int32( CCspStructHandle s, CCspStructFieldHandle field, int32_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_uint32( CCspStructHandle s, CCspStructFieldHandle field, uint32_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_int64( CCspStructHandle s, CCspStructFieldHandle field, int64_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_uint64( CCspStructHandle s, CCspStructFieldHandle field, uint64_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_double( CCspStructHandle s, CCspStructFieldHandle field, double value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_datetime( CCspStructHandle s, CCspStructFieldHandle field, CCspDateTime value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_timedelta( CCspStructHandle s, CCspStructFieldHandle field, CCspTimeDelta value );
 
 /*
  * ccsp_struct_set_string - Set a string field value
@@ -305,7 +306,7 @@ CCspErrorCode ccsp_struct_set_timedelta( CCspStructHandle s, CCspStructFieldHand
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CCspErrorCode ccsp_struct_set_string( CCspStructHandle s, CCspStructFieldHandle field,
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_string( CCspStructHandle s, CCspStructFieldHandle field,
                                       const char * data, size_t length );
 
 /*
@@ -319,7 +320,7 @@ CCspErrorCode ccsp_struct_set_string( CCspStructHandle s, CCspStructFieldHandle 
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CCspErrorCode ccsp_struct_set_enum( CCspStructHandle s, CCspStructFieldHandle field, int32_t ordinal );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_enum( CCspStructHandle s, CCspStructFieldHandle field, int32_t ordinal );
 
 /* ============================================================================
  * Struct Creation (if needed by adapters)
@@ -336,7 +337,7 @@ CCspErrorCode ccsp_struct_set_enum( CCspStructHandle s, CCspStructFieldHandle fi
  * Returns:
  *   Handle to new Struct, or NULL on error
  */
-CCspStructHandle ccsp_struct_create( CCspStructMetaHandle meta );
+CSP_C_API_EXPORT CCspStructHandle ccsp_struct_create( CCspStructMetaHandle meta );
 
 /*
  * ccsp_struct_destroy - Destroy a struct created with ccsp_struct_create
@@ -347,7 +348,7 @@ CCspStructHandle ccsp_struct_create( CCspStructMetaHandle meta );
  * Parameters:
  *   s - Handle to Struct to destroy
  */
-void ccsp_struct_destroy( CCspStructHandle s );
+CSP_C_API_EXPORT void ccsp_struct_destroy( CCspStructHandle s );
 
 /*
  * ccsp_struct_copy - Create a deep copy of a struct
@@ -360,7 +361,7 @@ void ccsp_struct_destroy( CCspStructHandle s );
  * Returns:
  *   Handle to new Struct copy, or NULL on error
  */
-CCspStructHandle ccsp_struct_copy( CCspStructHandle s );
+CSP_C_API_EXPORT CCspStructHandle ccsp_struct_copy( CCspStructHandle s );
 
 #ifdef __cplusplus
 }

@@ -133,8 +133,7 @@ CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_timedelta( CCspDictionaryHand
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char * key,
-                                          const char ** out_data, size_t * out_length );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char * key, const char ** out_data, size_t * out_length );
 
 /*
  * ccsp_dictionary_get_dict - Get a nested dictionary
@@ -149,8 +148,7 @@ CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle 
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * key,
-                                        CCspDictionaryHandle * out_dict );
+CSP_C_API_EXPORT CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * key, CCspDictionaryHandle * out_dict );
 
 /* ============================================================================
  * Getters with Default Values (do not error on missing keys)
@@ -183,8 +181,7 @@ CSP_C_API_EXPORT CCspTimeDelta ccsp_dictionary_get_timedelta_or( CCspDictionaryH
  * Returns:
  *   Pointer to string data (borrowed from dict or default_value)
  */
-CSP_C_API_EXPORT const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const char * key,
-                                            const char * default_value, size_t * out_length );
+CSP_C_API_EXPORT const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const char * key, const char * default_value, size_t * out_length );
 
 /* ============================================================================
  * Dictionary Iteration

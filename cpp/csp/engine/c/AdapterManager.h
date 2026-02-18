@@ -28,9 +28,9 @@ extern "C" {
  * Opaque Handles
  * ============================================================================ */
 
-typedef struct CCspAdapterManagerImpl* CCspAdapterManagerHandle;
-typedef struct CCspStatusAdapterImpl* CCspStatusAdapterHandle;
-typedef struct CCspManagedSimInputAdapterImpl* CCspManagedSimInputAdapterHandle;
+typedef struct CCspAdapterManagerImpl * CCspAdapterManagerHandle;
+typedef struct CCspStatusAdapterImpl * CCspStatusAdapterHandle;
+typedef struct CCspManagedSimInputAdapterImpl * CCspManagedSimInputAdapterHandle;
 
 /* ============================================================================
  * Adapter Manager VTable
@@ -49,7 +49,7 @@ typedef struct CCspManagedSimInputAdapterImpl* CCspManagedSimInputAdapterHandle;
 
 typedef struct CCspAdapterManagerVTable {
     /* User-defined data pointer passed to all callbacks */
-    void* user_data;
+    void * user_data;
 
     /* ========================================================================
      * Required Callbacks
@@ -67,7 +67,7 @@ typedef struct CCspAdapterManagerVTable {
      * Returns:
      *   A null-terminated string naming this adapter manager
      */
-    const char* (*name)(void* user_data);
+    const char * ( * name ) ( void * user_data );
 
     /*
      * process_next_sim_time_slice - Process simulation data for a time slice
@@ -88,7 +88,7 @@ typedef struct CCspAdapterManagerVTable {
      * Returns:
      *   Next timestamp with available data, or 0 if no more data
      */
-    CCspDateTime (*process_next_sim_time_slice)(void* user_data, CCspDateTime time);
+    CCspDateTime ( * process_next_sim_time_slice )( void * user_data, CCspDateTime time );
 
     /*
      * destroy - Clean up adapter manager resources
@@ -99,7 +99,7 @@ typedef struct CCspAdapterManagerVTable {
      * Parameters:
      *   user_data   - The user_data pointer from this vtable
      */
-    void (*destroy)(void* user_data);
+    void ( * destroy )( void * user_data );
 
     /* ========================================================================
      * Optional Callbacks (can be NULL)
@@ -116,8 +116,7 @@ typedef struct CCspAdapterManagerVTable {
      *   start_time  - Graph start time
      *   end_time    - Graph end time
      */
-    void (*start)(void* user_data, CCspAdapterManagerHandle manager,
-                  CCspDateTime start_time, CCspDateTime end_time);
+    void ( * start )( void * user_data, CCspAdapterManagerHandle manager, CCspDateTime start_time, CCspDateTime end_time );
 
     /*
      * stop - Called when the graph stops
@@ -127,7 +126,7 @@ typedef struct CCspAdapterManagerVTable {
      * Parameters:
      *   user_data   - The user_data pointer from this vtable
      */
-    void (*stop)(void* user_data);
+    void ( * stop )( void * user_data );
 
 } CCspAdapterManagerVTable;
 
@@ -147,9 +146,7 @@ typedef struct CCspAdapterManagerVTable {
  * Returns:
  *   Handle to the new adapter manager
  */
-CSP_C_API_EXPORT CCspAdapterManagerHandle ccsp_adapter_manager_extern_create(
-    CCspEngineHandle engine,
-    const CCspAdapterManagerVTable* vtable);
+CSP_C_API_EXPORT CCspAdapterManagerHandle ccsp_adapter_manager_extern_create( CCspEngineHandle engine, const CCspAdapterManagerVTable * vtable );
 
 /*
  * ccsp_adapter_manager_extern_destroy - Destroy an external adapter manager
@@ -159,7 +156,7 @@ CSP_C_API_EXPORT CCspAdapterManagerHandle ccsp_adapter_manager_extern_create(
  * Parameters:
  *   manager  - Handle to the adapter manager
  */
-CSP_C_API_EXPORT void ccsp_adapter_manager_extern_destroy(CCspAdapterManagerHandle manager);
+CSP_C_API_EXPORT void ccsp_adapter_manager_extern_destroy( CCspAdapterManagerHandle manager );
 
 /* ============================================================================
  * Engine and Time Access
@@ -174,7 +171,7 @@ CSP_C_API_EXPORT void ccsp_adapter_manager_extern_destroy(CCspAdapterManagerHand
  * Returns:
  *   Engine handle for use with other C API functions
  */
-CSP_C_API_EXPORT CCspEngineHandle ccsp_adapter_manager_engine(CCspAdapterManagerHandle manager);
+CSP_C_API_EXPORT CCspEngineHandle ccsp_adapter_manager_engine( CCspAdapterManagerHandle manager );
 
 /*
  * ccsp_adapter_manager_start_time - Get graph start time
@@ -187,7 +184,7 @@ CSP_C_API_EXPORT CCspEngineHandle ccsp_adapter_manager_engine(CCspAdapterManager
  * Returns:
  *   Start time in nanoseconds since epoch
  */
-CSP_C_API_EXPORT CCspDateTime ccsp_adapter_manager_start_time(CCspAdapterManagerHandle manager);
+CSP_C_API_EXPORT CCspDateTime ccsp_adapter_manager_start_time( CCspAdapterManagerHandle manager );
 
 /*
  * ccsp_adapter_manager_end_time - Get graph end time
@@ -200,7 +197,7 @@ CSP_C_API_EXPORT CCspDateTime ccsp_adapter_manager_start_time(CCspAdapterManager
  * Returns:
  *   End time in nanoseconds since epoch
  */
-CSP_C_API_EXPORT CCspDateTime ccsp_adapter_manager_end_time(CCspAdapterManagerHandle manager);
+CSP_C_API_EXPORT CCspDateTime ccsp_adapter_manager_end_time( CCspAdapterManagerHandle manager );
 
 /* ============================================================================
  * Adapter Creation from Manager
@@ -223,10 +220,7 @@ CSP_C_API_EXPORT CCspDateTime ccsp_adapter_manager_end_time(CCspAdapterManagerHa
  * Returns:
  *   Handle to the new output adapter
  */
-CSP_C_API_EXPORT CCspOutputAdapterHandle ccsp_adapter_manager_create_output_adapter(
-    CCspAdapterManagerHandle manager,
-    CCspType input_type,
-    const CCspOutputAdapterVTable* vtable);
+CSP_C_API_EXPORT CCspOutputAdapterHandle ccsp_adapter_manager_create_output_adapter( CCspAdapterManagerHandle manager, CCspType input_type, const CCspOutputAdapterVTable * vtable );
 
 /*
  * ccsp_adapter_manager_create_push_input_adapter - Create a managed push input adapter
@@ -242,11 +236,7 @@ CSP_C_API_EXPORT CCspOutputAdapterHandle ccsp_adapter_manager_create_output_adap
  * Returns:
  *   Handle to the new push input adapter
  */
-CSP_C_API_EXPORT CCspPushInputAdapterHandle ccsp_adapter_manager_create_push_input_adapter(
-    CCspAdapterManagerHandle manager,
-    CCspType type,
-    CCspPushMode push_mode,
-    const CCspPushInputAdapterVTable* vtable);
+CSP_C_API_EXPORT CCspPushInputAdapterHandle ccsp_adapter_manager_create_push_input_adapter( CCspAdapterManagerHandle manager, CCspType type, CCspPushMode push_mode, const CCspPushInputAdapterVTable * vtable );
 
 /* ============================================================================
  * Status Reporting
@@ -278,11 +268,7 @@ typedef enum {
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CSP_C_API_EXPORT CCspErrorCode ccsp_adapter_manager_push_status(
-    CCspAdapterManagerHandle manager,
-    CCspStatusLevel level,
-    int64_t err_code,
-    const char* message);
+CSP_C_API_EXPORT CCspErrorCode ccsp_adapter_manager_push_status( CCspAdapterManagerHandle manager, CCspStatusLevel level, int64_t err_code, const char * message );
 
 /* ============================================================================
  * Managed Simulation Input Adapter
@@ -306,10 +292,7 @@ CSP_C_API_EXPORT CCspErrorCode ccsp_adapter_manager_push_status(
  * Returns:
  *   Handle to the managed sim input adapter
  */
-CSP_C_API_EXPORT CCspManagedSimInputAdapterHandle ccsp_adapter_manager_create_managed_sim_input_adapter(
-    CCspAdapterManagerHandle manager,
-    CCspType type,
-    CCspPushMode push_mode);
+CSP_C_API_EXPORT CCspManagedSimInputAdapterHandle ccsp_adapter_manager_create_managed_sim_input_adapter( CCspAdapterManagerHandle manager, CCspType type, CCspPushMode push_mode );
 
 /*
  * ccsp_managed_sim_input_adapter_push_* - Push data from simulation source
@@ -324,17 +307,11 @@ CSP_C_API_EXPORT CCspManagedSimInputAdapterHandle ccsp_adapter_manager_create_ma
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_bool(
-    CCspManagedSimInputAdapterHandle adapter, int8_t value);
-CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_int64(
-    CCspManagedSimInputAdapterHandle adapter, int64_t value);
-CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_double(
-    CCspManagedSimInputAdapterHandle adapter, double value);
-CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_string(
-    CCspManagedSimInputAdapterHandle adapter, const char* data, size_t length);
-CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_datetime(
-    CCspManagedSimInputAdapterHandle adapter, CCspDateTime value);
-
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_bool( CCspManagedSimInputAdapterHandle adapter, int8_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_int64( CCspManagedSimInputAdapterHandle adapter, int64_t value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_double( CCspManagedSimInputAdapterHandle adapter, double value );
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_string( CCspManagedSimInputAdapterHandle adapter, const char* data, size_t length );
+CSP_C_API_EXPORT CCspErrorCode ccsp_managed_sim_input_adapter_push_datetime( CCspManagedSimInputAdapterHandle adapter, CCspDateTime value );
 #ifdef __cplusplus
 }
 #endif

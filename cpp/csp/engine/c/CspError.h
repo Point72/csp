@@ -30,33 +30,33 @@ typedef enum {
 } CCspErrorCode;
 
 /* Get the last error code for the current thread */
-CSP_C_API_EXPORT CCspErrorCode ccsp_get_last_error(void);
+CSP_C_API_EXPORT CCspErrorCode ccsp_get_last_error( void );
 
 /* Get the last error message for the current thread (may be NULL) */
-CSP_C_API_EXPORT const char* ccsp_get_last_error_message(void);
+CSP_C_API_EXPORT const char * ccsp_get_last_error_message( void );
 
 /* Clear the last error for the current thread */
-CSP_C_API_EXPORT void ccsp_clear_error(void);
+CSP_C_API_EXPORT void ccsp_clear_error( void );
 
 /*
  * Set an error (for adapter implementations).
  * The message is copied internally.
  */
-CSP_C_API_EXPORT void ccsp_set_error(CCspErrorCode code, const char* message);
+CSP_C_API_EXPORT void ccsp_set_error( CCspErrorCode code, const char * message );
 
 /*
  * Helper macro for checking and returning on error
  */
-#define CCSP_RETURN_IF_ERROR(expr) \
+#define CCSP_RETURN_IF_ERROR( expr ) \
     do { \
-        CCspErrorCode _err = (expr); \
-        if (_err != CCSP_OK) return _err; \
+        CCspErrorCode _err = ( expr ); \
+        if ( _err != CCSP_OK ) return _err; \
     } while(0)
 
-#define CCSP_RETURN_NULL_IF_ERROR(expr) \
+#define CCSP_RETURN_NULL_IF_ERROR( expr ) \
     do { \
-        CCspErrorCode _err = (expr); \
-        if (_err != CCSP_OK) return NULL; \
+        CCspErrorCode _err = ( expr ); \
+        if ( _err != CCSP_OK ) return NULL; \
     } while(0)
 
 #ifdef __cplusplus

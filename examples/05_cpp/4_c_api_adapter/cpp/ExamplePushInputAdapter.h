@@ -37,8 +37,7 @@ CCspPushInputAdapterVTable example_push_input_adapter_create_double( int interva
  * @return             VTable structure
  */
 typedef const char * ( *ExampleStringCallback )( void * user_data );
-CCspPushInputAdapterVTable example_push_input_adapter_create_string(
-    ExampleStringCallback get_string, void * user_data );
+CCspPushInputAdapterVTable example_push_input_adapter_create_string( ExampleStringCallback get_string, void * user_data );
 
 #ifdef __cplusplus
 }

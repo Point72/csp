@@ -83,9 +83,7 @@ static OutputAdapter * create_counter_output_adapter( csp::AdapterManager * mana
     if( !counterManager )
         CSP_THROW( TypeError, "Expected CounterAdapterManager" );
 
-    if( !PyArg_ParseTuple( args, "OO!",
-                           &pyType,
-                           &PyDict_Type, &pyProperties ) )
+    if( !PyArg_ParseTuple( args, "OO!", &pyType, &PyDict_Type, &pyProperties ) )
         CSP_THROW( PythonPassthrough, "" );
 
     auto & cspType = pyTypeAsCspType( pyType );

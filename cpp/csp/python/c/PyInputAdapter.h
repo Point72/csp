@@ -34,7 +34,7 @@ static inline PyObject * ccsp_py_create_input_adapter_capsule( const CCspPushInp
     }
 
     /* Allocate a copy of the vtable */
-    CCspPushInputAdapterVTable * vtable_copy = ( CCspPushInputAdapterVTable * )malloc( sizeof( CCspPushInputAdapterVTable ) );
+    CCspPushInputAdapterVTable * vtable_copy = ( CCspPushInputAdapterVTable * ) malloc( sizeof( CCspPushInputAdapterVTable ) );
     if( !vtable_copy )
     {
         PyErr_NoMemory();
@@ -58,7 +58,7 @@ static inline CCspPushInputAdapterVTable * ccsp_py_get_input_adapter_vtable( PyO
         PyErr_SetString( PyExc_TypeError, "expected input adapter capsule" );
         return NULL;
     }
-    return ( CCspPushInputAdapterVTable * )PyCapsule_GetPointer( capsule, CSP_C_INPUT_ADAPTER_CAPSULE_NAME );
+    return ( CCspPushInputAdapterVTable * ) PyCapsule_GetPointer( capsule, CSP_C_INPUT_ADAPTER_CAPSULE_NAME );
 }
 
 /*
@@ -67,7 +67,7 @@ static inline CCspPushInputAdapterVTable * ccsp_py_get_input_adapter_vtable( PyO
  */
 static inline void ccsp_py_input_adapter_capsule_destructor( PyObject * capsule )
 {
-    CCspPushInputAdapterVTable * vtable = ( CCspPushInputAdapterVTable * )PyCapsule_GetPointer( capsule, CSP_C_INPUT_ADAPTER_CAPSULE_NAME );
+    CCspPushInputAdapterVTable * vtable = ( CCspPushInputAdapterVTable * ) PyCapsule_GetPointer( capsule, CSP_C_INPUT_ADAPTER_CAPSULE_NAME );
     if( vtable )
     {
         if( vtable -> destroy )
@@ -95,7 +95,7 @@ static inline PyObject * ccsp_py_create_input_adapter_capsule_owned( const CCspP
     }
 
     /* Allocate a copy of the vtable */
-    CCspPushInputAdapterVTable * vtable_copy = ( CCspPushInputAdapterVTable * )malloc( sizeof( CCspPushInputAdapterVTable ) );
+    CCspPushInputAdapterVTable * vtable_copy = ( CCspPushInputAdapterVTable * ) malloc( sizeof( CCspPushInputAdapterVTable ) );
     if( !vtable_copy )
     {
         PyErr_NoMemory();

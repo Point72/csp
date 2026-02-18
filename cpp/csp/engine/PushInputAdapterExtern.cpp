@@ -75,12 +75,9 @@ extern void ccsp_set_error( CCspErrorCode code, const char * message );
 // Push Input Adapter Creation
 // ============================================================================
 
-CCspPushInputAdapterHandle ccsp_push_input_adapter_extern_create(
-    CCspEngineHandle engine,
-    CCspType type,
-    CCspPushMode push_mode,
-    CCspPushGroupHandle group,
-    const CCspPushInputAdapterVTable* vtable )
+CCspPushInputAdapterHandle ccsp_push_input_adapter_extern_create( CCspEngineHandle engine, CCspType type,
+                                                                  CCspPushMode push_mode, CCspPushGroupHandle group,
+                                                                  const CCspPushInputAdapterVTable* vtable )
 {
     if( !engine || !vtable )
     {
@@ -97,19 +94,19 @@ CCspPushInputAdapterHandle ccsp_push_input_adapter_extern_create(
         csp::CspTypePtr cspType;
         switch( type )
         {
-            case CCSP_TYPE_BOOL:      cspType = csp::CspType::BOOL(); break;
-            case CCSP_TYPE_INT8:      cspType = csp::CspType::INT8(); break;
-            case CCSP_TYPE_UINT8:     cspType = csp::CspType::UINT8(); break;
-            case CCSP_TYPE_INT16:     cspType = csp::CspType::INT16(); break;
-            case CCSP_TYPE_UINT16:    cspType = csp::CspType::UINT16(); break;
-            case CCSP_TYPE_INT32:     cspType = csp::CspType::INT32(); break;
-            case CCSP_TYPE_UINT32:    cspType = csp::CspType::UINT32(); break;
-            case CCSP_TYPE_INT64:     cspType = csp::CspType::INT64(); break;
-            case CCSP_TYPE_UINT64:    cspType = csp::CspType::UINT64(); break;
-            case CCSP_TYPE_DOUBLE:    cspType = csp::CspType::DOUBLE(); break;
-            case CCSP_TYPE_DATETIME:  cspType = csp::CspType::DATETIME(); break;
+            case CCSP_TYPE_BOOL:      cspType = csp::CspType::BOOL();      break;
+            case CCSP_TYPE_INT8:      cspType = csp::CspType::INT8();      break;
+            case CCSP_TYPE_UINT8:     cspType = csp::CspType::UINT8();     break;
+            case CCSP_TYPE_INT16:     cspType = csp::CspType::INT16();     break;
+            case CCSP_TYPE_UINT16:    cspType = csp::CspType::UINT16();    break;
+            case CCSP_TYPE_INT32:     cspType = csp::CspType::INT32();     break;
+            case CCSP_TYPE_UINT32:    cspType = csp::CspType::UINT32();    break;
+            case CCSP_TYPE_INT64:     cspType = csp::CspType::INT64();     break;
+            case CCSP_TYPE_UINT64:    cspType = csp::CspType::UINT64();    break;
+            case CCSP_TYPE_DOUBLE:    cspType = csp::CspType::DOUBLE();    break;
+            case CCSP_TYPE_DATETIME:  cspType = csp::CspType::DATETIME();  break;
             case CCSP_TYPE_TIMEDELTA: cspType = csp::CspType::TIMEDELTA(); break;
-            case CCSP_TYPE_STRING:    cspType = csp::CspType::STRING(); break;
+            case CCSP_TYPE_STRING:    cspType = csp::CspType::STRING();    break;
             default:
                 ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "unsupported type for push input adapter" );
                 return nullptr;
@@ -119,16 +116,15 @@ CCspPushInputAdapterHandle ccsp_push_input_adapter_extern_create(
         csp::PushMode cspPushMode;
         switch( push_mode )
         {
-            case CCSP_PUSH_MODE_LAST_VALUE:      cspPushMode = csp::PushMode::LAST_VALUE; break;
+            case CCSP_PUSH_MODE_LAST_VALUE:      cspPushMode = csp::PushMode::LAST_VALUE;     break;
             case CCSP_PUSH_MODE_NON_COLLAPSING:  cspPushMode = csp::PushMode::NON_COLLAPSING; break;
-            case CCSP_PUSH_MODE_BURST:           cspPushMode = csp::PushMode::BURST; break;
+            case CCSP_PUSH_MODE_BURST:           cspPushMode = csp::PushMode::BURST;          break;
             default:
                 ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "invalid push mode" );
                 return nullptr;
         }
 
-        auto * adapter = eng -> createOwnedObject<csp::PushInputAdapterExtern>(
-            cspType, cspPushMode, grp, *vtable );
+        auto * adapter = eng -> createOwnedObject<csp::PushInputAdapterExtern>( cspType, cspPushMode, grp, *vtable );
 
         return reinterpret_cast<CCspPushInputAdapterHandle>( adapter );
     }
@@ -142,15 +138,14 @@ CCspPushInputAdapterHandle ccsp_push_input_adapter_extern_create(
 void ccsp_push_input_adapter_extern_destroy( CCspPushInputAdapterHandle adapter )
 {
     // The adapter is owned by the engine, destruction is handled there
-    (void)adapter;
+    ( void ) adapter;
 }
 
 // ============================================================================
 // Type-specific push functions
 // ============================================================================
 
-CCspErrorCode ccsp_push_input_adapter_push_bool(
-    CCspPushInputAdapterHandle adapter, int8_t value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_bool( CCspPushInputAdapterHandle adapter, int8_t value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -173,8 +168,7 @@ CCspErrorCode ccsp_push_input_adapter_push_bool(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_int8(
-    CCspPushInputAdapterHandle adapter, int8_t value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_int8( CCspPushInputAdapterHandle adapter, int8_t value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -197,8 +191,7 @@ CCspErrorCode ccsp_push_input_adapter_push_int8(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_uint8(
-    CCspPushInputAdapterHandle adapter, uint8_t value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_uint8( CCspPushInputAdapterHandle adapter, uint8_t value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -221,8 +214,7 @@ CCspErrorCode ccsp_push_input_adapter_push_uint8(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_int16(
-    CCspPushInputAdapterHandle adapter, int16_t value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_int16( CCspPushInputAdapterHandle adapter, int16_t value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -245,8 +237,7 @@ CCspErrorCode ccsp_push_input_adapter_push_int16(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_uint16(
-    CCspPushInputAdapterHandle adapter, uint16_t value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_uint16( CCspPushInputAdapterHandle adapter, uint16_t value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -269,8 +260,7 @@ CCspErrorCode ccsp_push_input_adapter_push_uint16(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_int32(
-    CCspPushInputAdapterHandle adapter, int32_t value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_int32( CCspPushInputAdapterHandle adapter, int32_t value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -293,8 +283,7 @@ CCspErrorCode ccsp_push_input_adapter_push_int32(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_uint32(
-    CCspPushInputAdapterHandle adapter, uint32_t value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_uint32( CCspPushInputAdapterHandle adapter, uint32_t value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -317,8 +306,7 @@ CCspErrorCode ccsp_push_input_adapter_push_uint32(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_int64(
-    CCspPushInputAdapterHandle adapter, int64_t value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_int64( CCspPushInputAdapterHandle adapter, int64_t value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -341,8 +329,7 @@ CCspErrorCode ccsp_push_input_adapter_push_int64(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_uint64(
-    CCspPushInputAdapterHandle adapter, uint64_t value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_uint64( CCspPushInputAdapterHandle adapter, uint64_t value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -365,8 +352,7 @@ CCspErrorCode ccsp_push_input_adapter_push_uint64(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_double(
-    CCspPushInputAdapterHandle adapter, double value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_double( CCspPushInputAdapterHandle adapter, double value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -389,8 +375,7 @@ CCspErrorCode ccsp_push_input_adapter_push_double(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_datetime(
-    CCspPushInputAdapterHandle adapter, CCspDateTime value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_datetime( CCspPushInputAdapterHandle adapter, CCspDateTime value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -413,8 +398,7 @@ CCspErrorCode ccsp_push_input_adapter_push_datetime(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_timedelta(
-    CCspPushInputAdapterHandle adapter, CCspTimeDelta value, CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_timedelta( CCspPushInputAdapterHandle adapter, CCspTimeDelta value, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -437,10 +421,7 @@ CCspErrorCode ccsp_push_input_adapter_push_timedelta(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_string(
-    CCspPushInputAdapterHandle adapter,
-    const char* data, size_t length,
-    CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_string( CCspPushInputAdapterHandle adapter, const char* data, size_t length, CCspPushBatchHandle batch )
 {
     if( !adapter )
     {
@@ -469,10 +450,7 @@ CCspErrorCode ccsp_push_input_adapter_push_string(
     }
 }
 
-CCspErrorCode ccsp_push_input_adapter_push_struct(
-    CCspPushInputAdapterHandle adapter,
-    CCspStructHandle value,
-    CCspPushBatchHandle batch )
+CCspErrorCode ccsp_push_input_adapter_push_struct( CCspPushInputAdapterHandle adapter, CCspStructHandle value, CCspPushBatchHandle batch )
 {
     // TODO: Implement struct push when struct support is complete
     (void)adapter;

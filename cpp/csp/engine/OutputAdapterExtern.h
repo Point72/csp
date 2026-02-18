@@ -17,8 +17,7 @@ namespace csp
 class OutputAdapterExtern final : public OutputAdapter
 {
 public:
-    OutputAdapterExtern( Engine * engine, const CspTypePtr & type,
-                         const CCspOutputAdapterVTable & vtable );
+    OutputAdapterExtern( Engine * engine, const CspTypePtr & type, const CCspOutputAdapterVTable & vtable );
     ~OutputAdapterExtern() override;
 
     const char* name() const override { return "OutputAdapterExtern"; }

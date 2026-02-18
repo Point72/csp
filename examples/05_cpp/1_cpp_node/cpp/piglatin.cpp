@@ -7,15 +7,15 @@
 namespace csp::piglatin
 {
 
-DECLARE_CPPNODE(piglatin)
+DECLARE_CPPNODE( piglatin )
 {
-    INIT_CPPNODE(piglatin)
+    INIT_CPPNODE( piglatin )
     {}
 
-    TS_INPUT(std::string, x);
-    SCALAR_INPUT(bool, capitalize);
+    TS_INPUT( std::string, x );
+    SCALAR_INPUT( bool, capitalize );
     // ALARM(Generic, alarm);
-    TS_OUTPUT(std::string);
+    TS_OUTPUT( std::string );
 
     START()
     {}
@@ -34,10 +34,10 @@ DECLARE_CPPNODE(piglatin)
     }
 };
 
-EXPORT_CPPNODE(piglatin);
+EXPORT_CPPNODE( piglatin );
 }
 
-REGISTER_CPPNODE(csp::piglatin, piglatin);
+REGISTER_CPPNODE( csp::piglatin, piglatin );
 
 static PyModuleDef _piglatin_module = {
     PyModuleDef_HEAD_INIT,

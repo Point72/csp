@@ -34,12 +34,14 @@ static inline PyObject * ccsp_py_create_adapter_manager_capsule( const CCspAdapt
     }
 
     /* Allocate a copy of the vtable */
-    CCspAdapterManagerVTable * vtable_copy = ( CCspAdapterManagerVTable * )malloc( sizeof( CCspAdapterManagerVTable ) );
+    CCspAdapterManagerVTable * vtable_copy = ( CCspAdapterManagerVTable * ) malloc( sizeof( CCspAdapterManagerVTable ) );
+
     if( !vtable_copy )
     {
         PyErr_NoMemory();
         return NULL;
     }
+
     *vtable_copy = *vtable;
 
     return PyCapsule_New( vtable_copy, CSP_C_ADAPTER_MANAGER_CAPSULE_NAME, NULL );
@@ -58,7 +60,7 @@ static inline CCspAdapterManagerVTable * ccsp_py_get_adapter_manager_vtable( PyO
         PyErr_SetString( PyExc_TypeError, "expected adapter manager capsule" );
         return NULL;
     }
-    return ( CCspAdapterManagerVTable * )PyCapsule_GetPointer( capsule, CSP_C_ADAPTER_MANAGER_CAPSULE_NAME );
+    return ( CCspAdapterManagerVTable * ) PyCapsule_GetPointer( capsule, CSP_C_ADAPTER_MANAGER_CAPSULE_NAME );
 }
 
 /*
@@ -67,7 +69,7 @@ static inline CCspAdapterManagerVTable * ccsp_py_get_adapter_manager_vtable( PyO
  */
 static inline void ccsp_py_adapter_manager_capsule_destructor( PyObject * capsule )
 {
-    CCspAdapterManagerVTable * vtable = ( CCspAdapterManagerVTable * )PyCapsule_GetPointer( capsule, CSP_C_ADAPTER_MANAGER_CAPSULE_NAME );
+    CCspAdapterManagerVTable * vtable = ( CCspAdapterManagerVTable * ) PyCapsule_GetPointer( capsule, CSP_C_ADAPTER_MANAGER_CAPSULE_NAME );
     if( vtable )
     {
         if( vtable -> destroy )
@@ -95,7 +97,7 @@ static inline PyObject * ccsp_py_create_adapter_manager_capsule_owned( const CCs
     }
 
     /* Allocate a copy of the vtable */
-    CCspAdapterManagerVTable * vtable_copy = ( CCspAdapterManagerVTable * )malloc( sizeof( CCspAdapterManagerVTable ) );
+    CCspAdapterManagerVTable * vtable_copy = ( CCspAdapterManagerVTable * ) malloc( sizeof( CCspAdapterManagerVTable ) );
     if( !vtable_copy )
     {
         PyErr_NoMemory();

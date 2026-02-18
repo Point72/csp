@@ -37,12 +37,8 @@ static const char * const CSP_C_ADAPTER_MANAGER_CAPSULE_NAME = "csp.c.AdapterMan
  * Expected args tuple: (capsule, push_group_or_none, additional_args...)
  * The capsule contains a CCspPushInputAdapterVTable.
  */
-static InputAdapter * c_api_push_input_adapter_creator(
-    csp::AdapterManager * manager,
-    PyEngine * pyengine,
-    PyObject * pyType,
-    PushMode pushMode,
-    PyObject * args )
+static InputAdapter * c_api_push_input_adapter_creator( csp::AdapterManager * manager, PyEngine * pyengine, PyObject * pyType,
+                                                        PushMode pushMode, PyObject * args )
 {
     PyObject * capsule = nullptr;
     PyObject * pyPushGroup = nullptr;
@@ -55,8 +51,7 @@ static InputAdapter * c_api_push_input_adapter_creator(
     if( !PyCapsule_IsValid( capsule, CSP_C_INPUT_ADAPTER_CAPSULE_NAME ) )
         CSP_THROW( TypeError, "Expected input adapter capsule (csp.c.InputAdapterCapsule)" );
 
-    CCspPushInputAdapterVTable * vtable = static_cast<CCspPushInputAdapterVTable *>(
-        PyCapsule_GetPointer( capsule, CSP_C_INPUT_ADAPTER_CAPSULE_NAME ) );
+    CCspPushInputAdapterVTable * vtable = static_cast<CCspPushInputAdapterVTable *>( PyCapsule_GetPointer( capsule, CSP_C_INPUT_ADAPTER_CAPSULE_NAME ) );
 
     if( !vtable )
         CSP_THROW( ValueError, "Failed to extract VTable from capsule" );
@@ -77,8 +72,7 @@ static InputAdapter * c_api_push_input_adapter_creator(
     auto & cspType = pyTypeAsCspType( pyType );
 
     /* Create the adapter using createOwnedObject */
-    auto * adapter = pyengine->engine()->createOwnedObject<PushInputAdapterExtern>(
-        cspType, pushMode, pushGroup, *vtable );
+    auto * adapter = pyengine->engine()->createOwnedObject<PushInputAdapterExtern>( cspType, pushMode, pushGroup, *vtable );
 
     /* Transfer ownership of the VTable to the adapter by clearing the capsule's destructor.
      * This prevents double-free since PushInputAdapterExtern will call destroy in its destructor. */
@@ -109,8 +103,7 @@ static OutputAdapter * c_api_output_adapter_creator(
     if( !PyCapsule_IsValid( capsule, CSP_C_OUTPUT_ADAPTER_CAPSULE_NAME ) )
         CSP_THROW( TypeError, "Expected output adapter capsule (csp.c.OutputAdapterCapsule)" );
 
-    CCspOutputAdapterVTable * vtable = static_cast<CCspOutputAdapterVTable *>(
-        PyCapsule_GetPointer( capsule, CSP_C_OUTPUT_ADAPTER_CAPSULE_NAME ) );
+    CCspOutputAdapterVTable * vtable = static_cast<CCspOutputAdapterVTable *>( PyCapsule_GetPointer( capsule, CSP_C_OUTPUT_ADAPTER_CAPSULE_NAME ) );
 
     if( !vtable )
         CSP_THROW( ValueError, "Failed to extract VTable from capsule" );
@@ -119,8 +112,7 @@ static OutputAdapter * c_api_output_adapter_creator(
     auto & cspType = pyTypeAsCspType( pyInputType );
 
     /* Create the adapter using createOwnedObject */
-    auto * adapter = pyengine->engine()->createOwnedObject<OutputAdapterExtern>(
-        cspType, *vtable );
+    auto * adapter = pyengine->engine()->createOwnedObject<OutputAdapterExtern>( cspType, *vtable );
 
     /* Transfer ownership of the VTable to the adapter by clearing the capsule's destructor.
      * This prevents double-free since OutputAdapterExtern will call destroy in its destructor. */
@@ -156,8 +148,7 @@ static PyObject * c_api_adapter_manager_bridge( PyObject * /* self */, PyObject 
     if( !PyCapsule_IsValid( cApiCapsule, CSP_C_ADAPTER_MANAGER_CAPSULE_NAME ) )
         CSP_THROW( TypeError, "Expected C API adapter manager capsule (csp.c.AdapterManagerCapsule)" );
 
-    CCspAdapterManagerVTable * vtable = static_cast<CCspAdapterManagerVTable *>(
-        PyCapsule_GetPointer( cApiCapsule, CSP_C_ADAPTER_MANAGER_CAPSULE_NAME ) );
+    CCspAdapterManagerVTable * vtable = static_cast<CCspAdapterManagerVTable *>( PyCapsule_GetPointer( cApiCapsule, CSP_C_ADAPTER_MANAGER_CAPSULE_NAME ) );
 
     if( !vtable )
         CSP_THROW( ValueError, "Failed to extract VTable from C API capsule" );

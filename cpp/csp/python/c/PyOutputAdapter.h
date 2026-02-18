@@ -34,7 +34,7 @@ static inline PyObject * ccsp_py_create_output_adapter_capsule( const CCspOutput
     }
 
     /* Allocate a copy of the vtable */
-    CCspOutputAdapterVTable * vtable_copy = ( CCspOutputAdapterVTable * )malloc( sizeof( CCspOutputAdapterVTable ) );
+    CCspOutputAdapterVTable * vtable_copy = ( CCspOutputAdapterVTable * ) malloc( sizeof( CCspOutputAdapterVTable ) );
     if( !vtable_copy )
     {
         PyErr_NoMemory();
@@ -58,7 +58,7 @@ static inline CCspOutputAdapterVTable * ccsp_py_get_output_adapter_vtable( PyObj
         PyErr_SetString( PyExc_TypeError, "expected output adapter capsule" );
         return NULL;
     }
-    return ( CCspOutputAdapterVTable * )PyCapsule_GetPointer( capsule, CSP_C_OUTPUT_ADAPTER_CAPSULE_NAME );
+    return ( CCspOutputAdapterVTable * ) PyCapsule_GetPointer( capsule, CSP_C_OUTPUT_ADAPTER_CAPSULE_NAME );
 }
 
 /*
@@ -67,7 +67,7 @@ static inline CCspOutputAdapterVTable * ccsp_py_get_output_adapter_vtable( PyObj
  */
 static inline void ccsp_py_output_adapter_capsule_destructor( PyObject * capsule )
 {
-    CCspOutputAdapterVTable * vtable = ( CCspOutputAdapterVTable * )PyCapsule_GetPointer( capsule, CSP_C_OUTPUT_ADAPTER_CAPSULE_NAME );
+    CCspOutputAdapterVTable * vtable = ( CCspOutputAdapterVTable * ) PyCapsule_GetPointer( capsule, CSP_C_OUTPUT_ADAPTER_CAPSULE_NAME );
     if( vtable )
     {
         if( vtable -> destroy )
@@ -95,7 +95,7 @@ static inline PyObject * ccsp_py_create_output_adapter_capsule_owned( const CCsp
     }
 
     /* Allocate a copy of the vtable */
-    CCspOutputAdapterVTable * vtable_copy = ( CCspOutputAdapterVTable * )malloc( sizeof( CCspOutputAdapterVTable ) );
+    CCspOutputAdapterVTable * vtable_copy = ( CCspOutputAdapterVTable * ) malloc( sizeof( CCspOutputAdapterVTable ) );
     if( !vtable_copy )
     {
         PyErr_NoMemory();

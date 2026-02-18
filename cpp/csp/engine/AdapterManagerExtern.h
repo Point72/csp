@@ -20,11 +20,11 @@ public:
     AdapterManagerExtern( Engine * engine, const CCspAdapterManagerVTable & vtable );
     ~AdapterManagerExtern() override;
 
-    const char* name() const override;
+    const char * name() const override;
 
-    void start(DateTime startTime, DateTime endTime) override;
+    void start( DateTime startTime, DateTime endTime ) override;
     void stop() override;
-    DateTime processNextSimTimeSlice(DateTime time) override;
+    DateTime processNextSimTimeSlice( DateTime time ) override;
 
     // Access for C API
     const CCspAdapterManagerVTable & vtable() const { return m_vtable; }

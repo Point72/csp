@@ -15,26 +15,26 @@ static CCspType cspTypeToC( csp::CspType::Type t )
 {
     switch( t )
     {
-        case csp::CspType::Type::BOOL:      return CCSP_TYPE_BOOL;
-        case csp::CspType::Type::INT8:      return CCSP_TYPE_INT8;
-        case csp::CspType::Type::UINT8:     return CCSP_TYPE_UINT8;
-        case csp::CspType::Type::INT16:     return CCSP_TYPE_INT16;
-        case csp::CspType::Type::UINT16:    return CCSP_TYPE_UINT16;
-        case csp::CspType::Type::INT32:     return CCSP_TYPE_INT32;
-        case csp::CspType::Type::UINT32:    return CCSP_TYPE_UINT32;
-        case csp::CspType::Type::INT64:     return CCSP_TYPE_INT64;
-        case csp::CspType::Type::UINT64:    return CCSP_TYPE_UINT64;
-        case csp::CspType::Type::DOUBLE:    return CCSP_TYPE_DOUBLE;
-        case csp::CspType::Type::STRING:    return CCSP_TYPE_STRING;
-        case csp::CspType::Type::DATETIME:  return CCSP_TYPE_DATETIME;
-        case csp::CspType::Type::TIMEDELTA: return CCSP_TYPE_TIMEDELTA;
-        case csp::CspType::Type::DATE:      return CCSP_TYPE_DATE;
-        case csp::CspType::Type::TIME:      return CCSP_TYPE_TIME;
-        case csp::CspType::Type::ENUM:      return CCSP_TYPE_ENUM;
-        case csp::CspType::Type::STRUCT:    return CCSP_TYPE_STRUCT;
-        case csp::CspType::Type::ARRAY:     return CCSP_TYPE_ARRAY;
+        case csp::CspType::Type::BOOL:            return CCSP_TYPE_BOOL;
+        case csp::CspType::Type::INT8:            return CCSP_TYPE_INT8;
+        case csp::CspType::Type::UINT8:           return CCSP_TYPE_UINT8;
+        case csp::CspType::Type::INT16:           return CCSP_TYPE_INT16;
+        case csp::CspType::Type::UINT16:          return CCSP_TYPE_UINT16;
+        case csp::CspType::Type::INT32:           return CCSP_TYPE_INT32;
+        case csp::CspType::Type::UINT32:          return CCSP_TYPE_UINT32;
+        case csp::CspType::Type::INT64:           return CCSP_TYPE_INT64;
+        case csp::CspType::Type::UINT64:          return CCSP_TYPE_UINT64;
+        case csp::CspType::Type::DOUBLE:          return CCSP_TYPE_DOUBLE;
+        case csp::CspType::Type::STRING:          return CCSP_TYPE_STRING;
+        case csp::CspType::Type::DATETIME:        return CCSP_TYPE_DATETIME;
+        case csp::CspType::Type::TIMEDELTA:       return CCSP_TYPE_TIMEDELTA;
+        case csp::CspType::Type::DATE:            return CCSP_TYPE_DATE;
+        case csp::CspType::Type::TIME:            return CCSP_TYPE_TIME;
+        case csp::CspType::Type::ENUM:            return CCSP_TYPE_ENUM;
+        case csp::CspType::Type::STRUCT:          return CCSP_TYPE_STRUCT;
+        case csp::CspType::Type::ARRAY:           return CCSP_TYPE_ARRAY;
         case csp::CspType::Type::DIALECT_GENERIC: return CCSP_TYPE_DIALECT_GENERIC;
-        default:                            return CCSP_TYPE_UNKNOWN;
+        default:                                  return CCSP_TYPE_UNKNOWN;
     }
 }
 
@@ -555,8 +555,7 @@ CCspErrorCode ccsp_struct_get_timedelta( CCspStructHandle s, CCspStructFieldHand
     return CCSP_OK;
 }
 
-CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle field,
-                                      const char ** out_data, size_t * out_length )
+CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle field, const char ** out_data, size_t * out_length )
 {
     if( !s || !field || !out_data || !out_length )
     {
@@ -614,8 +613,7 @@ CCspErrorCode ccsp_struct_get_enum( CCspStructHandle s, CCspStructFieldHandle fi
     return CCSP_OK;
 }
 
-CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle field,
-                                      CCspStructHandle * out_struct )
+CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle field, CCspStructHandle * out_struct )
 {
     if( !s || !field || !out_struct )
     {
@@ -743,8 +741,7 @@ CCspErrorCode ccsp_struct_get_datetime_by_name( CCspStructHandle s, const char *
     return ccsp_struct_get_datetime( s, field, out_value );
 }
 
-CCspErrorCode ccsp_struct_get_string_by_name( CCspStructHandle s, const char * name,
-                                              const char ** out_data, size_t * out_length )
+CCspErrorCode ccsp_struct_get_string_by_name( CCspStructHandle s, const char * name, const char ** out_data, size_t * out_length )
 {
     if( !s || !name )
     {

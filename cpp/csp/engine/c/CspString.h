@@ -21,7 +21,7 @@ extern "C" {
  * The data pointer must remain valid for the duration of the call.
  */
 typedef struct {
-    const char* data;   /* Pointer to string data (may contain embedded nulls) */
+    const char * data;  /* Pointer to string data (may contain embedded nulls) */
     size_t length;      /* Length in bytes (not including any null terminator) */
 } CCspStringView;
 
@@ -31,65 +31,65 @@ typedef struct {
  * Must be freed with ccsp_string_free().
  */
 typedef struct {
-    char* data;         /* Pointer to string data */
-    size_t length;      /* Length in bytes */
-    size_t capacity;    /* Allocated capacity (internal use) */
+    char * data;      /* Pointer to string data */
+    size_t length;    /* Length in bytes */
+    size_t capacity;  /* Allocated capacity (internal use) */
 } CCspString;
 
 /*
  * Create a string view from a null-terminated C string.
  * The original string must outlive the view.
  */
-CCspStringView ccsp_string_view_from_cstr(const char* cstr);
+CCspStringView ccsp_string_view_from_cstr( const char * cstr );
 
 /*
  * Create a string view from data and length.
  * The original data must outlive the view.
  */
-CCspStringView ccsp_string_view_from_data(const char* data, size_t length);
+CCspStringView ccsp_string_view_from_data( const char * data, size_t length );
 
 /*
  * Create an owned string by copying the given data.
  * Returns empty string on allocation failure.
  */
-CCspString ccsp_string_create(const char* data, size_t length);
+CCspString ccsp_string_create( const char * data, size_t length );
 
 /*
  * Create an owned string from a null-terminated C string.
  * Returns empty string on allocation failure.
  */
-CCspString ccsp_string_create_from_cstr(const char* cstr);
+CCspString ccsp_string_create_from_cstr( const char * cstr );
 
 /*
  * Create an empty owned string with the given capacity.
  * Useful when you need to build a string incrementally.
  */
-CCspString ccsp_string_create_with_capacity(size_t capacity);
+CCspString ccsp_string_create_with_capacity( size_t capacity );
 
 /*
  * Free an owned string's memory.
  * Safe to call on an already-freed or zero-initialized string.
  */
-void ccsp_string_free(CCspString* str);
+void ccsp_string_free( CCspString * str );
 
 /*
  * Get a view of an owned string.
  * The view is only valid while the owned string is not modified or freed.
  */
-CCspStringView ccsp_string_as_view(const CCspString* str);
+CCspStringView ccsp_string_as_view( const CCspString * str );
 
 /*
  * Check if a string view is empty.
  */
-static inline int ccsp_string_view_is_empty(CCspStringView view) {
+static inline int ccsp_string_view_is_empty( CCspStringView view ) {
     return view.length == 0 || view.data == NULL;
 }
 
 /*
  * Check if an owned string is empty.
  */
-static inline int ccsp_string_is_empty(const CCspString* str) {
-    return str == NULL || str->length == 0 || str->data == NULL;
+static inline int ccsp_string_is_empty( const CCspString * str ) {
+    return str == NULL || str -> length == 0 || str -> data == NULL;
 }
 
 #ifdef __cplusplus

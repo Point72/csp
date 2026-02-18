@@ -17,15 +17,15 @@
  * This ensures C API symbols are available for runtime linking by external
  * adapters implemented in C, Rust, or other languages.
  */
-#if defined(_WIN32) || defined(_WIN64)
+#if defined( _WIN32 ) || defined( _WIN64 )
     #ifdef CSPIMPL_EXPORTS
-        #define CSP_C_API_EXPORT __declspec(dllexport)
+        #define CSP_C_API_EXPORT __declspec( dllexport )
     #else
-        #define CSP_C_API_EXPORT __declspec(dllimport)
+        #define CSP_C_API_EXPORT __declspec( dllimport )
     #endif
 #else
     /* Unix/Linux/macOS - ensure default visibility */
-    #define CSP_C_API_EXPORT __attribute__((visibility("default")))
+    #define CSP_C_API_EXPORT __attribute__( ( visibility( "default" ) ) )
 #endif
 
 #endif /* _IN_CSP_ENGINE_C_CSPEXPORT_H */

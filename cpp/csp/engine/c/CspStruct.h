@@ -227,8 +227,7 @@ CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_timedelta( CCspStructHandle s, CC
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle field,
-                                      const char ** out_data, size_t * out_length );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle field, const char ** out_data, size_t * out_length );
 
 /*
  * ccsp_struct_get_enum - Get an enum field value (as ordinal)
@@ -254,8 +253,7 @@ CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_enum( CCspStructHandle s, CCspStr
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle field,
-                                      CCspStructHandle * out_struct );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle field, CCspStructHandle * out_struct );
 
 /* ============================================================================
  * Field Value Getters by Name (Convenience)
@@ -269,8 +267,7 @@ CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_int32_by_name( CCspStructHandle s
 CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_int64_by_name( CCspStructHandle s, const char * name, int64_t * out_value );
 CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_double_by_name( CCspStructHandle s, const char * name, double * out_value );
 CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_datetime_by_name( CCspStructHandle s, const char * name, CCspDateTime * out_value );
-CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_string_by_name( CCspStructHandle s, const char * name,
-                                              const char ** out_data, size_t * out_length );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_get_string_by_name( CCspStructHandle s, const char * name, const char ** out_data, size_t * out_length );
 
 /* ============================================================================
  * Field Value Setters
@@ -306,8 +303,7 @@ CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_timedelta( CCspStructHandle s, CC
  * Returns:
  *   CCSP_OK on success, error code on failure
  */
-CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_string( CCspStructHandle s, CCspStructFieldHandle field,
-                                      const char * data, size_t length );
+CSP_C_API_EXPORT CCspErrorCode ccsp_struct_set_string( CCspStructHandle s, CCspStructFieldHandle field, const char * data, size_t length );
 
 /*
  * ccsp_struct_set_enum - Set an enum field value (by ordinal)

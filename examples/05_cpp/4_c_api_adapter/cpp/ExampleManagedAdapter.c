@@ -5,10 +5,11 @@
  * multiple input/output adapters, similar to KafkaAdapterManager.
  */
 
-#include "ExampleManagedAdapter.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "ExampleManagedAdapter.h"
 
 /* ============================================================================
  * Adapter Manager Callbacks

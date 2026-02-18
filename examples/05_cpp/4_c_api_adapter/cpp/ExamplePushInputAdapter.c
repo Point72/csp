@@ -4,12 +4,13 @@
  * This demonstrates how to implement a push input adapter using the C ABI interface.
  * Note: This is a simplified example. A real adapter would use proper threading.
  */
-#include "ExamplePushInputAdapter.h"
 #include <csp/engine/c/InputAdapter.h>
 #include <csp/engine/c/CspError.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "ExamplePushInputAdapter.h"
 
 #ifdef _WIN32
 #include <windows.h>

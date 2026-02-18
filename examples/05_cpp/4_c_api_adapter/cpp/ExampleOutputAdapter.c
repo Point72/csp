@@ -3,7 +3,6 @@
  *
  * This demonstrates how to implement an output adapter using the C ABI interface.
  */
-#include "ExampleOutputAdapter.h"
 #include <csp/engine/c/OutputAdapter.h>
 #include <csp/engine/c/CspError.h>
 #include <csp/engine/c/CspStruct.h>
@@ -11,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "ExampleOutputAdapter.h"
 
 /* Adapter state structure */
 typedef struct {

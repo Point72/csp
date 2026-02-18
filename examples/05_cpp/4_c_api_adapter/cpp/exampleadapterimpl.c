@@ -13,9 +13,10 @@
 #include <csp/python/c/PyOutputAdapter.h>
 #include <csp/python/c/PyInputAdapter.h>
 #include <csp/python/c/PyAdapterManager.h>
-#include <csp/adapters/c/example/ExampleOutputAdapter.h>
-#include <csp/adapters/c/example/ExamplePushInputAdapter.h>
-#include <csp/adapters/c/example/ExampleManagedAdapter.h>
+
+#include "ExampleOutputAdapter.h"
+#include "ExamplePushInputAdapter.h"
+#include "ExampleManagedAdapter.h"
 
 /*
  * _example_adapter_manager(engine, properties: dict) -> capsule

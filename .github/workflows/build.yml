@@ -744,15 +744,11 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - "3.10"
+            - "3.11"
           package:
             - sqlalchemy<2
             - perspective-python<3
-            # - pandas<3
-            # uncomment the pandas pin once we move off Python 3.10 to ensure we maintain pandas 2.x compatibility
-            # pandas 3.0 does not support 3.10 so we currently get free coverage, but won't after 3.10 goes EOL
-            # Min supported version of pandas 2.2
-            - numpy==1.22.4
+            - pandas<3
 
       runs-on: ${{ matrix.os }}
 

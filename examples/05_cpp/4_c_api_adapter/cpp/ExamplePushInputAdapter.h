@@ -44,5 +44,3 @@ CCspPushInputAdapterVTable example_push_input_adapter_create_string( ExampleStri
 #endif
 
 #endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_PUSH_INPUT_ADAPTER_H */
-
-#endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_PUSH_INPUT_ADAPTER_H */

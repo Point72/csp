@@ -36,5 +36,3 @@ CCspOutputAdapterVTable example_output_adapter_create_fd( int fd, const char * p
 
 #endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_OUTPUT_ADAPTER_H */
 
-#endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_OUTPUT_ADAPTER_H */
-

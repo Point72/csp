@@ -78,9 +78,3 @@ CCspOutputAdapterVTable example_managed_output_adapter_create( ManagedAdapterSta
 #endif
 
 #endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_MANAGED_ADAPTER_H */
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _IN_CSP_ADAPTERS_C_EXAMPLE_MANAGED_ADAPTER_H */

@@ -102,7 +102,9 @@ After building, you can use the adapter in Python:
 
 ```python
 import csp
-from datetime import datetime, timedelta
+from csp.utils.datetime import utc_now
+
+from datetime import timedelta
 
 from counteradapter import CounterAdapterManager
 
@@ -121,8 +123,7 @@ def my_graph():
     mgr.publish(data)
 
 # Run for 2 seconds in realtime mode
-csp.run(my_graph, starttime=datetime.utcnow(),
-        endtime=datetime.utcnow() + timedelta(seconds=2), realtime=True)
+csp.run(my_graph, starttime=utc_now(), endtime=timedelta(seconds=2), realtime=True)
 ```
 
 Or run the example directly:

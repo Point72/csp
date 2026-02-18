@@ -15,34 +15,12 @@ Then add the build directory to your Python path and run:
     PYTHONPATH=build:$PYTHONPATH python example.py
 """
 
-import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import csp
+from counteradapter import CounterAdapterManager
 from csp import ts
-
-
-# For development/testing, add the build directory to path
-# In production, you would install the module properly
-def setup_path():
-    """Add the build directory to the Python path if needed."""
-    import os
-
-    build_dir = os.path.join(os.path.dirname(__file__), "build")
-    if os.path.exists(build_dir) and build_dir not in sys.path:
-        sys.path.insert(0, build_dir)
-
-
-setup_path()
-
-# Import the adapter after setting up the path
-try:
-    from counteradapter import CounterAdapterManager
-except ImportError:
-    print("Error: Could not import counteradapter.")
-    print("Make sure you have built the C++ extension module.")
-    print("See the build instructions in README.md")
-    sys.exit(1)
+from csp.utils.datetime import utc_now
 
 
 @csp.node
@@ -84,7 +62,7 @@ def main():
     print("=" * 40)
 
     # Run the graph for 2 seconds
-    start = datetime.utcnow()
+    start = utc_now()
     end = start + timedelta(seconds=2)
 
     result = csp.run(counter_graph, starttime=start, endtime=end, realtime=True)

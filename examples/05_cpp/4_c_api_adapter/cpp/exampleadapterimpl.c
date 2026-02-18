@@ -127,8 +127,8 @@ static PyObject * create_input_adapter_py( PyObject * self, PyObject * args, PyO
  */
 static PyObject * create_output_adapter_py( PyObject * self, PyObject * args, PyObject * kwargs )
 {
-    ( void )self;
-    ( void )kwargs;  /* Not used when called from wiring layer */
+    ( void ) self;
+    ( void ) kwargs;  /* Not used when called from wiring layer */
 
     /* When called from output_adapter_def:
      * args = (mgr, engine, scalars)

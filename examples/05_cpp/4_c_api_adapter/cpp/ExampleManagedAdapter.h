@@ -71,9 +71,7 @@ CCspAdapterManagerVTable example_managed_adapter_create( const char * name );
  * Returns:
  *   VTable for use with ccsp_adapter_manager_create_output_adapter
  */
-CCspOutputAdapterVTable example_managed_output_adapter_create(
-    ManagedAdapterState * shared_state,
-    const char * topic );
+CCspOutputAdapterVTable example_managed_output_adapter_create( ManagedAdapterState * shared_state, const char * topic );
 
 #ifdef __cplusplus
 }

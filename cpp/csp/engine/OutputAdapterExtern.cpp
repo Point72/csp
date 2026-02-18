@@ -89,7 +89,7 @@ CCspErrorCode ccsp_get_last_error(void)
     return s_lastError;
 }
 
-const char* ccsp_get_last_error_message(void)
+const char * ccsp_get_last_error_message(void)
 {
     return s_lastErrorMessage[0] ? s_lastErrorMessage : nullptr;
 }
@@ -140,26 +140,26 @@ CCspType ccsp_input_get_type( CCspInputHandle input )
     // Map CspType to CCspType
     switch( provider -> type() -> type() )
     {
-        case csp::CspType::Type::BOOL:      return CCSP_TYPE_BOOL;
-        case csp::CspType::Type::INT8:      return CCSP_TYPE_INT8;
-        case csp::CspType::Type::UINT8:     return CCSP_TYPE_UINT8;
-        case csp::CspType::Type::INT16:     return CCSP_TYPE_INT16;
-        case csp::CspType::Type::UINT16:    return CCSP_TYPE_UINT16;
-        case csp::CspType::Type::INT32:     return CCSP_TYPE_INT32;
-        case csp::CspType::Type::UINT32:    return CCSP_TYPE_UINT32;
-        case csp::CspType::Type::INT64:     return CCSP_TYPE_INT64;
-        case csp::CspType::Type::UINT64:    return CCSP_TYPE_UINT64;
-        case csp::CspType::Type::DOUBLE:    return CCSP_TYPE_DOUBLE;
-        case csp::CspType::Type::STRING:    return CCSP_TYPE_STRING;
-        case csp::CspType::Type::DATETIME:  return CCSP_TYPE_DATETIME;
-        case csp::CspType::Type::TIMEDELTA: return CCSP_TYPE_TIMEDELTA;
-        case csp::CspType::Type::DATE:      return CCSP_TYPE_DATE;
-        case csp::CspType::Type::TIME:      return CCSP_TYPE_TIME;
-        case csp::CspType::Type::ENUM:      return CCSP_TYPE_ENUM;
-        case csp::CspType::Type::STRUCT:    return CCSP_TYPE_STRUCT;
-        case csp::CspType::Type::ARRAY:     return CCSP_TYPE_ARRAY;
+        case csp::CspType::Type::BOOL:            return CCSP_TYPE_BOOL;
+        case csp::CspType::Type::INT8:            return CCSP_TYPE_INT8;
+        case csp::CspType::Type::UINT8:           return CCSP_TYPE_UINT8;
+        case csp::CspType::Type::INT16:           return CCSP_TYPE_INT16;
+        case csp::CspType::Type::UINT16:          return CCSP_TYPE_UINT16;
+        case csp::CspType::Type::INT32:           return CCSP_TYPE_INT32;
+        case csp::CspType::Type::UINT32:          return CCSP_TYPE_UINT32;
+        case csp::CspType::Type::INT64:           return CCSP_TYPE_INT64;
+        case csp::CspType::Type::UINT64:          return CCSP_TYPE_UINT64;
+        case csp::CspType::Type::DOUBLE:          return CCSP_TYPE_DOUBLE;
+        case csp::CspType::Type::STRING:          return CCSP_TYPE_STRING;
+        case csp::CspType::Type::DATETIME:        return CCSP_TYPE_DATETIME;
+        case csp::CspType::Type::TIMEDELTA:       return CCSP_TYPE_TIMEDELTA;
+        case csp::CspType::Type::DATE:            return CCSP_TYPE_DATE;
+        case csp::CspType::Type::TIME:            return CCSP_TYPE_TIME;
+        case csp::CspType::Type::ENUM:            return CCSP_TYPE_ENUM;
+        case csp::CspType::Type::STRUCT:          return CCSP_TYPE_STRUCT;
+        case csp::CspType::Type::ARRAY:           return CCSP_TYPE_ARRAY;
         case csp::CspType::Type::DIALECT_GENERIC: return CCSP_TYPE_DIALECT_GENERIC;
-        default: return CCSP_TYPE_UNKNOWN;
+        default:                                  return CCSP_TYPE_UNKNOWN;
     }
 }
 
@@ -171,8 +171,8 @@ CCspDateTime ccsp_input_get_last_time( CCspInputHandle input )
 }
 
 CCspErrorCode ccsp_input_get_last_string( CCspInputHandle input,
-                                           const char ** out_data,
-                                           size_t * out_length )
+                                          const char ** out_data,
+                                          size_t * out_length )
 {
     if( !input || !out_data || !out_length )
     {

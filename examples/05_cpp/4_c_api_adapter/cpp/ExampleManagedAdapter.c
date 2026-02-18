@@ -16,14 +16,14 @@
 
 static const char * managed_adapter_name( void * user_data )
 {
-    ManagedAdapterState * state = ( ManagedAdapterState * )user_data;
+    ManagedAdapterState * state = ( ManagedAdapterState * ) user_data;
     return state -> name;
 }
 
 static void managed_adapter_start( void * user_data, CCspAdapterManagerHandle manager,
                                    CCspDateTime start_time, CCspDateTime end_time )
 {
-    ManagedAdapterState * state = ( ManagedAdapterState * )user_data;
+    ManagedAdapterState * state = ( ManagedAdapterState * ) user_data;
     state -> manager = manager;
     state -> is_started = 1;
     state -> message_count = 0;
@@ -42,7 +42,7 @@ static void managed_adapter_start( void * user_data, CCspAdapterManagerHandle ma
 
 static void managed_adapter_stop( void * user_data )
 {
-    ManagedAdapterState * state = ( ManagedAdapterState * )user_data;
+    ManagedAdapterState * state = ( ManagedAdapterState * ) user_data;
 
     printf( "[%s] Manager stopped. Total messages: %d\n",
             state -> name, state -> message_count );
@@ -50,8 +50,7 @@ static void managed_adapter_stop( void * user_data )
     state -> is_started = 0;
 }
 
-static CCspDateTime managed_adapter_process_next_sim_time_slice( void * user_data,
-                                                                 CCspDateTime time )
+static CCspDateTime managed_adapter_process_next_sim_time_slice( void * user_data, CCspDateTime time )
 {
     /* This example is realtime-only, so we return 0 (no more sim data) */
     ( void )user_data;
@@ -61,14 +60,14 @@ static CCspDateTime managed_adapter_process_next_sim_time_slice( void * user_dat
 
 static void managed_adapter_destroy( void * user_data )
 {
-    ManagedAdapterState * state = ( ManagedAdapterState * )user_data;
+    ManagedAdapterState * state = ( ManagedAdapterState * ) user_data;
     printf( "[%s] Manager destroyed\n", state -> name );
     free( state );
 }
 
 CCspAdapterManagerVTable example_managed_adapter_create( const char * name )
 {
-    ManagedAdapterState * state = ( ManagedAdapterState * )malloc( sizeof( ManagedAdapterState ) );
+    ManagedAdapterState * state = ( ManagedAdapterState * ) malloc( sizeof( ManagedAdapterState ) );
     if( !state )
     {
         CCspAdapterManagerVTable empty = {0};
@@ -100,10 +99,9 @@ CCspAdapterManagerVTable example_managed_adapter_create( const char * name )
  * Managed Output Adapter Callbacks
  * ============================================================================ */
 
-static void managed_output_start( void * user_data, CCspEngineHandle engine,
-                                  CCspDateTime start_time, CCspDateTime end_time )
+static void managed_output_start( void * user_data, CCspEngineHandle engine, CCspDateTime start_time, CCspDateTime end_time )
 {
-    ManagedOutputState * state = ( ManagedOutputState * )user_data;
+    ManagedOutputState * state = ( ManagedOutputState * ) user_data;
     ( void )engine;
     ( void )start_time;
     ( void )end_time;
@@ -115,15 +113,14 @@ static void managed_output_start( void * user_data, CCspEngineHandle engine,
 
 static void managed_output_stop( void * user_data )
 {
-    ManagedOutputState * state = ( ManagedOutputState * )user_data;
+    ManagedOutputState * state = ( ManagedOutputState * ) user_data;
     printf( "  [%s/%s] Output adapter stopped. Messages sent: %d\n",
             state -> shared -> name, state -> topic, state -> messages_sent );
 }
 
-static void managed_output_execute( void * user_data, CCspEngineHandle engine,
-                                    CCspInputHandle input )
+static void managed_output_execute( void * user_data, CCspEngineHandle engine, CCspInputHandle input )
 {
-    ManagedOutputState * state = ( ManagedOutputState * )user_data;
+    ManagedOutputState * state = ( ManagedOutputState * ) user_data;
 
     if( !ccsp_input_is_valid( input ) )
     {
@@ -146,7 +143,7 @@ static void managed_output_execute( void * user_data, CCspEngineHandle engine,
             int64_t value;
             if( ccsp_input_get_last_int64( input, &value ) == CCSP_OK )
             {
-                printf( "int64: %lld\n", ( long long )value );
+                printf( "int64: %lld\n", ( long long ) value );
             }
             break;
         }
@@ -165,7 +162,7 @@ static void managed_output_execute( void * user_data, CCspEngineHandle engine,
             size_t length;
             if( ccsp_input_get_last_string( input, &data, &length ) == CCSP_OK )
             {
-                printf( "string: \"%.*s\"\n", ( int )length, data );
+                printf( "string: \"%.*s\"\n", ( int ) length, data );
             }
             break;
         }
@@ -180,15 +177,13 @@ static void managed_output_execute( void * user_data, CCspEngineHandle engine,
 
 static void managed_output_destroy( void * user_data )
 {
-    ManagedOutputState * state = ( ManagedOutputState * )user_data;
+    ManagedOutputState * state = ( ManagedOutputState * ) user_data;
     printf( "  [%s/%s] Output adapter destroyed\n",
             state -> shared -> name, state -> topic );
     free( state );
 }
 
-CCspOutputAdapterVTable example_managed_output_adapter_create(
-    ManagedAdapterState * shared_state,
-    const char * topic )
+CCspOutputAdapterVTable example_managed_output_adapter_create( ManagedAdapterState * shared_state, const char * topic )
 {
     CCspOutputAdapterVTable vtable = {0};
 
@@ -197,7 +192,7 @@ CCspOutputAdapterVTable example_managed_output_adapter_create(
         return vtable;
     }
 
-    ManagedOutputState * state = ( ManagedOutputState * )malloc( sizeof( ManagedOutputState ) );
+    ManagedOutputState * state = ( ManagedOutputState * ) malloc( sizeof( ManagedOutputState ) );
     if( !state )
     {
         return vtable;

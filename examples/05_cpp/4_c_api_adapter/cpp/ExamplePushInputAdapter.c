@@ -36,7 +36,7 @@ typedef struct {
 
 static void * int_adapter_thread( void * arg )
 {
-    IntAdapterState * state = ( IntAdapterState * )arg;
+    IntAdapterState * state = ( IntAdapterState * ) arg;
 
     while( state -> running )
     {
@@ -59,29 +59,27 @@ static void int_adapter_start( void * user_data, CCspEngineHandle engine,
                                CCspPushInputAdapterHandle adapter,
                                CCspDateTime start_time, CCspDateTime end_time )
 {
-    IntAdapterState * state = ( IntAdapterState * )user_data;
-    ( void )engine;
-    ( void )start_time;
-    ( void )end_time;
+    IntAdapterState * state = ( IntAdapterState * ) user_data;
+    ( void ) engine;
+    ( void ) start_time;
+    ( void ) end_time;
 
     state -> adapter = adapter;
     state -> running = 1;
     state -> counter = 0;
 
 #ifdef _WIN32
-    state -> thread = CreateThread( NULL, 0, ( LPTHREAD_START_ROUTINE )int_adapter_thread,
-                                    state, 0, NULL );
+    state -> thread = CreateThread( NULL, 0, ( LPTHREAD_START_ROUTINE )int_adapter_thread, state, 0, NULL );
 #else
     pthread_create( &state -> thread, NULL, int_adapter_thread, state );
 #endif
 
-    fprintf( stdout, "[ExampleIntInputAdapter] Started with interval %d ms\n",
-             state -> interval_ms );
+    fprintf( stdout, "[ExampleIntInputAdapter] Started with interval %d ms\n", state -> interval_ms );
 }
 
 static void int_adapter_stop( void * user_data )
 {
-    IntAdapterState * state = ( IntAdapterState * )user_data;
+    IntAdapterState * state = ( IntAdapterState * ) user_data;
     state -> running = 0;
 
 #ifdef _WIN32
@@ -91,13 +89,12 @@ static void int_adapter_stop( void * user_data )
     pthread_join( state -> thread, NULL );
 #endif
 
-    fprintf( stdout, "[ExampleIntInputAdapter] Stopped after %lld values\n",
-             ( long long )state -> counter );
+    fprintf( stdout, "[ExampleIntInputAdapter] Stopped after %lld values\n", ( long long ) state -> counter );
 }
 
 static void int_adapter_destroy( void * user_data )
 {
-    IntAdapterState * state = ( IntAdapterState * )user_data;
+    IntAdapterState * state = ( IntAdapterState * ) user_data;
     free( state );
 }
 
@@ -139,7 +136,7 @@ typedef struct {
 
 static void * double_adapter_thread( void * arg )
 {
-    DoubleAdapterState * state = ( DoubleAdapterState * )arg;
+    DoubleAdapterState * state = ( DoubleAdapterState * ) arg;
 
     while( state -> running )
     {
@@ -161,17 +158,16 @@ static void double_adapter_start( void * user_data, CCspEngineHandle engine,
                                   CCspPushInputAdapterHandle adapter,
                                   CCspDateTime start_time, CCspDateTime end_time )
 {
-    DoubleAdapterState * state = ( DoubleAdapterState * )user_data;
-    ( void )engine;
-    ( void )start_time;
-    ( void )end_time;
+    DoubleAdapterState * state = ( DoubleAdapterState * ) user_data;
+    ( void ) engine;
+    ( void ) start_time;
+    ( void ) end_time;
 
     state -> adapter = adapter;
     state -> running = 1;
 
 #ifdef _WIN32
-    state -> thread = CreateThread( NULL, 0, ( LPTHREAD_START_ROUTINE )double_adapter_thread,
-                                    state, 0, NULL );
+    state -> thread = CreateThread( NULL, 0, ( LPTHREAD_START_ROUTINE ) double_adapter_thread, state, 0, NULL );
 #else
     pthread_create( &state -> thread, NULL, double_adapter_thread, state );
 #endif
@@ -181,7 +177,7 @@ static void double_adapter_start( void * user_data, CCspEngineHandle engine,
 
 static void double_adapter_stop( void * user_data )
 {
-    DoubleAdapterState * state = ( DoubleAdapterState * )user_data;
+    DoubleAdapterState * state = ( DoubleAdapterState * ) user_data;
     state -> running = 0;
 
 #ifdef _WIN32
@@ -196,7 +192,7 @@ static void double_adapter_stop( void * user_data )
 
 static void double_adapter_destroy( void * user_data )
 {
-    DoubleAdapterState * state = ( DoubleAdapterState * )user_data;
+    DoubleAdapterState * state = ( DoubleAdapterState * ) user_data;
     free( state );
 }
 
@@ -204,7 +200,7 @@ CCspPushInputAdapterVTable example_push_input_adapter_create_double( int interva
 {
     CCspPushInputAdapterVTable vtable = {0};
 
-    DoubleAdapterState * state = ( DoubleAdapterState * )malloc( sizeof( DoubleAdapterState ) );
+    DoubleAdapterState * state = ( DoubleAdapterState * ) malloc( sizeof( DoubleAdapterState ) );
     if( !state )
     {
         return vtable;
@@ -235,10 +231,10 @@ static void string_adapter_start( void * user_data, CCspEngineHandle engine,
                                   CCspPushInputAdapterHandle adapter,
                                   CCspDateTime start_time, CCspDateTime end_time )
 {
-    StringAdapterState * state = ( StringAdapterState * )user_data;
-    ( void )engine;
-    ( void )start_time;
-    ( void )end_time;
+    StringAdapterState * state = ( StringAdapterState * ) user_data;
+    ( void ) engine;
+    ( void ) start_time;
+    ( void ) end_time;
 
     state -> adapter = adapter;
     fprintf( stdout, "[ExampleStringInputAdapter] Started\n" );
@@ -252,16 +248,15 @@ static void string_adapter_stop( void * user_data )
 
 static void string_adapter_destroy( void * user_data )
 {
-    StringAdapterState * state = ( StringAdapterState * )user_data;
+    StringAdapterState * state = ( StringAdapterState * ) user_data;
     free( state );
 }
 
-CCspPushInputAdapterVTable example_push_input_adapter_create_string(
-    ExampleStringCallback get_string, void * user_data )
+CCspPushInputAdapterVTable example_push_input_adapter_create_string( ExampleStringCallback get_string, void * user_data )
 {
     CCspPushInputAdapterVTable vtable = {0};
 
-    StringAdapterState * state = ( StringAdapterState * )malloc( sizeof( StringAdapterState ) );
+    StringAdapterState * state = ( StringAdapterState * ) malloc( sizeof( StringAdapterState ) );
     if( !state )
     {
         return vtable;

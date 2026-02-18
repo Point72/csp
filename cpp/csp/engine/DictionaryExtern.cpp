@@ -361,8 +361,7 @@ CCspErrorCode ccsp_dictionary_get_timedelta( CCspDictionaryHandle dict, const ch
     }
 }
 
-CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char * key,
-                                          const char ** out_data, size_t * out_length )
+CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char * key, const char ** out_data, size_t * out_length )
 {
     if( !dict || !key || !out_data || !out_length )
     {
@@ -395,8 +394,7 @@ CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char 
     }
 }
 
-CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * key,
-                                        CCspDictionaryHandle * out_dict )
+CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * key, CCspDictionaryHandle * out_dict )
 {
     if( !dict || !key || !out_dict )
     {
@@ -548,8 +546,7 @@ CCspTimeDelta ccsp_dictionary_get_timedelta_or( CCspDictionaryHandle dict, const
     }
 }
 
-const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const char * key,
-                                            const char * default_value, size_t * out_length )
+const char * ccsp_dictionary_get_string_or( CCspDictionaryHandle dict, const char * key, const char * default_value, size_t * out_length )
 {
     if( !dict || !key )
     {

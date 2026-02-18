@@ -23,26 +23,23 @@ typedef struct {
  * Callback implementations
  * ============================================================================ */
 
-static void example_output_start( void * user_data, CCspEngineHandle engine,
-                                  CCspDateTime start_time, CCspDateTime end_time )
+static void example_output_start( void * user_data, CCspEngineHandle engine, CCspDateTime start_time, CCspDateTime end_time )
 {
-    ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * )user_data;
-    ( void )engine;
+    ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * ) user_data;
+    ( void ) engine;
 
-    dprintf( state -> fd, "[ExampleOutputAdapter] Started. Time range: %lld - %lld ns\n",
-             ( long long )start_time, ( long long )end_time );
+    dprintf( state -> fd, "[ExampleOutputAdapter] Started. Time range: %lld - %lld ns\n", ( long long ) start_time, ( long long ) end_time );
 }
 
 static void example_output_stop( void * user_data )
 {
-    ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * )user_data;
+    ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * ) user_data;
     dprintf( state -> fd, "[ExampleOutputAdapter] Stopped.\n" );
 }
 
-static void example_output_execute( void * user_data, CCspEngineHandle engine,
-                                    CCspInputHandle input )
+static void example_output_execute( void * user_data, CCspEngineHandle engine, CCspInputHandle input )
 {
-    ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * )user_data;
+    ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * ) user_data;
     CCspDateTime now = ccsp_engine_now( engine );
     CCspType type = ccsp_input_get_type( input );
 
@@ -56,8 +53,7 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine,
             int8_t val;
             if( ccsp_input_get_last_bool( input, &val ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] bool: %s\n", prefix, ( long long )now,
-                         val ? "true" : "false" );
+                dprintf( state -> fd, "%s[%lld] bool: %s\n", prefix, ( long long ) now, val ? "true" : "false" );
             }
             break;
         }
@@ -66,8 +62,7 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine,
             int64_t val;
             if( ccsp_input_get_last_int64( input, &val ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] int64: %lld\n", prefix, ( long long )now,
-                         ( long long )val );
+                dprintf( state -> fd, "%s[%lld] int64: %lld\n", prefix, ( long long ) now, ( long long ) val );
             }
             break;
         }
@@ -76,7 +71,7 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine,
             double val;
             if( ccsp_input_get_last_double( input, &val ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] double: %f\n", prefix, ( long long )now, val );
+                dprintf( state -> fd, "%s[%lld] double: %f\n", prefix, ( long long ) now, val );
             }
             break;
         }
@@ -86,8 +81,7 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine,
             size_t len;
             if( ccsp_input_get_last_string( input, &data, &len ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] string: %.*s\n", prefix, ( long long )now,
-                         ( int )len, data );
+                dprintf( state -> fd, "%s[%lld] string: %.*s\n", prefix, ( long long ) now, ( int ) len, data );
             }
             break;
         }
@@ -96,20 +90,19 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine,
             CCspDateTime val;
             if( ccsp_input_get_last_datetime( input, &val ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] datetime: %lld ns\n", prefix, ( long long )now,
-                         ( long long )val );
+                dprintf( state -> fd, "%s[%lld] datetime: %lld ns\n", prefix, ( long long ) now, ( long long ) val );
             }
             break;
         }
         default:
-            dprintf( state -> fd, "%s[%lld] <type %d>\n", prefix, ( long long )now, ( int )type );
+            dprintf( state -> fd, "%s[%lld] <type %d>\n", prefix, ( long long ) now, ( int ) type );
             break;
     }
 }
 
 static void example_output_destroy( void * user_data )
 {
-    ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * )user_data;
+    ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * ) user_data;
     if( state )
     {
         if( state -> owns_prefix && state -> prefix )

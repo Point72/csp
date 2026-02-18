@@ -93,9 +93,7 @@ DateTime AdapterManagerExtern::processNextSimTimeSlice( DateTime time )
 
 extern "C" {
 
-CCspAdapterManagerHandle ccsp_adapter_manager_extern_create(
-    CCspEngineHandle engine,
-    const CCspAdapterManagerVTable * vtable )
+CCspAdapterManagerHandle ccsp_adapter_manager_extern_create( CCspEngineHandle engine, const CCspAdapterManagerVTable * vtable )
 {
     if( !engine || !vtable )
     {
@@ -144,10 +142,7 @@ CCspDateTime ccsp_adapter_manager_end_time( CCspAdapterManagerHandle manager )
     return m -> endtime().asNanoseconds();
 }
 
-CCspOutputAdapterHandle ccsp_adapter_manager_create_output_adapter(
-    CCspAdapterManagerHandle manager,
-    CCspType input_type,
-    const CCspOutputAdapterVTable * vtable )
+CCspOutputAdapterHandle ccsp_adapter_manager_create_output_adapter( CCspAdapterManagerHandle manager, CCspType input_type, const CCspOutputAdapterVTable * vtable )
 {
     if( !manager || !vtable )
     {
@@ -193,11 +188,7 @@ CCspOutputAdapterHandle ccsp_adapter_manager_create_output_adapter(
     }
 }
 
-CCspErrorCode ccsp_adapter_manager_push_status(
-    CCspAdapterManagerHandle manager,
-    CCspStatusLevel level,
-    int64_t err_code,
-    const char * message )
+CCspErrorCode ccsp_adapter_manager_push_status( CCspAdapterManagerHandle manager, CCspStatusLevel level, int64_t err_code, const char * message )
 {
     if( !manager )
     {
@@ -220,10 +211,7 @@ CCspErrorCode ccsp_adapter_manager_push_status(
 }
 
 // TODO: Implement these when ManagedSimInputAdapter extern support is added
-CCspManagedSimInputAdapterHandle ccsp_adapter_manager_create_managed_sim_input_adapter(
-    CCspAdapterManagerHandle manager,
-    CCspType type,
-    CCspPushMode push_mode )
+CCspManagedSimInputAdapterHandle ccsp_adapter_manager_create_managed_sim_input_adapter( CCspAdapterManagerHandle manager, CCspType type, CCspPushMode push_mode )
 {
     ccsp_set_error( CCSP_ERROR_NOT_IMPLEMENTED, "managed sim input adapter not yet implemented" );
     return nullptr;
@@ -260,11 +248,7 @@ CCspErrorCode ccsp_managed_sim_input_adapter_push_datetime( CCspManagedSimInputA
 }
 
 // Push input adapter creation from manager
-CCspPushInputAdapterHandle ccsp_adapter_manager_create_push_input_adapter(
-    CCspAdapterManagerHandle manager,
-    CCspType type,
-    CCspPushMode push_mode,
-    const CCspPushInputAdapterVTable * vtable )
+CCspPushInputAdapterHandle ccsp_adapter_manager_create_push_input_adapter( CCspAdapterManagerHandle manager, CCspType type, CCspPushMode push_mode, const CCspPushInputAdapterVTable * vtable )
 {
     // For now, delegate to the standalone creation
     // In a full implementation, the manager would track these adapters
@@ -275,7 +259,7 @@ CCspPushInputAdapterHandle ccsp_adapter_manager_create_push_input_adapter(
     }
 
     auto * m = reinterpret_cast<csp::AdapterManagerExtern *>( manager );
-    (void)m;  // Currently unused - will be used when implemented
+    ( void ) m;  // Currently unused - will be used when implemented
 
     // Use the standalone push input adapter creation
     // This is a simplification - full implementation would track adapters

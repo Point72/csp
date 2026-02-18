@@ -769,8 +769,11 @@ _managed_output_def = output_adapter_def(
 #### Use Managed Adapters in Your Graph
 
 ```python
+from datetime import timedelta
+
 import csp
-from datetime import datetime, timedelta
+from csp.utils.datetime import utc_now
+
 from my_adapter import MyAdapterManager
 
 @csp.graph
@@ -782,14 +785,17 @@ def my_graph():
     data = mgr.subscribe(int, interval_ms=100)
     mgr.publish(data)
 
-csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10))
+csp.run(my_graph, starttime=utc_now(), endtime=timedelta(seconds=10))
 ```
 
 #### Use in Your Graph
 
 ```python
+from datetime import timedelta
+
 import csp
-from datetime import datetime, timedelta
+from csp.utils.datetime import utc_now
+
 from my_adapter import my_input, LogAdapter
 
 @csp.graph
@@ -797,7 +803,7 @@ def my_graph():
     data = my_input(int, interval_ms=100)
     LogAdapter(data, prefix="[MyApp] ")
 
-csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=10))
+csp.run(my_graph, starttime=utc_now(), endtime=timedelta(seconds=10))
 ```
 
 ## See Also

@@ -148,7 +148,11 @@ my_output_adapter = output_adapter_def(
 ## Usage from Python
 
 ```python
+from datetime import timedelta
+
 import csp
+from csp.utils.datetime import utc_now
+
 from exampleadapter import example_input, example_output
 
 @csp.graph
@@ -159,7 +163,7 @@ def my_graph():
     # Output to stdout with a prefix
     example_output(data, prefix="[MyApp] ")
 
-csp.run(my_graph, starttime=datetime.utcnow(), endtime=timedelta(seconds=5))
+csp.run(my_graph, starttime=utc_now(), endtime=timedelta(seconds=5))
 ```
 
 ## API Headers

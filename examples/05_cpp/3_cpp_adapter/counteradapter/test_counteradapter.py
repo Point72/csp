@@ -1,12 +1,13 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import csp
+from csp.utils.datetime import utc_now
 
 from .__main__ import counter_graph
 
 
 def test_counteradapter():
-    start = datetime.utcnow()
+    start = utc_now()
     end = start + timedelta(seconds=2)
 
     result = csp.run(counter_graph, starttime=start, endtime=end, realtime=True)

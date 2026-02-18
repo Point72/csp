@@ -18,6 +18,11 @@ find_library(CSP_LIBRARY NAMES _cspimpl.so PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PAT
 # Position independent code for shared libraries
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# macOS: don't link against build python
+if(APPLE)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
+endif()
+
 # Shared library naming conventions
 set(CMAKE_SHARED_LIBRARY_PREFIX _)
 set(CMAKE_SHARED_LIBRARY_SUFFIX .so)

@@ -1,5 +1,5 @@
 if(CSP_BUILD_ARROW_ADAPTER)
-    add_library(arrowadapterimpl SHARED PyArrowInputAdapter.cpp ArrowInputAdapter.h)
+    add_library(arrowadapterimpl SHARED PyArrowInputAdapter.cpp ArrowCppNodes.cpp ArrowInputAdapter.h)
 
     if(WIN32)
         if(CSP_USE_VCPKG)
@@ -23,7 +23,7 @@ if(CSP_BUILD_ARROW_ADAPTER)
         endif()
     endif()
 
-    target_link_libraries(arrowadapterimpl csp_core csp_engine cspimpl ${ARROW_PACKAGES_TO_LINK})
+    target_link_libraries(arrowadapterimpl csp_core csp_engine cspimpl csp_arrow_adapter ${ARROW_PACKAGES_TO_LINK})
     target_include_directories(arrowadapterimpl PUBLIC ${ARROW_INCLUDE_DIR})
     install(TARGETS arrowadapterimpl RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR} )
 endif()

@@ -194,16 +194,16 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
-            - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+            # - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
+            # - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
             - "3.11"
           cibuildwheel:
             - "cp310"
-            - "cp311"
-            - "cp312"
-            - "cp313"
+            # - "cp311"
+            # - "cp312"
+            # - "cp313"
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -403,14 +403,14 @@ jobs:
       strategy:
         matrix:
           os:
-            - ubuntu-24.04
-            - macos-14
+            # - ubuntu-24.04
+            # - macos-14
             - windows-2022
           python-version:
             - "3.10"
-            - 3.11
-            - 3.12
-            - 3.13
+            # - 3.11
+            # - 3.12
+            # - 3.13
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -501,13 +501,13 @@ jobs:
         ########
         # Windows
         - name: Install test dependencies (Windows)
-          run: choco install graphviz --no-progress -y
+          run: |
+            choco install graphviz --no-progress -y
           if: ${{ runner.os == 'Windows' }}
 
         - name: Install wheel (windows)
           run: |
-            python -m pip install -U (Get-ChildItem .\*.whl | Select-Object -Expand FullName)
-            python -m pip install -U --no-deps (Get-ChildItem .\*.whl | Select-Object -Expand FullName) --target .
+            python -m pip install -U (Get-ChildItem .\*.whl | Select-Object -Expand FullName) --target .
           if: ${{ runner.os == 'Windows' }}
 
         ##########

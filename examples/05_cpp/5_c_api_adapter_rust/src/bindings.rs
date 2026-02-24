@@ -10,6 +10,7 @@
 use std::ffi::{c_char, c_void};
 use pyo3::prelude::*;
 use pyo3::ffi;
+use libc::{dlsym, RTLD_DEFAULT};
 
 /// CSP DateTime type (nanoseconds since epoch)
 pub type CCspDateTime = i64;
@@ -158,11 +159,80 @@ pub struct CCspAdapterManagerVTable {
 // We use weak linking / dynamic_lookup on macOS.
 // ============================================================================
 
-// Function pointer types for CSP C API
-pub type FnCcspEngineNow = unsafe extern "C" fn(engine: CCspEngineHandle) -> CCspDateTime;
-pub type FnCcspInputGetType = unsafe extern "C" fn(input: CCspInputHandle) -> CCspType;
-pub type FnCcspInputGetLastInt64 = unsafe extern "C" fn(input: CCspInputHandle, out: *mut i64) -> CCspErrorCode;
-pub type FnCcspPushInt64 = unsafe extern "C" fn(adapter: CCspPushInputAdapterHandle, value: i64, batch: *mut c_void) -> CCspErrorCode;
+type FnCcspEngineNow = unsafe extern "C" fn(engine: CCspEngineHandle) -> CCspDateTime;
+type FnCcspInputGetType = unsafe extern "C" fn(input: CCspInputHandle) -> CCspType;
+type FnCcspInputGetLastBool = unsafe extern "C" fn(input: CCspInputHandle, out: *mut i8) -> CCspErrorCode;
+type FnCcspInputGetLastInt64 = unsafe extern "C" fn(input: CCspInputHandle, out: *mut i64) -> CCspErrorCode;
+type FnCcspInputGetLastDouble = unsafe extern "C" fn(input: CCspInputHandle, out: *mut f64) -> CCspErrorCode;
+type FnCcspInputGetLastString = unsafe extern "C" fn(
+    input: CCspInputHandle,
+    out_data: *mut *const c_char,
+    out_length: *mut usize,
+) -> CCspErrorCode;
+type FnCcspInputGetLastDatetime = unsafe extern "C" fn(
+    input: CCspInputHandle,
+    out: *mut CCspDateTime,
+) -> CCspErrorCode;
+type FnCcspPushInputAdapterPushInt64 = unsafe extern "C" fn(
+    adapter: CCspPushInputAdapterHandle,
+    value: i64,
+    batch: *mut c_void,
+) -> CCspErrorCode;
+
+unsafe fn resolve_symbol<T: Copy>(name: &'static [u8]) -> Option<T> {
+    let symbol = dlsym(RTLD_DEFAULT, name.as_ptr() as *const c_char);
+    if symbol.is_null() {
+        None
+    } else {
+        Some(std::mem::transmute_copy(&symbol))
+    }
+}
+
+pub unsafe fn csp_engine_now(engine: CCspEngineHandle) -> Option<CCspDateTime> {
+    resolve_symbol::<FnCcspEngineNow>(b"ccsp_engine_now\0").map(|f| f(engine))
+}
+
+pub unsafe fn csp_input_get_type(input: CCspInputHandle) -> Option<CCspType> {
+    resolve_symbol::<FnCcspInputGetType>(b"ccsp_input_get_type\0").map(|f| f(input))
+}
+
+pub unsafe fn csp_input_get_last_bool(input: CCspInputHandle, out: *mut i8) -> Option<CCspErrorCode> {
+    resolve_symbol::<FnCcspInputGetLastBool>(b"ccsp_input_get_last_bool\0").map(|f| f(input, out))
+}
+
+pub unsafe fn csp_input_get_last_int64(input: CCspInputHandle, out: *mut i64) -> Option<CCspErrorCode> {
+    resolve_symbol::<FnCcspInputGetLastInt64>(b"ccsp_input_get_last_int64\0").map(|f| f(input, out))
+}
+
+pub unsafe fn csp_input_get_last_double(input: CCspInputHandle, out: *mut f64) -> Option<CCspErrorCode> {
+    resolve_symbol::<FnCcspInputGetLastDouble>(b"ccsp_input_get_last_double\0").map(|f| f(input, out))
+}
+
+pub unsafe fn csp_input_get_last_string(
+    input: CCspInputHandle,
+    out_data: *mut *const c_char,
+    out_length: *mut usize,
+) -> Option<CCspErrorCode> {
+    resolve_symbol::<FnCcspInputGetLastString>(b"ccsp_input_get_last_string\0")
+        .map(|f| f(input, out_data, out_length))
+}
+
+pub unsafe fn csp_input_get_last_datetime(
+    input: CCspInputHandle,
+    out: *mut CCspDateTime,
+) -> Option<CCspErrorCode> {
+    resolve_symbol::<FnCcspInputGetLastDatetime>(b"ccsp_input_get_last_datetime\0")
+        .map(|f| f(input, out))
+}
+
+pub unsafe fn csp_push_input_adapter_push_int64(
+    adapter: CCspPushInputAdapterHandle,
+    value: i64,
+    batch: *mut c_void,
+) -> Option<CCspErrorCode> {
+    resolve_symbol::<FnCcspPushInputAdapterPushInt64>(b"ccsp_push_input_adapter_push_int64\0")
+        .map(|f| f(adapter, value, batch))
+}
 
 // ============================================================================
 // Capsule creation helpers

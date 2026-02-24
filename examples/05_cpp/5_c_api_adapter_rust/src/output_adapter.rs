@@ -3,17 +3,21 @@
 //! This module demonstrates how to implement a CSP output adapter in Rust
 //! using the C API FFI bindings.
 //!
-//! Note: The actual value retrieval requires the CSP C API symbols to be available
-//! at runtime. When built standalone, the execute callback logs that it was invoked
-//! but cannot access the actual values.
+//! The adapter receives values from the CSP graph and prints them to stderr,
+//! demonstrating how to use the C API to retrieve typed values.
 
-use std::ffi::c_void;
+use std::ffi::{c_char, c_void};
+use std::slice;
+use std::str;
 
 use crate::bindings::{
-    CCspDateTime, CCspEngineHandle, CCspInputHandle,
+    csp_engine_now, csp_input_get_last_bool, csp_input_get_last_datetime,
+    csp_input_get_last_double, csp_input_get_last_int64, csp_input_get_last_string,
+    csp_input_get_type, CCspDateTime, CCspEngineHandle, CCspErrorCode, CCspInputHandle,
+    CCspType,
 };
 
-/// Output adapter that prints values to stdout.
+/// Output adapter that prints values to stderr.
 ///
 /// This adapter is called by CSP whenever the input time series ticks.
 /// It retrieves the latest value and prints it with an optional prefix.
@@ -54,24 +58,77 @@ impl RustOutputAdapter {
     /// # Safety
     ///
     /// The engine and input handles must be valid.
-    ///
-    /// Note: In a full implementation with CSP C API symbols linked, this would
-    /// call ccsp_engine_now, ccsp_input_get_type, and ccsp_input_get_last_* to
-    /// retrieve and print the actual values.
     pub unsafe fn execute(&mut self, engine: CCspEngineHandle, input: CCspInputHandle) {
         let prefix = self.prefix.as_deref().unwrap_or("");
 
         self.count += 1;
 
-        // Note: Without CSP C API symbols, we can only log that execute was called.
-        // In a full implementation, we would call:
-        //   let now = ccsp_engine_now(engine);
-        //   let input_type = ccsp_input_get_type(input);
-        //   ccsp_input_get_last_int64/double/bool/string(input, &mut value)
-        eprintln!(
-            "{}[RustOutputAdapter] execute called (count={}, engine={:?}, input={:?})",
-            prefix, self.count, engine, input
-        );
+        // Get current engine time
+        let now = match csp_engine_now(engine) {
+            Some(value) => value,
+            None => {
+                eprintln!("{}[RustOutputAdapter] CSP symbol missing: ccsp_engine_now", prefix);
+                return;
+            }
+        };
+
+        // Get the type of the input
+        let input_type = match csp_input_get_type(input) {
+            Some(value) => value,
+            None => {
+                eprintln!("{}[RustOutputAdapter] CSP symbol missing: ccsp_input_get_type", prefix);
+                return;
+            }
+        };
+
+        // Retrieve and print the value based on type
+        match input_type {
+            CCspType::Bool => {
+                let mut value: i8 = 0;
+                if csp_input_get_last_bool(input, &mut value) == Some(CCspErrorCode::Ok) {
+                    eprintln!(
+                        "{}[{}] bool: {}",
+                        prefix,
+                        now,
+                        if value != 0 { "true" } else { "false" }
+                    );
+                }
+            }
+            CCspType::Int64 => {
+                let mut value: i64 = 0;
+                if csp_input_get_last_int64(input, &mut value) == Some(CCspErrorCode::Ok) {
+                    eprintln!("{}[{}] int64: {}", prefix, now, value);
+                }
+            }
+            CCspType::Double => {
+                let mut value: f64 = 0.0;
+                if csp_input_get_last_double(input, &mut value) == Some(CCspErrorCode::Ok) {
+                    eprintln!("{}[{}] double: {}", prefix, now, value);
+                }
+            }
+            CCspType::String => {
+                let mut data: *const c_char = std::ptr::null();
+                let mut len: usize = 0;
+                if csp_input_get_last_string(input, &mut data, &mut len) == Some(CCspErrorCode::Ok)
+                    && !data.is_null() && len > 0 {
+                        let bytes = slice::from_raw_parts(data as *const u8, len);
+                        if let Ok(s) = str::from_utf8(bytes) {
+                            eprintln!("{}[{}] string: {}", prefix, now, s);
+                        } else {
+                            eprintln!("{}[{}] string: <invalid utf8>", prefix, now);
+                        }
+                    }
+            }
+            CCspType::DateTime => {
+                let mut value: CCspDateTime = 0;
+                if csp_input_get_last_datetime(input, &mut value) == Some(CCspErrorCode::Ok) {
+                    eprintln!("{}[{}] datetime: {} ns", prefix, now, value);
+                }
+            }
+            _ => {
+                eprintln!("{}[{}] <type {:?}>", prefix, now, input_type);
+            }
+        }
     }
 }
 

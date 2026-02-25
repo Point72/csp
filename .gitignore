@@ -99,6 +99,7 @@ target/
 lib/
 lib64/
 csp/bin/
+csp/cmake/
 csp/include/
 csp/lib/
 *.so

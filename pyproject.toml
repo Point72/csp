@@ -61,6 +61,10 @@ develop = [
     # build/dist
     "bump-my-version",
     "build",
+    "hatchling",
+    "hatch-build",
+    "hatch-cpp",
+    "hatch-rs",
     "ruamel.yaml",
     "scikit-build",
     "twine",

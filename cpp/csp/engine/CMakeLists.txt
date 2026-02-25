@@ -18,6 +18,21 @@ set(CSP_TYPES_SOURCE_FILES
         TypeCast.h
 )
 
+# C API headers (ABI-stable interface)
+set(CSP_C_API_HEADERS
+        c/CspExport.h
+        c/CspError.h
+        c/CspTime.h
+        c/CspString.h
+        c/CspType.h
+        c/CspValue.h
+        c/CspDictionary.h
+        c/CspStruct.h
+        c/OutputAdapter.h
+        c/InputAdapter.h
+        c/AdapterManager.h
+)
+
 set(ENGINE_PUBLIC_HEADERS
         ${ENGINE_AUTOGEN_HEADER}
         AdapterManager.h
@@ -39,12 +54,15 @@ set(ENGINE_PUBLIC_HEADERS
         InputId.h
         Node.h
         OutputAdapter.h
+        OutputAdapterExtern.h
+        AdapterManagerExtern.h
         PendingPushEvents.h
         Profiler.h
         PushPullEvent.h
         PushEvent.h
         PullInputAdapter.h
         PushInputAdapter.h
+        PushInputAdapterExtern.h
         PushPullInputAdapter.h
         RootEngine.h
         Scheduler.h
@@ -73,6 +91,11 @@ set(ENGINE_SOURCE_FILES
         InputAdapter.cpp
         Node.cpp
         OutputAdapter.cpp
+        OutputAdapterExtern.cpp
+        AdapterManagerExtern.cpp
+        DictionaryExtern.cpp
+        StructExtern.cpp
+        PushInputAdapterExtern.cpp
         PendingPushEvents.cpp
         PushPullInputAdapter.cpp
         RootEngine.cpp
@@ -92,6 +115,9 @@ set_target_properties(csp_engine PROPERTIES PUBLIC_HEADER "${ENGINE_PUBLIC_HEADE
 target_link_libraries(csp_engine csp_core csp_types)
 
 install(FILES ${CSP_TYPES_PUBLIC_HEADERS} ${ENGINE_PUBLIC_HEADERS} DESTINATION include/csp/engine)
+
+# Install C API headers separately for external adapter compilation
+install(FILES ${CSP_C_API_HEADERS} DESTINATION include/csp/engine/c)
 
 install(TARGETS csp_types csp_engine
         PUBLIC_HEADER DESTINATION include/csp/engine

@@ -52,6 +52,11 @@ if(NOT DEFINED CSP_CMAKE_MODULE_PATH)
 endif()
 list(PREPEND CMAKE_MODULE_PATH "${CSP_CMAKE_MODULE_PATH}")
 
+# Add meta-target for cmake modules and install them with the package
+add_library(csp_cmake_modules INTERFACE)
+target_include_directories(csp_cmake_modules INTERFACE "${CMAKE_SOURCE_DIR}/cpp/cmake/modules")
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/cpp/cmake/modules" DESTINATION "cmake/modules")
+
 ###################################################################################################################################################
 # Build Configuration #
 #######################

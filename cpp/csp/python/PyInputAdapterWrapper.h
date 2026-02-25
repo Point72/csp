@@ -36,7 +36,6 @@ private:
 #define REGISTER_INPUT_ADAPTER( METHOD_NAME, CREATOR_FUNC ) \
     static PyObject * create_##METHOD_NAME( PyObject *, PyObject * args ) { return PyInputAdapterWrapper::createAdapter( CREATOR_FUNC, args ); } \
     REGISTER_MODULE_METHOD( #METHOD_NAME, create_##METHOD_NAME, METH_VARARGS, #METHOD_NAME );
-
 }
 
 #endif

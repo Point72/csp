@@ -83,14 +83,11 @@ std::vector<std::shared_ptr<::arrow::RecordBatch>> StructToRecordBatchConverter:
     {
         int64_t chunkRows = std::min( maxBatchSize, totalRows - offset );
 
+        // Columnar write: reserve + writeAll per column keeps builder memory cache-hot
         for( auto & writer : m_writers )
-            writer -> reserve( chunkRows );
-
-        for( int64_t i = offset; i < offset + chunkRows; ++i )
         {
-            const Struct * rawPtr = structs[i].get();
-            for( auto & writer : m_writers )
-                writer -> writeNext( rawPtr );
+            writer -> reserve( chunkRows );
+            writer -> writeAll( structs, offset, chunkRows );
         }
 
         std::vector<std::shared_ptr<::arrow::Array>> arrays;

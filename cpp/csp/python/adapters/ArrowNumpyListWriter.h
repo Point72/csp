@@ -35,7 +35,7 @@ namespace csp::python
 // Callback to extract shape from an NDArray: returns vector of dimension sizes.
 using ShapeCallback = std::function<std::vector<int64_t>( DialectGenericType ndarray )>;
 
-namespace
+namespace numpy
 {
 
 // Helper macro for arrow status checks
@@ -274,7 +274,7 @@ private:
 
 #undef ARROW_OK_OR_THROW_WRITER
 
-} // anonymous namespace
+} // namespace numpy
 
 // Create a FieldWriter for a 1D numpy array field
 inline std::unique_ptr<csp::adapters::arrow::FieldWriter> createNumpyArrayWriter(
@@ -282,7 +282,7 @@ inline std::unique_ptr<csp::adapters::arrow::FieldWriter> createNumpyArrayWriter
     const StructFieldPtr & structField,
     int npyType )
 {
-    return dispatchListWriter( columnName, structField, npyType );
+    return numpy::dispatchListWriter( columnName, structField, npyType );
 }
 
 // Create a FieldWriter for an NDArray field (data column + dimensions column)
@@ -293,7 +293,7 @@ inline std::unique_ptr<csp::adapters::arrow::FieldWriter> createNumpyNDArrayWrit
     int npyType,
     ShapeCallback shapeCallback )
 {
-    return std::make_unique<NumpyNDArrayWriter>( columnName, dimsColumnName, structField, npyType, std::move( shapeCallback ) );
+    return std::make_unique<numpy::NumpyNDArrayWriter>( columnName, dimsColumnName, structField, npyType, std::move( shapeCallback ) );
 }
 
 } // namespace csp::python

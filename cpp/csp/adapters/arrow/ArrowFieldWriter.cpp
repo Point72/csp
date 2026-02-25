@@ -1,8 +1,9 @@
 // Concrete FieldWriter implementations for all CSP scalar types.
 //
-// Each writer extends FieldWriter directly (no intermediate base).
-// The base provides default reserve/writeNext/writeNull/finish.
-// Concrete writers only implement doWrite().
+// Fixed-length writers use UnsafeWriter<BuilderT> — a single template
+// that takes a value-extraction callable at construction (mirrors LambdaReader).
+// Variable-length writers (StringLike, Enum) and NestedStruct are separate
+// classes because they need safe Append (variable-length) or recursive logic.
 
 #include <csp/adapters/arrow/ArrowFieldWriter.h>
 #include <csp/engine/CspType.h>
@@ -14,7 +15,6 @@
 namespace csp::adapters::arrow
 {
 
-// Helper macro to check arrow Status
 #define ARROW_OK_OR_THROW( expr, msg ) \
     do { auto __s = ( expr ); if( !__s.ok() ) CSP_THROW( RuntimeException, msg << ": " << __s.ToString() ); } while(0)
 
@@ -33,6 +33,12 @@ void FieldWriter::writeNext( const Struct * s )
         writeNull();
 }
 
+void FieldWriter::writeAll( const std::vector<StructPtr> & structs, int64_t offset, int64_t count )
+{
+    for( int64_t i = offset; i < offset + count; ++i )
+        writeNext( structs[i].get() );
+}
+
 void FieldWriter::writeNull()
 {
     ARROW_OK_OR_THROW( m_builder -> AppendNull(), "Failed to append null" );
@@ -48,230 +54,145 @@ std::vector<std::shared_ptr<::arrow::Array>> FieldWriter::finish()
 namespace
 {
 
-// --- Primitive numeric writers (int/uint/double/bool) ---
+// --- Generic lambda-based writer for fixed-length types ---
+// ValueFn signature: auto(const Struct *) — returns the value to UnsafeAppend/Append.
+// Covers: all numeric primitives, bool, DateTime, TimeDelta, Time, Date.
 
-template<typename CspT, typename ArrowBuilderT>
-class PrimitiveWriter final : public FieldWriter
+template<typename ArrowBuilderT, typename ValueFn>
+class UnsafeWriter final : public FieldWriter
 {
 public:
-    PrimitiveWriter( const std::string & columnName, const StructFieldPtr & field,
-                     std::shared_ptr<ArrowBuilderT> typedBuilder )
-        : FieldWriter( columnName, field, typedBuilder, typedBuilder -> type() ),
-          m_typedBuilder( typedBuilder.get() )
+    UnsafeWriter( const std::string & columnName, const StructFieldPtr & field,
+                  std::shared_ptr<ArrowBuilderT> typedBuilder,
+                  std::shared_ptr<::arrow::DataType> dataType, ValueFn fn )
+        : FieldWriter( columnName, field, typedBuilder, std::move( dataType ) ),
+          m_typedBuilder( typedBuilder.get() ), m_fn( std::move( fn ) ) {}
+
+    void writeAll( const std::vector<StructPtr> & structs, int64_t offset, int64_t count ) override
     {
+        for( int64_t i = offset; i < offset + count; ++i )
+        {
+            const Struct * s = structs[i].get();
+            if( m_field -> isSet( s ) )
+                m_typedBuilder -> UnsafeAppend( m_fn( s ) );
+            else
+                m_typedBuilder -> UnsafeAppendNull();
+        }
     }
 
 protected:
     void doWrite( const Struct * s ) override
     {
-        ARROW_OK_OR_THROW(
-            m_typedBuilder -> Append( static_cast<typename ArrowBuilderT::value_type>( m_field -> value<CspT>( s ) ) ),
-            "Failed to append primitive value" );
+        ARROW_OK_OR_THROW( m_typedBuilder -> Append( m_fn( s ) ), "Failed to append value" );
+    }
+
+private:
+    ArrowBuilderT * m_typedBuilder;
+    ValueFn         m_fn;
+};
+
+// Factory: creates an UnsafeWriter, deducing ValueFn type, and returns CreatedFieldWriter
+template<typename ArrowBuilderT, typename ValueFn>
+CreatedFieldWriter makeUnsafeWriter( const std::string & name, const StructFieldPtr & field,
+                                     std::shared_ptr<ArrowBuilderT> builder,
+                                     std::shared_ptr<::arrow::DataType> dataType, ValueFn && fn )
+{
+    auto w = std::make_unique<UnsafeWriter<ArrowBuilderT, std::decay_t<ValueFn>>>(
+        name, field, builder, std::move( dataType ), std::forward<ValueFn>( fn ) );
+    return { std::move( w ), std::move( builder ) };
+}
+
+// Factory: primitive numeric writer (auto-creates builder from default constructor)
+template<typename CspT, typename ArrowBuilderT>
+CreatedFieldWriter makePrimitiveWriter( const std::string & name, const StructFieldPtr & f )
+{
+    auto b = std::make_shared<ArrowBuilderT>();
+    return makeUnsafeWriter( name, f, b, b -> type(), [f]( const Struct * s ) {
+        return static_cast<typename ArrowBuilderT::value_type>( f -> value<CspT>( s ) );
+    } );
+}
+
+// Factory: nanosecond-based temporal writer (DateTime, TimeDelta, Time)
+template<typename CspT, typename ArrowBuilderT>
+CreatedFieldWriter makeNanosWriter( const std::string & name, const StructFieldPtr & f,
+                                    std::shared_ptr<::arrow::DataType> dataType )
+{
+    auto b = std::make_shared<ArrowBuilderT>( dataType, ::arrow::default_memory_pool() );
+    return makeUnsafeWriter( name, f, b, std::move( dataType ), [f]( const Struct * s ) {
+        return f -> value<CspT>( s ).asNanoseconds();
+    } );
+}
+
+// --- String / Bytes writer (variable-length: needs safe Append) ---
+
+template<typename ArrowBuilderT>
+class StringLikeWriter final : public FieldWriter
+{
+public:
+    StringLikeWriter( const std::string & columnName, const StructFieldPtr & field,
+                      std::shared_ptr<::arrow::DataType> dataType )
+        : FieldWriter( columnName, field, std::make_shared<ArrowBuilderT>(), std::move( dataType ) ),
+          m_typedBuilder( static_cast<ArrowBuilderT *>( m_builder.get() ) ) {}
+
+    void writeAll( const std::vector<StructPtr> & structs, int64_t offset, int64_t count ) override
+    {
+        for( int64_t i = offset; i < offset + count; ++i )
+        {
+            const Struct * s = structs[i].get();
+            if( m_field -> isSet( s ) )
+            {
+                auto & val = m_field -> value<std::string>( s );
+                ARROW_OK_OR_THROW( m_typedBuilder -> Append( val.c_str(), val.length() ), "Failed to append string/bytes" );
+            }
+            else
+                ARROW_OK_OR_THROW( m_typedBuilder -> AppendNull(), "Failed to append null" );
+        }
+    }
+
+protected:
+    void doWrite( const Struct * s ) override
+    {
+        auto & val = m_field -> value<std::string>( s );
+        ARROW_OK_OR_THROW( m_typedBuilder -> Append( val.c_str(), val.length() ), "Failed to append string/bytes" );
     }
 
 private:
     ArrowBuilderT * m_typedBuilder;
 };
 
-// Bool specialization (BooleanBuilder::value_type != bool)
-class BoolWriter final : public FieldWriter
-{
-public:
-    BoolWriter( const std::string & columnName, const StructFieldPtr & field )
-        : FieldWriter( columnName, field,
-                       std::make_shared<::arrow::BooleanBuilder>(),
-                       ::arrow::boolean() ),
-          m_typedBuilder( static_cast<::arrow::BooleanBuilder *>( m_builder.get() ) )
-    {
-    }
-
-protected:
-    void doWrite( const Struct * s ) override
-    {
-        ARROW_OK_OR_THROW( m_typedBuilder -> Append( m_field -> value<bool>( s ) ), "Failed to append bool" );
-    }
-
-private:
-    ::arrow::BooleanBuilder * m_typedBuilder;
-};
-
-// --- String writer ---
-
-class StringWriter final : public FieldWriter
-{
-public:
-    StringWriter( const std::string & columnName, const StructFieldPtr & field )
-        : FieldWriter( columnName, field,
-                       std::make_shared<::arrow::StringBuilder>(),
-                       ::arrow::utf8() ),
-          m_typedBuilder( static_cast<::arrow::StringBuilder *>( m_builder.get() ) )
-    {
-    }
-
-protected:
-    void doWrite( const Struct * s ) override
-    {
-        auto & val = m_field -> value<std::string>( s );
-        ARROW_OK_OR_THROW( m_typedBuilder -> Append( val.c_str(), val.length() ), "Failed to append string" );
-    }
-
-private:
-    ::arrow::StringBuilder * m_typedBuilder;
-};
-
-// --- Bytes writer ---
-
-class BytesWriter final : public FieldWriter
-{
-public:
-    BytesWriter( const std::string & columnName, const StructFieldPtr & field )
-        : FieldWriter( columnName, field,
-                       std::make_shared<::arrow::BinaryBuilder>(),
-                       ::arrow::binary() ),
-          m_typedBuilder( static_cast<::arrow::BinaryBuilder *>( m_builder.get() ) )
-    {
-    }
-
-protected:
-    void doWrite( const Struct * s ) override
-    {
-        auto & val = m_field -> value<std::string>( s );
-        ARROW_OK_OR_THROW( m_typedBuilder -> Append( val.c_str(), val.length() ), "Failed to append bytes" );
-    }
-
-private:
-    ::arrow::BinaryBuilder * m_typedBuilder;
-};
-
-// --- Enum writer (writes as string) ---
+// --- Enum writer (variable-length string: CspEnum → name()) ---
 
 class EnumWriter final : public FieldWriter
 {
 public:
     EnumWriter( const std::string & columnName, const StructFieldPtr & field )
-        : FieldWriter( columnName, field,
-                       std::make_shared<::arrow::StringBuilder>(),
-                       ::arrow::utf8() ),
-          m_typedBuilder( static_cast<::arrow::StringBuilder *>( m_builder.get() ) )
+        : FieldWriter( columnName, field, std::make_shared<::arrow::StringBuilder>(), ::arrow::utf8() ),
+          m_typedBuilder( static_cast<::arrow::StringBuilder *>( m_builder.get() ) ) {}
+
+    void writeAll( const std::vector<StructPtr> & structs, int64_t offset, int64_t count ) override
     {
+        for( int64_t i = offset; i < offset + count; ++i )
+        {
+            const Struct * s = structs[i].get();
+            if( m_field -> isSet( s ) )
+            {
+                auto & n = m_field -> value<CspEnum>( s ).name();
+                ARROW_OK_OR_THROW( m_typedBuilder -> Append( n.c_str(), n.length() ), "Failed to append enum" );
+            }
+            else
+                ARROW_OK_OR_THROW( m_typedBuilder -> AppendNull(), "Failed to append null" );
+        }
     }
 
 protected:
     void doWrite( const Struct * s ) override
     {
-        auto & name = m_field -> value<CspEnum>( s ).name();
-        ARROW_OK_OR_THROW( m_typedBuilder -> Append( name.c_str(), name.length() ), "Failed to append enum" );
+        auto & n = m_field -> value<CspEnum>( s ).name();
+        ARROW_OK_OR_THROW( m_typedBuilder -> Append( n.c_str(), n.length() ), "Failed to append enum" );
     }
 
 private:
     ::arrow::StringBuilder * m_typedBuilder;
-};
-
-// --- DateTime writer (TIMESTAMP ns UTC) ---
-
-class DateTimeWriter final : public FieldWriter
-{
-public:
-    DateTimeWriter( const std::string & columnName, const StructFieldPtr & field )
-        : FieldWriter( columnName, field,
-                       std::make_shared<::arrow::TimestampBuilder>(
-                           std::make_shared<::arrow::TimestampType>( ::arrow::TimeUnit::NANO, "UTC" ),
-                           ::arrow::default_memory_pool() ),
-                       std::make_shared<::arrow::TimestampType>( ::arrow::TimeUnit::NANO, "UTC" ) ),
-          m_typedBuilder( static_cast<::arrow::TimestampBuilder *>( m_builder.get() ) )
-    {
-    }
-
-protected:
-    void doWrite( const Struct * s ) override
-    {
-        ARROW_OK_OR_THROW( m_typedBuilder -> Append( m_field -> value<DateTime>( s ).asNanoseconds() ),
-                           "Failed to append datetime" );
-    }
-
-private:
-    ::arrow::TimestampBuilder * m_typedBuilder;
-};
-
-// --- TimeDelta writer (DURATION ns) ---
-
-class TimeDeltaWriter final : public FieldWriter
-{
-public:
-    TimeDeltaWriter( const std::string & columnName, const StructFieldPtr & field )
-        : FieldWriter( columnName, field,
-                       std::make_shared<::arrow::DurationBuilder>(
-                           std::make_shared<::arrow::DurationType>( ::arrow::TimeUnit::NANO ),
-                           ::arrow::default_memory_pool() ),
-                       std::make_shared<::arrow::DurationType>( ::arrow::TimeUnit::NANO ) ),
-          m_typedBuilder( static_cast<::arrow::DurationBuilder *>( m_builder.get() ) )
-    {
-    }
-
-protected:
-    void doWrite( const Struct * s ) override
-    {
-        ARROW_OK_OR_THROW( m_typedBuilder -> Append( m_field -> value<TimeDelta>( s ).asNanoseconds() ),
-                           "Failed to append timedelta" );
-    }
-
-private:
-    ::arrow::DurationBuilder * m_typedBuilder;
-};
-
-// --- Date writer (DATE32 days since epoch) ---
-
-class DateWriter final : public FieldWriter
-{
-public:
-    DateWriter( const std::string & columnName, const StructFieldPtr & field )
-        : FieldWriter( columnName, field,
-                       std::make_shared<::arrow::Date32Builder>(),
-                       ::arrow::date32() ),
-          m_typedBuilder( static_cast<::arrow::Date32Builder *>( m_builder.get() ) )
-    {
-    }
-
-protected:
-    void doWrite( const Struct * s ) override
-    {
-        // Compute days since Unix epoch directly via a single DateTime construction.
-        // Date::operator- would call timegm() twice (once for the date, once for epoch);
-        // constructing DateTime directly calls timegm() only once.
-        auto & date = m_field -> value<Date>( s );
-        DateTime dt( date.year(), date.month(), date.day() );
-        ARROW_OK_OR_THROW( m_typedBuilder -> Append( static_cast<int32_t>( dt.asNanoseconds() / csp::NANOS_PER_DAY ) ),
-                           "Failed to append date" );
-    }
-
-private:
-    ::arrow::Date32Builder * m_typedBuilder;
-};
-
-// --- Time writer (TIME64 ns) ---
-
-class TimeWriter final : public FieldWriter
-{
-public:
-    TimeWriter( const std::string & columnName, const StructFieldPtr & field )
-        : FieldWriter( columnName, field,
-                       std::make_shared<::arrow::Time64Builder>(
-                           std::make_shared<::arrow::Time64Type>( ::arrow::TimeUnit::NANO ),
-                           ::arrow::default_memory_pool() ),
-                       std::make_shared<::arrow::Time64Type>( ::arrow::TimeUnit::NANO ) ),
-          m_typedBuilder( static_cast<::arrow::Time64Builder *>( m_builder.get() ) )
-    {
-    }
-
-protected:
-    void doWrite( const Struct * s ) override
-    {
-        ARROW_OK_OR_THROW( m_typedBuilder -> Append( m_field -> value<Time>( s ).asNanoseconds() ),
-                           "Failed to append time" );
-    }
-
-private:
-    ::arrow::Time64Builder * m_typedBuilder;
 };
 
 // --- Nested struct writer (recursive) ---
@@ -285,9 +206,7 @@ public:
                         std::vector<std::unique_ptr<FieldWriter>> childWriters )
         : FieldWriter( columnName, field, structBuilder, std::move( structType ) ),
           m_structBuilder( structBuilder.get() ),
-          m_childWriters( std::move( childWriters ) )
-    {
-    }
+          m_childWriters( std::move( childWriters ) ) {}
 
     void reserve( int64_t numRows ) override
     {
@@ -303,6 +222,30 @@ public:
         ARROW_OK_OR_THROW( m_structBuilder -> AppendNull(), "Failed to append null struct" );
     }
 
+    void writeAll( const std::vector<StructPtr> & structs, int64_t offset, int64_t count ) override
+    {
+        // Check if any parent struct has a null nested value
+        bool hasNulls = false;
+        for( int64_t i = offset; i < offset + count && !hasNulls; ++i )
+            hasNulls = !m_field -> isSet( structs[i].get() );
+
+        if( !hasNulls )
+        {
+            // Fast path: all nested values are set — columnar child writes
+            std::vector<StructPtr> nested( count );
+            for( int64_t i = 0; i < count; ++i )
+                nested[i] = m_field -> value<StructPtr>( structs[offset + i].get() );
+            for( auto & cw : m_childWriters )
+                cw -> writeAll( nested, 0, count );
+            ARROW_OK_OR_THROW( m_structBuilder -> AppendValues( count, nullptr ), "Failed to append struct validity" );
+        }
+        else
+        {
+            for( int64_t i = offset; i < offset + count; ++i )
+                writeNext( structs[i].get() );
+        }
+    }
+
 protected:
     void doWrite( const Struct * s ) override
     {
@@ -313,11 +256,12 @@ protected:
     }
 
 private:
-    ::arrow::StructBuilder *                      m_structBuilder;
-    std::vector<std::unique_ptr<FieldWriter>>     m_childWriters;
+    ::arrow::StructBuilder *                  m_structBuilder;
+    std::vector<std::unique_ptr<FieldWriter>> m_childWriters;
 };
 
-// Helper: detect bytes vs string for CspStringType
+// --- Factory helpers ---
+
 bool isBytesField( const StructFieldPtr & field )
 {
     if( field -> type() -> type() != CspType::Type::STRING )
@@ -326,16 +270,6 @@ bool isBytesField( const StructFieldPtr & field )
     return strType && strType -> isBytes();
 }
 
-// Helper: create a PrimitiveWriter and return CreatedFieldWriter
-template<typename CspT, typename ArrowBuilderT>
-CreatedFieldWriter makePrimitive( const std::string & name, const StructFieldPtr & field )
-{
-    auto b = std::make_shared<ArrowBuilderT>();
-    auto w = std::make_unique<PrimitiveWriter<CspT, ArrowBuilderT>>( name, field, b );
-    return { std::move( w ), std::move( b ) };
-}
-
-// Helper: create any writer and return CreatedFieldWriter
 template<typename WriterT, typename... Args>
 CreatedFieldWriter makeWriter( Args &&... args )
 {
@@ -350,59 +284,60 @@ CreatedFieldWriter createFieldWriter(
     const std::string & columnName,
     const StructFieldPtr & structField )
 {
-    auto cspType = structField -> type() -> type();
+    auto & f = structField;
 
-    switch( cspType )
+    switch( f -> type() -> type() )
     {
+        // --- Numeric ---
         case CspType::Type::BOOL:
-            return makeWriter<BoolWriter>( columnName, structField );
-
-        case CspType::Type::INT8:
-            return makePrimitive<int8_t, ::arrow::Int8Builder>( columnName, structField );
-        case CspType::Type::INT16:
-            return makePrimitive<int16_t, ::arrow::Int16Builder>( columnName, structField );
-        case CspType::Type::INT32:
-            return makePrimitive<int32_t, ::arrow::Int32Builder>( columnName, structField );
-        case CspType::Type::INT64:
-            return makePrimitive<int64_t, ::arrow::Int64Builder>( columnName, structField );
-
-        case CspType::Type::UINT8:
-            return makePrimitive<uint8_t, ::arrow::UInt8Builder>( columnName, structField );
-        case CspType::Type::UINT16:
-            return makePrimitive<uint16_t, ::arrow::UInt16Builder>( columnName, structField );
-        case CspType::Type::UINT32:
-            return makePrimitive<uint32_t, ::arrow::UInt32Builder>( columnName, structField );
-        case CspType::Type::UINT64:
-            return makePrimitive<uint64_t, ::arrow::UInt64Builder>( columnName, structField );
-
-        case CspType::Type::DOUBLE:
-            return makePrimitive<double, ::arrow::DoubleBuilder>( columnName, structField );
-
-        case CspType::Type::STRING:
         {
-            if( isBytesField( structField ) )
-                return makeWriter<BytesWriter>( columnName, structField );
-            return makeWriter<StringWriter>( columnName, structField );
+            auto b = std::make_shared<::arrow::BooleanBuilder>();
+            return makeUnsafeWriter( columnName, f, b, ::arrow::boolean(),
+                [f]( const Struct * s ) { return f -> value<bool>( s ); } );
+        }
+        case CspType::Type::INT8:   return makePrimitiveWriter<int8_t,   ::arrow::Int8Builder>( columnName, f );
+        case CspType::Type::INT16:  return makePrimitiveWriter<int16_t,  ::arrow::Int16Builder>( columnName, f );
+        case CspType::Type::INT32:  return makePrimitiveWriter<int32_t,  ::arrow::Int32Builder>( columnName, f );
+        case CspType::Type::INT64:  return makePrimitiveWriter<int64_t,  ::arrow::Int64Builder>( columnName, f );
+        case CspType::Type::UINT8:  return makePrimitiveWriter<uint8_t,  ::arrow::UInt8Builder>( columnName, f );
+        case CspType::Type::UINT16: return makePrimitiveWriter<uint16_t, ::arrow::UInt16Builder>( columnName, f );
+        case CspType::Type::UINT32: return makePrimitiveWriter<uint32_t, ::arrow::UInt32Builder>( columnName, f );
+        case CspType::Type::UINT64: return makePrimitiveWriter<uint64_t, ::arrow::UInt64Builder>( columnName, f );
+        case CspType::Type::DOUBLE: return makePrimitiveWriter<double,   ::arrow::DoubleBuilder>( columnName, f );
+
+        // --- String / Bytes ---
+        case CspType::Type::STRING:
+            if( isBytesField( f ) )
+                return makeWriter<StringLikeWriter<::arrow::BinaryBuilder>>( columnName, f, ::arrow::binary() );
+            return makeWriter<StringLikeWriter<::arrow::StringBuilder>>( columnName, f, ::arrow::utf8() );
+
+        case CspType::Type::ENUM: return makeWriter<EnumWriter>( columnName, f );
+
+        // --- Temporal ---
+        case CspType::Type::DATETIME:
+            return makeNanosWriter<DateTime, ::arrow::TimestampBuilder>(
+                columnName, f, std::make_shared<::arrow::TimestampType>( ::arrow::TimeUnit::NANO, "UTC" ) );
+        case CspType::Type::TIMEDELTA:
+            return makeNanosWriter<TimeDelta, ::arrow::DurationBuilder>(
+                columnName, f, std::make_shared<::arrow::DurationType>( ::arrow::TimeUnit::NANO ) );
+        case CspType::Type::TIME:
+            return makeNanosWriter<Time, ::arrow::Time64Builder>(
+                columnName, f, std::make_shared<::arrow::Time64Type>( ::arrow::TimeUnit::NANO ) );
+
+        // --- Date (days since epoch) ---
+        case CspType::Type::DATE:
+        {
+            auto b = std::make_shared<::arrow::Date32Builder>();
+            return makeUnsafeWriter( columnName, f, b, ::arrow::date32(), [f]( const Struct * s ) {
+                auto & d = f -> value<Date>( s );
+                return static_cast<int32_t>( DateTime( d.year(), d.month(), d.day() ).asNanoseconds() / csp::NANOS_PER_DAY );
+            } );
         }
 
-        case CspType::Type::ENUM:
-            return makeWriter<EnumWriter>( columnName, structField );
-
-        case CspType::Type::DATETIME:
-            return makeWriter<DateTimeWriter>( columnName, structField );
-
-        case CspType::Type::TIMEDELTA:
-            return makeWriter<TimeDeltaWriter>( columnName, structField );
-
-        case CspType::Type::DATE:
-            return makeWriter<DateWriter>( columnName, structField );
-
-        case CspType::Type::TIME:
-            return makeWriter<TimeWriter>( columnName, structField );
-
+        // --- Nested struct ---
         case CspType::Type::STRUCT:
         {
-            auto nestedMeta = std::static_pointer_cast<const CspStructType>( structField -> type() ) -> meta();
+            auto nestedMeta = std::static_pointer_cast<const CspStructType>( f -> type() ) -> meta();
 
             std::vector<std::shared_ptr<::arrow::Field>> arrowFields;
             std::vector<std::shared_ptr<::arrow::ArrayBuilder>> childBuilders;
@@ -421,15 +356,16 @@ CreatedFieldWriter createFieldWriter(
             auto structType = std::make_shared<::arrow::StructType>( arrowFields );
             auto structBuilder = std::make_shared<::arrow::StructBuilder>(
                 structType, ::arrow::default_memory_pool(), childBuilders );
-            auto dataType = std::static_pointer_cast<::arrow::DataType>( structType );
 
             auto w = std::make_unique<NestedStructWriter>(
-                columnName, structField, structBuilder, std::move( dataType ), std::move( childWriters ) );
+                columnName, f, structBuilder,
+                std::static_pointer_cast<::arrow::DataType>( structType ), std::move( childWriters ) );
             return { std::move( w ), std::move( structBuilder ) };
         }
 
         default:
-            CSP_THROW( TypeError, "Unsupported CSP type " << cspType << " for field '" << columnName << "'" );
+            CSP_THROW( TypeError, "Unsupported CSP type " << f -> type() -> type()
+                                   << " for field '" << columnName << "'" );
     }
 }
 

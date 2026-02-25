@@ -31,6 +31,10 @@ public:
     // Non-virtual: checks isSet, delegates to doWrite() or appendNull().
     void writeNext( const Struct * s );
 
+    // Columnar bulk-write: write a range of structs into the builder.
+    // Default loops over writeNext(); concrete writers override with tight loops.
+    virtual void writeAll( const std::vector<StructPtr> & structs, int64_t offset, int64_t count );
+
     // Write a null value (used by nested struct writer when parent is null).
     // Default appends null to m_builder; NestedStructWriter overrides.
     virtual void writeNull();

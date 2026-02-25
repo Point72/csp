@@ -61,6 +61,16 @@ public:
         ++m_row;
     }
 
+    // Columnar bulk-read: read all rows for this column into pre-allocated structs.
+    // Default implementation loops over doReadNext(); concrete readers override
+    // with a null_count==0 fast path to skip per-row validity checks.
+    virtual void readAll( std::vector<StructPtr> & structs, int64_t numRows )
+    {
+        for( int64_t row = 0; row < numRows; ++row )
+            doReadNext( row, structs[row].get() );
+        m_row = numRows;
+    }
+
     // Column names consumed by this reader.
     const std::vector<std::string> & columnNames() const { return m_columnNames; }
 

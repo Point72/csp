@@ -244,6 +244,42 @@ def _run_multi_tick_write(tick_structs, cls, field_map=None, numpy_dimensions_co
 
 
 # =====================================================================
+# Helpers — round-trip (struct → batch → struct, and batch → struct → batch)
+# =====================================================================
+
+
+def _run_round_trip(structs, cls, field_map, schema):
+    """struct → batch → struct round-trip; returns result structs."""
+
+    @csp.graph
+    def G(s_: object, cls_: type, fm_: object, schema_: object):
+        data = csp.const(s_)
+        batches = struct_to_record_batches(data, cls_, fm_)
+        result = record_batches_to_struct(batches, cls_, fm_, schema_)
+        csp.add_graph_output("result", result)
+
+    results = csp.run(
+        G, structs, cls, field_map, schema, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1)
+    )
+    return results["result"][0][1]
+
+
+def _run_reverse_round_trip(batch, cls, field_map):
+    """batch → struct → batch reverse round-trip; returns result batches."""
+    schema = batch.schema
+
+    @csp.graph
+    def G(b_: object, cls_: type, fm_: dict, schema_: object):
+        data = csp.const([b_])
+        structs = record_batches_to_struct(data, cls_, fm_, schema_)
+        batches = struct_to_record_batches(structs, cls_, fm_)
+        csp.add_graph_output("result", batches)
+
+    results = csp.run(G, batch, cls, field_map, schema, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
+    return results["result"][0][1]
+
+
+# =====================================================================
 # Tests: reading scalar fields (batch → struct)
 # =====================================================================
 
@@ -277,7 +313,7 @@ class TestReadScalarFields:
             {"col_x": [10, 20], "col_y": [1.5, 2.5]},
             schema=pa.schema([("col_x", pa.int64()), ("col_y", pa.float64())]),
         )
-        field_map = {"col_x": "x", "col_y": "y"}
+        field_map = {"x": "col_x", "y": "col_y"}
         structs = _run_to_struct(batch, NumericOnlyStruct, field_map, batch.schema)
 
         assert len(structs) == 2
@@ -959,37 +995,16 @@ class TestRoundTrip:
             ScalarStruct(i64=2, f64=2.2, s="world", b=False),
         ]
         field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
+        schema = pa.schema([("i64", pa.int64()), ("f64", pa.float64()), ("s", pa.utf8()), ("b", pa.bool_())])
+        result = _run_round_trip(structs, ScalarStruct, field_map, schema)
 
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, ScalarStruct, field_map)
-            read_field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
-            result = record_batches_to_struct(
-                batches,
-                ScalarStruct,
-                read_field_map,
-                pa.schema(
-                    [
-                        ("i64", pa.int64()),
-                        ("f64", pa.float64()),
-                        ("s", pa.utf8()),
-                        ("b", pa.bool_()),
-                    ]
-                ),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 2
-        assert result_structs[0].i64 == 1
-        assert result_structs[0].f64 == pytest.approx(1.1)
-        assert result_structs[0].s == "hello"
-        assert result_structs[0].b is True
-        assert result_structs[1].i64 == 2
-        assert result_structs[1].s == "world"
+        assert len(result) == 2
+        assert result[0].i64 == 1
+        assert result[0].f64 == pytest.approx(1.1)
+        assert result[0].s == "hello"
+        assert result[0].b is True
+        assert result[1].i64 == 2
+        assert result[1].s == "world"
 
     def test_datetime_round_trip(self):
         """Round-trip for datetime, timedelta, date, time."""
@@ -999,36 +1014,22 @@ class TestRoundTrip:
         t_val = time(14, 30, 0)
 
         structs = [DateTimeStruct(dt=dt_val, td=td_val, d=d_val, t=t_val)]
-        write_field_map = {"dt": "dt", "td": "td", "d": "d", "t": "t"}
-        read_field_map = {"dt": "dt", "td": "td", "d": "d", "t": "t"}
+        field_map = {"dt": "dt", "td": "td", "d": "d", "t": "t"}
+        schema = pa.schema(
+            [
+                ("dt", pa.timestamp("ns", tz="UTC")),
+                ("td", pa.duration("ns")),
+                ("d", pa.date32()),
+                ("t", pa.time64("ns")),
+            ]
+        )
+        result = _run_round_trip(structs, DateTimeStruct, field_map, schema)
 
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, DateTimeStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                DateTimeStruct,
-                read_field_map,
-                pa.schema(
-                    [
-                        ("dt", pa.timestamp("ns", tz="UTC")),
-                        ("td", pa.duration("ns")),
-                        ("d", pa.date32()),
-                        ("t", pa.time64("ns")),
-                    ]
-                ),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 1
-        assert result_structs[0].dt == dt_val
-        assert result_structs[0].td == td_val
-        assert result_structs[0].d == d_val
-        assert result_structs[0].t == t_val
+        assert len(result) == 1
+        assert result[0].dt == dt_val
+        assert result[0].td == td_val
+        assert result[0].d == d_val
+        assert result[0].t == t_val
 
     def test_enum_round_trip(self):
         """Round-trip for enum fields."""
@@ -1036,154 +1037,70 @@ class TestRoundTrip:
             EnumStruct(label="x", color=MyEnum.A),
             EnumStruct(label="y", color=MyEnum.C),
         ]
-        write_field_map = {"label": "label", "color": "color"}
-        read_field_map = {"label": "label", "color": "color"}
+        field_map = {"label": "label", "color": "color"}
+        schema = pa.schema([("label", pa.utf8()), ("color", pa.utf8())])
+        result = _run_round_trip(structs, EnumStruct, field_map, schema)
 
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, EnumStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                EnumStruct,
-                read_field_map,
-                pa.schema([("label", pa.utf8()), ("color", pa.utf8())]),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 2
-        assert result_structs[0].label == "x"
-        assert result_structs[0].color == MyEnum.A
-        assert result_structs[1].color == MyEnum.C
+        assert len(result) == 2
+        assert result[0].label == "x"
+        assert result[0].color == MyEnum.A
+        assert result[1].color == MyEnum.C
 
     def test_bytes_round_trip(self):
         """Round-trip for bytes field."""
         val = b"my\x00value"
         structs = [BytesStruct(data=val)]
-        write_field_map = {"data": "data"}
-        read_field_map = {"data": "data"}
+        field_map = {"data": "data"}
+        schema = pa.schema([("data", pa.binary())])
+        result = _run_round_trip(structs, BytesStruct, field_map, schema)
 
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, BytesStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                BytesStruct,
-                read_field_map,
-                pa.schema([("data", pa.binary())]),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 1
-        assert result_structs[0].data == val
+        assert len(result) == 1
+        assert result[0].data == val
 
     def test_nested_struct_round_trip(self):
         """Round-trip for nested struct."""
         inner = InnerStruct(x=42, y=2.5)
         structs = [NestedStruct(id=1, inner=inner)]
-        write_field_map = {"id": "id", "inner": "inner"}
-        read_field_map = {"id": "id", "inner": "inner"}
+        field_map = {"id": "id", "inner": "inner"}
+        schema = pa.schema([("id", pa.int64()), ("inner", pa.struct([("x", pa.int64()), ("y", pa.float64())]))])
+        result = _run_round_trip(structs, NestedStruct, field_map, schema)
 
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, NestedStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                NestedStruct,
-                read_field_map,
-                pa.schema(
-                    [
-                        ("id", pa.int64()),
-                        ("inner", pa.struct([("x", pa.int64()), ("y", pa.float64())])),
-                    ]
-                ),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 1
-        assert result_structs[0].id == 1
-        assert result_structs[0].inner.x == 42
-        assert result_structs[0].inner.y == pytest.approx(2.5)
+        assert len(result) == 1
+        assert result[0].id == 1
+        assert result[0].inner.x == 42
+        assert result[0].inner.y == pytest.approx(2.5)
 
     def test_numpy_round_trip(self):
         structs = [
             NumpyStruct(id=1, values=np.array([1.0, 2.0, 3.0])),
             NumpyStruct(id=2, values=np.array([4.0, 5.0])),
         ]
-        write_field_map = {"id": "id", "values": "values"}
-        read_field_map = {"id": "id", "values": "values"}
+        field_map = {"id": "id", "values": "values"}
+        schema = pa.schema([("id", pa.int64()), ("values", pa.list_(pa.float64()))])
+        result = _run_round_trip(structs, NumpyStruct, field_map, schema)
 
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, NumpyStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                NumpyStruct,
-                read_field_map,
-                pa.schema(
-                    [
-                        ("id", pa.int64()),
-                        ("values", pa.list_(pa.float64())),
-                    ]
-                ),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 2
-        assert result_structs[0].id == 1
-        np.testing.assert_array_almost_equal(result_structs[0].values, [1.0, 2.0, 3.0])
-        assert result_structs[1].id == 2
-        np.testing.assert_array_almost_equal(result_structs[1].values, [4.0, 5.0])
+        assert len(result) == 2
+        assert result[0].id == 1
+        np.testing.assert_array_almost_equal(result[0].values, [1.0, 2.0, 3.0])
+        assert result[1].id == 2
+        np.testing.assert_array_almost_equal(result[1].values, [4.0, 5.0])
 
     def test_ndarray_round_trip(self):
         matrix = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         structs = [NDArrayStruct(id=1, matrix=matrix)]
-        write_field_map = {"id": "id", "matrix": "matrix"}
-        read_field_map = {"id": "id", "matrix": "matrix"}
+        field_map = {"id": "id", "matrix": "matrix"}
+        schema = pa.schema(
+            [("id", pa.int64()), ("matrix", pa.list_(pa.float64())), ("matrix_csp_dimensions", pa.list_(pa.int64()))]
+        )
+        result = _run_round_trip(structs, NDArrayStruct, field_map, schema)
 
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, NDArrayStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                NDArrayStruct,
-                read_field_map,
-                pa.schema(
-                    [
-                        ("id", pa.int64()),
-                        ("matrix", pa.list_(pa.float64())),
-                        ("matrix_csp_dimensions", pa.list_(pa.int64())),
-                    ]
-                ),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 1
-        assert result_structs[0].id == 1
-        np.testing.assert_array_almost_equal(result_structs[0].matrix, matrix)
-        assert result_structs[0].matrix.shape == (2, 3)
+        assert len(result) == 1
+        assert result[0].id == 1
+        np.testing.assert_array_almost_equal(result[0].matrix, matrix)
+        assert result[0].matrix.shape == (2, 3)
 
     def test_all_types_round_trip(self):
-        """Round-trip for all supported scalar types (mirrors test_all_types in test_parquet.py)."""
+        """Round-trip for all supported scalar types."""
         structs = [
             AllTypesStruct(
                 b=True,
@@ -1209,49 +1126,35 @@ class TestRoundTrip:
             ),
         ]
         field_map = {k: k for k in AllTypesStruct.metadata().keys()}
+        schema = pa.schema(
+            [
+                ("b", pa.bool_()),
+                ("i", pa.int64()),
+                ("d", pa.float64()),
+                ("dt", pa.timestamp("ns", tz="UTC")),
+                ("dte", pa.date32()),
+                ("t", pa.time64("ns")),
+                ("td", pa.duration("ns")),
+                ("s", pa.utf8()),
+                ("e", pa.utf8()),
+            ]
+        )
+        result = _run_round_trip(structs, AllTypesStruct, field_map, schema)
 
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, AllTypesStruct, field_map)
-            result = record_batches_to_struct(
-                batches,
-                AllTypesStruct,
-                field_map,
-                pa.schema(
-                    [
-                        ("b", pa.bool_()),
-                        ("i", pa.int64()),
-                        ("d", pa.float64()),
-                        ("dt", pa.timestamp("ns", tz="UTC")),
-                        ("dte", pa.date32()),
-                        ("t", pa.time64("ns")),
-                        ("td", pa.duration("ns")),
-                        ("s", pa.utf8()),
-                        ("e", pa.utf8()),
-                    ]
-                ),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 2
-        assert result_structs[0].b is True
-        assert result_structs[0].i == 123
-        assert result_structs[0].d == pytest.approx(123.456)
-        assert result_structs[0].dt == datetime(2024, 1, 1, 12, 0, 0)
-        assert result_structs[0].dte == date(2024, 6, 15)
-        assert result_structs[0].t == time(14, 30, 0)
-        assert result_structs[0].td == timedelta(seconds=3600, milliseconds=123)
-        assert result_structs[0].s == "hello"
-        assert result_structs[0].e == MyEnum.A
-
-        assert result_structs[1].b is False
-        assert result_structs[1].i == 456
-        assert result_structs[1].s == "world"
-        assert result_structs[1].e == MyEnum.B
+        assert len(result) == 2
+        assert result[0].b is True
+        assert result[0].i == 123
+        assert result[0].d == pytest.approx(123.456)
+        assert result[0].dt == datetime(2024, 1, 1, 12, 0, 0)
+        assert result[0].dte == date(2024, 6, 15)
+        assert result[0].t == time(14, 30, 0)
+        assert result[0].td == timedelta(seconds=3600, milliseconds=123)
+        assert result[0].s == "hello"
+        assert result[0].e == MyEnum.A
+        assert result[1].b is False
+        assert result[1].i == 456
+        assert result[1].s == "world"
+        assert result[1].e == MyEnum.B
 
 
 # =====================================================================
@@ -1268,17 +1171,7 @@ class TestReverseRoundTrip:
             {"i64": [1, 2, 3], "f64": [1.1, 2.2, 3.3], "s": ["a", "b", "c"], "b": [True, False, True]}
         )
         field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
-        schema = original.schema
-
-        @csp.graph
-        def G():
-            data = csp.const([original])
-            structs = record_batches_to_struct(data, ScalarStruct, field_map, schema)
-            batches = struct_to_record_batches(structs, ScalarStruct, field_map)
-            csp.add_graph_output("result", batches)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_batches = results["result"][0][1]
+        result_batches = _run_reverse_round_trip(original, ScalarStruct, field_map)
 
         assert len(result_batches) == 1
         result = result_batches[0]
@@ -1295,17 +1188,7 @@ class TestReverseRoundTrip:
             schema=pa.schema([("id", pa.int64()), ("values", pa.list_(pa.float64()))]),
         )
         field_map = {"id": "id", "values": "values"}
-        schema = original.schema
-
-        @csp.graph
-        def G():
-            data = csp.const([original])
-            structs = record_batches_to_struct(data, NumpyStruct, field_map, schema)
-            batches = struct_to_record_batches(structs, NumpyStruct, field_map)
-            csp.add_graph_output("result", batches)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_batches = results["result"][0][1]
+        result_batches = _run_reverse_round_trip(original, NumpyStruct, field_map)
 
         assert len(result_batches) == 1
         result = result_batches[0]
@@ -1318,11 +1201,7 @@ class TestReverseRoundTrip:
     def test_ndarray_batch_to_struct_to_batch(self):
         """batch → struct → batch for NDArrays."""
         original = pa.RecordBatch.from_pydict(
-            {
-                "id": [1],
-                "matrix": [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]],
-                "matrix_csp_dimensions": [[2, 3]],
-            },
+            {"id": [1], "matrix": [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]], "matrix_csp_dimensions": [[2, 3]]},
             schema=pa.schema(
                 [
                     ("id", pa.int64()),
@@ -1332,25 +1211,13 @@ class TestReverseRoundTrip:
             ),
         )
         field_map = {"id": "id", "matrix": "matrix"}
-        schema = original.schema
-
-        @csp.graph
-        def G():
-            data = csp.const([original])
-            structs = record_batches_to_struct(data, NDArrayStruct, field_map, schema)
-            batches = struct_to_record_batches(structs, NDArrayStruct, field_map)
-            csp.add_graph_output("result", batches)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_batches = results["result"][0][1]
+        result_batches = _run_reverse_round_trip(original, NDArrayStruct, field_map)
 
         assert len(result_batches) == 1
         result = result_batches[0]
         assert result.num_rows == 1
-        data_col = result.column("matrix").to_pylist()
-        assert data_col[0] == pytest.approx([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-        dims_col = result.column("matrix_csp_dimensions").to_pylist()
-        assert dims_col[0] == [2, 3]
+        assert result.column("matrix").to_pylist()[0] == pytest.approx([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        assert result.column("matrix_csp_dimensions").to_pylist()[0] == [2, 3]
 
     def test_all_types_batch_to_struct_to_batch(self):
         """batch → struct → batch for all scalar types."""
@@ -1359,9 +1226,8 @@ class TestReverseRoundTrip:
         d_val = date(2024, 6, 15)
         t_val = time(14, 30, 0)
 
-        # Use a known UTC nanosecond value to avoid timezone ambiguity
-        # 2024-03-15T12:00:00 UTC = 1710504000 seconds since epoch
-        dt_ns = 1710504000 * 10**9
+        # Use known UTC nanosecond values to avoid timezone ambiguity
+        dt_ns = 1710504000 * 10**9  # 2024-03-15T12:00:00 UTC
         td_ns = int(td_val.total_seconds() * 1e9)
         d_days = (d_val - date(1970, 1, 1)).days
         t_ns = (t_val.hour * 3600 + t_val.minute * 60 + t_val.second) * 10**9
@@ -1393,17 +1259,7 @@ class TestReverseRoundTrip:
             ),
         )
         field_map = {k: k for k in AllTypesStruct.metadata().keys()}
-        schema = original.schema
-
-        @csp.graph
-        def G():
-            data = csp.const([original])
-            structs = record_batches_to_struct(data, AllTypesStruct, field_map, schema)
-            batches = struct_to_record_batches(structs, AllTypesStruct, field_map)
-            csp.add_graph_output("result", batches)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_batches = results["result"][0][1]
+        result_batches = _run_reverse_round_trip(original, AllTypesStruct, field_map)
 
         assert len(result_batches) == 1
         result = result_batches[0]
@@ -1784,7 +1640,7 @@ class TestReadAllArrowTypes:
         assert structs[1].color == MyEnum.C
         assert structs[2].color == MyEnum.A
 
-    # --- Null handling for narrow types ---
+    # --- Null handling for all types ---
 
     def test_narrow_int_with_nulls(self):
         """Arrow narrow int with nulls should leave CSP field unset."""
@@ -1796,8 +1652,84 @@ class TestReadAllArrowTypes:
         assert not hasattr(structs[1], "x")  # null -> unset
         assert structs[2].x == 30
 
-    def test_dictionary_with_nulls(self):
-        """Arrow dictionary with nulls should leave CSP field unset."""
+    def test_float16_with_nulls(self):
+        """Arrow float16 with nulls should leave CSP field unset."""
+        arr = pa.array([1.0, None, 3.0], type=pa.float16())
+        batch = pa.record_batch(
+            {"f64": arr, "i64": pa.array([1, 2, 3]), "s": pa.array(["a", "b", "c"]), "b": pa.array([True, False, True])}
+        )
+        field_map = {"f64": "f64", "i64": "i64", "s": "s", "b": "b"}
+        structs = _run_to_struct(batch, ScalarStruct, field_map, batch.schema)
+        assert abs(structs[0].f64 - 1.0) < 0.1
+        assert not hasattr(structs[1], "f64")
+        assert abs(structs[2].f64 - 3.0) < 0.1
+
+    def test_large_string_with_nulls(self):
+        """Arrow large_string with nulls should leave CSP field unset."""
+        arr = pa.array(["hello", None, "world"], type=pa.large_string())
+        batch = pa.record_batch(
+            {"s": arr, "i64": pa.array([1, 2, 3]), "f64": pa.array([1.0, 2.0, 3.0]), "b": pa.array([True, False, True])}
+        )
+        field_map = {"s": "s", "i64": "i64", "f64": "f64", "b": "b"}
+        structs = _run_to_struct(batch, ScalarStruct, field_map, batch.schema)
+        assert structs[0].s == "hello"
+        assert not hasattr(structs[1], "s")
+        assert structs[2].s == "world"
+
+    def test_large_binary_with_nulls(self):
+        """Arrow large_binary with nulls should leave CSP field unset."""
+        arr = pa.array([b"\x01", None, b"\x03"], type=pa.large_binary())
+        batch = pa.record_batch({"data": arr})
+        field_map = {"data": "data"}
+        structs = _run_to_struct(batch, BytesStruct, field_map, batch.schema)
+        assert structs[0].data == b"\x01"
+        assert not hasattr(structs[1], "data")
+        assert structs[2].data == b"\x03"
+
+    def test_fixed_size_binary_with_nulls(self):
+        """Arrow fixed_size_binary with nulls should leave CSP field unset."""
+        arr = pa.array([b"\x01\x02\x03", None, b"\x07\x08\x09"], type=pa.binary(3))
+        batch = pa.record_batch({"data": arr})
+        field_map = {"data": "data"}
+        structs = _run_to_struct(batch, BytesStruct, field_map, batch.schema)
+        assert structs[0].data == b"\x01\x02\x03"
+        assert not hasattr(structs[1], "data")
+        assert structs[2].data == b"\x07\x08\x09"
+
+    def test_enum_from_string_with_nulls(self):
+        """Arrow string enum with nulls should leave CSP field unset."""
+        arr = pa.array(["A", None, "C"])
+        batch = pa.record_batch({"label": pa.array(["x", "y", "z"]), "color": arr})
+        field_map = {"label": "label", "color": "color"}
+        structs = _run_to_struct(batch, EnumStruct, field_map, batch.schema)
+        assert structs[0].color == MyEnum.A
+        assert not hasattr(structs[1], "color")
+        assert structs[2].color == MyEnum.C
+
+    def test_enum_from_large_string_with_nulls(self):
+        """Arrow large_string enum with nulls should leave CSP field unset."""
+        arr = pa.array(["B", None, "A"], type=pa.large_string())
+        batch = pa.record_batch({"label": pa.array(["x", "y", "z"]), "color": arr})
+        field_map = {"label": "label", "color": "color"}
+        structs = _run_to_struct(batch, EnumStruct, field_map, batch.schema)
+        assert structs[0].color == MyEnum.B
+        assert not hasattr(structs[1], "color")
+        assert structs[2].color == MyEnum.A
+
+    def test_dictionary_string_with_nulls(self):
+        """Arrow dictionary-encoded string with nulls should leave CSP field unset."""
+        arr = pa.array(["foo", None, "baz"]).dictionary_encode()
+        batch = pa.record_batch(
+            {"s": arr, "i64": pa.array([1, 2, 3]), "f64": pa.array([1.0, 2.0, 3.0]), "b": pa.array([True, False, True])}
+        )
+        field_map = {"s": "s", "i64": "i64", "f64": "f64", "b": "b"}
+        structs = _run_to_struct(batch, ScalarStruct, field_map, batch.schema)
+        assert structs[0].s == "foo"
+        assert not hasattr(structs[1], "s")
+        assert structs[2].s == "baz"
+
+    def test_dictionary_enum_with_nulls(self):
+        """Arrow dictionary-encoded enum with nulls should leave CSP field unset."""
         arr = pa.array(["A", None, "C"]).dictionary_encode()
         batch = pa.record_batch({"label": pa.array(["x", "y", "z"]), "color": arr})
         field_map = {"label": "label", "color": "color"}
@@ -1805,6 +1737,63 @@ class TestReadAllArrowTypes:
         assert structs[0].color == MyEnum.A
         assert not hasattr(structs[1], "color")
         assert structs[2].color == MyEnum.C
+
+    def test_date64_with_nulls(self):
+        """Arrow date64 with nulls should leave CSP field unset."""
+
+        class DateOnlyStruct(csp.Struct):
+            d: date
+
+        arr = pa.array([date(2023, 6, 15), None, date(2024, 1, 1)], type=pa.date64())
+        batch = pa.record_batch({"d": arr})
+        field_map = {"d": "d"}
+        structs = _run_to_struct(batch, DateOnlyStruct, field_map, batch.schema)
+        assert structs[0].d == date(2023, 6, 15)
+        assert not hasattr(structs[1], "d")
+        assert structs[2].d == date(2024, 1, 1)
+
+    def test_time32_with_nulls(self):
+        """Arrow time32 with nulls should leave CSP field unset."""
+
+        class TimeOnlyStruct(csp.Struct):
+            t: time
+
+        arr = pa.array([time(12, 30, 0), None, time(14, 0, 0)], type=pa.time32("s"))
+        batch = pa.record_batch({"t": arr})
+        field_map = {"t": "t"}
+        structs = _run_to_struct(batch, TimeOnlyStruct, field_map, batch.schema)
+        assert structs[0].t.hour == 12
+        assert structs[0].t.minute == 30
+        assert not hasattr(structs[1], "t")
+        assert structs[2].t.hour == 14
+
+    def test_time64_with_nulls(self):
+        """Arrow time64 with nulls should leave CSP field unset."""
+
+        class TimeOnlyStruct(csp.Struct):
+            t: time
+
+        arr = pa.array([time(14, 15, 16), None, time(0, 0, 1)], type=pa.time64("us"))
+        batch = pa.record_batch({"t": arr})
+        field_map = {"t": "t"}
+        structs = _run_to_struct(batch, TimeOnlyStruct, field_map, batch.schema)
+        assert structs[0].t.hour == 14
+        assert not hasattr(structs[1], "t")
+        assert structs[2].t.hour == 0
+        assert structs[2].t.second == 1
+
+    # --- All-null column ---
+
+    def test_all_null_column(self):
+        """A column where every value is null should leave all struct fields unset."""
+        arr = pa.array([None, None, None], type=pa.int64())
+        batch = pa.record_batch({"x": arr, "y": pa.array([1.0, 2.0, 3.0])})
+        field_map = {"x": "x", "y": "y"}
+        structs = _run_to_struct(batch, NumericOnlyStruct, field_map, batch.schema)
+        assert len(structs) == 3
+        for s in structs:
+            assert not hasattr(s, "x")
+        assert structs[0].y == pytest.approx(1.0)
 
     # --- Multiple rows with mixed narrow types ---
 
@@ -1841,153 +1830,46 @@ class TestReadAllArrowTypes:
 class TestReadNullHandling:
     """Test that null values in various Arrow column types leave CSP struct fields unset."""
 
-    def test_null_string(self):
-        batch = pa.record_batch(
-            {
-                "i64": pa.array([1, 2, 3]),
-                "f64": pa.array([1.0, 2.0, 3.0]),
-                "s": pa.array(["hello", None, "world"]),
-                "b": pa.array([True, False, True]),
-            }
-        )
-        field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
+    @pytest.mark.parametrize("null_field", ["i64", "f64", "s", "b"])
+    def test_null_basic_scalar(self, null_field):
+        """Null in a basic scalar column (int64, float64, string, bool) leaves the field unset."""
+        data = {"i64": [1, 2, 3], "f64": [1.0, 2.0, 3.0], "s": ["a", "b", "c"], "b": [True, False, True]}
+        data[null_field] = [data[null_field][0], None, data[null_field][2]]
+        batch = pa.record_batch(data)
+        field_map = {k: k for k in data}
         structs = _run_to_struct(batch, ScalarStruct, field_map, batch.schema)
-        assert structs[0].s == "hello"
-        assert not hasattr(structs[1], "s")
-        assert structs[2].s == "world"
+        assert hasattr(structs[0], null_field)
+        assert not hasattr(structs[1], null_field)
+        assert hasattr(structs[2], null_field)
 
-    def test_null_float(self):
-        batch = pa.record_batch(
-            {
-                "i64": pa.array([1, 2, 3]),
-                "f64": pa.array([1.1, None, 3.3]),
-                "s": pa.array(["a", "b", "c"]),
-                "b": pa.array([True, False, True]),
-            }
-        )
-        field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
-        structs = _run_to_struct(batch, ScalarStruct, field_map, batch.schema)
-        assert structs[0].f64 == pytest.approx(1.1)
-        assert not hasattr(structs[1], "f64")
-        assert structs[2].f64 == pytest.approx(3.3)
-
-    def test_null_int64(self):
-        batch = pa.record_batch(
-            {
-                "i64": pa.array([1, None, 3]),
-                "f64": pa.array([1.0, 2.0, 3.0]),
-                "s": pa.array(["a", "b", "c"]),
-                "b": pa.array([True, False, True]),
-            }
-        )
-        field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
-        structs = _run_to_struct(batch, ScalarStruct, field_map, batch.schema)
-        assert structs[0].i64 == 1
-        assert not hasattr(structs[1], "i64")
-        assert structs[2].i64 == 3
-
-    def test_null_bool(self):
-        batch = pa.record_batch(
-            {
-                "i64": pa.array([1, 2, 3]),
-                "f64": pa.array([1.0, 2.0, 3.0]),
-                "s": pa.array(["a", "b", "c"]),
-                "b": pa.array([True, None, False]),
-            }
-        )
-        field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
-        structs = _run_to_struct(batch, ScalarStruct, field_map, batch.schema)
-        assert structs[0].b is True
-        assert not hasattr(structs[1], "b")
-        assert structs[2].b is False
-
-    def test_null_datetime(self):
-        batch = pa.RecordBatch.from_arrays(
-            [
-                pa.array([datetime(2024, 1, 1), None], type=pa.timestamp("ns", tz="UTC")),
-                pa.array([timedelta(seconds=1), timedelta(seconds=2)]),
-                pa.array([date(2024, 1, 1), date(2024, 1, 2)]),
-                pa.array([time(12, 0, 0), time(13, 0, 0)]),
-            ],
-            schema=pa.schema(
-                [
-                    ("dt", pa.timestamp("ns", tz="UTC")),
-                    ("td", pa.duration("ns")),
-                    ("d", pa.date32()),
-                    ("t", pa.time64("ns")),
-                ]
-            ),
-        )
+    @pytest.mark.parametrize("null_field", ["dt", "td", "d", "t"])
+    def test_null_temporal(self, null_field):
+        """Null in a temporal column (datetime, timedelta, date, time) leaves the field unset."""
+        vals = {
+            "dt": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
+            "td": [timedelta(seconds=42), timedelta(seconds=2)],
+            "d": [date(2024, 6, 15), date(2024, 1, 2)],
+            "t": [time(14, 30, 0), time(13, 0, 0)],
+        }
+        # Set the null field's second value to None
+        arrays = []
+        schema_fields = [
+            ("dt", pa.timestamp("ns", tz="UTC")),
+            ("td", pa.duration("ns")),
+            ("d", pa.date32()),
+            ("t", pa.time64("ns")),
+        ]
+        for field_name, arrow_type in schema_fields:
+            v = vals[field_name]
+            if field_name == null_field:
+                v = [v[0], None]
+            arrays.append(pa.array(v, type=arrow_type))
+        schema = pa.schema(schema_fields)
+        batch = pa.RecordBatch.from_arrays(arrays, schema=schema)
         field_map = {"dt": "dt", "td": "td", "d": "d", "t": "t"}
         structs = _run_to_struct(batch, DateTimeStruct, field_map, batch.schema)
-        assert structs[0].dt == datetime(2024, 1, 1)
-        assert not hasattr(structs[1], "dt")
-
-    def test_null_timedelta(self):
-        batch = pa.RecordBatch.from_arrays(
-            [
-                pa.array([datetime(2024, 1, 1), datetime(2024, 1, 2)], type=pa.timestamp("ns", tz="UTC")),
-                pa.array([timedelta(seconds=42), None], type=pa.duration("ns")),
-                pa.array([date(2024, 1, 1), date(2024, 1, 2)]),
-                pa.array([time(12, 0, 0), time(13, 0, 0)]),
-            ],
-            schema=pa.schema(
-                [
-                    ("dt", pa.timestamp("ns", tz="UTC")),
-                    ("td", pa.duration("ns")),
-                    ("d", pa.date32()),
-                    ("t", pa.time64("ns")),
-                ]
-            ),
-        )
-        field_map = {"dt": "dt", "td": "td", "d": "d", "t": "t"}
-        structs = _run_to_struct(batch, DateTimeStruct, field_map, batch.schema)
-        assert structs[0].td == timedelta(seconds=42)
-        assert not hasattr(structs[1], "td")
-
-    def test_null_date(self):
-        batch = pa.RecordBatch.from_arrays(
-            [
-                pa.array([datetime(2024, 1, 1), datetime(2024, 1, 2)], type=pa.timestamp("ns", tz="UTC")),
-                pa.array([timedelta(seconds=1), timedelta(seconds=2)]),
-                pa.array([date(2024, 6, 15), None]),
-                pa.array([time(12, 0, 0), time(13, 0, 0)]),
-            ],
-            schema=pa.schema(
-                [
-                    ("dt", pa.timestamp("ns", tz="UTC")),
-                    ("td", pa.duration("ns")),
-                    ("d", pa.date32()),
-                    ("t", pa.time64("ns")),
-                ]
-            ),
-        )
-        field_map = {"dt": "dt", "td": "td", "d": "d", "t": "t"}
-        structs = _run_to_struct(batch, DateTimeStruct, field_map, batch.schema)
-        assert structs[0].d == date(2024, 6, 15)
-        assert not hasattr(structs[1], "d")
-
-    def test_null_time(self):
-        batch = pa.RecordBatch.from_arrays(
-            [
-                pa.array([datetime(2024, 1, 1), datetime(2024, 1, 2)], type=pa.timestamp("ns", tz="UTC")),
-                pa.array([timedelta(seconds=1), timedelta(seconds=2)]),
-                pa.array([date(2024, 1, 1), date(2024, 1, 2)]),
-                pa.array([time(14, 30, 0), None], type=pa.time64("ns")),
-            ],
-            schema=pa.schema(
-                [
-                    ("dt", pa.timestamp("ns", tz="UTC")),
-                    ("td", pa.duration("ns")),
-                    ("d", pa.date32()),
-                    ("t", pa.time64("ns")),
-                ]
-            ),
-        )
-        field_map = {"dt": "dt", "td": "td", "d": "d", "t": "t"}
-        structs = _run_to_struct(batch, DateTimeStruct, field_map, batch.schema)
-        assert structs[0].t == time(14, 30, 0)
-        assert not hasattr(structs[1], "t")
+        assert hasattr(structs[0], null_field)
+        assert not hasattr(structs[1], null_field)
 
     def test_null_nested_struct(self):
         """Null nested struct should leave the field unset, and child readers stay in sync."""
@@ -2148,72 +2030,27 @@ class TestNumpyTypeRoundTrips:
 
     def test_numpy_int_round_trip(self):
         structs = [NumpyIntStruct(id=1, values=np.array([10, 20, 30], dtype=np.int64))]
-        write_field_map = {"id": "id", "values": "values"}
-        read_field_map = {"id": "id", "values": "values"}
-
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, NumpyIntStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                NumpyIntStruct,
-                read_field_map,
-                pa.schema([("id", pa.int64()), ("values", pa.list_(pa.int64()))]),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 1
-        np.testing.assert_array_equal(result_structs[0].values, [10, 20, 30])
+        field_map = {"id": "id", "values": "values"}
+        schema = pa.schema([("id", pa.int64()), ("values", pa.list_(pa.int64()))])
+        result = _run_round_trip(structs, NumpyIntStruct, field_map, schema)
+        assert len(result) == 1
+        np.testing.assert_array_equal(result[0].values, [10, 20, 30])
 
     def test_numpy_string_round_trip(self):
         structs = [NumpyStringStruct(id=1, names=np.array(["alice", "bob"]))]
-        write_field_map = {"id": "id", "names": "names"}
-        read_field_map = {"id": "id", "names": "names"}
-
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, NumpyStringStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                NumpyStringStruct,
-                read_field_map,
-                pa.schema([("id", pa.int64()), ("names", pa.list_(pa.utf8()))]),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 1
-        np.testing.assert_array_equal(result_structs[0].names, ["alice", "bob"])
+        field_map = {"id": "id", "names": "names"}
+        schema = pa.schema([("id", pa.int64()), ("names", pa.list_(pa.utf8()))])
+        result = _run_round_trip(structs, NumpyStringStruct, field_map, schema)
+        assert len(result) == 1
+        np.testing.assert_array_equal(result[0].names, ["alice", "bob"])
 
     def test_numpy_bool_round_trip(self):
         structs = [NumpyBoolStruct(id=1, flags=np.array([True, False, True]))]
-        write_field_map = {"id": "id", "flags": "flags"}
-        read_field_map = {"id": "id", "flags": "flags"}
-
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, NumpyBoolStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                NumpyBoolStruct,
-                read_field_map,
-                pa.schema([("id", pa.int64()), ("flags", pa.list_(pa.bool_()))]),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 1
-        np.testing.assert_array_equal(result_structs[0].flags, [True, False, True])
+        field_map = {"id": "id", "flags": "flags"}
+        schema = pa.schema([("id", pa.int64()), ("flags", pa.list_(pa.bool_()))])
+        result = _run_round_trip(structs, NumpyBoolStruct, field_map, schema)
+        assert len(result) == 1
+        np.testing.assert_array_equal(result[0].flags, [True, False, True])
 
 
 # =====================================================================
@@ -2262,33 +2099,18 @@ class TestNDArrayIntType:
     def test_ndarray_int_round_trip(self):
         matrix = np.array([[10, 20], [30, 40]], dtype=np.int64)
         structs = [NDArrayIntStruct(id=1, matrix=matrix)]
-        write_field_map = {"id": "id", "matrix": "matrix"}
-        read_field_map = {"id": "id", "matrix": "matrix"}
-
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, NDArrayIntStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                NDArrayIntStruct,
-                read_field_map,
-                pa.schema(
-                    [
-                        ("id", pa.int64()),
-                        ("matrix", pa.list_(pa.int64())),
-                        ("matrix_csp_dimensions", pa.list_(pa.int64())),
-                    ]
-                ),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 1
-        np.testing.assert_array_equal(result_structs[0].matrix, matrix)
-        assert result_structs[0].matrix.shape == (2, 2)
+        field_map = {"id": "id", "matrix": "matrix"}
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("matrix", pa.list_(pa.int64())),
+                ("matrix_csp_dimensions", pa.list_(pa.int64())),
+            ]
+        )
+        result = _run_round_trip(structs, NDArrayIntStruct, field_map, schema)
+        assert len(result) == 1
+        np.testing.assert_array_equal(result[0].matrix, matrix)
+        assert result[0].matrix.shape == (2, 2)
 
 
 # =====================================================================
@@ -2304,36 +2126,21 @@ class TestFullMixedRoundTrip:
         structs = [
             FullMixedStruct(label="a", scores=np.array([0.1, 0.2, 0.3]), matrix=matrix),
         ]
-        write_field_map = {"label": "label", "scores": "scores", "matrix": "matrix"}
-        read_field_map = {"label": "label", "scores": "scores", "matrix": "matrix"}
-
-        @csp.graph
-        def G():
-            data = csp.const(structs)
-            batches = struct_to_record_batches(data, FullMixedStruct, write_field_map)
-            result = record_batches_to_struct(
-                batches,
-                FullMixedStruct,
-                read_field_map,
-                pa.schema(
-                    [
-                        ("label", pa.utf8()),
-                        ("scores", pa.list_(pa.float64())),
-                        ("matrix", pa.list_(pa.float64())),
-                        ("matrix_csp_dimensions", pa.list_(pa.int64())),
-                    ]
-                ),
-            )
-            csp.add_graph_output("result", result)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_structs = results["result"][0][1]
-
-        assert len(result_structs) == 1
-        assert result_structs[0].label == "a"
-        np.testing.assert_array_almost_equal(result_structs[0].scores, [0.1, 0.2, 0.3])
-        np.testing.assert_array_almost_equal(result_structs[0].matrix, matrix)
-        assert result_structs[0].matrix.shape == (2, 2)
+        field_map = {"label": "label", "scores": "scores", "matrix": "matrix"}
+        schema = pa.schema(
+            [
+                ("label", pa.utf8()),
+                ("scores", pa.list_(pa.float64())),
+                ("matrix", pa.list_(pa.float64())),
+                ("matrix_csp_dimensions", pa.list_(pa.int64())),
+            ]
+        )
+        result = _run_round_trip(structs, FullMixedStruct, field_map, schema)
+        assert len(result) == 1
+        assert result[0].label == "a"
+        np.testing.assert_array_almost_equal(result[0].scores, [0.1, 0.2, 0.3])
+        np.testing.assert_array_almost_equal(result[0].matrix, matrix)
+        assert result[0].matrix.shape == (2, 2)
 
 
 # =====================================================================
@@ -2355,17 +2162,7 @@ class TestReverseRoundTripWithNulls:
             }
         )
         field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
-        schema = original.schema
-
-        @csp.graph
-        def G():
-            data = csp.const([original])
-            structs = record_batches_to_struct(data, ScalarStruct, field_map, schema)
-            batches = struct_to_record_batches(structs, ScalarStruct, field_map)
-            csp.add_graph_output("result", batches)
-
-        results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
-        result_batches = results["result"][0][1]
+        result_batches = _run_reverse_round_trip(original, ScalarStruct, field_map)
 
         assert len(result_batches) == 1
         result = result_batches[0]
@@ -2497,69 +2294,3 @@ class TestDateWriteRegression:
         result = _run_to_struct(batch, DateTimeStruct, read_field_map, schema)
         for i, expected_date in enumerate(test_dates):
             assert result[i].d == expected_date
-
-
-class TestTimeConstantsRegression:
-    """Regression: time unit conversions must use named constants from Time.h.
-
-    Verifies that timestamp, duration, date, and time conversions work correctly
-    across all supported time units.
-    """
-
-    def test_timestamp_all_units(self):
-        """Read timestamps in all units (s, ms, us, ns) and verify they decode correctly."""
-        ts_val = datetime(2020, 6, 15, 12, 30, 45)
-        for unit, arrow_type in [
-            ("s", pa.timestamp("s", tz="UTC")),
-            ("ms", pa.timestamp("ms", tz="UTC")),
-            ("us", pa.timestamp("us", tz="UTC")),
-            ("ns", pa.timestamp("ns", tz="UTC")),
-        ]:
-            batch = pa.RecordBatch.from_pydict(
-                {"dt": pa.array([ts_val], type=arrow_type)},
-                schema=pa.schema([("dt", arrow_type)]),
-            )
-            result = _run_to_struct(batch, DateTimeStruct, {"dt": "dt"}, batch.schema)
-            if unit == "s":
-                # Second precision loses sub-second
-                assert result[0].dt == datetime(2020, 6, 15, 12, 30, 45)
-            else:
-                assert result[0].dt == ts_val
-
-    def test_duration_all_units(self):
-        """Read durations in all units and verify they decode correctly."""
-        td_val = timedelta(days=1, hours=2, minutes=30, seconds=15)
-        for unit, arrow_type in [
-            ("s", pa.duration("s")),
-            ("ms", pa.duration("ms")),
-            ("us", pa.duration("us")),
-            ("ns", pa.duration("ns")),
-        ]:
-            batch = pa.RecordBatch.from_pydict(
-                {
-                    "td": pa.array(
-                        [int(td_val.total_seconds() * {"s": 1, "ms": 1e3, "us": 1e6, "ns": 1e9}[unit])], type=arrow_type
-                    )
-                },
-                schema=pa.schema([("td", arrow_type)]),
-            )
-            result = _run_to_struct(batch, DateTimeStruct, {"td": "td"}, batch.schema)
-            # Duration conversion may lose precision for coarser units
-            assert abs(result[0].td.total_seconds() - td_val.total_seconds()) < 1.0
-
-    def test_date32_and_date64(self):
-        """Read both Date32 and Date64 formats and verify correct dates."""
-        d = date(2020, 6, 15)
-
-        class DateOnlyStruct(csp.Struct):
-            d: date
-
-        # Date32 (days since epoch)
-        batch32 = pa.RecordBatch.from_pydict({"d": pa.array([d], type=pa.date32())})
-        result32 = _run_to_struct(batch32, DateOnlyStruct, {"d": "d"}, batch32.schema)
-        assert result32[0].d == d
-
-        # Date64 (milliseconds since epoch)
-        batch64 = pa.RecordBatch.from_pydict({"d": pa.array([d], type=pa.date64())})
-        result64 = _run_to_struct(batch64, DateOnlyStruct, {"d": "d"}, batch64.schema)
-        assert result64[0].d == d

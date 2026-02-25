@@ -68,26 +68,23 @@ std::vector<StructPtr> RecordBatchToStructConverter::convert( const ::arrow::Rec
 {
     int64_t numRows = batch.num_rows();
 
-    // Bind scalar readers: non-virtual bindColumn sets column pointer + resets row
-    for( auto & entry : m_scalarReaders )
-        entry.reader -> bindColumn( batch.column( entry.columnIndex ).get() );
-
-    // Bind custom readers: virtual bindBatch for multi-column / batch-level binding
-    for( auto & reader : m_customReaders )
-        reader -> bindBatch( batch );
-
-    // Read all rows
+    // Phase 1: pre-allocate all structs
     std::vector<StructPtr> result;
     result.reserve( numRows );
+    for( int64_t i = 0; i < numRows; ++i )
+        result.push_back( m_structMeta -> create() );
 
-    for( int64_t row = 0; row < numRows; ++row )
+    // Phase 2: columnar read — one readAll() call per column
+    for( auto & entry : m_scalarReaders )
     {
-        StructPtr s = m_structMeta -> create();
-        for( auto & entry : m_scalarReaders )
-            entry.reader -> readNext( s.get() );
-        for( auto & reader : m_customReaders )
-            reader -> readNext( s.get() );
-        result.push_back( std::move( s ) );
+        entry.reader -> bindColumn( batch.column( entry.columnIndex ).get() );
+        entry.reader -> readAll( result, numRows );
+    }
+
+    for( auto & reader : m_customReaders )
+    {
+        reader -> bindBatch( batch );
+        reader -> readAll( result, numRows );
     }
 
     return result;

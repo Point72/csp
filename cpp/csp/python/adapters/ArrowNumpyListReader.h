@@ -36,7 +36,7 @@ namespace csp::python
 // Callback for reshaping a flat 1D array using dimensions read from another column.
 using ReshapeCallback = std::function<DialectGenericType( DialectGenericType flatData, const std::vector<int64_t> & dims )>;
 
-namespace
+namespace numpy
 {
 
 // NaN for doubles in list elements; throw for other types on null
@@ -288,7 +288,7 @@ private:
     const ::arrow::Array *   m_dimsColumn;
 };
 
-} // anonymous namespace
+} // namespace numpy
 
 // Create a FieldReader for a 1D numpy array column
 inline std::unique_ptr<csp::adapters::arrow::FieldReader> createNumpyArrayReader(
@@ -305,9 +305,9 @@ inline std::unique_ptr<csp::adapters::arrow::FieldReader> createNumpyArrayReader
     CSP_TRUE_OR_THROW_RUNTIME( listType != nullptr,
                                "Column '" << columnName << "' is not a list type" );
 
-    auto readValue = dispatchListReadValue( listType, columnName );
+    auto readValue = numpy::dispatchListReadValue( listType, columnName );
 
-    return std::make_unique<NumpyArrayReader>(
+    return std::make_unique<numpy::NumpyArrayReader>(
         colIdx, structField, std::move( readValue ), std::vector<std::string>{ columnName } );
 }
 
@@ -335,9 +335,9 @@ inline std::unique_ptr<csp::adapters::arrow::FieldReader> createNumpyNDArrayRead
     CSP_TRUE_OR_THROW_RUNTIME( reshapeCallback,
                                "Dimensions column specified for '" << columnName << "' but no reshape callback provided" );
 
-    auto readValue = dispatchListReadValue( listType, columnName );
+    auto readValue = numpy::dispatchListReadValue( listType, columnName );
 
-    return std::make_unique<NumpyNDArrayReader>(
+    return std::make_unique<numpy::NumpyNDArrayReader>(
         colIdx, dimsColIdx, structField, std::move( readValue ), std::move( reshapeCallback ),
         std::vector<std::string>{ columnName, dimsColumnName } );
 }

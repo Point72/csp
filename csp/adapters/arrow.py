@@ -171,7 +171,7 @@ def record_batches_to_struct(
     Args:
         data: Timeseries of lists of Arrow RecordBatches
         cls: Target csp.Struct type
-        field_map: Mapping of arrow column name -> struct field name.
+        field_map: Mapping of struct field name -> arrow column name.
         schema: Arrow schema of the record batches (required).
         numpy_dimensions_column_map: Optional mapping of arrow column name -> dimensions column name
             for NumpyNDArray fields. If not provided for an NDArray field, defaults to
@@ -190,7 +190,7 @@ def record_batches_to_struct(
     numpy_fields = {}
     numpy_dimension_names = {}
 
-    for arrow_col_name, struct_field_name in field_map.items():
+    for struct_field_name, arrow_col_name in field_map.items():
         field_typ = meta_typed[struct_field_name]
         if CspTypingUtils.is_numpy_array_type(field_typ):
             numpy_fields[arrow_col_name] = struct_field_name

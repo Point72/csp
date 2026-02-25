@@ -11,4 +11,5 @@ if(CSP_BUILD_WS_CLIENT_ADAPTER)
     add_subdirectory(websocket)
 endif()
 
+add_subdirectory(arrow)
 add_subdirectory(utils)

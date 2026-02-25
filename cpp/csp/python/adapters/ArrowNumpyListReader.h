@@ -14,16 +14,7 @@
 #include <arrow/array.h>
 #include <arrow/type.h>
 
-// codecvt is deprecated in C++17 but still the simplest way to do UTF-8 <-> UTF-32
-// No replacement in the standard until C++26; suppress the deprecation warning.
-#if defined( __GNUC__ ) || defined( __clang__ )
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 #include <codecvt>
-#if defined( __GNUC__ ) || defined( __clang__ )
-#pragma GCC diagnostic pop
-#endif
 #include <cstring>
 #include <functional>
 #include <locale>

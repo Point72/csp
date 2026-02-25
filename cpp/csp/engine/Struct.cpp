@@ -98,56 +98,6 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
 
     m_isFullyNative = m_isPartialNative && ( m_base ? m_base -> isNative() : true );
 
-    //Setup masking bits for our fields
-    //NOTE we can be more efficient by sticking masks into any potential alignment gaps, dont want to spend time on it 
-    //at this point
-
-    size_t optionalFieldCount = std::count_if( m_fields.begin(), m_fields.end(), []( const auto & f ) { return f -> isOptional(); } );
-    
-    m_maskSize     = !m_fields.empty() ? 1 + ( ( m_fields.size() + optionalFieldCount - 1 ) / 8 ) : 0;
-    m_size         = offset + m_maskSize;
-    m_partialSize  = m_size - baseSize;
-    m_maskLoc      = m_size - m_maskSize;
-    
-    uint8_t numRemainingBits = ( m_fields.size() + optionalFieldCount ) % 8;
-    m_lastByteMask = ( 1u << numRemainingBits ) - 1;
-
-    size_t  maskLoc = m_maskLoc;
-    uint8_t maskBit = 0;
-
-    // Set optional fields first so that their 2-bits never cross a byte boundary
-    // Put both the set bits and none bits in the same vector to avoid fragmentation
-    m_optionalFieldsBitMasks.resize( 2 * m_maskSize );
-    for( size_t i = 0; i < m_fields.size(); ++i )
-    {
-        auto & f = m_fields[ i ];
-        if( f -> isOptional() )
-        {
-            f -> setMaskOffset( maskLoc, maskBit );
-            optionalSetBitMask( maskLoc - m_maskLoc ) |= ( 1 << maskBit ); // set bits for this byte
-            optionalNoneBitMask( maskLoc - m_maskLoc ) |= ( 1 << ++maskBit ); // none bits for this byte
-            if( ++maskBit == 8 )
-            {
-                maskBit = 0;
-                ++maskLoc;
-            }
-        }
-    }
-
-    for( size_t i = 0; i < m_fields.size(); ++i )
-    {
-        auto & f = m_fields[ i ];
-        if( !f -> isOptional() )
-        {
-            f -> setMaskOffset( maskLoc, maskBit );
-            if( ++maskBit == 8 )
-            {
-                maskBit = 0;
-                ++maskLoc;
-            }
-        }
-    }
-
     if( m_base )
     {
         // The complete inheritance hierarchy must agree on strict/non-strict
@@ -167,11 +117,97 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
         m_fieldMap = m_base -> m_fieldMap;
     }
 
-    for( size_t idx = m_firstPartialField; idx < m_fields.size(); ++idx )
+    size_t idx = m_firstPartialField;
+    while( idx < m_fields.size() )
     {
-        auto rv = m_fieldMap.emplace( m_fields[ idx ] -> fieldname().c_str(), m_fields[ idx ] );
+        auto fieldname = m_fields[ idx ] -> fieldname().c_str();
+        auto rv = m_fieldMap.emplace( fieldname, m_fields[ idx ] );
         if( !rv.second )
-            CSP_THROW( ValueError, "csp Struct " << name << " attempted to add existing field " << m_fields[ idx ] -> fieldname() );
+        {
+            auto derivedTypeEnum = m_fields[ idx ] -> type() -> type();
+            auto baseTypeEnum    = rv.first -> second -> type() -> type();
+
+            // only allowed to override fields from a base class if types are DIALECT_GENERIC or STRUCT
+            // beyond that, its up to the dialect-specific struct impl (i.e. PyStruct) to decide whether the override types are valid
+            if( derivedTypeEnum != baseTypeEnum || ( derivedTypeEnum != CspType::Type::DIALECT_GENERIC && derivedTypeEnum != CspType::Type::STRUCT ) )
+                CSP_THROW( ValueError, "csp Struct " << name << " attempted to add existing field " << m_fields[ idx ] -> fieldname() <<
+                    " which is not allowed: base field type " << baseTypeEnum << " and derived field type " << derivedTypeEnum );
+
+            // insert the derived override field into the space allocated for the base field
+            auto derivedField = m_fields[ idx ];
+            for( size_t baseIdx = 0; baseIdx < m_firstPartialField; ++baseIdx )
+            {
+                if( m_fields[ baseIdx ] -> fieldname() == derivedField -> fieldname() )
+                {
+                    derivedField -> setOffset( m_fields[ baseIdx ] -> offset() ); 
+                    derivedField -> setMaskOffset( m_fields[ baseIdx ] -> maskOffset(), m_fields[ baseIdx ] -> maskBit() );
+                    m_fields[ baseIdx ] = derivedField;
+                    break;
+                }
+            }
+            rv.first -> second = derivedField; // field map
+
+            // clean up the field we just removed on the derived meta
+            // the erased field had to be non-native (only DIALECT_GENERIC and STRUCT overrides are allowed)
+            // so adjust the non-native/native boundary index for the derived partial section
+            --m_firstNativePartialField;
+            m_isPartialNative = ( m_firstPartialField == m_firstNativePartialField );
+            m_fields.erase( m_fields.begin() + idx );
+            auto nameIt = std::find( m_fieldnames.begin() + m_firstPartialField, m_fieldnames.end(), derivedField -> fieldname() );
+            m_fieldnames.erase( nameIt );
+        }
+        else
+            ++idx;
+    }
+
+    // setup masking bits for the remaining derived (partial) fields
+    // note that this is done after the override dedup above so that overridden fields don't consume mask bits.
+    //NOTE we can be more efficient by sticking masks into any potential alignment gaps, dont want to spend time on it
+    size_t optionalFieldCount = std::count_if( m_fields.begin() + m_firstPartialField, m_fields.end(), []( const auto & f ) { return f -> isOptional(); } );
+    size_t partialFieldCount = m_fields.size() - m_firstPartialField;
+
+    m_maskSize     = partialFieldCount > 0 ? 1 + ( ( partialFieldCount + optionalFieldCount - 1 ) / 8 ) : 0;
+    m_size         = offset + m_maskSize;
+    m_partialSize  = m_size - baseSize;
+    m_maskLoc      = m_size - m_maskSize;
+
+    uint8_t numRemainingBits = ( partialFieldCount + optionalFieldCount ) % 8;
+    m_lastByteMask = ( 1u << numRemainingBits ) - 1;
+
+    size_t  maskLoc = m_maskLoc;
+    uint8_t maskBit = 0;
+
+    // Set optional fields first so that their 2-bits never cross a byte boundary
+    // Put both the set bits and none bits in the same vector to avoid fragmentation
+    m_optionalFieldsBitMasks.resize( 2 * m_maskSize );
+    for( size_t i = m_firstPartialField; i < m_fields.size(); ++i )
+    {
+        auto & f = m_fields[ i ];
+        if( f -> isOptional() )
+        {
+            f -> setMaskOffset( maskLoc, maskBit );
+            optionalSetBitMask( maskLoc - m_maskLoc ) |= ( 1 << maskBit ); // set bits for this byte
+            optionalNoneBitMask( maskLoc - m_maskLoc ) |= ( 1 << ++maskBit ); // none bits for this byte
+            if( ++maskBit == 8 )
+            {
+                maskBit = 0;
+                ++maskLoc;
+            }
+        }
+    }
+
+    for( size_t i = m_firstPartialField; i < m_fields.size(); ++i )
+    {
+        auto & f = m_fields[ i ];
+        if( !f -> isOptional() )
+        {
+            f -> setMaskOffset( maskLoc, maskBit );
+            if( ++maskBit == 8 )
+            {
+                maskBit = 0;
+                ++maskLoc;
+            }
+        }
     }
 }
 

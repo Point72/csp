@@ -3,6 +3,7 @@
   "version-string": "latest",
   "dependencies": [
     "arrow",
+    "avro-cpp",
     "boost-beast",
     "boost-multi-index",
     "brotli",

@@ -123,6 +123,31 @@ class FullMixedStruct(csp.Struct):
     matrix: NumpyNDArray[float]
 
 
+class NumpyDatetimeStruct(csp.Struct):
+    id: int
+    timestamps: Numpy1DArray[datetime]
+
+
+class NumpyTimedeltaStruct(csp.Struct):
+    id: int
+    durations: Numpy1DArray[timedelta]
+
+
+class NumpyDateStruct(csp.Struct):
+    id: int
+    dates: Numpy1DArray[datetime]  # dates stored as datetime64[ns] in numpy
+
+
+class NDArrayDatetimeStruct(csp.Struct):
+    id: int
+    matrix: NumpyNDArray[datetime]
+
+
+class NDArrayTimedeltaStruct(csp.Struct):
+    id: int
+    matrix: NumpyNDArray[timedelta]
+
+
 # =====================================================================
 # Helpers — reader direction (batch → struct)
 # =====================================================================
@@ -2249,6 +2274,34 @@ class TestNonContiguousArrayWrite:
         np.testing.assert_array_equal(result[0].matrix, f_array)
         assert result[0].matrix.shape == (2, 3)
 
+    def test_sliced_datetime_array(self):
+        """Non-contiguous datetime64 array round-trip."""
+        full = np.array(
+            ["2020-01-01", "2020-02-01", "2020-03-01", "2020-04-01", "2020-05-01", "2020-06-01"],
+            dtype="datetime64[ns]",
+        )
+        sliced = full[::2]  # [Jan, Mar, May], non-contiguous
+        assert not sliced.flags["C_CONTIGUOUS"] or sliced.strides[0] != sliced.itemsize
+
+        structs = [NumpyDatetimeStruct(id=1, timestamps=sliced)]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        schema = pa.schema([("id", pa.int64()), ("timestamps", pa.list_(pa.timestamp("ns", tz="UTC")))])
+        result = _run_round_trip(structs, NumpyDatetimeStruct, field_map, schema)
+
+        np.testing.assert_array_equal(result[0].timestamps, sliced)
+
+    def test_sliced_timedelta_array(self):
+        """Non-contiguous timedelta64 array round-trip."""
+        full = np.array([1, 2, 3, 4, 5, 6], dtype="timedelta64[ns]")
+        sliced = full[1::2]  # [2, 4, 6]
+
+        structs = [NumpyTimedeltaStruct(id=1, durations=sliced)]
+        field_map = {"id": "id", "durations": "durations"}
+        schema = pa.schema([("id", pa.int64()), ("durations", pa.list_(pa.duration("ns")))])
+        result = _run_round_trip(structs, NumpyTimedeltaStruct, field_map, schema)
+
+        np.testing.assert_array_equal(result[0].durations, sliced)
+
 
 class TestDateWriteRegression:
     """Regression: DateWriter must compute days-since-epoch correctly.
@@ -2294,3 +2347,280 @@ class TestDateWriteRegression:
         result = _run_to_struct(batch, DateTimeStruct, read_field_map, schema)
         for i, expected_date in enumerate(test_dates):
             assert result[i].d == expected_date
+
+
+# =====================================================================
+# Numpy temporal array tests — datetime64, timedelta64
+# =====================================================================
+
+
+class TestReadNumpyTemporalFields:
+    """Reading Arrow list<timestamp>, list<duration>, list<date32> into numpy datetime64/timedelta64 arrays."""
+
+    def test_timestamp_array(self):
+        """Read list<timestamp[ns]> into numpy datetime64[ns] array."""
+        ts_vals = [
+            np.datetime64("2020-01-01T00:00:00", "ns"),
+            np.datetime64("2020-06-15T12:30:00", "ns"),
+            np.datetime64("2025-12-31T23:59:59", "ns"),
+        ]
+        batch = pa.RecordBatch.from_pydict(
+            {"id": [1], "timestamps": [[int(v) for v in ts_vals]]},
+            schema=pa.schema([("id", pa.int64()), ("timestamps", pa.list_(pa.timestamp("ns", tz="UTC")))]),
+        )
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        structs = _run_to_struct(batch, NumpyDatetimeStruct, field_map, batch.schema)
+
+        assert len(structs) == 1
+        result = structs[0].timestamps
+        assert result.dtype == np.dtype("datetime64[ns]")
+        np.testing.assert_array_equal(result, np.array(ts_vals))
+
+    def test_timestamp_microsecond_unit(self):
+        """Read list<timestamp[us]> — values should be converted to nanoseconds."""
+        us_val = 1592220600000000  # 2020-06-15T12:30:00 in microseconds
+        batch = pa.RecordBatch.from_pydict(
+            {"id": [1], "timestamps": [[us_val]]},
+            schema=pa.schema([("id", pa.int64()), ("timestamps", pa.list_(pa.timestamp("us", tz="UTC")))]),
+        )
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        structs = _run_to_struct(batch, NumpyDatetimeStruct, field_map, batch.schema)
+
+        expected_ns = us_val * 1000  # microseconds to nanoseconds
+        assert structs[0].timestamps[0] == np.datetime64(expected_ns, "ns")
+
+    def test_duration_array(self):
+        """Read list<duration[ns]> into numpy timedelta64[ns] array."""
+        dur_vals = [
+            np.timedelta64(1000000000, "ns"),  # 1 second
+            np.timedelta64(3600000000000, "ns"),  # 1 hour
+            np.timedelta64(86400000000000, "ns"),  # 1 day
+        ]
+        batch = pa.RecordBatch.from_pydict(
+            {"id": [1], "durations": [[int(v) for v in dur_vals]]},
+            schema=pa.schema([("id", pa.int64()), ("durations", pa.list_(pa.duration("ns")))]),
+        )
+        field_map = {"id": "id", "durations": "durations"}
+        structs = _run_to_struct(batch, NumpyTimedeltaStruct, field_map, batch.schema)
+
+        assert len(structs) == 1
+        result = structs[0].durations
+        assert result.dtype == np.dtype("timedelta64[ns]")
+        np.testing.assert_array_equal(result, np.array(dur_vals))
+
+    def test_duration_microsecond_unit(self):
+        """Read list<duration[us]> — values should be converted to nanoseconds."""
+        us_val = 5000000  # 5 seconds in microseconds
+        batch = pa.RecordBatch.from_pydict(
+            {"id": [1], "durations": [[us_val]]},
+            schema=pa.schema([("id", pa.int64()), ("durations", pa.list_(pa.duration("us")))]),
+        )
+        field_map = {"id": "id", "durations": "durations"}
+        structs = _run_to_struct(batch, NumpyTimedeltaStruct, field_map, batch.schema)
+
+        expected_ns = us_val * 1000
+        assert structs[0].durations[0] == np.timedelta64(expected_ns, "ns")
+
+    def test_date32_array(self):
+        """Read list<date32> into numpy datetime64[ns] array."""
+        # date32 stores days since epoch
+        dates_as_days = [0, 18262, 20089]  # 1970-01-01, 2020-01-01, 2025-01-01
+        batch = pa.RecordBatch.from_pydict(
+            {"id": [1], "dates": [dates_as_days]},
+            schema=pa.schema([("id", pa.int64()), ("dates", pa.list_(pa.date32()))]),
+        )
+        field_map = {"id": "id", "dates": "dates"}
+        structs = _run_to_struct(batch, NumpyDateStruct, field_map, batch.schema)
+
+        result = structs[0].dates
+        assert result.dtype == np.dtype("datetime64[ns]")
+        # Verify known date conversions
+        assert result[0] == np.datetime64("1970-01-01", "ns")
+        assert result[1] == np.datetime64("2020-01-01", "ns")
+        assert result[2] == np.datetime64("2025-01-01", "ns")
+
+    def test_multiple_rows(self):
+        """Multiple rows of timestamp list arrays."""
+        ts1 = [int(np.datetime64("2020-01-01", "ns")), int(np.datetime64("2020-01-02", "ns"))]
+        ts2 = [int(np.datetime64("2025-06-15", "ns"))]
+        batch = pa.RecordBatch.from_pydict(
+            {"id": [1, 2], "timestamps": [ts1, ts2]},
+            schema=pa.schema([("id", pa.int64()), ("timestamps", pa.list_(pa.timestamp("ns", tz="UTC")))]),
+        )
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        structs = _run_to_struct(batch, NumpyDatetimeStruct, field_map, batch.schema)
+
+        assert len(structs) == 2
+        assert len(structs[0].timestamps) == 2
+        assert len(structs[1].timestamps) == 1
+
+    def test_null_list_cell(self):
+        """A null list cell should leave the struct field unset."""
+        arr_id = pa.array([1, 2])
+        arr_ts = pa.array([[int(np.datetime64("2020-01-01", "ns"))], None], type=pa.list_(pa.timestamp("ns", tz="UTC")))
+        batch = pa.RecordBatch.from_arrays(
+            [arr_id, arr_ts],
+            schema=pa.schema([("id", pa.int64()), ("timestamps", pa.list_(pa.timestamp("ns", tz="UTC")))]),
+        )
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        structs = _run_to_struct(batch, NumpyDatetimeStruct, field_map, batch.schema)
+
+        assert len(structs) == 2
+        assert structs[0].timestamps is not None
+        assert not hasattr(structs[1], "timestamps") or structs[1].timestamps is None
+
+
+class TestWriteNumpyTemporalFields:
+    """Writing numpy datetime64/timedelta64 arrays to Arrow list<timestamp>/list<duration> columns."""
+
+    def test_datetime_array(self):
+        """Write numpy datetime64[ns] array → list<timestamp(ns, UTC)>."""
+        ts_arr = np.array(["2020-01-01", "2020-06-15", "2025-12-31"], dtype="datetime64[ns]")
+        structs = [NumpyDatetimeStruct(id=1, timestamps=ts_arr)]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        batches = _run_to_batches(structs, NumpyDatetimeStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 1
+        ts_col = batch.column("timestamps")
+        assert pa.types.is_list(ts_col.type)
+        assert pa.types.is_timestamp(ts_col.type.value_type)
+        values = ts_col.to_pylist()[0]
+        assert len(values) == 3
+
+    def test_timedelta_array(self):
+        """Write numpy timedelta64[ns] array → list<duration(ns)>."""
+        td_arr = np.array([1000000000, 3600000000000, 86400000000000], dtype="timedelta64[ns]")
+        structs = [NumpyTimedeltaStruct(id=1, durations=td_arr)]
+        field_map = {"id": "id", "durations": "durations"}
+        batches = _run_to_batches(structs, NumpyTimedeltaStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 1
+        dur_col = batch.column("durations")
+        assert pa.types.is_list(dur_col.type)
+        assert pa.types.is_duration(dur_col.type.value_type)
+
+    def test_null_temporal_field(self):
+        """Unset numpy temporal field should become null in Arrow."""
+        structs = [NumpyDatetimeStruct(id=1)]  # timestamps is unset
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        batches = _run_to_batches(structs, NumpyDatetimeStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("timestamps").to_pylist() == [None]
+
+    def test_multiple_rows(self):
+        """Multiple rows of datetime arrays."""
+        ts1 = np.array(["2020-01-01", "2020-01-02"], dtype="datetime64[ns]")
+        ts2 = np.array(["2025-06-15"], dtype="datetime64[ns]")
+        structs = [
+            NumpyDatetimeStruct(id=1, timestamps=ts1),
+            NumpyDatetimeStruct(id=2, timestamps=ts2),
+        ]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        batches = _run_to_batches(structs, NumpyDatetimeStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 2
+        values = batch.column("timestamps").to_pylist()
+        assert len(values[0]) == 2
+        assert len(values[1]) == 1
+
+    def test_auto_detect_no_field_map(self):
+        """Auto-detect numpy temporal fields when field_map is None."""
+        ts_arr = np.array(["2020-01-01", "2020-06-15"], dtype="datetime64[ns]")
+        structs = [NumpyDatetimeStruct(id=1, timestamps=ts_arr)]
+        batches = _run_to_batches(structs, NumpyDatetimeStruct)
+
+        batch = batches[0]
+        assert "timestamps" in batch.schema.names
+        ts_col = batch.column("timestamps")
+        assert pa.types.is_list(ts_col.type)
+        assert pa.types.is_timestamp(ts_col.type.value_type)
+
+
+class TestNumpyTemporalRoundTrips:
+    """Round-trip tests: struct → batch → struct for temporal numpy arrays."""
+
+    def test_datetime_round_trip(self):
+        """datetime64[ns] round-trip through arrow list<timestamp(ns)>."""
+        ts_arr = np.array(["2020-01-01T00:00:00", "2020-06-15T12:30:00", "2025-12-31T23:59:59"], dtype="datetime64[ns]")
+        structs = [NumpyDatetimeStruct(id=1, timestamps=ts_arr)]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        schema = pa.schema([("id", pa.int64()), ("timestamps", pa.list_(pa.timestamp("ns", tz="UTC")))])
+        result = _run_round_trip(structs, NumpyDatetimeStruct, field_map, schema)
+
+        assert result[0].id == 1
+        np.testing.assert_array_equal(result[0].timestamps, ts_arr)
+        assert result[0].timestamps.dtype == np.dtype("datetime64[ns]")
+
+    def test_timedelta_round_trip(self):
+        """timedelta64[ns] round-trip through arrow list<duration(ns)>."""
+        td_arr = np.array([1000000000, 3600000000000, 86400000000000], dtype="timedelta64[ns]")
+        structs = [NumpyTimedeltaStruct(id=1, durations=td_arr)]
+        field_map = {"id": "id", "durations": "durations"}
+        schema = pa.schema([("id", pa.int64()), ("durations", pa.list_(pa.duration("ns")))])
+        result = _run_round_trip(structs, NumpyTimedeltaStruct, field_map, schema)
+
+        assert result[0].id == 1
+        np.testing.assert_array_equal(result[0].durations, td_arr)
+        assert result[0].durations.dtype == np.dtype("timedelta64[ns]")
+
+    def test_multiple_rows_round_trip(self):
+        """Multiple rows of temporal arrays survive round-trip."""
+        ts1 = np.array(["2020-01-01", "2020-01-02", "2020-01-03"], dtype="datetime64[ns]")
+        ts2 = np.array(["2025-06-15"], dtype="datetime64[ns]")
+        structs = [
+            NumpyDatetimeStruct(id=1, timestamps=ts1),
+            NumpyDatetimeStruct(id=2, timestamps=ts2),
+        ]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        schema = pa.schema([("id", pa.int64()), ("timestamps", pa.list_(pa.timestamp("ns", tz="UTC")))])
+        result = _run_round_trip(structs, NumpyDatetimeStruct, field_map, schema)
+
+        assert len(result) == 2
+        np.testing.assert_array_equal(result[0].timestamps, ts1)
+        np.testing.assert_array_equal(result[1].timestamps, ts2)
+
+    def test_ndarray_datetime_round_trip(self):
+        """2D datetime64[ns] NDArray round-trip with dimensions."""
+        matrix = np.array(
+            [["2020-01-01", "2020-01-02", "2020-01-03"], ["2020-06-01", "2020-06-02", "2020-06-03"]],
+            dtype="datetime64[ns]",
+        )
+        structs = [NDArrayDatetimeStruct(id=1, matrix=matrix)]
+        field_map = {"id": "id", "matrix": "matrix"}
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("matrix", pa.list_(pa.timestamp("ns", tz="UTC"))),
+                ("matrix_csp_dimensions", pa.list_(pa.int64())),
+            ]
+        )
+        result = _run_round_trip(structs, NDArrayDatetimeStruct, field_map, schema)
+
+        assert result[0].matrix.shape == (2, 3)
+        np.testing.assert_array_equal(result[0].matrix, matrix)
+        assert result[0].matrix.dtype == np.dtype("datetime64[ns]")
+
+    def test_ndarray_timedelta_round_trip(self):
+        """2D timedelta64[ns] NDArray round-trip with dimensions."""
+        matrix = np.array(
+            [[1000000000, 2000000000, 3000000000], [4000000000, 5000000000, 6000000000]],
+            dtype="timedelta64[ns]",
+        )
+        structs = [NDArrayTimedeltaStruct(id=1, matrix=matrix)]
+        field_map = {"id": "id", "matrix": "matrix"}
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("matrix", pa.list_(pa.duration("ns"))),
+                ("matrix_csp_dimensions", pa.list_(pa.int64())),
+            ]
+        )
+        result = _run_round_trip(structs, NDArrayTimedeltaStruct, field_map, schema)
+
+        assert result[0].matrix.shape == (2, 3)
+        np.testing.assert_array_equal(result[0].matrix, matrix)
+        assert result[0].matrix.dtype == np.dtype("timedelta64[ns]")

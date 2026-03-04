@@ -9,6 +9,7 @@
 #define _IN_CSP_PYTHON_ADAPTERS_ArrowNumpyListWriter_H
 
 #include <csp/adapters/arrow/ArrowFieldWriter.h>
+#include <csp/core/Time.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/NumpyConversions.h>
 
@@ -174,6 +175,150 @@ private:
     std::string                                         m_utf8Buf;            // reused buffer
 };
 
+// --- Temporal list writers (datetime64[ns] → Timestamp, timedelta64[ns] → Duration) ---
+
+// Writes numpy datetime64/timedelta64 arrays into Arrow List<Timestamp(ns,"UTC")> or List<Duration(ns)> columns.
+// Detects the numpy datetime unit at write time and converts to nanoseconds using scalingFromNumpyDtUnit().
+template<typename ArrowBuilderT>
+class TemporalListWriter final : public csp::adapters::arrow::FieldWriter
+{
+public:
+    TemporalListWriter( const std::string & columnName, const StructFieldPtr & structField,
+                        std::shared_ptr<::arrow::DataType> elementType )
+        : FieldWriter( { columnName }, { ::arrow::list( elementType ) }, structField )
+    {
+        m_valueBuilder = std::make_shared<ArrowBuilderT>( elementType, ::arrow::default_memory_pool() );
+        m_listBuilder = std::make_shared<::arrow::ListBuilder>( ::arrow::default_memory_pool(), m_valueBuilder );
+    }
+
+    void reserve( int64_t numRows ) override
+    {
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Reserve( numRows ), "Failed to reserve temporal list builder" );
+    }
+
+    void writeNull() override
+    {
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> AppendNull(), "Failed to append null temporal list" );
+    }
+
+    std::vector<std::shared_ptr<::arrow::Array>> finish() override
+    {
+        std::shared_ptr<::arrow::Array> arr;
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Finish( &arr ), "Failed to finish temporal list array" );
+        return { arr };
+    }
+
+protected:
+    void doWrite( const Struct * s ) override
+    {
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Append(), "Failed to start temporal list" );
+        auto & dgt = m_field -> value<DialectGenericType>( s );
+        auto * pyArr = reinterpret_cast<PyArrayObject *>( csp::python::toPythonBorrowed( dgt ) );
+        npy_intp len = PyArray_SIZE( pyArr );
+
+        // PyArray_DATA requires C-contiguous layout for correct bulk reads.
+        // Non-contiguous arrays (slices, transposes) must be copied to contiguous form first.
+        PyArrayObject * contiguousArr = pyArr;
+        PyObjectPtr contiguousOwner;
+        if( !PyArray_IS_C_CONTIGUOUS( pyArr ) )
+        {
+            contiguousOwner = PyObjectPtr::own(
+                reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
+            contiguousArr = reinterpret_cast<PyArrayObject *>( contiguousOwner.get() );
+        }
+
+        auto * data = reinterpret_cast<const int64_t *>( PyArray_DATA( contiguousArr ) );
+
+        // Detect numpy datetime unit and compute scaling to nanoseconds
+        auto unit = datetimeUnitFromDescr( PyArray_DESCR( pyArr ) );
+        int64_t scaling = scalingFromNumpyDtUnit( unit );
+
+        if( scaling == 1 )
+        {
+            // Already nanoseconds — bulk append
+            ARROW_OK_OR_THROW_WRITER(
+                m_valueBuilder -> AppendValues( data, static_cast<int64_t>( len ) ),
+                "Failed to append temporal list elements" );
+        }
+        else
+        {
+            ARROW_OK_OR_THROW_WRITER(
+                m_valueBuilder -> Reserve( static_cast<int64_t>( len ) ),
+                "Failed to reserve temporal value builder" );
+            for( npy_intp i = 0; i < len; ++i )
+                m_valueBuilder -> UnsafeAppend( data[i] * scaling );
+        }
+    }
+
+private:
+    std::shared_ptr<ArrowBuilderT>          m_valueBuilder;
+    std::shared_ptr<::arrow::ListBuilder>   m_listBuilder;
+};
+
+// Date writer: numpy datetime64 → Arrow List<Date32> (nanoseconds → days since epoch)
+class DateListWriter final : public csp::adapters::arrow::FieldWriter
+{
+public:
+    DateListWriter( const std::string & columnName, const StructFieldPtr & structField )
+        : FieldWriter( { columnName }, { ::arrow::list( ::arrow::date32() ) }, structField )
+    {
+        m_valueBuilder = std::make_shared<::arrow::Date32Builder>();
+        m_listBuilder = std::make_shared<::arrow::ListBuilder>( ::arrow::default_memory_pool(), m_valueBuilder );
+    }
+
+    void reserve( int64_t numRows ) override
+    {
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Reserve( numRows ), "Failed to reserve date list builder" );
+    }
+
+    void writeNull() override
+    {
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> AppendNull(), "Failed to append null date list" );
+    }
+
+    std::vector<std::shared_ptr<::arrow::Array>> finish() override
+    {
+        std::shared_ptr<::arrow::Array> arr;
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Finish( &arr ), "Failed to finish date list array" );
+        return { arr };
+    }
+
+protected:
+    void doWrite( const Struct * s ) override
+    {
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Append(), "Failed to start date list" );
+        auto & dgt = m_field -> value<DialectGenericType>( s );
+        auto * pyArr = reinterpret_cast<PyArrayObject *>( csp::python::toPythonBorrowed( dgt ) );
+        npy_intp len = PyArray_SIZE( pyArr );
+
+        // PyArray_DATA requires C-contiguous layout for correct bulk reads.
+        PyArrayObject * contiguousArr = pyArr;
+        PyObjectPtr contiguousOwner;
+        if( !PyArray_IS_C_CONTIGUOUS( pyArr ) )
+        {
+            contiguousOwner = PyObjectPtr::own(
+                reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
+            contiguousArr = reinterpret_cast<PyArrayObject *>( contiguousOwner.get() );
+        }
+
+        auto * data = reinterpret_cast<const int64_t *>( PyArray_DATA( contiguousArr ) );
+
+        // Detect numpy datetime unit and compute scaling to nanoseconds
+        auto unit = datetimeUnitFromDescr( PyArray_DESCR( pyArr ) );
+        int64_t scaling = scalingFromNumpyDtUnit( unit );
+
+        ARROW_OK_OR_THROW_WRITER(
+            m_valueBuilder -> Reserve( static_cast<int64_t>( len ) ),
+            "Failed to reserve date value builder" );
+        for( npy_intp i = 0; i < len; ++i )
+            m_valueBuilder -> UnsafeAppend( static_cast<int32_t>( data[i] * scaling / csp::NANOS_PER_DAY ) );
+    }
+
+private:
+    std::shared_ptr<::arrow::Date32Builder>  m_valueBuilder;
+    std::shared_ptr<::arrow::ListBuilder>    m_listBuilder;
+};
+
 // --- Dispatch by npy_type ---
 
 inline std::unique_ptr<csp::adapters::arrow::FieldWriter> dispatchListWriter(
@@ -193,6 +338,12 @@ inline std::unique_ptr<csp::adapters::arrow::FieldWriter> dispatchListWriter(
             return std::make_unique<NativeListWriter<bool, ::arrow::BooleanBuilder>>( columnName, structField, ::arrow::boolean() );
         case NPY_UNICODE:
             return std::make_unique<StringListWriter>( columnName, structField );
+        case NPY_DATETIME:
+            return std::make_unique<TemporalListWriter<::arrow::TimestampBuilder>>(
+                columnName, structField, std::make_shared<::arrow::TimestampType>( ::arrow::TimeUnit::NANO, "UTC" ) );
+        case NPY_TIMEDELTA:
+            return std::make_unique<TemporalListWriter<::arrow::DurationBuilder>>(
+                columnName, structField, std::make_shared<::arrow::DurationType>( ::arrow::TimeUnit::NANO ) );
         default:
             CSP_THROW( TypeError, "Unsupported numpy type " << npyType << " for list column '" << columnName << "'" );
     }

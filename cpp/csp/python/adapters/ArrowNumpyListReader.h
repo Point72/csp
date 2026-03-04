@@ -14,6 +14,8 @@
 #include <arrow/array.h>
 #include <arrow/type.h>
 
+#include <csp/core/Time.h>
+
 #include <codecvt>
 #include <cstring>
 #include <functional>
@@ -140,6 +142,117 @@ makeStringListReadValue()
     };
 }
 
+// Helper: compute nanosecond multiplier for a given arrow::TimeUnit
+inline int64_t listTimeUnitMultiplier( ::arrow::TimeUnit::type unit )
+{
+    switch( unit )
+    {
+        case ::arrow::TimeUnit::SECOND: return csp::NANOS_PER_SECOND;
+        case ::arrow::TimeUnit::MILLI:  return csp::NANOS_PER_MILLISECOND;
+        case ::arrow::TimeUnit::MICRO:  return csp::NANOS_PER_MICROSECOND;
+        case ::arrow::TimeUnit::NANO:   return 1LL;
+    }
+    CSP_THROW( TypeError, "Unexpected arrow TimeUnit: " << static_cast<int>( unit ) );
+}
+
+// Create a readValue lambda for datetime64[ns] from Arrow Timestamp/Date columns
+// ArrowValueArrayT is the typed Arrow array (TimestampArray, Date32Array, Date64Array)
+// multiplier converts from Arrow units to nanoseconds
+template<typename ArrowValueArrayT>
+std::function<DialectGenericType( const ::arrow::Array &, int64_t )>
+makeTimestampListReadValue( int64_t multiplier )
+{
+    // Lazily create and cache the datetime64[ns] descriptor
+    static PyArray_Descr * s_dtype = nullptr;
+    if( !s_dtype )
+    {
+        auto dtypeStr = PyPtr<PyObject>::own( PyUnicode_FromString( "<M8[ns]" ) );
+        PyArray_DescrConverter( dtypeStr.get(), &s_dtype );
+    }
+
+    return [multiplier]( const ::arrow::Array & arr, int64_t row ) -> DialectGenericType
+    {
+        auto & listArr = static_cast<const ::arrow::ListArray &>( arr );
+        auto values = std::static_pointer_cast<ArrowValueArrayT>( listArr.value_slice( row ) );
+
+        npy_intp size = values -> length();
+        Py_INCREF( s_dtype );
+        PyObject * pyArr = PyArray_SimpleNewFromDescr( 1, &size, s_dtype );
+        PyObjectPtr arrOwner{ PyObjectPtr::own( pyArr ) };
+
+        auto * buf = reinterpret_cast<int64_t *>( PyArray_DATA( reinterpret_cast<PyArrayObject *>( pyArr ) ) );
+
+        // Fast path: nanosecond units (multiplier==1), no nulls, AND 64-bit storage — bulk memcpy.
+        // Date32Array/Time32Array have 32-bit storage so memcpy is invalid for them;
+        // the constexpr sizeof check prevents this at compile time.
+        constexpr bool is64bit = sizeof( typename ArrowValueArrayT::value_type ) == sizeof( int64_t );
+        if constexpr( is64bit )
+        {
+            if( values -> null_count() == 0 && multiplier == 1 )
+            {
+                std::memcpy( buf, values -> raw_values(), sizeof( int64_t ) * size );
+                return fromPython<DialectGenericType>( pyArr );
+            }
+        }
+
+        for( int64_t i = 0; i < size; ++i )
+        {
+            if( values -> IsValid( i ) )
+                buf[i] = static_cast<int64_t>( values -> Value( i ) ) * multiplier;
+            else
+                buf[i] = NPY_DATETIME_NAT;
+        }
+
+        return fromPython<DialectGenericType>( pyArr );
+    };
+}
+
+// Create a readValue lambda for timedelta64[ns] from Arrow Duration/Time columns
+template<typename ArrowValueArrayT>
+std::function<DialectGenericType( const ::arrow::Array &, int64_t )>
+makeDurationListReadValue( int64_t multiplier )
+{
+    static PyArray_Descr * s_dtype = nullptr;
+    if( !s_dtype )
+    {
+        auto dtypeStr = PyPtr<PyObject>::own( PyUnicode_FromString( "<m8[ns]" ) );
+        PyArray_DescrConverter( dtypeStr.get(), &s_dtype );
+    }
+
+    return [multiplier]( const ::arrow::Array & arr, int64_t row ) -> DialectGenericType
+    {
+        auto & listArr = static_cast<const ::arrow::ListArray &>( arr );
+        auto values = std::static_pointer_cast<ArrowValueArrayT>( listArr.value_slice( row ) );
+
+        npy_intp size = values -> length();
+        Py_INCREF( s_dtype );
+        PyObject * pyArr = PyArray_SimpleNewFromDescr( 1, &size, s_dtype );
+        PyObjectPtr arrOwner{ PyObjectPtr::own( pyArr ) };
+
+        auto * buf = reinterpret_cast<int64_t *>( PyArray_DATA( reinterpret_cast<PyArrayObject *>( pyArr ) ) );
+
+        constexpr bool is64bit = sizeof( typename ArrowValueArrayT::value_type ) == sizeof( int64_t );
+        if constexpr( is64bit )
+        {
+            if( values -> null_count() == 0 && multiplier == 1 )
+            {
+                std::memcpy( buf, values -> raw_values(), sizeof( int64_t ) * size );
+                return fromPython<DialectGenericType>( pyArr );
+            }
+        }
+
+        for( int64_t i = 0; i < size; ++i )
+        {
+            if( values -> IsValid( i ) )
+                buf[i] = static_cast<int64_t>( values -> Value( i ) ) * multiplier;
+            else
+                buf[i] = NPY_DATETIME_NAT;
+        }
+
+        return fromPython<DialectGenericType>( pyArr );
+    };
+}
+
 // Dispatch on arrow list element type to create the appropriate readValue lambda
 inline std::function<DialectGenericType( const ::arrow::Array &, int64_t )>
 dispatchListReadValue( const std::shared_ptr<::arrow::ListType> & listType, const std::string & columnName )
@@ -162,6 +275,35 @@ dispatchListReadValue( const std::shared_ptr<::arrow::ListType> & listType, cons
             return makeStringListReadValue<::arrow::LargeStringArray>();
         case ::arrow::Type::LARGE_BINARY:
             return makeStringListReadValue<::arrow::LargeBinaryArray>();
+
+        // --- Temporal: datetime64[ns] ---
+        case ::arrow::Type::TIMESTAMP:
+        {
+            auto tsType = std::static_pointer_cast<::arrow::TimestampType>( listType -> value_type() );
+            return makeTimestampListReadValue<::arrow::TimestampArray>( listTimeUnitMultiplier( tsType -> unit() ) );
+        }
+        case ::arrow::Type::DATE32:
+            return makeTimestampListReadValue<::arrow::Date32Array>( csp::NANOS_PER_DAY );
+        case ::arrow::Type::DATE64:
+            return makeTimestampListReadValue<::arrow::Date64Array>( csp::NANOS_PER_MILLISECOND );
+
+        // --- Temporal: timedelta64[ns] ---
+        case ::arrow::Type::DURATION:
+        {
+            auto durType = std::static_pointer_cast<::arrow::DurationType>( listType -> value_type() );
+            return makeDurationListReadValue<::arrow::DurationArray>( listTimeUnitMultiplier( durType -> unit() ) );
+        }
+        case ::arrow::Type::TIME32:
+        {
+            auto timeType = std::static_pointer_cast<::arrow::Time32Type>( listType -> value_type() );
+            return makeDurationListReadValue<::arrow::Time32Array>( listTimeUnitMultiplier( timeType -> unit() ) );
+        }
+        case ::arrow::Type::TIME64:
+        {
+            auto timeType = std::static_pointer_cast<::arrow::Time64Type>( listType -> value_type() );
+            return makeDurationListReadValue<::arrow::Time64Array>( listTimeUnitMultiplier( timeType -> unit() ) );
+        }
+
         default:
             CSP_THROW( TypeError, "Unsupported list element type " << listType -> value_type() -> ToString()
                                    << " for list column '" << columnName << "'" );

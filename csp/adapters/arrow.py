@@ -1,4 +1,4 @@
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -52,25 +52,32 @@ class _RecordBatchCSource:
 
 @csp.graph
 def RecordBatchPullInputAdapter(
-    ts_col_name: str, source: Iterable[pa.RecordBatch], schema: pa.Schema, expect_small_batches: bool = False
+    ts_col_name: str,
+    source: Iterable[pa.RecordBatch],
+    schema: Optional[pa.Schema] = None,
+    expect_small_batches: bool = False,
 ) -> csp.ts[[pa.RecordBatch]]:
     """Stream record batches from an iterator/generator into csp
 
     Args:
         ts_col_name: Name of the timestamp column containing timestamps in ascending order
         source: Iterator/generator of record batches
-        schema: The schema of the record batches
+        schema: Schema of the record batches. If None, extracted from first batch at runtime.
         expect_small_batches: Optional flag to optimize performance for scenarios where there are few rows (<10) per timestamp
 
     NOTE: The ascending order of the timestamp column must be enforced by the caller
     """
-    # Safety checks
-    ts_col = schema.field(ts_col_name)
-    if not pa.types.is_timestamp(ts_col.type):
-        raise ValueError(f"{ts_col_name} is not a valid timestamp column in the schema")
+    # Validate only if schema provided upfront
+    if schema is not None:
+        ts_col = schema.field(ts_col_name)
+        if not pa.types.is_timestamp(ts_col.type):
+            raise ValueError(f"{ts_col_name} is not a valid timestamp column in the schema")
+        c_schema = schema.__arrow_c_schema__()
+    else:
+        c_schema = None  # C++ will extract from first batch
 
     c_source = map(lambda rb: rb.__arrow_c_array__(), source)
-    c_data = CRecordBatchPullInputAdapter(ts_col_name, c_source, schema.__arrow_c_schema__(), expect_small_batches)
+    c_data = CRecordBatchPullInputAdapter(ts_col_name, c_source, c_schema, expect_small_batches)
     return csp.apply(
         c_data, lambda c_tups: [pa.record_batch(_RecordBatchCSource(c_tup)) for c_tup in c_tups], List[pa.RecordBatch]
     )

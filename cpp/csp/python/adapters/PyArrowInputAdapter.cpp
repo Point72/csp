@@ -24,7 +24,10 @@ static InputAdapter * record_batch_input_adapter_creator( csp::AdapterManager * 
     auto tsColName = fromPython<csp::CspType::StringCType>( pyTsColName );
     auto cspType = pyTypeAsCspType( pyType );
     auto source = PyObjectPtr::incref( pySource );
-    auto schema = PyObjectPtr::incref( pySchema );
+
+    // Handle optional schema - None means extract from first batch at runtime
+    bool hasSchema = ( pySchema != Py_None && pySchema != nullptr );
+    auto schema = hasSchema ? PyObjectPtr::incref( pySchema ) : PyObjectPtr();
 
     return pyengine -> engine() -> createOwnedObject<csp::python::arrow::RecordBatchInputAdapter>( cspType, std::move( schema ), std::move( tsColName ), std::move( source ), expectSmallBatches != 0 );
 }

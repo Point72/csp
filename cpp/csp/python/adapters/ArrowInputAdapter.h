@@ -115,7 +115,7 @@ public:
           m_curBatchIdx( 0 )
     {
         // Check if schema is provided or should be deferred to first batch
-        if( pySchema.get() != nullptr )
+        if( pySchema.get() != Py_None )
         {
             // Extract the arrow schema upfront
             ArrowSchema * c_schema = reinterpret_cast<ArrowSchema*>( PyCapsule_GetPointer( pySchema.get(), "arrow_schema" ) );

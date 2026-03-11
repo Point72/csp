@@ -232,8 +232,8 @@ PyObject * valuesAtIndexToNumpy( ValueType valueType, const csp::TimeSeriesProvi
                                  autogen::TimeIndexPolicy startPolicy, autogen::TimeIndexPolicy endPolicy,
                                  DateTime startDt = DateTime::NONE(), DateTime endDt = DateTime::NONE() );
 
-int64_t scalingFromNumpyDtUnit( NPY_DATETIMEUNIT base );
-NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr );
+CSPIMPL_EXPORT int64_t scalingFromNumpyDtUnit( NPY_DATETIMEUNIT base );
+CSPIMPL_EXPORT NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr );
 
 // for getting strings from elems of numpy arrays of strings
 void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem_size_bytes );

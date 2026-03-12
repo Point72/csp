@@ -39,45 +39,104 @@ and adjustments required for the hidden fields
 
 */
 
-StructMeta::StructMeta( const std::string & name, const Fields & fields, bool isStrict,
-                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields( fields ), m_optionalFieldsBitMasks(),
+StructMeta::StructMeta( const std::string & name, Fields fields, bool isStrict,
+                        std::shared_ptr<StructMeta> base ) : m_name( name ), m_base( base ), m_fields(), m_optionalFieldsBitMasks(),
                                                              m_size( 0 ), m_partialSize( 0 ), m_partialStart( 0 ), m_nativeStart( 0 ), m_basePadding( 0 ),
                                                              m_maskLoc( 0 ), m_maskSize( 0 ), m_firstPartialField( 0 ), m_firstNativePartialField( 0 ),
                                                              m_isPartialNative( true ), m_isFullyNative( true ), m_isStrict( isStrict )
 {
-    if( m_fields.empty() && !m_base )
+    if( fields.empty() && !m_base )
         CSP_THROW( TypeError, "Struct types must define at least 1 field" );
 
     //sort by sizes, biggest first, to get proper alignment
     //group generic objects separately at the start so that we can safely memcpy native types
     //decided to place them at the start cause they are most likely size of ptr or greater
 
-    m_fieldnames.reserve( m_fields.size() );
-    for( size_t i = 0; i < m_fields.size(); i++ ) 
-        m_fieldnames.emplace_back( m_fields[i] -> fieldname() );
+    std::vector<std::string> fieldnames; // need to keep the original order of the derived struct
+    fieldnames.reserve( fields.size() );
+    for( auto & f : fields )
+        fieldnames.emplace_back( f -> fieldname() );
 
-    std::sort( m_fields.begin(), m_fields.end(), []( auto && a, auto && b )
+    std::sort( fields.begin(), fields.end(), []( auto && a, auto && b )
                {
                    return a -> isNative() < b -> isNative() ||
                        a -> size() > b -> size();
                } );
 
+    if( m_base )
+    {
+        // The complete inheritance hierarchy must agree on strict/non-strict
+        if( m_isStrict != m_base -> isStrict() )
+        {
+            CSP_THROW( ValueError,
+                    "Struct " << m_name << " was declared " << ( m_isStrict ? "strict" : "non-strict" ) << " but derives from "
+                    << m_base -> name() << " which is " << ( m_base -> isStrict() ? "strict" : "non-strict" )
+            );
+        }
+
+        m_fields     = m_base -> m_fields;
+        m_fieldnames = m_base -> m_fieldnames;
+        m_fieldMap   = m_base -> m_fieldMap;
+        m_firstPartialField = m_base -> m_fields.size();
+
+        // append non-override derived fieldnames in their original declaration order
+        for( auto & fn : fieldnames )
+        {
+            if( m_fieldMap.find( fn.c_str() ) == m_fieldMap.end() )
+                m_fieldnames.push_back( std::move( fn ) );
+        }
+    }
+    else
+        m_fieldnames = std::move( fieldnames );
+
+    for( auto & derivedField : fields )
+    {
+        auto rv = m_fieldMap.emplace( derivedField -> fieldname().c_str(), derivedField );
+        if( !rv.second )
+        {
+            auto derivedTypeEnum = derivedField -> type() -> type();
+            auto baseTypeEnum    = rv.first -> second -> type() -> type();
+
+            // only allowed to override fields from a base class if types are DIALECT_GENERIC or STRUCT
+            // beyond that, its up to the dialect-specific struct impl (i.e. PyStruct) to decide whether the override types are valid
+            if( derivedTypeEnum != baseTypeEnum || ( derivedTypeEnum != CspType::Type::DIALECT_GENERIC && derivedTypeEnum != CspType::Type::STRUCT ) )
+                CSP_THROW( ValueError, "csp Struct " << name << " attempted to add existing field " << derivedField -> fieldname() <<
+                    " which is not allowed: base field type " << baseTypeEnum << " and derived field type " << derivedTypeEnum );
+
+            // replace the base field in-place with the derived override,
+            for( size_t baseIdx = 0; baseIdx < m_firstPartialField; ++baseIdx )
+            {
+                if( m_fields[ baseIdx ] -> fieldname() == derivedField -> fieldname() )
+                {
+                    derivedField -> setOffset( m_fields[ baseIdx ] -> offset() );
+                    derivedField -> setMaskOffset( m_fields[ baseIdx ] -> maskOffset(), m_fields[ baseIdx ] -> maskBit() );
+                    m_fields[ baseIdx ] = derivedField;
+                    break;
+                }
+            }
+            rv.first -> second = derivedField; // field map
+        }
+        else
+            m_fields.push_back( derivedField );
+    }
+
     size_t baseSize = m_base ? m_base -> size() : 0;
     size_t offset = baseSize;
     m_basePadding = 0;
 
-    //align to first field's alignment
-    if( m_fields.size() && ( offset % m_fields[0] -> alignment() != 0 ) )
-        m_basePadding = m_fields[0] -> alignment() - offset % m_fields[0] -> alignment();
+    //align to first field's alignment if there are derived fields remaining
+    if( m_fields.size() > m_firstPartialField && ( offset % m_fields[ m_firstPartialField ] -> alignment() != 0 ) )
+        m_basePadding = m_fields[ m_firstPartialField ] -> alignment() - offset % m_fields[ m_firstPartialField ] -> alignment();
 
     offset += m_basePadding;
-    if( !m_fields.empty() )
-        CSP_ASSERT( ( offset % m_fields[0] -> alignment() ) == 0 );
+    if( m_fields.size() > m_firstPartialField )
+        CSP_ASSERT( ( offset % m_fields[ m_firstPartialField ] -> alignment() ) == 0 );
 
     m_partialStart = offset;
     m_nativeStart  = m_partialStart;
+    m_firstNativePartialField = m_firstPartialField;
 
-    for( size_t idx = 0; idx < m_fields.size(); ++idx )
+    for( size_t idx = m_firstPartialField; idx < m_fields.size(); ++idx )
     {
         auto & f = m_fields[ idx ];
         if( offset % f -> alignment() != 0 )
@@ -97,68 +156,6 @@ StructMeta::StructMeta( const std::string & name, const Fields & fields, bool is
     }
 
     m_isFullyNative = m_isPartialNative && ( m_base ? m_base -> isNative() : true );
-
-    if( m_base )
-    {
-        // The complete inheritance hierarchy must agree on strict/non-strict
-        if( m_isStrict != m_base -> isStrict() )
-        {
-            CSP_THROW( ValueError, 
-                    "Struct " << m_name << " was declared " << ( m_isStrict ? "strict" : "non-strict" ) << " but derives from "
-                    << m_base -> name() << " which is " << ( m_base -> isStrict() ? "strict" : "non-strict" )
-            );
-        }
-
-        m_fields.insert( m_fields.begin(), m_base -> m_fields.begin(), m_base -> m_fields.end() );
-        m_fieldnames.insert( m_fieldnames.begin(), m_base -> m_fieldnames.begin(), m_base -> m_fieldnames.end() );
-        
-        m_firstPartialField        = m_base -> m_fields.size();
-        m_firstNativePartialField += m_base -> m_fields.size();
-        m_fieldMap = m_base -> m_fieldMap;
-    }
-
-    size_t idx = m_firstPartialField;
-    while( idx < m_fields.size() )
-    {
-        auto fieldname = m_fields[ idx ] -> fieldname().c_str();
-        auto rv = m_fieldMap.emplace( fieldname, m_fields[ idx ] );
-        if( !rv.second )
-        {
-            auto derivedTypeEnum = m_fields[ idx ] -> type() -> type();
-            auto baseTypeEnum    = rv.first -> second -> type() -> type();
-
-            // only allowed to override fields from a base class if types are DIALECT_GENERIC or STRUCT
-            // beyond that, its up to the dialect-specific struct impl (i.e. PyStruct) to decide whether the override types are valid
-            if( derivedTypeEnum != baseTypeEnum || ( derivedTypeEnum != CspType::Type::DIALECT_GENERIC && derivedTypeEnum != CspType::Type::STRUCT ) )
-                CSP_THROW( ValueError, "csp Struct " << name << " attempted to add existing field " << m_fields[ idx ] -> fieldname() <<
-                    " which is not allowed: base field type " << baseTypeEnum << " and derived field type " << derivedTypeEnum );
-
-            // insert the derived override field into the space allocated for the base field
-            auto derivedField = m_fields[ idx ];
-            for( size_t baseIdx = 0; baseIdx < m_firstPartialField; ++baseIdx )
-            {
-                if( m_fields[ baseIdx ] -> fieldname() == derivedField -> fieldname() )
-                {
-                    derivedField -> setOffset( m_fields[ baseIdx ] -> offset() ); 
-                    derivedField -> setMaskOffset( m_fields[ baseIdx ] -> maskOffset(), m_fields[ baseIdx ] -> maskBit() );
-                    m_fields[ baseIdx ] = derivedField;
-                    break;
-                }
-            }
-            rv.first -> second = derivedField; // field map
-
-            // clean up the field we just removed on the derived meta
-            // the erased field had to be non-native (only DIALECT_GENERIC and STRUCT overrides are allowed)
-            // so adjust the non-native/native boundary index for the derived partial section
-            --m_firstNativePartialField;
-            m_isPartialNative = ( m_firstPartialField == m_firstNativePartialField );
-            m_fields.erase( m_fields.begin() + idx );
-            auto nameIt = std::find( m_fieldnames.begin() + m_firstPartialField, m_fieldnames.end(), derivedField -> fieldname() );
-            m_fieldnames.erase( nameIt );
-        }
-        else
-            ++idx;
-    }
 
     // setup masking bits for the remaining derived (partial) fields
     // note that this is done after the override dedup above so that overridden fields don't consume mask bits.

@@ -89,6 +89,7 @@ StructMeta::StructMeta( const std::string & name, Fields fields, bool isStrict,
     else
         m_fieldnames = std::move( fieldnames );
 
+    std::vector<StructFieldPtr> derivedFields; // easier to store this for pre-processing and only append derived fields to m_fields at the end
     for( auto & derivedField : fields )
     {
         auto rv = m_fieldMap.emplace( derivedField -> fieldname().c_str(), derivedField );
@@ -117,7 +118,7 @@ StructMeta::StructMeta( const std::string & name, Fields fields, bool isStrict,
             rv.first -> second = derivedField; // field map
         }
         else
-            m_fields.push_back( derivedField );
+            derivedFields.push_back( derivedField );
     }
 
     size_t baseSize = m_base ? m_base -> size() : 0;
@@ -125,20 +126,19 @@ StructMeta::StructMeta( const std::string & name, Fields fields, bool isStrict,
     m_basePadding = 0;
 
     //align to first field's alignment if there are derived fields remaining
-    if( m_fields.size() > m_firstPartialField && ( offset % m_fields[ m_firstPartialField ] -> alignment() != 0 ) )
-        m_basePadding = m_fields[ m_firstPartialField ] -> alignment() - offset % m_fields[ m_firstPartialField ] -> alignment();
+    if( !derivedFields.empty() && ( offset % derivedFields[ 0 ] -> alignment() != 0 ) )
+        m_basePadding = derivedFields[ 0 ] -> alignment() - offset % derivedFields[ 0 ] -> alignment();
 
     offset += m_basePadding;
-    if( m_fields.size() > m_firstPartialField )
-        CSP_ASSERT( ( offset % m_fields[ m_firstPartialField ] -> alignment() ) == 0 );
+    if( !derivedFields.empty() )
+        CSP_ASSERT( ( offset % derivedFields[ 0 ] -> alignment() ) == 0 );
 
     m_partialStart = offset;
     m_nativeStart  = m_partialStart;
     m_firstNativePartialField = m_firstPartialField;
 
-    for( size_t idx = m_firstPartialField; idx < m_fields.size(); ++idx )
+    for( auto & f : derivedFields )
     {
-        auto & f = m_fields[ idx ];
         if( offset % f -> alignment() != 0 )
             offset += f -> alignment() - offset % f -> alignment();
 
@@ -151,7 +151,7 @@ StructMeta::StructMeta( const std::string & name, Fields fields, bool isStrict,
         if( !f -> isNative() )
         {
             m_nativeStart = offset;
-            m_firstNativePartialField = idx + 1;
+            m_firstNativePartialField += 1;
         }
     }
 
@@ -160,8 +160,8 @@ StructMeta::StructMeta( const std::string & name, Fields fields, bool isStrict,
     // setup masking bits for the remaining derived (partial) fields
     // note that this is done after the override dedup above so that overridden fields don't consume mask bits.
     //NOTE we can be more efficient by sticking masks into any potential alignment gaps, dont want to spend time on it
-    size_t optionalFieldCount = std::count_if( m_fields.begin() + m_firstPartialField, m_fields.end(), []( const auto & f ) { return f -> isOptional(); } );
-    size_t partialFieldCount = m_fields.size() - m_firstPartialField;
+    size_t optionalFieldCount = std::count_if( derivedFields.begin(), derivedFields.end(), []( const auto & f ) { return f -> isOptional(); } );
+    size_t partialFieldCount = derivedFields.size();
 
     m_maskSize     = partialFieldCount > 0 ? 1 + ( ( partialFieldCount + optionalFieldCount - 1 ) / 8 ) : 0;
     m_size         = offset + m_maskSize;
@@ -177,9 +177,8 @@ StructMeta::StructMeta( const std::string & name, Fields fields, bool isStrict,
     // Set optional fields first so that their 2-bits never cross a byte boundary
     // Put both the set bits and none bits in the same vector to avoid fragmentation
     m_optionalFieldsBitMasks.resize( 2 * m_maskSize );
-    for( size_t i = m_firstPartialField; i < m_fields.size(); ++i )
+    for( auto & f : derivedFields )
     {
-        auto & f = m_fields[ i ];
         if( f -> isOptional() )
         {
             f -> setMaskOffset( maskLoc, maskBit );
@@ -193,9 +192,8 @@ StructMeta::StructMeta( const std::string & name, Fields fields, bool isStrict,
         }
     }
 
-    for( size_t i = m_firstPartialField; i < m_fields.size(); ++i )
+    for( auto & f : derivedFields )
     {
-        auto & f = m_fields[ i ];
         if( !f -> isOptional() )
         {
             f -> setMaskOffset( maskLoc, maskBit );
@@ -206,6 +204,9 @@ StructMeta::StructMeta( const std::string & name, Fields fields, bool isStrict,
             }
         }
     }
+
+    // append derived fields to m_fields after all processing is done
+    m_fields.insert( m_fields.end(), derivedFields.begin(), derivedFields.end() );
 }
 
 StructMeta::~StructMeta()

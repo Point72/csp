@@ -4289,6 +4289,211 @@ class TestCspStruct(unittest.TestCase):
             with self.assertRaises(ValidationError):
                 TypeAdapter(StrictStruct).validate_python(schema)
 
+    def test_derived_struct_field_override(self):
+        # PyObject field types
+        class Base:
+            pass
+
+        class ChildA(Base):
+            pass
+
+        class ChildB(Base):
+            pass
+
+        class Grandchild(ChildA):
+            pass
+
+        # Struct field types
+        class InnerBase(csp.Struct):
+            x: int
+
+        class InnerDerived(InnerBase):
+            y: int
+
+        class InnerUnrelated(csp.Struct):
+            z: int
+
+        # 1) Test Python field type override
+        class Base1(csp.Struct):
+            field1: Base
+            field2: int
+
+        class Derived1(Base1):
+            field1: ChildA
+            field3: float
+
+        d = Derived1(field1=ChildA(), field2=42, field3=3.14)
+        self.assertIsInstance(d.field1, ChildA)
+        self.assertEqual(d.field2, 42)
+        self.assertAlmostEqual(d.field3, 3.14)
+
+        # Overridden field rejects sibling or base type
+        with self.assertRaisesRegex(TypeError, "Invalid ChildA type"):
+            d2 = Derived1(field1=ChildB())
+        with self.assertRaisesRegex(TypeError, "Invalid ChildA type"):
+            d3 = Derived1()
+            d3.field1 = Base()
+
+        # Base struct still accepts the original type and subtypes
+        b = Base1(field1=Base())
+        b.field1 = ChildA()
+
+        # 2) Able to override with the same type (I guess, right...)
+        class Base2(csp.Struct):
+            field1: Base
+
+        class Derived2(Base2):
+            field1: Base
+
+        d = Derived2(field1=Base())  # either or is fine here
+
+        # 3) Grandchild override chain
+        class StructWithChild(Base1):
+            field1: ChildA
+
+        class StructWithGrandchild(StructWithChild):
+            field1: Grandchild
+
+        l = StructWithGrandchild(field1=Grandchild())
+        l = Base1(field1=Grandchild())
+        with self.assertRaisesRegex(TypeError, "Invalid Grandchild type"):
+            l2 = StructWithGrandchild(field1=ChildA())
+
+        # 4) Override a struct-typed field with a derived struct type
+        class Base4(csp.Struct):
+            inner: InnerBase
+
+        class Derived4(Base4):
+            inner: InnerDerived
+
+        d = Derived4()
+        d.inner = InnerDerived(x=1, y=2)
+        self.assertEqual(d.inner.x, 1)
+        self.assertEqual(d.inner.y, 2)
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "Field 'inner' on struct .*BadStructUnrelated: expected struct derived from InnerBase, got InnerUnrelated which is not a subclass",
+        ):
+
+            class BadStructUnrelated(Base4):
+                inner: InnerUnrelated  # not derived from InnerBase
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "Field 'inner' on struct .*BadStructReverse: expected struct derived from InnerDerived, got InnerBase which is not a subclass",
+        ):
+
+            class BadStructReverse(Derived4):
+                inner: InnerBase  # InnerBase is not derived from InnerDerived
+
+        # 5) Override with additional new fields alongside the overridden field
+        class Base5(csp.Struct):
+            a: Base
+            b: int
+
+        class Derived5(Base5):
+            a: ChildA
+            c: str
+            d: float
+
+        d = Derived5(a=ChildA(), b=1, c="Hello", d=2.0)
+        self.assertIsInstance(d.a, ChildA)
+        self.assertEqual(d.b, 1)
+        self.assertEqual(d.c, "Hello")
+        self.assertAlmostEqual(d.d, 2.0)
+
+        # 6) No native types allowed
+        with self.assertRaisesRegex(
+            ValueError,
+            "csp Struct .*BadNativeDup attempted to add existing field field2 which is not allowed",
+        ):
+
+            class BadNativeDup(Base1):
+                field2: int  # base already has field2: int, but we don't allow native overrides
+
+        # 7) PyObject but reverse the direction (base type is more specific than derived)
+        class SpecificBase(csp.Struct):
+            field1: ChildA
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "Field 'field1' on struct .*BadReverse: expected subclass of ChildA, got Base which is not a subclass",
+        ):
+
+            class BadReverse(SpecificBase):
+                field1: Base
+
+        # 8) completely unrelated types
+        with self.assertRaisesRegex(
+            TypeError,
+            "Field 'field1' on struct BadUnrelated: expected subclass of Base, got numpy.ndarray which is not a subclass",
+        ):
+
+            class BadUnrelated(Base1):
+                field1: np.ndarray
+
+    def test_field_overrides_on_optional_fields(self):
+        class BaseInner(csp.Struct):
+            a: int
+
+        class ChildInner(BaseInner):
+            b: float
+
+        class BaseOuter(csp.Struct, strict=True):
+            field1: Optional[BaseInner] = None
+            field2: int
+
+        class DerivedOuter(BaseOuter, strict=True):
+            field1: Optional[ChildInner] = None
+            field3: float
+            field4: Optional[float] = None
+
+        d = DerivedOuter(field2=1, field3=2.0)
+        self.assertTrue(d.all_fields_set())
+
+        d.field1 = ChildInner(a=1, b=2.0)
+        self.assertIsInstance(d.field1, ChildInner)
+
+        # Setting to None is allowed for optional fields
+        d.field1 = None
+        self.assertIsNone(d.field1)
+
+        # Verify BaseOuter still works with optional override
+        b = BaseOuter(field1=BaseInner(a=1), field2=1)
+        self.assertEqual(b.field1, BaseInner(a=1))
+        b.field1 = None
+        self.assertIsNone(b.field1)
+
+        # Strict validation: missing required fields should fail
+        with self.assertRaises(ValueError):
+            DerivedOuter(field3=2.0)  # missing field2
+
+        # Override with optional field on a strict struct
+        class StrictBaseInner(csp.Struct, strict=True):
+            field1: BaseInner
+            field2: int
+
+        class StrictDerived(StrictBaseInner, strict=True):
+            field1: ChildInner
+
+        d = StrictDerived(field1=ChildInner(), field2=42)
+        self.assertEqual(d.field1, ChildInner())
+        self.assertEqual(d.field2, 42)
+
+        # Strict struct: overriding Optional[ChildInner] with Optional[BaseInner] should fail
+        with self.assertRaisesRegex(
+            TypeError,
+            "Field 'field1' on struct .*StrictBadReverseDerived: expected struct derived from ChildInner, got BaseInner which is not a subclass",
+        ):
+
+            class StrictBadReverse(csp.Struct, strict=True):
+                field1: Optional[ChildInner] = None
+                field2: int
+
+            class StrictBadReverseDerived(StrictBadReverse, strict=True):
+                field1: Optional[BaseInner] = None
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,4 @@
 import copy
-import sys
 import unittest
 
 import csp

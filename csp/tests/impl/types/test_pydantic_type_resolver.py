@@ -1,4 +1,4 @@
-from typing import Dict, Generic, List, Set, TypeVar, get_args, get_origin
+from typing import Dict, Generic, List, Set, TypeVar
 from unittest import TestCase
 
 import numpy as np

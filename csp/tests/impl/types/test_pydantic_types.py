@@ -1,4 +1,3 @@
-import sys
 from inspect import isclass
 from typing import Any, Callable, Dict, Generic, List, Literal, Optional, Type, TypeVar, Union, get_args, get_origin
 from unittest import TestCase

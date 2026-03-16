@@ -76,21 +76,6 @@ class CspGraphObjectsMemCache(object):
             new_instance._user_objects.update(current_instance._user_objects)
         return new_instance
 
-    def get_object_stats(self, sort_by="count"):
-        assert sort_by is None or sort_by in ["name", "count"]
-        res = {}
-        for key in self._instantiated_objects.keys():
-            assert isinstance(key, GraphFunctionObjectKey)
-            name = key.func.__name__
-            res[name] = res.get(name, 0) + 1
-        if sort_by == "name":
-            res = dict(sorted(res.items(), key=lambda t: t[0]))
-        elif sort_by == "count":
-            res = dict(sorted(res.items(), key=lambda t: (-t[1], t[0])))
-        elif sort_by is not None:
-            raise RuntimeError(f"Unsupported sort_by value {sort_by}")
-        return res
-
     def __getitem__(self, key):
         assert isinstance(key, GraphFunctionObjectKey)
         return self._instantiated_objects.get(key, UNSET)

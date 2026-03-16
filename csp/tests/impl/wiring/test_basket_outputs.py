@@ -1,4 +1,3 @@
-import typing
 import unittest
 from datetime import datetime, timedelta
 from enum import Enum, auto

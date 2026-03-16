@@ -1,9 +1,7 @@
-import sys
-from typing import Any, Dict, ForwardRef, Generic, List, Mapping, TypeVar, Union, get_args, get_origin
+from typing import Any, Dict, ForwardRef, Generic, List, TypeVar, Union
 from unittest import TestCase
 
 import numpy as np
-import pytest
 from pydantic import TypeAdapter
 
 import csp

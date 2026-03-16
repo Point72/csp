@@ -4,14 +4,12 @@ import sys
 import tempfile
 import time as Time
 import unittest
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time, timedelta
 from functools import reduce
 from typing import List
 
 import numpy as np
 import pandas as pd
-import pytz
-
 import csp
 import csp.stats as stats
 from csp import profiler, ts

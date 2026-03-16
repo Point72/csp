@@ -1,7 +1,6 @@
 import enum
 import json
 import pickle
-import sys
 import unittest
 from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union

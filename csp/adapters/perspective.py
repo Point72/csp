@@ -23,16 +23,28 @@ except ImportError:
 
 
 _PERSPECTIVE_3 = is_perspective3()
+_PERSPECTIVE_4 = False
+try:
+    import perspective as _psp
+    from packaging import version as _pv
+
+    _PERSPECTIVE_4 = _pv.parse(_psp.__version__) >= _pv.parse("4")
+except Exception:
+    pass
+
 if _PERSPECTIVE_3:
     from perspective import Server
 else:
     from perspective import PerspectiveManager
 
 
-# Run perspective update in a separate tornado loop
-def perspective_thread(client):
+# Run perspective update in a separate tornado loop (perspective < 4 only)
+def perspective_thread(client=None, manager=None):
     loop = tornado.ioloop.IOLoop()
-    client.set_loop_callback(loop.add_callback)
+    if client is not None:
+        client.set_loop_callback(loop.add_callback)
+    elif manager is not None:
+        manager.set_loop_callback(loop.add_callback)
     loop.start()
 
 
@@ -103,7 +115,7 @@ def _launch_application(port: int, server: object, stub: ts[object]):
         if s_ioloop:
             s_ioloop.add_callback(s_ioloop.stop)
             if s_iothread:
-                s_iothread.join()
+                s_iothread.join(timeout=5)
 
 
 class View(View_):
@@ -220,18 +232,25 @@ class PerspectiveAdapter(DelayedNodeWrapperDef):
         return table
 
     def _instantiate(self):
-        if _PERSPECTIVE_3:
+        if _PERSPECTIVE_4:
+            # Perspective 4.x: no separate perspective_thread needed;
+            # PerspectiveTornadoHandler manages sessions via the tornado IOLoop.
+            server = Server()
+            client = server.new_local_client()
+        elif _PERSPECTIVE_3:
             server = Server()
             client = server.new_local_client()
             thread = threading.Thread(target=perspective_thread, kwargs=dict(client=client))
+            thread.daemon = True
+            thread.start()
         else:
             from perspective import set_threadpool_size
 
             set_threadpool_size(self._threadpool_size)
             manager = PerspectiveManager()
             thread = threading.Thread(target=perspective_thread, kwargs=dict(manager=manager))
-        thread.daemon = True
-        thread.start()
+            thread.daemon = True
+            thread.start()
 
         for table_name, table in self._tables.items():
             schema = {

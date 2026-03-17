@@ -169,7 +169,7 @@ if(WIN32)
     foreach(warning 4244 4251 4267 4275 4290 4786 4305 4996)
         SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd${warning}")
     endforeach(warning)
-    add_compile_definitions(WIN32 _WIN32)
+    add_compile_definitions(WIN32 _WIN32 WIN32_LEAN_AND_MEAN NOMINMAX)
 
 else()
     if(CSP_BUILD_NO_CXX_ABI)

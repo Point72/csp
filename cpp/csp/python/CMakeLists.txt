@@ -32,6 +32,7 @@ set(CSPIMPL_PUBLIC_HEADERS
         NumpyConversions.h
         NumpyInputAdapter.h
         PyAdapterManagerWrapper.h
+        PyEventLoop.h
         PyBasketInputProxy.h
         PyBasketOutputProxy.h
         PyCppNode.h
@@ -56,6 +57,7 @@ add_library(cspimpl SHARED
         NumpyConversions.cpp
         PyAdapterManager.cpp
         PyAdapterManagerWrapper.cpp
+        PyEventLoop.cpp
         PyConstAdapter.cpp
         PyCppNode.cpp
         PyEngine.cpp

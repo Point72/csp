@@ -75,6 +75,7 @@ RootEngine::RootEngine( const Dictionary & settings ) : Engine( m_cycleStepTable
                                                         m_cycleCount( 0 ),
                                                         m_settings( settings ),
                                                         m_inRealtime( false ),
+                                                        m_haveEvents( false ),
                                                         m_initSignalCount( g_SIGNAL_COUNT ),
                                                         m_pushEventQueue( m_settings.queueWaitTime > TimeDelta::ZERO() )
 {
@@ -147,120 +148,172 @@ void RootEngine::processEndCycle()
     m_endCycleListeners.clear();
 }
 
-void RootEngine::runSim( DateTime end )
+bool RootEngine::processOneCycle( TimeDelta maxWait )
 {
-    m_inRealtime = false;
-    while( m_scheduler.hasEvents() && m_state == State::RUNNING && !interrupted() )
+    if( m_state != State::RUNNING || interrupted() )
+        return false;
+
+    // Check if we've passed the end time
+    if( m_now > m_endTime )
+        return false;
+
+    bool hasWork = false;
+
+    if( m_inRealtime )
     {
-        m_now = m_scheduler.nextTime();
-        if( m_now > end )
-            break;
-
-        ++m_cycleCount;
-
-        m_scheduler.executeNextEvents( m_now );
-        m_cycleStepTable.executeCycle( m_profiler.get() );
-
-        processEndCycle();
-    }
-
-    m_now = std::min( m_now, end );
-}
-
-void RootEngine::runRealtime( DateTime end )
-{
-    struct DialectReleaseGIL
-    {
-        DialectReleaseGIL( RootEngine * e ) : engine( e ) { engine -> dialectUnlockGIL(); }
-        ~DialectReleaseGIL()                              { engine -> dialectLockGIL(); }
-        RootEngine * engine;
-    };
-
-    std::vector<PushGroup *> dirtyGroups;
-
-    m_inRealtime = true;
-    bool haveEvents = false;
-    while( m_state == State::RUNNING && !interrupted() )
-    {
-        TimeDelta waitTime;
-        if( !m_pendingPushEvents.hasEvents() )
+        // Realtime mode: check for push events and timers
+        struct DialectReleaseGIL
         {
+            DialectReleaseGIL( RootEngine * e ) : engine( e ) { engine -> dialectUnlockGIL(); }
+            ~DialectReleaseGIL()                              { engine -> dialectLockGIL(); }
+            RootEngine * engine;
+        };
+
+        TimeDelta waitTime = maxWait;
+        if( maxWait > TimeDelta::ZERO() && !m_pendingPushEvents.hasEvents() )
+        {
+            // Only compute wait bounds when maxWait > 0 (i.e. caller wants to block).
+            // maxWait == ZERO means non-blocking poll – skip the wait entirely.
             DateTime now = DateTime::now();
-            waitTime = std::min( m_endTime - now, m_settings.queueWaitTime );
+            TimeDelta timeToEnd = m_endTime - now;
+            if( timeToEnd < waitTime )
+                waitTime = timeToEnd;
             if( m_scheduler.hasEvents() )
-                waitTime = std::min( m_scheduler.nextTime() - DateTime::now(), waitTime );
+            {
+                TimeDelta timeToNext = m_scheduler.nextTime() - now;
+                if( timeToNext < waitTime )
+                    waitTime = timeToNext;
+            }
         }
 
-        if( !haveEvents )
+        if( !m_haveEvents && waitTime > TimeDelta::ZERO() )
         {
-            //We keep the haveEvents flag in case there were events, but we only decided to execute
-            //timers in the previous cycle, then we shouldnt wait again ( which can actually lead to cases
-            //where we miss triggers )
+            // We keep the m_haveEvents flag in case there were events, but we only decided to execute
+            // timers in the previous cycle, then we shouldn't wait again (which can lead to missed triggers)
             DialectReleaseGIL release( this );
-            haveEvents = m_pushEventQueue.wait( waitTime );
+            m_haveEvents = m_pushEventQueue.wait( waitTime );
         }
 
-        //grab time after waitForEvents so that we dont grab events with time > now
+        // Also check the queue directly – events may have been pushed
+        // between cycles (e.g. from asyncio coroutines) without going
+        // through the blocking wait path.
+        if( !m_haveEvents )
+            m_haveEvents = !m_pushEventQueue.empty();
+
+        // Grab time after wait so we don't grab events with time > now
         m_now = DateTime::now();
-        if( m_now > end )
-            break;
+        if( m_now > m_endTime )
+        {
+            m_now = m_endTime;
+            return false;
+        }
 
         ++m_cycleCount;
 
-        //We made a conscious decision to execute timers exactly on their requested time in realtime mode
-        //therefore timers that are ready are executed on their own time cycle before realtime events all processed
+        // Execute timers exactly on their requested time - timers that are ready
+        // are executed on their own time cycle before realtime push events
         if( m_scheduler.hasEvents() && m_scheduler.nextTime() < m_now )
         {
             m_now = m_scheduler.nextTime();
             m_scheduler.executeNextEvents( m_now );
+            hasWork = true;
         }
-        else
+        else if( m_haveEvents || m_pendingPushEvents.hasEvents() )
         {
+            // Process push events
             PushEvent * events = m_pushEventQueue.popAll();
 
-            processPendingPushEvents( dirtyGroups );
-            processPushEventQueue( events, dirtyGroups );
+            processPendingPushEvents( m_dirtyGroups );
+            processPushEventQueue( events, m_dirtyGroups );
 
-            for( auto * group : dirtyGroups )
+            for( auto * group : m_dirtyGroups )
                 group -> state = PushGroup::NONE;
-            
-            dirtyGroups.clear();
-            haveEvents = false;
+
+            m_dirtyGroups.clear();
+            m_haveEvents = false;
+            hasWork = true;
         }
+    }
+    else
+    {
+        // Sim mode: process next scheduled event
+        if( m_scheduler.hasEvents() )
+        {
+            m_now = m_scheduler.nextTime();
+            if( m_now <= m_endTime )
+            {
+                ++m_cycleCount;
+                m_scheduler.executeNextEvents( m_now );
+                hasWork = true;
+            }
+            else
+            {
+                m_now = m_endTime;
+                return false;
+            }
+        }
+    }
 
+    if( hasWork )
+    {
         m_cycleStepTable.executeCycle( m_profiler.get() );
-
         processEndCycle();
     }
 
-    m_now = std::min( m_now, end );
+    // In realtime mode, keep running until endtime (push events can arrive
+    // at any time from external threads or asyncio coroutines).
+    // In sim mode, stop when there are no more scheduled events.
+    if( m_inRealtime )
+        return m_state == State::RUNNING && !interrupted();
+    else
+        return m_state == State::RUNNING && !interrupted() &&
+               ( m_scheduler.hasEvents() || m_pendingPushEvents.hasEvents() );
 }
 
-void RootEngine::run( DateTime start, DateTime end )
+void RootEngine::start( DateTime startTime, DateTime end )
 {
-    try
-    {
-        preRun( start, end );
-        m_exception_mutex.lock();
-        if( m_state != State::SHUTDOWN )
-            m_state = State::RUNNING;
-        m_exception_mutex.unlock();
+    preRun( startTime, end );
 
-        if( m_settings.realtime )
+    m_exception_mutex.lock();
+    if( m_state != State::SHUTDOWN )
+        m_state = State::RUNNING;
+    m_exception_mutex.unlock();
+
+    m_inRealtime = m_settings.realtime;
+    m_haveEvents = false;
+    m_dirtyGroups.clear();
+
+    // In realtime mode, if start is in the past, first run through historical events
+    if( m_settings.realtime )
+    {
+        DateTime rtNow = DateTime::now();
+        if( startTime < rtNow )
         {
-            DateTime rtNow = DateTime::now();
-            runSim( std::min( rtNow, end ) );
-            if( end > rtNow )
-                runRealtime( end );
-        }
-        else
-            runSim( end );
-    }
-    catch( ... )
-    {
-        m_exception_ptr = std::current_exception();
-    }
+            // Temporarily disable realtime to process historical sim events
+            m_inRealtime = false;
+            DateTime simEnd = std::min( rtNow, end );
+            while( m_scheduler.hasEvents() && m_state == State::RUNNING && !interrupted() )
+            {
+                DateTime nextTime = m_scheduler.nextTime();
+                if( nextTime > simEnd )
+                    break;
+                m_now = nextTime;
+                ++m_cycleCount;
+                m_scheduler.executeNextEvents( m_now );
+                m_cycleStepTable.executeCycle( m_profiler.get() );
+                processEndCycle();
+            }
+            m_now = std::min( m_now, simEnd );
 
+            // Only switch to realtime if end is still in the future
+            if( rtNow < end )
+                m_inRealtime = true;
+        }
+    }
+}
+
+void RootEngine::finish()
+{
     try
     {
         postRun();
@@ -272,9 +325,27 @@ void RootEngine::run( DateTime start, DateTime end )
     }
 
     m_state = State::DONE;
+    m_dirtyGroups.clear();
 
     if( m_exception_ptr )
         std::rethrow_exception( m_exception_ptr );
+}
+
+void RootEngine::run( DateTime startTime, DateTime end )
+{
+    try
+    {
+        start( startTime, end );
+
+        // Main loop - same code path whether called via run() or step()
+        while( processOneCycle( m_settings.queueWaitTime ) ) {}
+    }
+    catch( ... )
+    {
+        m_exception_ptr = std::current_exception();
+    }
+
+    finish();
 }
 
 void RootEngine::shutdown()
@@ -288,6 +359,13 @@ void RootEngine::shutdown( std::exception_ptr except_ptr )
     m_state = State::SHUTDOWN;
     if( !m_exception_ptr )
         m_exception_ptr = except_ptr;
+}
+
+DateTime RootEngine::nextScheduledTime()
+{
+    if( m_scheduler.hasEvents() )
+        return m_scheduler.nextTime();
+    return DateTime::NONE();
 }
 
 DictionaryPtr RootEngine::engine_stats() const

@@ -1,7 +1,9 @@
+import asyncio
 import threading
 import time
 from collections import deque
 from datetime import datetime, timedelta
+from typing import Optional
 
 import pytz
 
@@ -116,10 +118,21 @@ def _build_engine(engine, context, memo=None):
 class GraphRunInfo:
     TLS = threading.local()
 
-    def __init__(self, starttime, endtime, realtime):
+    def __init__(
+        self,
+        starttime,
+        endtime,
+        realtime,
+        asyncio_on_thread=False,
+        asyncio_loop: Optional[asyncio.AbstractEventLoop] = None,
+    ):
         self._starttime = starttime
         self._endtime = endtime
         self._realtime = realtime
+        # is_asyncio means same-thread asyncio execution
+        # This is True when realtime=True and asyncio_on_thread=False
+        self._is_asyncio = realtime and not asyncio_on_thread
+        self._asyncio_loop = asyncio_loop
         self._prev = None
 
     @property
@@ -133,6 +146,15 @@ class GraphRunInfo:
     @property
     def is_realtime(self):
         return self._realtime
+
+    @property
+    def is_asyncio(self):
+        return self._is_asyncio
+
+    @property
+    def asyncio_loop(self) -> Optional[asyncio.AbstractEventLoop]:
+        """Get the asyncio event loop for this run, if asyncio mode is enabled."""
+        return self._asyncio_loop
 
     @classmethod
     def get_cur_run_times_info(cls, raise_if_missing=True):
@@ -157,6 +179,54 @@ class _WrappedContext:
         self.context = context
 
 
+async def _run_asyncio_engine(engine, starttime, endtime):
+    """Run the engine in asyncio mode using step-based execution.
+
+    Uses short blocking waits (1 ms) with the GIL released, interleaved
+    with asyncio yields.  Push events from adapter threads wake the C++
+    wait instantly via QueueWaiter::notify(), giving throughput close to
+    engine.run() while still allowing asyncio coroutines to execute
+    between engine cycles.
+
+    Everything runs on the main thread so signal handling (KeyboardInterrupt,
+    SIGTERM, etc.) works correctly.
+    """
+    wakeup_fd = engine.get_wakeup_fd()
+
+    try:
+        engine.start(starttime, endtime)
+
+        # Let any async tasks scheduled during engine start begin.
+        await asyncio.sleep(0)
+
+        while True:
+            if not engine.is_running():
+                break
+
+            # Short blocking wait (up to 1 ms).  The C++ engine releases
+            # the GIL during the internal condition-variable wait so other
+            # Python threads can progress.  Push events from adapter
+            # threads wake it immediately via QueueWaiter::notify().
+            has_more = engine.process_one_cycle(0.001)
+
+            # Drain the wakeup pipe so it doesn't fill up.
+            if wakeup_fd >= 0:
+                engine.clear_wakeup_fd()
+
+            if not has_more:
+                break
+
+            # Yield to asyncio: lets coroutines, callbacks, and scheduled
+            # tasks (e.g. async adapters) execute on the main thread.
+            await asyncio.sleep(0)
+
+    except BaseException:
+        engine.finish()
+        raise
+
+    return engine.finish()
+
+
 def run(
     g,
     *args,
@@ -165,8 +235,13 @@ def run(
     queue_wait_time=None,
     realtime=False,
     output_numpy=False,
+    asyncio_on_thread=False,
     **kwargs,
 ):
+    # Determine if we run asyncio on the same thread (asyncio mode)
+    # When realtime=True and asyncio_on_thread=False (default), we run in asyncio mode
+    run_asyncio_mode = realtime and not asyncio_on_thread
+
     with ExceptionContext():
         starttime, endtime = _normalize_run_times(starttime, endtime, realtime)
 
@@ -207,14 +282,36 @@ def run(
                 time.sleep((starttime - now).total_seconds())
 
             with mem_cache:
-                return engine.run(starttime, endtime)
+                if run_asyncio_mode:
+                    # Run in asyncio mode using step-based execution
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        # Set up GraphRunInfo with asyncio context
+                        with GraphRunInfo(
+                            starttime=starttime,
+                            endtime=endtime,
+                            realtime=realtime,
+                            asyncio_on_thread=False,
+                            asyncio_loop=loop,
+                        ):
+                            return loop.run_until_complete(_run_asyncio_engine(engine, starttime, endtime))
+                    finally:
+                        loop.close()
+                        asyncio.set_event_loop(None)
+                else:
+                    return engine.run(starttime, endtime)
 
         if isinstance(g, Edge):
-            return run(lambda: g, starttime=starttime, endtime=endtime, **engine_settings)
+            return run(
+                lambda: g, starttime=starttime, endtime=endtime, asyncio_on_thread=asyncio_on_thread, **engine_settings
+            )
 
         # wrapped in a _WrappedContext so that we can give up the mem before run
         graph = _WrappedContext(
             build_graph(g, *args, starttime=starttime, endtime=endtime, realtime=realtime, **kwargs)
         )
-        with GraphRunInfo(starttime=starttime, endtime=endtime, realtime=realtime):
-            return run(graph, starttime=starttime, endtime=endtime, **engine_settings)
+        with GraphRunInfo(starttime=starttime, endtime=endtime, realtime=realtime, asyncio_on_thread=asyncio_on_thread):
+            return run(
+                graph, starttime=starttime, endtime=endtime, asyncio_on_thread=asyncio_on_thread, **engine_settings
+            )

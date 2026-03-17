@@ -231,7 +231,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
                     self._add_container_scalar_value(arg, in_out_def)
                 else:
                     self._add_scalar_value(arg, in_out_def)
-            elif in_out_def.kind == ArgKind.ALARM:
+            elif in_out_def.kind.is_alarm():
                 # TODO: Handle alarms better?
                 pass
             elif in_out_def.kind.is_non_dynamic_basket():

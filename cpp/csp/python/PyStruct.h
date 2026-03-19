@@ -78,6 +78,12 @@ struct CSPTYPESIMPL_EXPORT PyStruct : public PyObject
     static PyTypeObject PyType;
 };
 
+// Lazily initialize the C++ struct type for a skeleton struct.
+// Called from PyStruct_new for structs whose C++ setup was deferred (e.g. when
+// cloudpickle's _make_skeleton_class created the type without field metadata).
+// At call time all Python-level attributes must already be present in the class dict.
+CSPTYPESIMPL_EXPORT void PyStructMeta_setup_lazy( PyStructMeta * pymeta );
+
 // Array struct field printing function
 template<typename ElemT>
 void repr_array( const std::vector<ElemT> & val, const CspType & elemType, std::string & tl_repr, bool show_unset );

@@ -708,7 +708,13 @@ inline Dictionary::Value fromPython( PyObject * o )
     else if( PyList_Check( o ) )
         return fromPython<std::vector<Dictionary::Data>>( o );
     else if( PyType_Check( o ) && PyStruct::isPyStructType( ( PyTypeObject * ) o ) )
+    {
+        if( !( ( PyStructMeta * ) o ) -> structMeta )
+            PyStructMeta_setup_lazy( ( PyStructMeta * ) o );
+        if( !( ( PyStructMeta * ) o ) -> structMeta )
+            CSP_THROW( TypeError, "Failed to initialize struct type" );
         return ( ( PyStructMeta * ) o ) -> structMeta;
+    }
     else
         return fromPython<DialectGenericType>( o );
 }

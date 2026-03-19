@@ -56,6 +56,10 @@ CspTypePtr & CspTypeFactory::typeFromPyType( PyObject * pyTypeObj )
             rv.first -> second = csp::CspType::BYTES();
         else if( PyType_IsSubtype( pyType, &PyStruct::PyType ) )
         {
+            // Trigger lazy initialization for skeleton structs (e.g. created by cloudpickle)
+            // that have not yet had their C++ struct type set up.
+            if( PyStruct::isPyStructType( pyType ) && !( ( PyStructMeta * ) pyType ) -> structMeta )
+                PyStructMeta_setup_lazy( ( PyStructMeta * ) pyType );
             auto meta = ( ( PyStructMeta * ) pyType ) -> structMeta;
             rv.first -> second = std::make_shared<csp::CspStructType>( meta );
         }

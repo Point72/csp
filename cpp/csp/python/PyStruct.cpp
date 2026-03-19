@@ -77,6 +77,172 @@ when MyStruct() instance is created, it'll defer required calls to _cspimpl.PySt
 Hope this all makes sense when I read this in 3 months
 */
 
+// Build the StructMeta::Fields list from a dict of {fieldname: type} and an optional-fields set.
+// For any struct field types that are themselves skeleton structs, triggers their lazy init first.
+static StructMeta::Fields PyStructMeta_build_fields( const std::string & name, PyObject * metadata, PyObject * optFields )
+{
+    StructMeta::Fields fields;
+
+    PyObject *key, *type;
+    Py_ssize_t pos = 0;
+    bool optional;
+
+    while( PyDict_Next( metadata, &pos, &key, &type ) )
+    {
+        const char * keystr = PyUnicode_AsUTF8( key );
+        if( !keystr )
+            CSP_THROW( PythonPassthrough, "" );
+
+        int rv = PySet_Contains( optFields, key );
+        if( rv == -1 )
+            CSP_THROW( PythonPassthrough, "" );
+        optional = rv;
+
+        if( !PyType_Check( type ) && !PyList_Check( type ) )
+            CSP_THROW( TypeError, "Struct metadata for key " << keystr << " expected a type, got " << PyObjectPtr::incref( type ) );
+
+        // For struct field types that are skeleton structs, trigger lazy initialization
+        // so pyTypeAsCspType can retrieve a valid StructMeta from them.
+        {
+            PyObject * rawType = type;
+            if( PyList_Check( type ) && PyList_GET_SIZE( type ) >= 1 )
+                rawType = PyList_GET_ITEM( type, 0 );
+            if( PyStruct::isPyStructType( ( PyTypeObject * ) rawType ) && !( ( PyStructMeta * ) rawType ) -> structMeta )
+                PyStructMeta_setup_lazy( ( PyStructMeta * ) rawType );
+        }
+
+        std::shared_ptr<StructField> field;
+        CspTypePtr csptype = pyTypeAsCspType( type );
+
+        switch( csptype -> type() )
+        {
+            case csp::CspType::Type::BOOL:      field = std::make_shared<BoolStructField>( keystr, optional ); break;
+            case csp::CspType::Type::INT64:     field = std::make_shared<Int64StructField>( keystr, optional ); break;
+            case csp::CspType::Type::DOUBLE:    field = std::make_shared<DoubleStructField>( keystr, optional ); break;
+            case csp::CspType::Type::DATETIME:  field = std::make_shared<DateTimeStructField>( keystr, optional ); break;
+            case csp::CspType::Type::TIMEDELTA: field = std::make_shared<TimeDeltaStructField>( keystr, optional ); break;
+            case csp::CspType::Type::DATE:      field = std::make_shared<DateStructField>( keystr, optional ); break;
+            case csp::CspType::Type::TIME:      field = std::make_shared<TimeStructField>( keystr, optional ); break;
+            case csp::CspType::Type::STRING:    field = std::make_shared<StringStructField>( csptype, keystr, optional ); break;
+            case csp::CspType::Type::ENUM:      field = std::make_shared<CspEnumStructField>( csptype, keystr, optional ); break;
+            case csp::CspType::Type::STRUCT:    field = std::make_shared<StructStructField>( csptype, keystr, optional ); break;
+            case csp::CspType::Type::ARRAY:
+            {
+                const CspArrayType & arrayType = static_cast<const CspArrayType&>( *csptype );
+                field = ArraySubTypeSwitch::invoke( arrayType.elemType(), [csptype,keystr,optional]( auto tag ) -> std::shared_ptr<StructField>
+                {
+                    using CElemType = typename decltype(tag)::type;
+                    using CType = typename CspType::Type::toCArrayType<CElemType>::type;
+                    return std::make_shared<ArrayStructField<CType>>( csptype, keystr, optional );
+                } );
+
+                break;
+            }
+
+            case csp::CspType::Type::DIALECT_GENERIC: field = std::make_shared<PyObjectStructField>( keystr, PyTypeObjectPtr::incref( ( PyTypeObject * ) type ), optional ); break;
+            default:
+                CSP_THROW( ValueError, "Unexpected csp type " << csptype -> type() << " on struct " << name );
+        }
+
+        fields.emplace_back( field );
+    }
+
+    return fields;
+}
+
+// Complete the C++ struct type setup for a PyStructMeta reading from its Python class dict.
+// Called either from PyStructMeta_new (eagerly) or from PyStruct_new (lazily) for structs
+// whose setup was deferred because they were created as skeleton types (e.g. by cloudpickle).
+void PyStructMeta_setup_lazy( PyStructMeta * pymeta )
+{
+    // Already initialized (guard against redundant calls)
+    if( pymeta -> structMeta )
+        return;
+
+    // The root csp.Struct Python class (whose tp_base is the C-level PyStruct::PyType)
+    // is not instantiable by design — never create a StructMeta for it.
+    if( pymeta -> ht_type.tp_base == &PyStruct::PyType )
+        return;
+
+    PyObject * dict  = pymeta -> ht_type.tp_dict;
+    PyObject * bases = pymeta -> ht_type.tp_bases;
+    std::string name = pymeta -> ht_type.tp_name;
+
+    PyObject * metadata = PyDict_GetItemString( dict, "__metadata__" );
+    if( !metadata )
+        CSP_THROW( KeyError, "StructMeta missing __metadata__" );
+
+    PyObject * optFields = PyDict_GetItemString( dict, "__optional_fields__" );
+    if( !optFields )
+        CSP_THROW( TypeError, "StructMeta missing __optional_fields__" );
+
+    StructMeta::Fields fields = PyStructMeta_build_fields( name, metadata, optFields );
+
+    std::shared_ptr<StructMeta> metabase = nullptr;
+    Py_ssize_t numbases = PyTuple_GET_SIZE( bases );
+    for( Py_ssize_t idx = 0; idx < numbases; ++idx )
+    {
+        PyTypeObject * base = ( PyTypeObject * ) PyTuple_GET_ITEM( bases, idx );
+        if( PyType_IsSubtype( base, &PyStruct::PyType ) )
+        {
+            if( metabase )
+                CSP_THROW( TypeError, "Struct " << name << " defined with multiple struct bases.  Only single-struct hierarchy is supported" );
+
+            // Only process bases that are actual PyStructMeta types (not the C-level
+            // PyStruct::PyType which is a plain PyTypeObject and unsafe to cast).
+            if( PyStruct::isPyStructType( base ) )
+            {
+                if( !( ( PyStructMeta * ) base ) -> structMeta )
+                    PyStructMeta_setup_lazy( ( PyStructMeta * ) base );
+                metabase = ( ( PyStructMeta * ) base ) -> structMeta;
+            }
+        }
+    }
+
+    PyObject * strict_enabled = PyDict_GetItemString( dict, "__strict_enabled__" );
+    if( !strict_enabled )
+        CSP_THROW( KeyError, "StructMeta missing __strict_enabled__" );
+    bool isStrict = strict_enabled == Py_True;
+
+    auto structMeta = std::make_shared<DialectStructMeta>( ( PyTypeObject * ) pymeta, name, fields, isStrict, metabase );
+
+    //Setup fast attr dict lookup
+    pymeta -> attrDict = PyObjectPtr::own( PyDict_New() );
+    for( auto & field : structMeta -> fields() )
+    {
+        if( PyDict_SetItem( pymeta -> attrDict.get(),
+                            PyObjectPtr::own( PyUnicode_InternFromString( field -> fieldname().c_str() ) ).get(),
+                            PyObjectPtr::own( PyCapsule_New( field.get(), nullptr, nullptr ) ).get() ) < 0 )
+            CSP_THROW( PythonPassthrough, "" );
+    }
+
+    //Setup default image
+    PyObject * defaults = PyDict_GetItemString( dict, "__defaults__" );
+    if( !defaults )
+        CSP_THROW( KeyError, "StructMeta missing __defaults__" );
+
+    //only setup default struct if defaults are defined, otherwise we will do the fast 0-init only
+    if( PyDict_Size( defaults ) > 0 )
+    {
+        StructPtr defaultStruct = structMeta -> create();
+        PyObject *key, *value;
+        Py_ssize_t pos = 0;
+        while( PyDict_Next( defaults, &pos, &key, &value ) )
+        {
+            //Ensure key is properly interned
+            Py_INCREF( key );
+            PyUnicode_InternInPlace( &key );
+            PyStruct::setattr( defaultStruct.get(), key, value );
+            Py_DECREF( key );
+        }
+
+        structMeta -> setDefault( defaultStruct );
+    }
+
+    // Assign as the last step to ensure a fully-initialized structMeta is always visible
+    pymeta -> structMeta = structMeta;
+}
+
 static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObject *kwds )
 {
     CSP_BEGIN_METHOD;
@@ -110,62 +276,19 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
     if( !optFields ) 
         CSP_THROW( TypeError, "StructMeta missing __optional_fields__" );
 
-    StructMeta::Fields fields;
-    {
-        PyObject *key, *type;
-        Py_ssize_t pos = 0;
-        bool optional;
+    StructMeta::Fields fields = PyStructMeta_build_fields( name, metadata, optFields );
 
-        while( PyDict_Next( metadata, &pos, &key, &type ) )
-        {
-            const char * keystr = PyUnicode_AsUTF8( key );
-            if( !keystr )
-                CSP_THROW( PythonPassthrough, "" );
+    // Defer when this struct has no own fields.  This covers two cases:
+    //   1. cloudpickle/programmatic skeleton with no metadata yet (base may also be a skeleton
+    //      with null structMeta) — must defer so _class_setstate can restore all keys first.
+    //   2. A real "empty-body" derived struct (class Derived(Base): pass) — safe to defer
+    //      because setup_lazy reads __strict_enabled__ and __defaults__ from tp_dict at call
+    //      time, which are already set correctly by StructMeta.__new__.  This also avoids a
+    //      bug where a strict DerivedEmpty deserialized from cloudpickle would be set up
+    //      eagerly before _class_setstate restores __strict_enabled__=True.
+    if( fields.empty() )
+        return ( PyObject * ) pymeta;
 
-            int rv = PySet_Contains( optFields, key );
-            if( rv == -1 )
-                CSP_THROW( PythonPassthrough, "" );
-            optional = rv;
-                
-            if( !PyType_Check( type ) && !PyList_Check( type ) )
-                CSP_THROW( TypeError, "Struct metadata for key " << keystr << " expected a type, got " << PyObjectPtr::incref( type ) );
-
-            std::shared_ptr<StructField> field;
-            CspTypePtr csptype = pyTypeAsCspType( type );
-
-            switch( csptype -> type() )
-            {
-                case csp::CspType::Type::BOOL:      field = std::make_shared<BoolStructField>( keystr, optional ); break;
-                case csp::CspType::Type::INT64:     field = std::make_shared<Int64StructField>( keystr, optional ); break;
-                case csp::CspType::Type::DOUBLE:    field = std::make_shared<DoubleStructField>( keystr, optional ); break;
-                case csp::CspType::Type::DATETIME:  field = std::make_shared<DateTimeStructField>( keystr, optional ); break;
-                case csp::CspType::Type::TIMEDELTA: field = std::make_shared<TimeDeltaStructField>( keystr, optional ); break;
-                case csp::CspType::Type::DATE:      field = std::make_shared<DateStructField>( keystr, optional ); break;
-                case csp::CspType::Type::TIME:      field = std::make_shared<TimeStructField>( keystr, optional ); break;
-                case csp::CspType::Type::STRING:    field = std::make_shared<StringStructField>( csptype, keystr, optional ); break;
-                case csp::CspType::Type::ENUM:      field = std::make_shared<CspEnumStructField>( csptype, keystr, optional ); break;
-                case csp::CspType::Type::STRUCT:    field = std::make_shared<StructStructField>( csptype, keystr, optional ); break;
-                case csp::CspType::Type::ARRAY:
-                {
-                    const CspArrayType & arrayType = static_cast<const CspArrayType&>( *csptype );
-                    field = ArraySubTypeSwitch::invoke( arrayType.elemType(), [csptype,keystr,optional]( auto tag ) -> std::shared_ptr<StructField>
-                    {
-                        using CElemType = typename decltype(tag)::type;
-                        using CType = typename CspType::Type::toCArrayType<CElemType>::type;
-                        return std::make_shared<ArrayStructField<CType>>( csptype, keystr, optional );
-                    } );
-
-                    break;
-                }
-
-                case csp::CspType::Type::DIALECT_GENERIC: field = std::make_shared<PyObjectStructField>( keystr, PyTypeObjectPtr::incref( ( PyTypeObject * ) type ), optional ); break;
-                default:
-                    CSP_THROW( ValueError, "Unexpected csp type " << csptype -> type() << " on struct " << name );
-            }
-
-            fields.emplace_back( field );
-        }
-    }
     std::shared_ptr<StructMeta> metabase = nullptr;
     Py_ssize_t numbases = PyTuple_GET_SIZE( bases );
 
@@ -173,12 +296,16 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
     {
         PyTypeObject * base = ( PyTypeObject * ) PyTuple_GET_ITEM( bases, idx );
 
-        //Check if base is a PyStruct type.  Note that this might be the python side csp.Struct class, but we dont create structMeta on that
-        //( see above ) so it will be null here, no need to check explicitly
         if( PyType_IsSubtype( base, &PyStruct::PyType ) )
         {
             if( metabase )
                 CSP_THROW( TypeError, "Struct " << name << " defined with multiple struct bases.  Only single-struct hierarchy is supported" );
+
+            // If the base is a skeleton (e.g. deserialized by cloudpickle before first use),
+            // trigger its lazy init now so metabase is valid for the eager setup below.
+            if( PyStruct::isPyStructType( base ) && !( ( PyStructMeta * ) base ) -> structMeta )
+                PyStructMeta_setup_lazy( ( PyStructMeta * ) base );
+
             metabase = ( ( PyStructMeta * ) base ) -> structMeta;
         }
     }
@@ -310,6 +437,9 @@ PyObject * PyStructMeta_layout( PyStructMeta * m )
 {
     CSP_BEGIN_METHOD;
 
+    if( !m -> structMeta )
+        PyStructMeta_setup_lazy( m );
+
     return PyUnicode_FromString( m -> structMeta -> layout().c_str() );
     CSP_RETURN_NULL;
 }
@@ -380,6 +510,11 @@ static PyObjectPtr PyStructMeta_fieldinfo( StructField * field )
 
 static PyObject * PyStructMeta_metadata_info( PyStructMeta * m )
 {
+    CSP_BEGIN_METHOD;
+
+    if( !m -> structMeta )
+        PyStructMeta_setup_lazy( m );
+
     PyObjectPtr out = PyObjectPtr::own( PyDict_New() );
 
     auto * meta = m -> structMeta.get();
@@ -407,6 +542,7 @@ static PyObject * PyStructMeta_metadata_info( PyStructMeta * m )
         CSP_THROW( PythonPassthrough, "" );
 
     return out.release();
+    CSP_RETURN_NULL;
 }
 
 static PyMethodDef PyStructMeta_methods[] = {
@@ -784,9 +920,18 @@ PyObject * PyStruct_new( PyTypeObject * type, PyObject *args, PyObject *kwds )
 {
     CSP_BEGIN_METHOD;
 
-    //base struct class
-    if( ! ( (PyStructMeta * ) type ) -> structMeta )
-        CSP_THROW( TypeError, "csp.Struct cannot be instantiated" );
+    PyStructMeta * pymeta = ( PyStructMeta * ) type;
+
+    if( !pymeta -> structMeta )
+    {
+        // The base csp.Struct Python class has tp_base == &PyStruct::PyType; it is not instantiable.
+        if( pymeta -> ht_type.tp_base == &PyStruct::PyType )
+            CSP_THROW( TypeError, "csp.Struct cannot be instantiated" );
+
+        // Skeleton struct: lazily complete C++ setup now that all Python-level attributes
+        // have been restored (e.g. by cloudpickle's _class_setstate or __setstate__).
+        PyStructMeta_setup_lazy( pymeta );
+    }
 
     StructPtr struct_ =  ( (PyStructMeta * ) type ) -> structMeta -> create();
 

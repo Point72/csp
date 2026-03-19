@@ -537,6 +537,338 @@ class TestCspStruct(unittest.TestCase):
         sd.a3[0].v = 2
         # self.assertTrue(all(x == 1 for x in sd.a3))
 
+    def test_cloudpickle(self):
+        """cloudpickle can serialise/deserialise csp.Struct instances (GitHub issue #689).
+
+        cloudpickle creates a skeleton type first (via _make_skeleton_class with no field
+        metadata), then restores state via _class_setstate.  The C++ struct setup is now
+        deferred until the first instantiation so the skeleton creation succeeds.
+        """
+        try:
+            import cloudpickle
+        except ImportError:
+            self.skipTest("cloudpickle is not installed")
+
+        # --- simple struct with primitive fields ---
+        class Simple(csp.Struct):
+            a: int
+            b: str
+            c: float
+
+        s = Simple(a=1, b="hello", c=3.14)
+        s2 = cloudpickle.loads(cloudpickle.dumps(s))
+        self.assertEqual(s2.a, 1)
+        self.assertEqual(s2.b, "hello")
+        self.assertAlmostEqual(s2.c, 3.14)
+
+        # --- struct with defaults ---
+        class WithDefaults(csp.Struct):
+            x: int = 42
+            y: str = "default"
+
+        d = WithDefaults()
+        d2 = cloudpickle.loads(cloudpickle.dumps(d))
+        self.assertEqual(d2.x, 42)
+        self.assertEqual(d2.y, "default")
+
+        d_set = WithDefaults(x=99, y="custom")
+        d_set2 = cloudpickle.loads(cloudpickle.dumps(d_set))
+        self.assertEqual(d_set2.x, 99)
+        self.assertEqual(d_set2.y, "custom")
+
+        # --- nested struct ---
+        class Inner(csp.Struct):
+            v: int
+
+        class Outer(csp.Struct):
+            inner: Inner
+            name: str
+
+        o = Outer(inner=Inner(v=7), name="test")
+        o2 = cloudpickle.loads(cloudpickle.dumps(o))
+        self.assertEqual(o2.inner.v, 7)
+        self.assertEqual(o2.name, "test")
+
+        # --- struct with list fields ---
+        class WithList(csp.Struct):
+            nums: List[int]
+            label: str
+
+        wl = WithList(nums=[1, 2, 3], label="nums")
+        wl2 = cloudpickle.loads(cloudpickle.dumps(wl))
+        self.assertEqual(wl2.nums, [1, 2, 3])
+        self.assertEqual(wl2.label, "nums")
+
+        # --- derived struct ---
+        class Base(csp.Struct):
+            x: int
+
+        class Derived(Base):
+            y: str
+
+        dr = Derived(x=5, y="hi")
+        dr2 = cloudpickle.loads(cloudpickle.dumps(dr))
+        self.assertEqual(dr2.x, 5)
+        self.assertEqual(dr2.y, "hi")
+
+        # --- pickling the class type itself (not just instances) ---
+        SimpleCls = cloudpickle.loads(cloudpickle.dumps(Simple))
+        s3 = SimpleCls(a=10, b="world", c=2.71)
+        self.assertEqual(s3.a, 10)
+        self.assertEqual(s3.b, "world")
+        self.assertAlmostEqual(s3.c, 2.71)
+
+        # --- strict struct: Optional fields and required-field enforcement preserved ---
+        class Strict(csp.Struct, strict=True):
+            a: Optional[int]
+            b: str = "hello"
+
+        st = Strict(a=5, b="world")
+        st2 = cloudpickle.loads(cloudpickle.dumps(st))
+        self.assertEqual(st2.a, 5)
+        self.assertEqual(st2.b, "world")
+
+        # strict enforcement must survive the round-trip
+        Strict2 = type(st2)
+        with self.assertRaises(ValueError):
+            Strict2(b="no_a")  # 'a' is required (Optional but strict → must be explicitly set)
+
+        # default is preserved
+        st_default = cloudpickle.loads(cloudpickle.dumps(Strict(a=None, b="hello")))
+        self.assertEqual(st_default.b, "hello")
+
+        # --- struct with a struct-instance as a default value ---
+        class Leaf(csp.Struct):
+            v: int = 99
+
+        class WithStructDefault(csp.Struct):
+            leaf: Leaf = Leaf(v=42)
+            tag: str = "default"
+
+        wsd = WithStructDefault()
+        wsd2 = cloudpickle.loads(cloudpickle.dumps(wsd))
+        self.assertEqual(wsd2.leaf.v, 42)
+        self.assertEqual(wsd2.tag, "default")
+
+        # --- round-trip preserves unset fields ---
+        s_partial = Simple(a=5)
+        s_partial2 = cloudpickle.loads(cloudpickle.dumps(s_partial))
+        self.assertEqual(s_partial2.a, 5)
+        self.assertFalse(hasattr(s_partial2, "b"))
+        self.assertFalse(hasattr(s_partial2, "c"))
+
+        # --- type-level methods work on skeleton types before first instantiation ---
+        # (lazy init must be triggered by these calls, not just by __call__)
+        SkeletonCls = cloudpickle.loads(cloudpickle.dumps(Simple))
+        layout_str = SkeletonCls._layout()
+        self.assertIsInstance(layout_str, str)
+        self.assertTrue(len(layout_str) > 0)
+
+        meta_info = SkeletonCls._metadata_info()
+        self.assertIsInstance(meta_info, dict)
+        field_names = [f["fieldname"] for f in meta_info["fields"]]
+        self.assertEqual(sorted(field_names), ["a", "b", "c"])
+
+        # --- subclassing a skeleton: new struct inheriting from a deserialized class ---
+        # The skeleton base must be lazily initialized before the derived struct is built,
+        # so the derived struct picks up the base fields correctly.
+        BaseReloaded = cloudpickle.loads(cloudpickle.dumps(Base))
+
+        class Extended(BaseReloaded):
+            extra: float
+
+        e = Extended(x=1, extra=2.5)
+        self.assertEqual(e.x, 1)
+        self.assertAlmostEqual(e.extra, 2.5)
+
+        # Also verify the full hierarchy: Derived(Base) where both are reloaded, then Extended
+        DerivedReloaded = cloudpickle.loads(cloudpickle.dumps(Derived))
+
+        class DoublyExtended(DerivedReloaded):
+            z: float
+
+        de = DoublyExtended(x=10, y="hi", z=3.14)
+        self.assertEqual(de.x, 10)
+        self.assertEqual(de.y, "hi")
+        self.assertAlmostEqual(de.z, 3.14)
+
+        # --- struct with no own fields (inherits all fields from base) ---
+        class BaseForEmpty(csp.Struct):
+            v: int
+            s: str
+
+        class DerivedEmpty(BaseForEmpty):
+            pass  # no own fields
+
+        de_empty = DerivedEmpty(v=7, s="hello")
+        de_empty2 = cloudpickle.loads(cloudpickle.dumps(de_empty))
+        self.assertEqual(de_empty2.v, 7)
+        self.assertEqual(de_empty2.s, "hello")
+        # class type survives too
+        DerivedEmptyCls = cloudpickle.loads(cloudpickle.dumps(DerivedEmpty))
+        de_empty3 = DerivedEmptyCls(v=9, s="world")
+        self.assertEqual(de_empty3.v, 9)
+
+        # --- strict struct with no own fields: strict enforcement must survive ---
+        class StrictBase(csp.Struct, strict=True):
+            v: int
+            s: str
+
+        class DerivedEmptyStrict(StrictBase, strict=True):
+            pass
+
+        des = DerivedEmptyStrict(v=1, s="x")
+        des2 = cloudpickle.loads(cloudpickle.dumps(des))
+        self.assertEqual(des2.v, 1)
+        DES2Cls = type(des2)
+        with self.assertRaises(ValueError):
+            DES2Cls()  # strict: all fields required
+
+        # --- List[OtherStruct] field ---
+        class Item(csp.Struct):
+            name: str
+            count: int
+
+        class Container(csp.Struct):
+            items: List[Item]
+            tag: str
+
+        c = Container(items=[Item(name="a", count=1), Item(name="b", count=2)], tag="mylist")
+        c2 = cloudpickle.loads(cloudpickle.dumps(c))
+        self.assertEqual(len(c2.items), 2)
+        self.assertEqual(c2.items[0].name, "a")
+        self.assertEqual(c2.items[1].count, 2)
+        self.assertEqual(c2.tag, "mylist")
+
+        # --- double round-trip (idempotency) ---
+        s_rt2 = cloudpickle.loads(cloudpickle.dumps(cloudpickle.loads(cloudpickle.dumps(Simple(a=7, b="x", c=1.5)))))
+        self.assertEqual(s_rt2.a, 7)
+        self.assertEqual(s_rt2.b, "x")
+        self.assertAlmostEqual(s_rt2.c, 1.5)
+
+        # --- csp.run() with a cloudpickle-deserialized struct type ---
+        # This exercises CspTypeFactory::pyTypeAsCspType (wiring-time lazy init path).
+        class GraphStruct(csp.Struct):
+            x: int
+            y: float
+
+        GraphStructReloaded = cloudpickle.loads(cloudpickle.dumps(GraphStruct))
+
+        results = {}
+
+        @csp.node
+        def consumer(x: csp.ts[GraphStructReloaded]):
+            if csp.ticked(x):
+                results["x"] = x.x
+                results["y"] = x.y
+
+        s_in = GraphStructReloaded(x=42, y=3.14)
+
+        def graph():
+            consumer(csp.const(s_in))
+
+        csp.run(graph, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual(results.get("x"), 42)
+        self.assertAlmostEqual(results.get("y"), 3.14)
+
+    def test_cloudpickle_all_field_types(self):
+        """cloudpickle round-trip with every CspType field type."""
+        try:
+            import cloudpickle
+        except ImportError:
+            self.skipTest("cloudpickle is not installed")
+
+        class AllFieldTypes(csp.Struct):
+            b: bool
+            i: int
+            f: float
+            s: str
+            bt: bytes
+            dt: datetime
+            td: timedelta
+            dte: date
+            t: time
+            e: MyEnum
+            o: object
+
+        orig = AllFieldTypes(
+            b=True, i=42, f=3.14, s="hello", bt=b"\x00\x01\x02",
+            dt=datetime(2024, 6, 15, 12, 30, 0), td=timedelta(seconds=90),
+            dte=date(2024, 6, 15), t=time(12, 30, 0), e=MyEnum.FOO,
+            o={"key": [1, 2, 3]},
+        )
+        rt = cloudpickle.loads(cloudpickle.dumps(orig))
+        self.assertEqual(rt.b, True)
+        self.assertEqual(rt.i, 42)
+        self.assertAlmostEqual(rt.f, 3.14)
+        self.assertEqual(rt.s, "hello")
+        self.assertEqual(rt.bt, b"\x00\x01\x02")
+        self.assertEqual(rt.dt, datetime(2024, 6, 15, 12, 30, 0))
+        self.assertEqual(rt.td, timedelta(seconds=90))
+        self.assertEqual(rt.dte, date(2024, 6, 15))
+        self.assertEqual(rt.t, time(12, 30, 0))
+        self.assertEqual(rt.e, MyEnum.FOO)
+        self.assertEqual(rt.o, {"key": [1, 2, 3]})
+
+    def test_cloudpickle_instance_operations(self):
+        """Instance-level methods work on cloudpickle-deserialized structs."""
+        try:
+            import cloudpickle
+        except ImportError:
+            self.skipTest("cloudpickle is not installed")
+
+        class Ops(csp.Struct):
+            x: int
+            y: str = "hi"
+
+        orig = Ops(x=1, y="hello")
+        rt = cloudpickle.loads(cloudpickle.dumps(orig))
+
+        # __eq__ / __ne__
+        self.assertEqual(orig, rt)
+        rt2 = cloudpickle.loads(cloudpickle.dumps(Ops(x=2, y="hello")))
+        self.assertNotEqual(orig, rt2)
+
+        # __hash__
+        self.assertEqual(hash(orig), hash(rt))
+
+        # __repr__ / __str__
+        self.assertIn("x=1", repr(rt))
+        self.assertIn("y=hello", str(rt))
+
+        # copy / deepcopy
+        c = rt.copy()
+        self.assertEqual(c.x, 1)
+        self.assertEqual(c.y, "hello")
+        dc = rt.deepcopy()
+        self.assertEqual(dc.x, 1)
+
+        # update
+        rt.update(x=99)
+        self.assertEqual(rt.x, 99)
+
+        # copy_from
+        target = cloudpickle.loads(cloudpickle.dumps(Ops(x=0)))
+        target.copy_from(orig)
+        self.assertEqual(target.x, 1)
+        self.assertEqual(target.y, "hello")
+
+        # to_dict
+        d = orig.to_dict()
+        self.assertEqual(d, {"x": 1, "y": "hello"})
+
+    def test_cloudpickle_empty_struct_regression(self):
+        """define_struct('Empty', {}) must raise TypeError at instantiation time.
+
+        With the lazy-init change, the error is now deferred from class-definition time
+        to first use.  The StructMeta constructor still enforces "at least 1 field" for
+        structs with no base, so the error fires inside PyStructMeta_setup_lazy when
+        the empty struct is first instantiated.
+        """
+        Empty = define_struct("Empty", {})
+        with self.assertRaises(TypeError):
+            Empty()
+
     def test_derived_defaults(self):
         s1 = StructWithDefaults()
         s2 = DerivedStructWithDefaults()

@@ -15,6 +15,7 @@ We also turn off memoization for the node by passing `memoize=False`. This means
 ```python
 import csp
 from csp import ts
+
 from datetime import timedelta
 import numpy as np
 
@@ -38,9 +39,10 @@ def poisson_counter(rate: float) -> ts[int]:
 We can run the node using `csp.run` as follows:
 
 ```python
-from datetime import datetime
+from datetime import timedelta
+from csp.utils.datetime import utc_now
 
-res = csp.run(poisson_counter, rate=2.0, starttime=datetime.utcnow(), endtime=timedelta(seconds=10), realtime=False)
+res = csp.run(poisson_counter, rate=2.0, starttime=utc_now(), endtime=timedelta(seconds=10), realtime=False)
 print(f'Final count: {res[0][-1][1]}')
 ```
 

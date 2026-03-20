@@ -34,6 +34,7 @@ Notes for editors:
   - [Write Historical Input Adapters](Write-Historical-Input-Adapters)
   - [Write Realtime Input Adapters](Write-Realtime-Input-Adapters)
   - [Write Output Adapters](Write-Output-Adapters)
+  - [Write C API Adapters](Write-C-API-Adapters)
 - [Profile CSP Code](Profile-CSP-Code)
 
 **References**
@@ -51,6 +52,7 @@ Notes for editors:
   - [`csp.Struct` API](csp.Struct-API)
   - [`csp.dynamic` API](csp.dynamic-API)
   - [`csp.profiler` API](csp.profiler-API)
+  - [C APIs](C-APIs)
 - [Glossary of Terms](Glossary)
 - [Examples](https://github.com/Point72/csp/tree/main/examples)
 

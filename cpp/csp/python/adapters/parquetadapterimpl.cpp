@@ -17,10 +17,12 @@
 #include <csp/python/PyCppNode.h>
 #include <csp/python/PyNodeWrapper.h>
 #include <csp/python/NumpyConversions.h>
+#include <csp/python/adapters/ArrowNumpyListReader.h>
+#include <csp/python/adapters/ArrowNumpyListWriter.h>
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
 #include <arrow/io/memory.h>
-#include <arrow/table.h>
+#include <csp/engine/PartialSwitchCspType.h>
 #include <locale>
 #include <codecvt>
 
@@ -79,399 +81,102 @@ REGISTER_CPPNODE( csp::cppnodes, parquet_dict_basket_writer );
 namespace
 {
 
-class FileNameGenerator : public csp::Generator<std::string, csp::DateTime, csp::DateTime>
+// Generator that wraps a Python generator yielding (RecordBatch, dict, bool) tuples.
+// The dict maps basket names to RecordBatches; the bool indicates schema change.
+class RecordBatchGenerator : public csp::Generator<RecordBatchWithFlag, csp::DateTime, csp::DateTime>
 {
 public:
-
-    FileNameGenerator( PyObject *wrappedGenerator )
+    RecordBatchGenerator( PyObject *wrappedGenerator )
             : m_wrappedGenerator( csp::python::PyObjectPtr::incref( wrappedGenerator ) )
     {
     }
 
     void init( csp::DateTime start, csp::DateTime end ) override
     {
-        PyObject *tp = PyTuple_New( 2 );
-        if( !tp )
+        auto tp = csp::python::PyObjectPtr::own( PyTuple_New( 2 ) );
+        if( !tp.get() )
             CSP_THROW( csp::python::PythonPassthrough, "" );
 
-        PyTuple_SET_ITEM( tp, 0, csp::python::toPython( start ) );
-        PyTuple_SET_ITEM( tp, 1, csp::python::toPython( end ) );
-        m_iter = csp::python::PyObjectPtr::check( PyObject_Call( m_wrappedGenerator.ptr(), tp, nullptr ) );
-        CSP_TRUE_OR_THROW( PyIter_Check( m_iter.get() ), csp::TypeError,
-                           "Parquet file generator expected to return iterator" );
+        PyTuple_SET_ITEM( tp.get(), 0, csp::python::toPython( start ) );
+        PyTuple_SET_ITEM( tp.get(), 1, csp::python::toPython( end ) );
+        m_iter = csp::python::PyObjectPtr::check( PyObject_Call( m_wrappedGenerator.ptr(), tp.get(), nullptr ) );
+        CSP_TRUE_OR_THROW( PyIter_Check( m_iter.ptr() ), csp::TypeError,
+                           "RecordBatch generator expected to return iterator" );
     }
 
-    virtual bool next( std::string &value ) override
+    bool next( RecordBatchWithFlag &value ) override
     {
         if( m_iter.ptr() == nullptr )
-        {
             return false;
-        }
+
         auto nextVal = csp::python::PyObjectPtr::own( PyIter_Next( m_iter.ptr() ) );
         if( PyErr_Occurred() )
-        {
             CSP_THROW( csp::python::PythonPassthrough, "" );
-        }
         if( nextVal.get() == nullptr )
-        {
             return false;
+
+        // Expect a tuple of (RecordBatch, dict, bool)
+        CSP_TRUE_OR_THROW( PyTuple_Check( nextVal.get() ) && PyTuple_GET_SIZE( nextVal.get() ) == 3,
+                           csp::TypeError, "RecordBatch generator expected to yield (batch, basket_batches, schema_changed) tuples" );
+
+        PyObject *pyBatch         = PyTuple_GET_ITEM( nextVal.get(), 0 );
+        PyObject *pyBasketDict    = PyTuple_GET_ITEM( nextVal.get(), 1 );
+        PyObject *pySchemaChanged = PyTuple_GET_ITEM( nextVal.get(), 2 );
+
+        value.schemaChanged = PyObject_IsTrue( pySchemaChanged );
+
+        // Import main RecordBatch via PyCapsule C Data Interface
+        value.batch = importRecordBatch( pyBatch );
+
+        // Import basket RecordBatches
+        value.basketBatches.clear();
+        if( PyDict_Check( pyBasketDict ) )
+        {
+            PyObject *key, *val;
+            Py_ssize_t pos = 0;
+            while( PyDict_Next( pyBasketDict, &pos, &key, &val ) )
+            {
+                const char *basketName = PyUnicode_AsUTF8( key );
+                if( !basketName )
+                    CSP_THROW( csp::python::PythonPassthrough, "" );
+                value.basketBatches[ basketName ] = importRecordBatch( val );
+            }
         }
-        value = csp::python::fromPython<std::string>( nextVal.get() );
+
         return true;
     }
 
 private:
+    static std::shared_ptr<::arrow::RecordBatch> importRecordBatch( PyObject *pyBatch )
+    {
+        auto exportResult = csp::python::PyObjectPtr::own(
+            PyObject_CallMethod( pyBatch, "__arrow_c_array__", nullptr ) );
+        if( !exportResult.get() || PyErr_Occurred() )
+            CSP_THROW( csp::python::PythonPassthrough, "" );
+
+        CSP_TRUE_OR_THROW( PyTuple_Check( exportResult.get() ) && PyTuple_GET_SIZE( exportResult.get() ) == 2,
+                           csp::TypeError, "__arrow_c_array__ expected to return (schema_capsule, array_capsule)" );
+
+        PyObject *pySchemaCapsule = PyTuple_GET_ITEM( exportResult.get(), 0 );
+        PyObject *pyArrayCapsule  = PyTuple_GET_ITEM( exportResult.get(), 1 );
+
+        auto *c_schema = reinterpret_cast<struct ArrowSchema *>( PyCapsule_GetPointer( pySchemaCapsule, "arrow_schema" ) );
+        auto *c_array  = reinterpret_cast<struct ArrowArray *>( PyCapsule_GetPointer( pyArrayCapsule, "arrow_array" ) );
+
+        auto schemaResult = arrow::ImportSchema( c_schema );
+        if( !schemaResult.ok() )
+            CSP_THROW( csp::ValueError, "Failed to import RecordBatch schema: " << schemaResult.status().ToString() );
+
+        auto batchResult = arrow::ImportRecordBatch( c_array, schemaResult.ValueUnsafe() );
+        if( !batchResult.ok() )
+            CSP_THROW( csp::ValueError, "Failed to import RecordBatch: " << batchResult.status().ToString() );
+
+        return std::move( batchResult.ValueUnsafe() );
+    }
+
     csp::python::PyObjectPtr m_wrappedGenerator;
     csp::python::PyObjectPtr m_iter;
 };
-
-
-class ArrowTableGenerator : public csp::Generator<std::shared_ptr<arrow::Table>, csp::DateTime, csp::DateTime>
-{
-public:
-    ArrowTableGenerator( PyObject *wrappedGenerator )
-            : m_wrappedGenerator( csp::python::PyObjectPtr::incref( wrappedGenerator ) )
-    {
-    }
-
-    void init( csp::DateTime start, csp::DateTime end ) override
-    {
-        PyObject *tp = PyTuple_New( 2 );
-        if( !tp )
-            CSP_THROW( csp::python::PythonPassthrough, "" );
-
-        PyTuple_SET_ITEM( tp, 0, csp::python::toPython( start ) );
-        PyTuple_SET_ITEM( tp, 1, csp::python::toPython( end ) );
-        m_iter = csp::python::PyObjectPtr::check( PyObject_Call( m_wrappedGenerator.ptr(), tp, nullptr ) );
-        CSP_TRUE_OR_THROW( PyIter_Check( m_iter.ptr() ), csp::TypeError,
-                           "Parquet file generator expected to return iterator" );
-    }
-
-    virtual bool next( std::shared_ptr<arrow::Table> &value ) override
-    {
-        if( m_iter.ptr() == nullptr )
-        {
-            return false;
-        }
-        auto nextVal    = PyIter_Next( m_iter.ptr() );
-        auto nextValPtr = csp::python::PyObjectPtr::own( nextVal );
-        if( PyErr_Occurred() )
-        {
-            CSP_THROW( csp::python::PythonPassthrough, "" );
-        }
-        if( nextValPtr.get() == nullptr )
-        {
-            return false;
-        }
-
-        if( !PyCapsule_IsValid( nextValPtr.get(), "arrow_array_stream" ) )
-        {
-            CSP_THROW( csp::TypeError, "Invalid arrow data, expected PyCapsule got " << Py_TYPE( nextValPtr.get() ) -> tp_name );
-        }
-        // Extract the record batch
-        struct ArrowArrayStream * c_stream = reinterpret_cast<struct ArrowArrayStream*>( PyCapsule_GetPointer( nextValPtr.get(), "arrow_array_stream" ) );
-        auto reader_result = arrow::ImportRecordBatchReader( c_stream );
-        if( !reader_result.ok() )
-            CSP_THROW( csp::ValueError, "Failed to load record batches through PyCapsule C Data interface: " << reader_result.status().ToString() );
-        auto reader = std::move( reader_result.ValueUnsafe() );
-        auto table_result = arrow::Table::FromRecordBatchReader( reader.get() );
-        if( !table_result.ok() )
-            CSP_THROW( csp::ValueError, "Failed to load table from record batches " << table_result.status().ToString() );
-        value = std::move( table_result.ValueUnsafe() );
-        return true;
-    }
-private:
-    csp::python::PyObjectPtr m_wrappedGenerator;
-    csp::python::PyObjectPtr m_iter;
-};
-
-template< typename CspCType>
-class NumpyArrayWriterImpl : public TypedDialectGenericListWriterInterface<CspCType>
-{
-public:
-    NumpyArrayWriterImpl( PyArray_Descr *expectedArrayDesc )
-            : m_expectedArrayDesc( expectedArrayDesc )
-    {
-    }
-
-    void writeItems( const csp::DialectGenericType &listObject ) override
-    {
-        PyObject *object = csp::python::toPythonBorrowed( listObject );
-        if( !PyArray_Check( object ) )
-        {
-            CSP_THROW( csp::TypeError, "While writing to parquet expected numpy array type, got " << Py_TYPE( object ) -> tp_name );
-        }
-
-        PyArrayObject *arrayObject = ( PyArrayObject * ) ( object );
-        char npy_type = PyArray_DESCR( arrayObject ) -> type;
-        if( PyArray_DESCR( arrayObject ) -> kind != m_expectedArrayDesc -> kind )
-        {
-            CSP_THROW( csp::TypeError,
-                       "Expected array of type " << csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) m_expectedArrayDesc ) )
-                                                 << " got "
-                                                 << csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
-        }
-
-        auto ndim = PyArray_NDIM( arrayObject );
-
-        CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
-        switch( npy_type )
-        {
-            case NPY_BYTELTR:      writeValues<char>( arrayObject );            break;
-            case NPY_UBYTELTR:     writeValues<unsigned char>( arrayObject );   break;
-            case NPY_SHORTLTR:     writeValues<short>( arrayObject );           break;
-            case NPY_USHORTLTR:    writeValues<unsigned short>( arrayObject );  break;
-            case NPY_INTLTR:       writeValues<int>( arrayObject );             break;
-            case NPY_UINTLTR:      writeValues<unsigned int>( arrayObject );    break;
-            case NPY_LONGLTR:      writeValues<long>( arrayObject );            break;
-            case NPY_ULONGLTR:     writeValues<unsigned long>( arrayObject );   break;
-            case NPY_LONGLONGLTR:  writeValues<long long>( arrayObject );       break;
-            case NPY_ULONGLONGLTR: writeValues<unsigned long long>( arrayObject ); break;
-
-            case NPY_FLOATLTR:  writeValues<float>( arrayObject );  break;
-            case NPY_DOUBLELTR: writeValues<double>( arrayObject ); break;
-            default:
-                writeValues<CspCType>( arrayObject );
-        }
-    }
-private:
-    template<typename NumpyCType>
-    void writeValues( PyArrayObject * arrayObject )
-    {
-        auto arraySize = PyArray_Size( ( PyObject * ) arrayObject );
-        if( PyArray_ISCARRAY_RO(arrayObject) )
-        {
-            NumpyCType* data = reinterpret_cast<NumpyCType*>( PyArray_DATA( arrayObject ) );
-            for (decltype(arraySize) i = 0; i < arraySize; ++i)
-            {
-                this->writeValue(static_cast<CspCType>(data[i]));
-            }
-        }
-        else
-        {
-            for (decltype(arraySize) i = 0; i < arraySize; ++i)
-            {
-                this->writeValue(static_cast<CspCType>(*reinterpret_cast<NumpyCType*>(PyArray_GETPTR1(arrayObject, i))));
-            }
-        }
-    }
-
-    PyArray_Descr *m_expectedArrayDesc;
-};
-
-class NumpyUnicodeArrayWriter : public TypedDialectGenericListWriterInterface<std::string>
-{
-public:
-    NumpyUnicodeArrayWriter()
-    {
-    }
-
-    void writeItems( const csp::DialectGenericType &listObject ) override
-    {
-        PyObject *object = csp::python::toPythonBorrowed( listObject );
-
-        if( !PyArray_Check( object ) )
-        {
-            CSP_THROW( csp::TypeError, "While writing to parquet expected numpy array type, got " << Py_TYPE( object ) -> tp_name );
-        }
-        PyArrayObject *arrayObject = ( PyArrayObject * ) ( object );
-
-        if( PyArray_DESCR( arrayObject ) -> type_num != NPY_UNICODE )
-        {
-            CSP_THROW( csp::TypeError,
-                       "Expected array of type " << csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) m_expectedArrayDesc ) )
-                                                 << " got "
-                                                 << csp::python::PyObjectPtr::own(
-                                                         PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
-        }
-
-        auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( arrayObject ) );
-        auto ndim        = PyArray_NDIM( arrayObject );
-
-        CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
-        std::wstring_convert<std::codecvt_utf8<char32_t>,char32_t> converter;
-
-        auto arraySize = PyArray_Size( object );
-        if( PyArray_ISCARRAY_RO( arrayObject ) )
-        {
-            auto data = reinterpret_cast<char *>(PyArray_DATA( arrayObject ));
-
-            for( decltype( arraySize ) i = 0; i < arraySize; ++i )
-            {
-
-                std::string value = converter.to_bytes( reinterpret_cast<char32_t*>(data + elementSize * i),
-                                                          reinterpret_cast<char32_t*>(data + elementSize * ( i + 1 )) );
-                this -> writeValue( value );
-            }
-        }
-        else
-        {
-            for( decltype( arraySize ) i = 0; i < arraySize; ++i )
-            {
-                char        *elementPtr = reinterpret_cast<char *>(PyArray_GETPTR1( arrayObject, i ));
-                std::string value       = converter.to_bytes( reinterpret_cast<char32_t*>(elementPtr),
-                                                                reinterpret_cast<char32_t*>(elementPtr + elementSize ) );
-                this -> writeValue( value );
-            }
-        }
-    }
-
-private:
-    PyArray_Descr *m_expectedArrayDesc;
-};
-
-static inline DialectGenericListWriterInterface::Ptr create_numpy_array_writer_impl( const csp::CspTypePtr &type )
-{
-    try
-    {
-        return csp::PartialSwitchCspType<csp::CspType::Type::DOUBLE, csp::CspType::Type::INT64,
-                csp::CspType::Type::BOOL, csp::CspType::Type::STRING>::invoke(
-                type.get(),
-                []( auto tag ) -> DialectGenericListWriterInterface::Ptr
-                {
-                    using CValueType = typename decltype( tag )::type;
-                    auto numpy_dtype = PyArray_DescrFromType( csp::python::NPY_TYPE<CValueType>::value );
-
-                    if constexpr (std::is_same_v<CValueType,std::string>)
-                    {
-                        return std::make_shared<NumpyUnicodeArrayWriter>();
-                    }
-                    else
-                    {
-                        return std::make_shared<NumpyArrayWriterImpl<CValueType>>(numpy_dtype);
-                    }
-                }
-        );
-    }
-    catch( csp::TypeError &e )
-    {
-        CSP_THROW( csp::TypeError, "Unsupported array value type when writing to parquet:" << type -> type().asString() );
-    }
-}
-
-
-template< typename V >
-class NumpyArrayReaderImpl final : public TypedDialectGenericListReaderInterface<V>
-{
-public:
-    NumpyArrayReaderImpl( PyArray_Descr *expectedArrayDesc )
-    : m_expectedArrayDesc( expectedArrayDesc )
-    {
-    }
-    virtual csp::DialectGenericType create(uint32_t size) override
-    {
-        npy_intp iSize = size;
-
-        Py_INCREF(m_expectedArrayDesc);
-        PyObject* arr = PyArray_SimpleNewFromDescr( 1, &iSize, m_expectedArrayDesc );
-        // Since arr already has reference count
-        csp::python::PyObjectPtr objectPtr{csp::python::PyObjectPtr::own(arr)};
-
-        // We need to make sure that's the case, since we are going to return pointer to raw buffer
-        CSP_ASSERT(PyArray_ISCARRAY( reinterpret_cast<PyArrayObject *>(arr)));
-
-        csp::DialectGenericType res{csp::python::fromPython<csp::DialectGenericType>(arr)};
-        return res;
-    }
-
-    csp::DialectGenericType create( uint32_t size, uint32_t maxElementSize ) override
-    {
-        CSP_NOT_IMPLEMENTED;
-    }
-
-    virtual V *getRawDataBuffer( const csp::DialectGenericType &list ) const override
-    {
-        auto arrayObject = reinterpret_cast<PyArrayObject *>(csp::python::toPythonBorrowed(list));
-        return reinterpret_cast<V *>(PyArray_DATA( arrayObject ));
-    }
-
-    virtual void setValue(const csp::DialectGenericType& list, int index, const V& value) override
-    {
-        getRawDataBuffer(list)[index] = value;
-    }
-
-private:
-    PyArray_Descr *m_expectedArrayDesc;
-};
-
-class NumpyUnicodeReaderImpl final : public TypedDialectGenericListReaderInterface<std::string>
-{
-public:
-    NumpyUnicodeReaderImpl()
-    {
-    }
-
-    virtual csp::DialectGenericType create( uint32_t size ) override
-    {
-        CSP_NOT_IMPLEMENTED;
-    }
-
-    csp::DialectGenericType create( uint32_t size, uint32_t maxElementSize ) override
-    {
-        npy_intp iSize = size;
-
-        PyArray_Descr *typ;
-        PyObject      *type_string_descr = csp::python::toPython( std::string( "U" ) + std::to_string( maxElementSize ) );
-        PyArray_DescrConverter( type_string_descr, &typ );
-        Py_DECREF( type_string_descr );
-
-        PyObject *arr = PyArray_SimpleNewFromDescr( 1, &iSize, typ );
-
-        // Since arr already has reference count
-        csp::python::PyObjectPtr objectPtr{ csp::python::PyObjectPtr::own( arr ) };
-
-        csp::DialectGenericType res{ csp::python::fromPython<csp::DialectGenericType>( arr ) };
-        return res;
-    }
-
-    std::string *getRawDataBuffer( const csp::DialectGenericType &list ) const override
-    {
-        return nullptr;
-    }
-
-    void setValue( const csp::DialectGenericType &list, int index, const std::string &value ) override
-    {
-        auto arrayObject = reinterpret_cast<PyArrayObject *>(csp::python::toPythonBorrowed( list ));
-        std::wstring_convert<std::codecvt_utf8<char32_t>,char32_t> converter;
-        auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( arrayObject ) );
-        auto wideValue = converter.from_bytes( value );
-        auto nElementsToCopy = std::min( int(elementSize / sizeof(char32_t)), int( wideValue.size() + 1 ) );
-        std::copy_n( wideValue.c_str(), nElementsToCopy, reinterpret_cast<char32_t*>(PyArray_GETPTR1( arrayObject, index )) );
-    }
-};
-
-
-inline DialectGenericListReaderInterface::Ptr create_numpy_array_reader_impl( const csp::CspTypePtr &type )
-
-{
-    try
-    {
-        return csp::PartialSwitchCspType<csp::CspType::Type::DOUBLE, csp::CspType::Type::INT64,
-                csp::CspType::Type::BOOL, csp::CspType::Type::STRING>::invoke( type.get(),
-                                                                               []( auto tag ) -> DialectGenericListReaderInterface::Ptr
-                                                                               {
-                                                                                   using TagType = decltype(tag);
-                                                                                   using CValueType = typename TagType::type;
-                                                                                   auto numpy_dtype = PyArray_DescrFromType(
-                                                                                           csp::python::NPY_TYPE<CValueType>::value );
-
-                                                                                   if( numpy_dtype -> type_num == NPY_UNICODE )
-                                                                                   {
-                                                                                       return std::make_shared<NumpyUnicodeReaderImpl>();
-                                                                                   }
-                                                                                   else
-                                                                                   {
-                                                                                       return std::make_shared<NumpyArrayReaderImpl<CValueType>>(
-                                                                                               numpy_dtype );
-                                                                                   }
-                                                                               }
-        );
-    }
-    catch( csp::TypeError &e )
-    {
-        CSP_THROW( csp::TypeError, "Unsupported array value type when reading from parquet:" << type -> type().asString() );
-    }
-}
 
 }
 
@@ -480,10 +185,9 @@ namespace csp::python
 
 //AdapterManager
 csp::AdapterManager *create_parquet_input_adapter_manager_impl( PyEngine *engine, const Dictionary &properties,
-                                                                FileNameGenerator::Ptr fileNameGenerator,
-                                                                ArrowTableGenerator::Ptr arrowTableGenerator )
+                                                                RecordBatchGenerator::Ptr rbGenerator )
 {
-    auto res = engine -> engine() -> createOwnedObject<ParquetInputAdapterManager>( properties, fileNameGenerator, arrowTableGenerator );
+    auto res = engine -> engine() -> createOwnedObject<ParquetInputAdapterManager>( properties, rbGenerator );
     return res;
 }
 
@@ -509,13 +213,145 @@ create_parquet_input_adapter( csp::AdapterManager *manager, PyEngine *pyengine, 
 
     if( propertiesDict.get( "is_array", false ) )
     {
-        auto &&valueType = pyTypeAsCspType( toPythonBorrowed( propertiesDict.get<DialectGenericType>( "array_value_type" ) ) );
-        return parquetManager -> getInputAdapter( valueType, propertiesDict, pushMode,
-                                                  create_numpy_array_reader_impl( valueType ) );
+        // Array fields use DIALECT_GENERIC type — the registered ListFieldReaderFactory
+        // handles actual numpy array reading via ColumnDispatcher/FieldReader.
+        auto dialectGenericType = CspType::DIALECT_GENERIC();
+        return parquetManager -> getInputAdapter( dialectGenericType, propertiesDict, pushMode );
     }
     else
     {
         return parquetManager -> getInputAdapter( cspType, propertiesDict, pushMode );
+    }
+}
+
+template< typename CspCType >
+class NumpyArrayWriterImpl : public TypedDialectGenericListWriterInterface<CspCType>
+{
+public:
+    NumpyArrayWriterImpl( PyArray_Descr *expectedArrayDesc )
+            : m_expectedArrayDesc( expectedArrayDesc )
+    {
+    }
+
+    void writeItems( const csp::DialectGenericType &listObject ) override
+    {
+        PyObject *object = csp::python::toPythonBorrowed( listObject );
+        if( !PyArray_Check( object ) )
+            CSP_THROW( csp::TypeError, "While writing to parquet expected numpy array type, got " << Py_TYPE( object ) -> tp_name );
+
+        PyArrayObject *arrayObject = ( PyArrayObject * ) ( object );
+        char npy_type = PyArray_DESCR( arrayObject ) -> type;
+        if( PyArray_DESCR( arrayObject ) -> kind != m_expectedArrayDesc -> kind )
+            CSP_THROW( csp::TypeError,
+                       "Expected array of type " << csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) m_expectedArrayDesc ) )
+                                                 << " got "
+                                                 << csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
+
+        auto ndim = PyArray_NDIM( arrayObject );
+        CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
+        switch( npy_type )
+        {
+            case NPY_BYTELTR:      writeValues<char>( arrayObject );            break;
+            case NPY_UBYTELTR:     writeValues<unsigned char>( arrayObject );   break;
+            case NPY_SHORTLTR:     writeValues<short>( arrayObject );           break;
+            case NPY_USHORTLTR:    writeValues<unsigned short>( arrayObject );  break;
+            case NPY_INTLTR:       writeValues<int>( arrayObject );             break;
+            case NPY_UINTLTR:      writeValues<unsigned int>( arrayObject );    break;
+            case NPY_LONGLTR:      writeValues<long>( arrayObject );            break;
+            case NPY_ULONGLTR:     writeValues<unsigned long>( arrayObject );   break;
+            case NPY_LONGLONGLTR:  writeValues<long long>( arrayObject );       break;
+            case NPY_ULONGLONGLTR: writeValues<unsigned long long>( arrayObject ); break;
+            case NPY_FLOATLTR:  writeValues<float>( arrayObject );  break;
+            case NPY_DOUBLELTR: writeValues<double>( arrayObject ); break;
+            default:
+                writeValues<CspCType>( arrayObject );
+        }
+    }
+private:
+    template<typename NumpyCType>
+    void writeValues( PyArrayObject * arrayObject )
+    {
+        auto arraySize = PyArray_Size( ( PyObject * ) arrayObject );
+        if( PyArray_ISCARRAY_RO(arrayObject) )
+        {
+            NumpyCType* data = reinterpret_cast<NumpyCType*>( PyArray_DATA( arrayObject ) );
+            for (decltype(arraySize) i = 0; i < arraySize; ++i)
+                this->writeValue(static_cast<CspCType>(data[i]));
+        }
+        else
+        {
+            for (decltype(arraySize) i = 0; i < arraySize; ++i)
+                this->writeValue(static_cast<CspCType>(*reinterpret_cast<NumpyCType*>(PyArray_GETPTR1(arrayObject, i))));
+        }
+    }
+
+    PyArray_Descr *m_expectedArrayDesc;
+};
+
+class NumpyUnicodeArrayWriter : public TypedDialectGenericListWriterInterface<std::string>
+{
+public:
+    void writeItems( const csp::DialectGenericType &listObject ) override
+    {
+        PyObject *object = csp::python::toPythonBorrowed( listObject );
+        if( !PyArray_Check( object ) )
+            CSP_THROW( csp::TypeError, "While writing to parquet expected numpy array type, got " << Py_TYPE( object ) -> tp_name );
+
+        PyArrayObject *arrayObject = ( PyArrayObject * ) ( object );
+        if( PyArray_DESCR( arrayObject ) -> type_num != NPY_UNICODE )
+            CSP_THROW( csp::TypeError, "Expected unicode array, got " <<
+                       csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
+
+        auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( arrayObject ) );
+        auto ndim        = PyArray_NDIM( arrayObject );
+        CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
+        std::wstring_convert<std::codecvt_utf8<char32_t>,char32_t> converter;
+
+        auto arraySize = PyArray_Size( object );
+        if( PyArray_ISCARRAY_RO( arrayObject ) )
+        {
+            auto data = reinterpret_cast<char *>(PyArray_DATA( arrayObject ));
+            for( decltype( arraySize ) i = 0; i < arraySize; ++i )
+            {
+                std::string value = converter.to_bytes( reinterpret_cast<char32_t*>(data + elementSize * i),
+                                                        reinterpret_cast<char32_t*>(data + elementSize * ( i + 1 )) );
+                this -> writeValue( value );
+            }
+        }
+        else
+        {
+            for( decltype( arraySize ) i = 0; i < arraySize; ++i )
+            {
+                char        *elementPtr = reinterpret_cast<char *>(PyArray_GETPTR1( arrayObject, i ));
+                std::string value       = converter.to_bytes( reinterpret_cast<char32_t*>(elementPtr),
+                                                              reinterpret_cast<char32_t*>(elementPtr + elementSize ) );
+                this -> writeValue( value );
+            }
+        }
+    }
+};
+
+static inline DialectGenericListWriterInterface::Ptr create_numpy_array_writer_impl( const csp::CspTypePtr &type )
+{
+    try
+    {
+        return csp::PartialSwitchCspType<csp::CspType::Type::DOUBLE, csp::CspType::Type::INT64,
+                csp::CspType::Type::BOOL, csp::CspType::Type::STRING>::invoke(
+                type.get(),
+                []( auto tag ) -> DialectGenericListWriterInterface::Ptr
+                {
+                    using CValueType = typename decltype( tag )::type;
+                    auto numpy_dtype = PyArray_DescrFromType( csp::python::NPY_TYPE<CValueType>::value );
+                    if constexpr (std::is_same_v<CValueType,std::string>)
+                        return std::make_shared<NumpyUnicodeArrayWriter>();
+                    else
+                        return std::make_shared<NumpyArrayWriterImpl<CValueType>>(numpy_dtype);
+                }
+        );
+    }
+    catch( csp::TypeError &e )
+    {
+        CSP_THROW( csp::TypeError, "Unsupported array value type when writing to parquet:" << type -> type().asString() );
     }
 }
 
@@ -607,20 +443,9 @@ static PyObject *create_parquet_input_adapter_manager( PyObject *args )
                                &PyFunction_Type, &pyFileGenerator ) )
             CSP_THROW( PythonPassthrough, "" );
 
-        std::shared_ptr<FileNameGenerator>   fileNameGenerator;
-        std::shared_ptr<ArrowTableGenerator> arrowTableGenerator;
-
-        auto dictionary = fromPython<Dictionary>( pyProperties );
-        if( dictionary.get<bool>( "read_from_memory_tables" ) )
-        {
-            arrowTableGenerator = std::make_shared<ArrowTableGenerator>( pyFileGenerator );
-        }
-        else
-        {
-            fileNameGenerator = std::make_shared<FileNameGenerator>( pyFileGenerator );
-        }
+        auto rbGenerator = std::make_shared<RecordBatchGenerator>( pyFileGenerator );
         auto *adapterMgr = create_parquet_input_adapter_manager_impl( pyEngine, fromPython<Dictionary>( pyProperties ),
-                                                                      fileNameGenerator, arrowTableGenerator );
+                                                                      rbGenerator );
         auto res         = PyCapsule_New( adapterMgr, "adapterMgr", nullptr );
         return res;
     CSP_RETURN_NULL;
@@ -681,6 +506,9 @@ PyMODINIT_FUNC PyInit__parquetadapterimpl( void )
     }
 
     import_array();
+
+    csp::python::registerNumpyListFieldReaderFactory();
+    csp::python::registerNumpyListFieldWriterFactory();
 
     return m;
 }

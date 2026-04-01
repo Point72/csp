@@ -86,8 +86,7 @@ class ParquetReader:
         if read_from_memory_tables:
             if not _CAN_READ_ARROW_BINARY:
                 raise TypeError("CSP Cannot load binary arrows derived from pyarrow versions less than 4.0.1")
-            wrapped = self._filenames_gen
-            self._filenames_gen = lambda starttime, endtime: self._arrow_c_data_interface(wrapped, starttime, endtime)
+            self._table_gen = self._filenames_gen  # Keep original for RB path
             binary_arrow = True
         self._properties = {"split_columns_to_files": split_columns_to_files}
         if symbol_column:
@@ -272,7 +271,45 @@ class ParquetReader:
 
     def _create(self, engine, memo):
         """method needs to return the wrapped c++ adapter manager"""
-        return _parquetadapterimpl._parquet_input_adapter_manager(engine, self._properties, self._filenames_gen)
+        from csp.adapters._parquet_rb_iterators import (
+            memory_table_rb_iterator,
+            parquet_file_rb_iterator,
+            split_columns_rb_iterator,
+        )
+
+        props = self._properties
+
+        if props.get("read_from_memory_tables"):
+            table_gen = self._table_gen  # Use original table generator
+            def _raw_iter(starttime, endtime):
+                return memory_table_rb_iterator(table_gen, starttime, endtime)
+        elif props.get("split_columns_to_files"):
+            filenames_gen = self._filenames_gen
+            def _raw_iter(starttime, endtime):
+                return split_columns_rb_iterator(
+                    filenames_gen, starttime, endtime,
+                    needed_columns=None,  # C++ selects needed columns from the RB
+                    allow_missing_columns=props.get("allow_missing_columns", False),
+                    is_arrow_ipc=props.get("is_arrow_ipc", False),
+                )
+        else:
+            filenames_gen = self._filenames_gen
+            def _raw_iter(starttime, endtime):
+                return parquet_file_rb_iterator(
+                    filenames_gen, starttime, endtime,
+                    allow_missing_files=props.get("allow_missing_files", False),
+                    allow_missing_columns=props.get("allow_missing_columns", False),
+                    is_arrow_ipc=props.get("is_arrow_ipc", False),
+                )
+
+        # Wrap to yield (batch, basket_batches, schema_changed) 3-tuples for C++
+        def rb_gen(starttime, endtime):
+            for batch, basket_batches, schema_changed in _raw_iter(starttime, endtime):
+                yield (batch, basket_batches, schema_changed)
+
+        rb_props = self._properties.copy()
+        rb_props["use_record_batch_iterator"] = True
+        return _parquetadapterimpl._parquet_input_adapter_manager(engine, rb_props, rb_gen)
 
 
 _parquet_input_adapter_def = input_adapter_def(

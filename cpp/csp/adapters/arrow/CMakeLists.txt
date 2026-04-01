@@ -2,11 +2,15 @@ set(ARROW_ADAPTER_HEADER_FILES
         ArrowFieldReader.h
         ArrowFieldWriter.h
         ArrowTypeVisitor.h
+        RecordBatchToStruct.h
+        StructToRecordBatch.h
 )
 
 set(ARROW_ADAPTER_SOURCE_FILES
         ArrowFieldReader.cpp
         ArrowFieldWriter.cpp
+        RecordBatchToStruct.cpp
+        StructToRecordBatch.cpp
         ${ARROW_ADAPTER_HEADER_FILES}
 )
 

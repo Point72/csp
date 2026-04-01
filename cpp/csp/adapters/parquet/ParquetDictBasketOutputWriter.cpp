@@ -18,7 +18,7 @@ void ParquetDictBasketOutputWriter::start()
 {
     ParquetWriter::start();
     m_indexFileWriterContainer = std::make_unique<MultipleFileWriterWrapperContainer>(
-            arrow::schema( { arrow::field( m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getColumnName(),
+            ::arrow::schema( { ::arrow::field( m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getColumnName(),
                                            m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getDataType() ) } ),
             m_adapterMgr.isWriteArrowBinary() );
     if( !m_adapterMgr.getFileName().empty() )

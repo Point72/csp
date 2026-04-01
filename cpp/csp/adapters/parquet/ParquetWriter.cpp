@@ -22,7 +22,7 @@ ParquetWriter::ParquetWriter( ParquetOutputAdapterManager *mgr, const Dictionary
     if( properties.exists( "file_metadata" ) )
     {
         auto file_meta = properties.get<DictionaryPtr>( "file_metadata" );
-        m_fileMetaData = std::make_shared<arrow::KeyValueMetadata>();
+        m_fileMetaData = std::make_shared<::arrow::KeyValueMetadata>();
         for( auto it = file_meta -> begin(); it != file_meta -> end(); ++it )
         {
             const std::string * value = std::get_if<std::string>( &it.getUntypedValue() );
@@ -41,7 +41,7 @@ ParquetWriter::ParquetWriter( ParquetOutputAdapterManager *mgr, const Dictionary
             if( !cmeta )
                 CSP_THROW( TypeError, "parquet column metadata expects dictionary entry per column, got unrecognized type for column '" << colIt.key() << "'" );
 
-            auto kv_metadata = std::make_shared<arrow::KeyValueMetadata>();
+            auto kv_metadata = std::make_shared<::arrow::KeyValueMetadata>();
 
             for( auto it = (*cmeta) -> begin(); it != (*cmeta) -> end(); ++it )
             {
@@ -127,12 +127,12 @@ PushInputAdapter *ParquetWriter::getStatusAdapter()
 
 void ParquetWriter::start()
 {
-    std::vector<std::shared_ptr<arrow::Field>> arrowFields;
+    std::vector<std::shared_ptr<::arrow::Field>> arrowFields;
     if( !m_writeTimestampColumn.has_value() && !m_adapterMgr.getTimestampColumnName().empty() )
     {
         m_writeTimestampColumn = true;
         m_columnBuilders.push_back( std::make_shared<DatetimeArrayBuilder>( m_adapterMgr.getTimestampColumnName(), getChunkSize() ) );
-        std::shared_ptr<arrow::KeyValueMetadata> colMetaData;
+        std::shared_ptr<::arrow::KeyValueMetadata> colMetaData;
         auto colMetaIt = m_columnMetaData.find( m_adapterMgr.getTimestampColumnName() );
         if( colMetaIt != m_columnMetaData.end() )
         {
@@ -141,7 +141,7 @@ void ParquetWriter::start()
         }
 
         arrowFields.push_back(
-            arrow::field( m_adapterMgr.getTimestampColumnName(), m_columnBuilders.back() -> getDataType(), colMetaData ) );
+            ::arrow::field( m_adapterMgr.getTimestampColumnName(), m_columnBuilders.back() -> getDataType(), colMetaData ) );
     }
     else
     {
@@ -153,14 +153,14 @@ void ParquetWriter::start()
         {
             m_columnBuilders.push_back( adapter -> getColumnArrayBuilder( i ) );
 
-            std::shared_ptr<arrow::KeyValueMetadata> colMetaData;
+            std::shared_ptr<::arrow::KeyValueMetadata> colMetaData;
             auto colMetaIt = m_columnMetaData.find( m_columnBuilders.back() -> getColumnName() );
             if( colMetaIt != m_columnMetaData.end() )
             {
                 colMetaData = colMetaIt -> second;
                 m_columnMetaData.erase( colMetaIt );
             }
-            arrowFields.push_back( arrow::field( m_columnBuilders.back() -> getColumnName(), 
+            arrowFields.push_back( ::arrow::field( m_columnBuilders.back() -> getColumnName(), 
                                                  m_columnBuilders.back() -> getDataType(), 
                                                  colMetaData ) );
         }
@@ -168,7 +168,7 @@ void ParquetWriter::start()
 
     if( !m_columnMetaData.empty() )
         CSP_THROW( ValueError, "parquet column metadata has unmapped column: '" << m_columnMetaData.begin() -> first << "'" );
-    initFileWriterContainer( arrow::schema( arrowFields, m_fileMetaData ) );
+    initFileWriterContainer( ::arrow::schema( arrowFields, m_fileMetaData ) );
 }
 
 void ParquetWriter::stop()
@@ -243,7 +243,7 @@ StructParquetOutputHandler *ParquetWriter::createStructOutputHandler( CspTypePtr
     return m_engine -> createOwnedObject<StructParquetOutputAdapter>( *this, type, fieldMap );
 }
 
-void ParquetWriter::initFileWriterContainer( std::shared_ptr<arrow::Schema> schema )
+void ParquetWriter::initFileWriterContainer( std::shared_ptr<::arrow::Schema> schema )
 {
     if( m_adapterMgr.isSplitColumnsToFiles() )
     {

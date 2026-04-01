@@ -70,7 +70,7 @@ protected:
     virtual StructParquetOutputHandler *createStructOutputHandler( CspTypePtr type, const DictionaryPtr &fieldMap );
 
 private:
-    void initFileWriterContainer( std::shared_ptr<arrow::Schema> schema );
+    void initFileWriterContainer( std::shared_ptr<::arrow::Schema> schema );
     void writeCurChunkToFile();
 protected:
     using Adapters = std::vector<ParquetOutputHandler *>;
@@ -89,8 +89,8 @@ private:
     std::uint32_t                                               m_curChunkSize;
     std::optional<bool>                                         m_writeTimestampColumn;
 
-    std::shared_ptr<arrow::KeyValueMetadata>                                 m_fileMetaData;
-    std::unordered_map<std::string,std::shared_ptr<arrow::KeyValueMetadata>> m_columnMetaData;
+    std::shared_ptr<::arrow::KeyValueMetadata>                                 m_fileMetaData;
+    std::unordered_map<std::string,std::shared_ptr<::arrow::KeyValueMetadata>> m_columnMetaData;
 };
 
 }

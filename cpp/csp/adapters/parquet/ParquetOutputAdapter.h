@@ -99,7 +99,7 @@ public:
     }
 
 private:
-    std::shared_ptr<arrow::ArrayBuilder> createValueBuilder( const CspTypePtr &elemType,
+    std::shared_ptr<::arrow::ArrayBuilder> createValueBuilder( const CspTypePtr &elemType,
                                                              DialectGenericListWriterInterface::Ptr &listWriterInterface );
 
 

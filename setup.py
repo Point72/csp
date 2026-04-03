@@ -8,6 +8,26 @@ from shutil import which
 
 from skbuild import setup
 
+
+def _parse_macos_target(value: str):
+    try:
+        parts = value.split(".")
+        major = int(parts[0]) if len(parts) > 0 else 0
+        minor = int(parts[1]) if len(parts) > 1 else 0
+        return major, minor
+    except Exception:
+        return 0, 0
+
+
+if platform.system() == "Darwin":
+    # Ensure deployment target is set before any vcpkg invocation.
+    _deploy_target = os.environ.get("MACOSX_DEPLOYMENT_TARGET") or os.environ.get("OSX_DEPLOYMENT_TARGET", "11.0")
+    # Apple Silicon requires macOS 11.0+.
+    if platform.machine() == "arm64" and _parse_macos_target(_deploy_target) < (11, 0):
+        _deploy_target = "11.0"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = _deploy_target
+    os.environ["OSX_DEPLOYMENT_TARGET"] = _deploy_target
+
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
 # Allow arg to override default / env
 if "--csp-no-vcpkg" in sys.argv:
@@ -38,7 +58,7 @@ elif sys.platform == "win32":
 else:
     VCPKG_TRIPLET = None
 
-VCPKG_SHA = "9c5c2a0ab75aff5bcd08142525f6ff7f6f7ddeee"
+VCPKG_SHA = "2e5217c207b52bec957af77b0dc43a6dd61ea5f8"
 
 # This will be used for e.g. the sdist
 if CSP_USE_VCPKG:
@@ -139,8 +159,7 @@ if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
     os.environ["CMAKE_BUILD_PARALLEL_LEVEL"] = str(multiprocessing.cpu_count())
 
 if platform.system() == "Darwin":
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = os.environ.get("OSX_DEPLOYMENT_TARGET", "10.15")
-    cmake_args.append(f"-DCMAKE_OSX_DEPLOYMENT_TARGET={os.environ.get('OSX_DEPLOYMENT_TARGET', '10.15')}")
+    cmake_args.append(f"-DCMAKE_OSX_DEPLOYMENT_TARGET={os.environ['MACOSX_DEPLOYMENT_TARGET']}")
 
 if which("ccache") and os.environ.get("CSP_USE_CCACHE", "") != "0":
     cmake_args.append("-DCSP_USE_CCACHE=On")

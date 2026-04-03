@@ -273,7 +273,7 @@ jobs:
           run: make dist-py-cibw
           env:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
-            CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
+            CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET="11.0" OSX_DEPLOYMENT_TARGET="11.0" CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: arm64
           if: ${{ matrix.os == 'macos-14' }}
 

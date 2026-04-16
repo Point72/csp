@@ -207,6 +207,10 @@ endif
 
 dependencies-mac:  ## install dependencies for mac
 	HOMEBREW_NO_AUTO_UPDATE=1 brew bundle install
+	brew tap-new local/old || true
+	brew extract --version=2.72 autoconf local/old
+	brew install local/old/autoconf@2.72
+	brew unlink autoconf && brew link --force autoconf@2.72
 	brew unlink bison flex && brew link --force bison flex
 
 dependencies-debian:  ## install dependencies for linux - note that zip is needed by bootstrap_vcpkg.sh, do not remove

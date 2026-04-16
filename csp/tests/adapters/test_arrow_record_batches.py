@@ -148,6 +148,11 @@ class NDArrayTimedeltaStruct(csp.Struct):
     matrix: NumpyNDArray[timedelta]
 
 
+class NDArrayStringStruct(csp.Struct):
+    id: int
+    names: NumpyNDArray[str]
+
+
 # =====================================================================
 # Helpers — reader direction (batch → struct)
 # =====================================================================
@@ -2472,7 +2477,7 @@ class TestReadNumpyTemporalFields:
 
 class OuterStruct(csp.Struct):
     id: int
-    middle: MiddleStruct
+    middle: InnerStruct
 
 
 class TestWriteNumpyTemporalFields:
@@ -2872,3 +2877,104 @@ class TestNumpyEdgeCases:
         assert res[1] == pytest.approx(1.0)
         assert np.isnan(res[500])
         assert np.isnan(res[999])
+
+
+# =====================================================================
+# Tests: ND string array write (Bug 1 — PyArray_GETPTR1 OOB for ndim>1)
+# =====================================================================
+
+
+class TestNDArrayStringWrite:
+    """Tests for ND string array writing — exposes PyArray_GETPTR1 bug."""
+
+    def test_2d_string_ndarray_round_trip(self):
+        """2D string NDArray should survive round-trip."""
+        matrix = np.array([["hello", "world"], ["foo", "bar"]], dtype="U10")
+        structs = [NDArrayStringStruct(id=1, names=matrix)]
+        field_map = {"id": "id", "names": "names"}
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("names", pa.list_(pa.utf8())),
+                ("names_csp_dimensions", pa.list_(pa.int64())),
+            ]
+        )
+        result = _run_round_trip(structs, NDArrayStringStruct, field_map, schema)
+
+        assert result[0].names.shape == (2, 2)
+        np.testing.assert_array_equal(result[0].names, matrix)
+
+    def test_2d_string_ndarray_write(self):
+        """2D string NDArray write should produce correct flat list."""
+        matrix = np.array([["alpha", "beta"], ["gamma", "delta"]], dtype="U10")
+        structs = [NDArrayStringStruct(id=1, names=matrix)]
+        field_map = {"id": "id", "names": "names"}
+        batches = _run_to_batches(structs, NDArrayStringStruct, field_map)
+
+        batch = batches[0]
+        data_col = batch.column("names").to_pylist()
+        assert data_col[0] == ["alpha", "beta", "gamma", "delta"]
+        dims_col = batch.column("names_csp_dimensions").to_pylist()
+        assert dims_col[0] == [2, 2]
+
+
+# =====================================================================
+# Tests: temporal NaT round-trip (Bug 2 — NaT not mapped to Arrow null)
+# =====================================================================
+
+
+class TestTemporalNaTRoundTrip:
+    """Tests for NaT (Not-a-Time) round-trip through Arrow null."""
+
+    def test_datetime_nat_round_trip(self):
+        """datetime64 NaT should round-trip through Arrow null."""
+        # Use microsecond units so NaT (INT64_MIN) hits the scaling path:
+        # INT64_MIN * 1000 overflows to 0, exposing the missing NaT check.
+        arr = np.array(["2020-01-01", "NaT", "2020-01-03"], dtype="datetime64[us]")
+        structs = [NumpyDatetimeStruct(id=1, timestamps=arr)]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        schema = pa.schema([("id", pa.int64()), ("timestamps", pa.list_(pa.timestamp("ns", tz="UTC")))])
+        result = _run_round_trip(structs, NumpyDatetimeStruct, field_map, schema)
+
+        assert result[0].timestamps.dtype == np.dtype("datetime64[ns]")
+        assert result[0].timestamps[0] == np.datetime64("2020-01-01", "ns")
+        assert np.isnat(result[0].timestamps[1])
+        assert result[0].timestamps[2] == np.datetime64("2020-01-03", "ns")
+
+    def test_timedelta_nat_round_trip(self):
+        """timedelta64 NaT should round-trip through Arrow null."""
+        # Use microsecond units to expose the NaT * scaling overflow.
+        arr = np.array([1000000, "NaT", 3000000], dtype="timedelta64[us]")
+        structs = [NumpyTimedeltaStruct(id=1, durations=arr)]
+        field_map = {"id": "id", "durations": "durations"}
+        schema = pa.schema([("id", pa.int64()), ("durations", pa.list_(pa.duration("ns")))])
+        result = _run_round_trip(structs, NumpyTimedeltaStruct, field_map, schema)
+
+        assert result[0].durations.dtype == np.dtype("timedelta64[ns]")
+        assert result[0].durations[0] == np.timedelta64(1000000000, "ns")
+        assert np.isnat(result[0].durations[1])
+        assert result[0].durations[2] == np.timedelta64(3000000000, "ns")
+
+    def test_all_nat_datetime_round_trip(self):
+        """Array of all NaTs should survive round-trip."""
+        arr = np.array(["NaT", "NaT", "NaT"], dtype="datetime64[us]")
+        structs = [NumpyDatetimeStruct(id=1, timestamps=arr)]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        schema = pa.schema([("id", pa.int64()), ("timestamps", pa.list_(pa.timestamp("ns", tz="UTC")))])
+        result = _run_round_trip(structs, NumpyDatetimeStruct, field_map, schema)
+
+        assert all(np.isnat(result[0].timestamps[i]) for i in range(3))
+
+    def test_datetime_nat_write_produces_arrow_null(self):
+        """Verify the write side produces Arrow nulls for NaT values."""
+        arr = np.array(["2020-01-01", "NaT", "2020-01-03"], dtype="datetime64[ns]")
+        structs = [NumpyDatetimeStruct(id=1, timestamps=arr)]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        batches = _run_to_batches(structs, NumpyDatetimeStruct, field_map)
+        batch = batches[0]
+
+        ts_col = batch.column("timestamps")
+        values = ts_col[0].as_py()
+        assert values[0] is not None
+        assert values[1] is None  # NaT should become Arrow null
+        assert values[2] is not None

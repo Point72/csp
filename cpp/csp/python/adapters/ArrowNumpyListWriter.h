@@ -153,9 +153,21 @@ protected:
         auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( pyArr ) );
         auto charCount = elementSize / sizeof( char32_t );
 
+        // Ensure C-contiguous layout for safe flat iteration over ND arrays.
+        // PyArray_GETPTR1 uses strides[0] only, which is incorrect for ndim > 1.
+        PyArrayObject * contiguousArr = pyArr;
+        PyObjectPtr contiguousOwner;
+        if( !PyArray_IS_C_CONTIGUOUS( pyArr ) || PyArray_NDIM( pyArr ) > 1 )
+        {
+            contiguousOwner = PyObjectPtr::own(
+                reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
+            contiguousArr = reinterpret_cast<PyArrayObject *>( contiguousOwner.get() );
+        }
+
+        auto * base = reinterpret_cast<char *>( PyArray_DATA( contiguousArr ) );
         for( npy_intp i = 0; i < len; ++i )
         {
-            auto * ptr = reinterpret_cast<char32_t *>( PyArray_GETPTR1( pyArr, i ) );
+            auto * ptr = reinterpret_cast<char32_t *>( base + i * elementSize );
             // Find actual string length (exclude trailing nulls)
             size_t actualLen = 0;
             for( size_t c = 0; c < charCount; ++c )
@@ -233,19 +245,14 @@ protected:
         auto unit = datetimeUnitFromDescr( PyArray_DESCR( pyArr ) );
         int64_t scaling = scalingFromNumpyDtUnit( unit );
 
-        if( scaling == 1 )
+        ARROW_OK_OR_THROW_WRITER(
+            m_valueBuilder -> Reserve( static_cast<int64_t>( len ) ),
+            "Failed to reserve temporal value builder" );
+        for( npy_intp i = 0; i < len; ++i )
         {
-            // Already nanoseconds — bulk append
-            ARROW_OK_OR_THROW_WRITER(
-                m_valueBuilder -> AppendValues( data, static_cast<int64_t>( len ) ),
-                "Failed to append temporal list elements" );
-        }
-        else
-        {
-            ARROW_OK_OR_THROW_WRITER(
-                m_valueBuilder -> Reserve( static_cast<int64_t>( len ) ),
-                "Failed to reserve temporal value builder" );
-            for( npy_intp i = 0; i < len; ++i )
+            if( data[i] == NPY_DATETIME_NAT )
+                ARROW_OK_OR_THROW_WRITER( m_valueBuilder -> AppendNull(), "Failed to append null temporal element" );
+            else
                 m_valueBuilder -> UnsafeAppend( data[i] * scaling );
         }
     }
@@ -311,7 +318,12 @@ protected:
             m_valueBuilder -> Reserve( static_cast<int64_t>( len ) ),
             "Failed to reserve date value builder" );
         for( npy_intp i = 0; i < len; ++i )
-            m_valueBuilder -> UnsafeAppend( static_cast<int32_t>( data[i] * scaling / csp::NANOS_PER_DAY ) );
+        {
+            if( data[i] == NPY_DATETIME_NAT )
+                ARROW_OK_OR_THROW_WRITER( m_valueBuilder -> AppendNull(), "Failed to append null date element" );
+            else
+                m_valueBuilder -> UnsafeAppend( static_cast<int32_t>( data[i] * scaling / csp::NANOS_PER_DAY ) );
+        }
     }
 
 private:
@@ -484,10 +496,21 @@ inline csp::adapters::arrow::ListItemsWriter makeStringListItemsWriter(
         auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( pyArr ) );
         auto charCount = elementSize / sizeof( char32_t );
 
+        // Ensure C-contiguous layout for safe flat iteration over ND arrays.
+        PyArrayObject * contiguousArr = pyArr;
+        PyObjectPtr contiguousOwner;
+        if( !PyArray_IS_C_CONTIGUOUS( pyArr ) || PyArray_NDIM( pyArr ) > 1 )
+        {
+            contiguousOwner = PyObjectPtr::own(
+                reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
+            contiguousArr = reinterpret_cast<PyArrayObject *>( contiguousOwner.get() );
+        }
+
+        auto * base = reinterpret_cast<char *>( PyArray_DATA( contiguousArr ) );
         std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
         for( npy_intp i = 0; i < len; ++i )
         {
-            auto * ptr = reinterpret_cast<char32_t *>( PyArray_GETPTR1( pyArr, i ) );
+            auto * ptr = reinterpret_cast<char32_t *>( base + i * elementSize );
             size_t actualLen = 0;
             for( size_t c = 0; c < charCount; ++c )
             {

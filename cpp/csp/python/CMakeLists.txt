@@ -90,7 +90,8 @@ target_compile_definitions(cspimpl PRIVATE CSPIMPL_EXPORTS=1)
 
 ## Baselib c++ module
 add_library(cspbaselibimpl SHARED cspbaselibimpl.cpp)
-target_link_libraries(cspbaselibimpl cspimpl baselibimpl)
+
+target_link_libraries(cspbaselibimpl cspimpl baselibimpl csp_arrow_adapter ${CSP_ARROW_LINK_LIBS})
 
 # Include exprtk include directory for exprtk node
 target_include_directories(cspbaselibimpl PRIVATE ${EXPRTK_INCLUDE_DIRS})

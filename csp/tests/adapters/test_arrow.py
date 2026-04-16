@@ -6,7 +6,7 @@ import pyarrow.parquet as pq
 import pytest
 
 import csp
-from csp.adapters.arrow import RecordBatchPullInputAdapter, write_record_batches
+from csp.adapters.arrow import RecordBatchPullInputAdapter, struct_to_record_batches, write_record_batches
 
 _STARTTIME = datetime(2020, 1, 1, 9, 0, 0)
 
@@ -405,3 +405,64 @@ class TestDeferredIterator:
         results = csp.run(G_lazy_schema, "TsCol", lazy_iter, False, starttime=_STARTTIME)
         assert len(results["data"]) == 2
         assert [len(r[1][0]) for r in results["data"]] == [5, 3]
+
+
+class TestStructConversion:
+    """Tests for struct_to_record_batches conversion."""
+
+    def test_nested_struct_with_nulls(self):
+        """Regression test: NestedStructWriter::writeNull must not double-append to child builders.
+
+        When a parent struct has a null nested struct field, the children of the
+        struct column must still have exactly one entry per row.  A prior bug caused
+        AppendNull() to also append empty values to children (on top of the explicit
+        writeNull per child), shifting all subsequent valid values to wrong indices.
+        """
+
+        class Inner(csp.Struct):
+            x: int
+            y: float
+
+        class Outer(csp.Struct):
+            name: str
+            inner: Inner
+
+        @csp.node
+        def validate_batches(batches: csp.ts[object]) -> csp.ts[object]:
+            if csp.ticked(batches):
+                return batches
+
+        @csp.graph
+        def g():
+            s1 = Outer(name="a", inner=Inner(x=1, y=1.5))
+            s2 = Outer(name="b")  # inner is unset -> null
+            s3 = Outer(name="c", inner=Inner(x=3, y=3.5))
+            s4 = Outer(name="d")  # inner is unset -> null
+            s5 = Outer(name="e", inner=Inner(x=5, y=5.5))
+
+            structs = csp.const([s1, s2, s3, s4, s5])
+            batches = struct_to_record_batches(structs, Outer, max_batch_size=100)
+            out = validate_batches(batches)
+            csp.add_graph_output("batches", out)
+
+        results = csp.run(g, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
+        batch_list = results["batches"][0][1]
+        batch = batch_list[0]
+
+        assert batch.num_rows == 5
+
+        struct_col = batch.column("inner")
+        x_child = struct_col.field("x")
+        y_child = struct_col.field("y")
+
+        # Child arrays must have exactly the same length as the struct column
+        assert len(x_child) == 5, f"child x length {len(x_child)} != struct length 5"
+        assert len(y_child) == 5, f"child y length {len(y_child)} != struct length 5"
+
+        # Verify actual values are correct (not shifted by double-append)
+        values = struct_col.to_pylist()
+        assert values[0] == {"x": 1, "y": 1.5}
+        assert values[1] is None
+        assert values[2] == {"x": 3, "y": 3.5}
+        assert values[3] is None
+        assert values[4] == {"x": 5, "y": 5.5}

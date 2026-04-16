@@ -7,7 +7,6 @@ from packaging.version import parse
 import csp
 from csp.impl.types.tstype import ts
 from csp.impl.wiring import input_adapter_def
-from csp.impl.wiring.node import _node_internal_use
 from csp.lib import _arrowadapterimpl
 
 __all__ = [
@@ -153,7 +152,7 @@ def write_record_batches(
                 s_prev_batch_size += len(batch)
 
 
-@_node_internal_use(cppimpl=_arrowadapterimpl.record_batches_to_struct)
+@csp.node(cppimpl=_arrowadapterimpl.record_batches_to_struct)
 def _record_batches_to_struct(
     schema_ptr: object,
     cls: "T",
@@ -202,7 +201,7 @@ def record_batches_to_struct(
     return _record_batches_to_struct(schema_capsule, cls, properties, c_data)
 
 
-@_node_internal_use(cppimpl=_arrowadapterimpl.struct_to_record_batches)
+@csp.node(cppimpl=_arrowadapterimpl.struct_to_record_batches)
 def _struct_to_record_batches(
     cls: "T",
     properties: dict,

@@ -72,15 +72,11 @@ DECLARE_CPPNODE( record_batches_to_struct )
             fieldMap = props -> get<DictionaryPtr>( "field_map" );
 
         auto structMeta = cls.value();
-
         s_converter = std::make_unique<RecordBatchToStructConverter>( s_schema, structMeta, fieldMap );
     }
 
     INVOKE()
     {
-        if( !data.ticked() )
-            return;
-
         // data is a list of (schema_capsule, array_capsule) tuples
         PyObject * pyList = csp::python::toPythonBorrowed( data.lastValue<DialectGenericType>() );
         if( !PyList_Check( pyList ) )
@@ -95,7 +91,7 @@ DECLARE_CPPNODE( record_batches_to_struct )
 
         for( Py_ssize_t i = 0; i < numBatches; ++i )
         {
-            PyObject * pyTuple = PyList_GetItem( pyList, i );
+            PyObject * pyTuple = PyList_GET_ITEM( pyList, i );
             if( !PyTuple_Check( pyTuple ) || PyTuple_Size( pyTuple ) != 2 )
                 CSP_THROW( csp::TypeError, "Expected tuple of 2 PyCapsules for record batch " << i );
 
@@ -137,9 +133,9 @@ EXPORT_CPPNODE( record_batches_to_struct );
 
 DECLARE_CPPNODE( struct_to_record_batches )
 {
-    SCALAR_INPUT( StructMetaPtr,  cls );         // source struct type
-    SCALAR_INPUT( DictionaryPtr,  properties );  // field_map, numpy config
-    TS_INPUT( Generic,            data );         // vector<StructPtr>
+    SCALAR_INPUT( StructMetaPtr,      cls );         // source struct type
+    SCALAR_INPUT( DictionaryPtr,      properties );  // field_map, numpy config
+    TS_INPUT( std::vector<StructPtr>, data );
     TS_OUTPUT( Generic );                        // DialectGenericType (Python list of capsule tuples)
 
     STATE_VAR( std::unique_ptr<StructToRecordBatchConverter>, s_converter );
@@ -163,10 +159,7 @@ DECLARE_CPPNODE( struct_to_record_batches )
 
     INVOKE()
     {
-        if( !data.ticked() )
-            return;
-
-        auto & structs = data.lastValue<std::vector<StructPtr>>();
+        auto & structs = data.lastValue();
         auto batches = s_converter -> convert( structs, s_maxBatchSize );
 
         auto py_list = csp::python::PyObjectPtr::own( PyList_New( static_cast<Py_ssize_t>( batches.size() ) ) );

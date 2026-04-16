@@ -240,6 +240,15 @@ void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem
 
 void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char );
 
+// Reshape a flat 1D numpy array into an NDArray using the given dimensions.
+CSPIMPL_EXPORT DialectGenericType numpyReshape( DialectGenericType flatData, const std::vector<int64_t> & dims );
+
+// Extract shape from a numpy NDArray as a vector of dimension sizes.
+CSPIMPL_EXPORT std::vector<int64_t> numpyShape( DialectGenericType ndarray );
+
+// Convert a Python type object (passed as DialectGenericType) to an NPY type constant.
+CSPIMPL_EXPORT int npyTypeFromPyType( DialectGenericType pyTypeObj );
+
 }
 
 #endif

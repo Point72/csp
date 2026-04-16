@@ -10,7 +10,6 @@
 #include <csp/adapters/arrow/StructToRecordBatch.h>
 #include <csp/engine/CppNode.h>
 #include <csp/engine/Dictionary.h>
-#include <csp/engine/PartialSwitchCspType.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
 #include <csp/python/InitHelper.h>
@@ -26,76 +25,6 @@ using namespace csp::adapters::arrow;
 
 namespace csp::cppnodes
 {
-
-// Reshape callback that uses numpy's PyArray_Newshape (avoids allocating a dims array per call)
-static DialectGenericType numpyReshape( DialectGenericType flatData, const std::vector<int64_t> & dims )
-{
-    // PyArray_Newshape accepts a PyArray_Dims struct directly, avoiding a numpy array allocation for dims.
-    // Stack-allocate the dims for typical 2-8 dimensional arrays.
-    npy_intp dimsBuf[8];
-    npy_intp ndims = static_cast<npy_intp>( dims.size() );
-    npy_intp * dimsPtr;
-
-    std::vector<npy_intp> heapDims;
-    if( ndims <= 8 )
-    {
-        for( npy_intp i = 0; i < ndims; ++i )
-            dimsBuf[i] = static_cast<npy_intp>( dims[i] );
-        dimsPtr = dimsBuf;
-    }
-    else
-    {
-        heapDims.resize( ndims );
-        for( npy_intp i = 0; i < ndims; ++i )
-            heapDims[i] = static_cast<npy_intp>( dims[i] );
-        dimsPtr = heapDims.data();
-    }
-
-    PyArray_Dims newshape{ dimsPtr, static_cast<int>( ndims ) };
-    auto * flatPyArr = reinterpret_cast<PyArrayObject *>( csp::python::toPythonBorrowed( flatData ) );
-    csp::python::PyObjectPtr reshaped{ csp::python::PyObjectPtr::own(
-        reinterpret_cast<PyObject *>( PyArray_Newshape( flatPyArr, &newshape, NPY_CORDER ) ) ) };
-    if( !reshaped.get() )
-        CSP_THROW( csp::python::PythonPassthrough, "" );
-
-    return csp::python::fromPython<DialectGenericType>( reshaped.get() );
-}
-
-// Shape callback: extract shape from a numpy NDArray
-static std::vector<int64_t> numpyShape( DialectGenericType ndarray )
-{
-    auto * pyArr = reinterpret_cast<PyArrayObject *>( csp::python::toPythonBorrowed( ndarray ) );
-    int ndim = PyArray_NDIM( pyArr );
-    npy_intp * shape = PyArray_SHAPE( pyArr );
-    std::vector<int64_t> result( ndim );
-    for( int i = 0; i < ndim; ++i )
-        result[i] = shape[i];
-    return result;
-}
-
-// Convert a Python type object (passed as DialectGenericType) to an NPY type constant
-// using the same pyTypeAsCspType + PartialSwitchCspType pattern as the parquet adapter.
-static int npyTypeFromPyType( DialectGenericType pyTypeObj )
-{
-    auto & cspType = csp::python::pyTypeAsCspType( csp::python::toPythonBorrowed( pyTypeObj ) );
-    auto cspTypeEnum = cspType -> type();
-
-    // Temporal types don't have NPY_TYPE<> specializations — handle them explicitly
-    if( cspTypeEnum == CspType::Type::DATETIME || cspTypeEnum == CspType::Type::DATE )
-        return NPY_DATETIME;
-    if( cspTypeEnum == CspType::Type::TIMEDELTA )
-        return NPY_TIMEDELTA;
-
-    return csp::PartialSwitchCspType<csp::CspType::Type::DOUBLE, csp::CspType::Type::INT64,
-                                     csp::CspType::Type::BOOL, csp::CspType::Type::STRING>::invoke(
-        cspType.get(),
-        []( auto tag ) -> int
-        {
-            using CValueType = typename decltype( tag )::type;
-            return csp::python::NPY_TYPE<CValueType>::value;
-        }
-    );
-}
 
 // PyCapsule destructors for ArrowSchema/ArrowArray (local copies to avoid including ArrowInputAdapter.h)
 static void releaseArrowSchemaCapsule( PyObject * capsule )
@@ -172,7 +101,7 @@ DECLARE_CPPNODE( record_batches_to_struct )
                 {
                     auto dimsColName = numpyDimensionNames -> get<std::string>( colName );
                     customReaders.push_back(
-                        csp::python::createNumpyNDArrayReader( s_schema, colName, dimsColName, structField, numpyReshape ) );
+                        csp::python::createNumpyNDArrayReader( s_schema, colName, dimsColName, structField, csp::python::numpyReshape ) );
                 }
                 else
                 {
@@ -285,13 +214,13 @@ DECLARE_CPPNODE( struct_to_record_batches )
                                            "Struct field '" << fieldName << "' not found on struct type '" << structMeta -> name() << "'" );
 
                 auto pyTypeObj = numpyElementTypes -> get<DialectGenericType>( fieldName );
-                int npyType = npyTypeFromPyType( pyTypeObj );
+                int npyType = csp::python::npyTypeFromPyType( pyTypeObj );
 
                 if( numpyDimensionNames && numpyDimensionNames -> exists( colName ) )
                 {
                     auto dimsColName = numpyDimensionNames -> get<std::string>( colName );
                     customWriters.push_back(
-                        csp::python::createNumpyNDArrayWriter( colName, dimsColName, structField, npyType, numpyShape ) );
+                        csp::python::createNumpyNDArrayWriter( colName, dimsColName, structField, npyType, csp::python::numpyShape ) );
                 }
                 else
                 {

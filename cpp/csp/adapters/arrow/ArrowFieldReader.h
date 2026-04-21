@@ -11,6 +11,8 @@
 #define _IN_CSP_ADAPTERS_ARROW_ArrowFieldReader_H
 
 #include <csp/engine/Struct.h>
+#include <csp/core/Exception.h>
+#include <csp/core/Time.h>
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
 #include <functional>
@@ -21,6 +23,20 @@
 
 namespace csp::adapters::arrow
 {
+
+// Helper: compute nanosecond multiplier for a given arrow::TimeUnit
+inline int64_t timeUnitMultiplier( ::arrow::TimeUnit::type unit )
+{
+    switch( unit )
+    {
+        case ::arrow::TimeUnit::SECOND: return csp::NANOS_PER_SECOND;
+        case ::arrow::TimeUnit::MILLI:  return csp::NANOS_PER_MILLISECOND;
+        case ::arrow::TimeUnit::MICRO:  return csp::NANOS_PER_MICROSECOND;
+        case ::arrow::TimeUnit::NANO:   return 1LL;
+        default:
+            CSP_THROW( TypeError, "Unexpected arrow TimeUnit: " << static_cast<int>( unit ) );
+    }
+}
 
 class FieldReader
 {

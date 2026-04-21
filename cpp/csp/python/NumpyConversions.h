@@ -24,6 +24,9 @@ template<> struct NPY_TYPE<int64_t>  { static const int value = NPY_LONGLONG; };
 template<> struct NPY_TYPE<uint64_t> { static const int value = NPY_ULONGLONG; };
 template<> struct NPY_TYPE<double>   { static const int value = NPY_DOUBLE; };
 template<> struct NPY_TYPE<std::string>   { static const int value = NPY_UNICODE; };
+template<> struct NPY_TYPE<DateTime>      { static const int value = NPY_DATETIME; };
+template<> struct NPY_TYPE<TimeDelta>     { static const int value = NPY_TIMEDELTA; };
+template<> struct NPY_TYPE<Date>          { static const int value = NPY_DATETIME; };
 
 template<typename T> struct is_native  { static constexpr bool value = false; };
 template<> struct is_native<bool>      { static constexpr bool value = true; };

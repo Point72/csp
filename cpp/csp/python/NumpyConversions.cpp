@@ -249,16 +249,11 @@ std::vector<int64_t> numpyShape( DialectGenericType ndarray )
 int npyTypeFromPyType( DialectGenericType pyTypeObj )
 {
     auto & cspType = pyTypeAsCspType( toPythonBorrowed( pyTypeObj ) );
-    auto cspTypeEnum = cspType -> type();
-
-    // Temporal types don't have NPY_TYPE<> specializations — handle them explicitly
-    if( cspTypeEnum == CspType::Type::DATETIME || cspTypeEnum == CspType::Type::DATE )
-        return NPY_DATETIME;
-    if( cspTypeEnum == CspType::Type::TIMEDELTA )
-        return NPY_TIMEDELTA;
 
     return csp::PartialSwitchCspType<csp::CspType::Type::DOUBLE, csp::CspType::Type::INT64,
-                                     csp::CspType::Type::BOOL, csp::CspType::Type::STRING>::invoke(
+                                     csp::CspType::Type::BOOL, csp::CspType::Type::STRING,
+                                     csp::CspType::Type::DATETIME, csp::CspType::Type::TIMEDELTA,
+                                     csp::CspType::Type::DATE>::invoke(
         cspType.get(),
         []( auto tag ) -> int
         {

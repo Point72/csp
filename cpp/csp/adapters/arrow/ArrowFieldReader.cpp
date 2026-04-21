@@ -40,20 +40,6 @@ void readColumn( const ArrowArrayT & typed, std::vector<StructPtr> & structs, in
                 fn( typed, i, structs[i].get() );
 }
 
-// Helper: compute nanosecond multiplier for a given arrow::TimeUnit
-int64_t timeUnitMultiplier( ::arrow::TimeUnit::type unit )
-{
-    switch( unit )
-    {
-        case ::arrow::TimeUnit::SECOND: return csp::NANOS_PER_SECOND;
-        case ::arrow::TimeUnit::MILLI:  return csp::NANOS_PER_MILLISECOND;
-        case ::arrow::TimeUnit::MICRO:  return csp::NANOS_PER_MICROSECOND;
-        case ::arrow::TimeUnit::NANO:   return 1LL;
-        default:
-            CSP_THROW( TypeError, "Unexpected arrow TimeUnit: " << static_cast<int>( unit ) );
-    }
-}
-
 // --- Generic lambda-based reader (covers Primitive, HalfFloat, StringLike, Nanos, Date) ---
 // ExtractFn signature: ValueT(const ArrowArrayT &, int64_t row)
 

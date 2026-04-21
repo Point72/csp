@@ -356,10 +356,10 @@ protected:
             auto arrayValue = m_readValue( *m_column, row );
 
             if( m_dimsColumn -> IsValid( row ) )
-            {
-                auto dims = readDimsFromListCell( *m_dimsColumn, row );
-                arrayValue = m_reshapeCallback( std::move( arrayValue ), dims );
-            }
+                m_lastDims = readDimsFromListCell( *m_dimsColumn, row );
+
+            if( !m_lastDims.empty() )
+                arrayValue = m_reshapeCallback( std::move( arrayValue ), m_lastDims );
 
             out = std::move( arrayValue );
             return true;
@@ -373,6 +373,7 @@ private:
     std::function<DialectGenericType( const ::arrow::Array &, int64_t )> m_readValue;
     ReshapeCallback          m_reshapeCallback;
     const ::arrow::Array *   m_dimsColumn;
+    std::vector<int64_t>     m_lastDims;
 };
 
 } // namespace numpy

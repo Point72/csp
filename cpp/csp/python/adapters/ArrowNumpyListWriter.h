@@ -34,6 +34,38 @@ namespace numpy
 #define ARROW_OK_OR_THROW_WRITER( expr, msg ) \
     do { auto __s = ( expr ); if( !__s.ok() ) CSP_THROW( RuntimeException, msg << ": " << __s.ToString() ); } while(0)
 
+// --- Base class for list writers that share reserve/writeNull/finish on a single ListBuilder ---
+
+class ListFieldWriterBase : public csp::adapters::arrow::FieldWriter
+{
+public:
+    ListFieldWriterBase( std::vector<std::string> columnNames,
+                         std::vector<std::shared_ptr<::arrow::DataType>> dataTypes,
+                         const StructFieldPtr & structField )
+        : FieldWriter( std::move( columnNames ), std::move( dataTypes ), structField )
+    {}
+
+    void reserve( int64_t numRows ) override
+    {
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Reserve( numRows ), "Failed to reserve list builder" );
+    }
+
+    void writeNull() override
+    {
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> AppendNull(), "Failed to append null list" );
+    }
+
+    std::vector<std::shared_ptr<::arrow::Array>> finish() override
+    {
+        std::shared_ptr<::arrow::Array> arr;
+        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Finish( &arr ), "Failed to finish list array" );
+        return { arr };
+    }
+
+protected:
+    std::shared_ptr<::arrow::ListBuilder> m_listBuilder;
+};
+
 // --- Native element writers (double, int64, bool) ---
 // Use bulk AppendValues for a single resize + copy instead of per-element Append.
 
@@ -58,32 +90,15 @@ inline void writeNativeElements<bool, ::arrow::BooleanBuilder>(
 // --- Native list writer ---
 
 template<typename CspT, typename ArrowBuilderT>
-class NativeListWriter final : public csp::adapters::arrow::FieldWriter
+class NativeListWriter final : public ListFieldWriterBase
 {
 public:
     NativeListWriter( const std::string & columnName, const StructFieldPtr & structField,
                       std::shared_ptr<::arrow::DataType> elementType )
-        : FieldWriter( { columnName }, { ::arrow::list( elementType ) }, structField )
+        : ListFieldWriterBase( { columnName }, { ::arrow::list( elementType ) }, structField )
     {
         m_valueBuilder = std::make_shared<ArrowBuilderT>();
         m_listBuilder = std::make_shared<::arrow::ListBuilder>( ::arrow::default_memory_pool(), m_valueBuilder );
-    }
-
-    void reserve( int64_t numRows ) override
-    {
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Reserve( numRows ), "Failed to reserve list builder" );
-    }
-
-    void writeNull() override
-    {
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> AppendNull(), "Failed to append null list" );
-    }
-
-    std::vector<std::shared_ptr<::arrow::Array>> finish() override
-    {
-        std::shared_ptr<::arrow::Array> arr;
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Finish( &arr ), "Failed to finish list array" );
-        return { arr };
     }
 
 protected:
@@ -102,45 +117,25 @@ protected:
         }
         else
         {
-            PyObjectPtr contiguousOwner{ PyObjectPtr::own(
-                reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) ) };
-            writeNativeElements<CspT, ArrowBuilderT>( m_valueBuilder.get(),
-                reinterpret_cast<PyArrayObject *>( contiguousOwner.get() ), len );
+            PyObjectPtr contiguousOwner{ PyObjectPtr::own( reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) ) };
+            writeNativeElements<CspT, ArrowBuilderT>( m_valueBuilder.get(), reinterpret_cast<PyArrayObject *>( contiguousOwner.get() ), len );
         }
     }
 
 private:
     std::shared_ptr<ArrowBuilderT>                      m_valueBuilder;
-    std::shared_ptr<::arrow::ListBuilder>               m_listBuilder;
 };
 
 // --- String list writer ---
 
-class StringListWriter final : public csp::adapters::arrow::FieldWriter
+class StringListWriter final : public ListFieldWriterBase
 {
 public:
     StringListWriter( const std::string & columnName, const StructFieldPtr & structField )
-        : FieldWriter( { columnName }, { ::arrow::list( ::arrow::utf8() ) }, structField )
+        : ListFieldWriterBase( { columnName }, { ::arrow::list( ::arrow::utf8() ) }, structField )
     {
         m_valueBuilder = std::make_shared<::arrow::StringBuilder>();
         m_listBuilder = std::make_shared<::arrow::ListBuilder>( ::arrow::default_memory_pool(), m_valueBuilder );
-    }
-
-    void reserve( int64_t numRows ) override
-    {
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Reserve( numRows ), "Failed to reserve string list builder" );
-    }
-
-    void writeNull() override
-    {
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> AppendNull(), "Failed to append null list" );
-    }
-
-    std::vector<std::shared_ptr<::arrow::Array>> finish() override
-    {
-        std::shared_ptr<::arrow::Array> arr;
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Finish( &arr ), "Failed to finish string list array" );
-        return { arr };
     }
 
 protected:
@@ -181,7 +176,6 @@ protected:
 
 private:
     std::shared_ptr<::arrow::StringBuilder>             m_valueBuilder;
-    std::shared_ptr<::arrow::ListBuilder>               m_listBuilder;
     std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> m_converter;  // reused across rows
     std::string                                         m_utf8Buf;            // reused buffer
 };
@@ -191,32 +185,15 @@ private:
 // Writes numpy datetime64/timedelta64 arrays into Arrow List<Timestamp(ns,"UTC")> or List<Duration(ns)> columns.
 // Detects the numpy datetime unit at write time and converts to nanoseconds using scalingFromNumpyDtUnit().
 template<typename ArrowBuilderT>
-class TemporalListWriter final : public csp::adapters::arrow::FieldWriter
+class TemporalListWriter final : public ListFieldWriterBase
 {
 public:
     TemporalListWriter( const std::string & columnName, const StructFieldPtr & structField,
                         std::shared_ptr<::arrow::DataType> elementType )
-        : FieldWriter( { columnName }, { ::arrow::list( elementType ) }, structField )
+        : ListFieldWriterBase( { columnName }, { ::arrow::list( elementType ) }, structField )
     {
         m_valueBuilder = std::make_shared<ArrowBuilderT>( elementType, ::arrow::default_memory_pool() );
         m_listBuilder = std::make_shared<::arrow::ListBuilder>( ::arrow::default_memory_pool(), m_valueBuilder );
-    }
-
-    void reserve( int64_t numRows ) override
-    {
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Reserve( numRows ), "Failed to reserve temporal list builder" );
-    }
-
-    void writeNull() override
-    {
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> AppendNull(), "Failed to append null temporal list" );
-    }
-
-    std::vector<std::shared_ptr<::arrow::Array>> finish() override
-    {
-        std::shared_ptr<::arrow::Array> arr;
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Finish( &arr ), "Failed to finish temporal list array" );
-        return { arr };
     }
 
 protected:
@@ -233,8 +210,7 @@ protected:
         PyObjectPtr contiguousOwner;
         if( !PyArray_IS_C_CONTIGUOUS( pyArr ) )
         {
-            contiguousOwner = PyObjectPtr::own(
-                reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
+            contiguousOwner = PyObjectPtr::own( reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
             contiguousArr = reinterpret_cast<PyArrayObject *>( contiguousOwner.get() );
         }
 
@@ -244,9 +220,7 @@ protected:
         auto unit = datetimeUnitFromDescr( PyArray_DESCR( pyArr ) );
         int64_t scaling = scalingFromNumpyDtUnit( unit );
 
-        ARROW_OK_OR_THROW_WRITER(
-            m_valueBuilder -> Reserve( static_cast<int64_t>( len ) ),
-            "Failed to reserve temporal value builder" );
+        ARROW_OK_OR_THROW_WRITER( m_valueBuilder -> Reserve( static_cast<int64_t>( len ) ), "Failed to reserve temporal value builder" );
         for( npy_intp i = 0; i < len; ++i )
         {
             if( data[i] == NPY_DATETIME_NAT )
@@ -258,35 +232,17 @@ protected:
 
 private:
     std::shared_ptr<ArrowBuilderT>          m_valueBuilder;
-    std::shared_ptr<::arrow::ListBuilder>   m_listBuilder;
 };
 
 // Date writer: numpy datetime64 → Arrow List<Date32> (nanoseconds → days since epoch)
-class DateListWriter final : public csp::adapters::arrow::FieldWriter
+class DateListWriter final : public ListFieldWriterBase
 {
 public:
     DateListWriter( const std::string & columnName, const StructFieldPtr & structField )
-        : FieldWriter( { columnName }, { ::arrow::list( ::arrow::date32() ) }, structField )
+        : ListFieldWriterBase( { columnName }, { ::arrow::list( ::arrow::date32() ) }, structField )
     {
         m_valueBuilder = std::make_shared<::arrow::Date32Builder>();
         m_listBuilder = std::make_shared<::arrow::ListBuilder>( ::arrow::default_memory_pool(), m_valueBuilder );
-    }
-
-    void reserve( int64_t numRows ) override
-    {
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Reserve( numRows ), "Failed to reserve date list builder" );
-    }
-
-    void writeNull() override
-    {
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> AppendNull(), "Failed to append null date list" );
-    }
-
-    std::vector<std::shared_ptr<::arrow::Array>> finish() override
-    {
-        std::shared_ptr<::arrow::Array> arr;
-        ARROW_OK_OR_THROW_WRITER( m_listBuilder -> Finish( &arr ), "Failed to finish date list array" );
-        return { arr };
     }
 
 protected:
@@ -302,8 +258,7 @@ protected:
         PyObjectPtr contiguousOwner;
         if( !PyArray_IS_C_CONTIGUOUS( pyArr ) )
         {
-            contiguousOwner = PyObjectPtr::own(
-                reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
+            contiguousOwner = PyObjectPtr::own( reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
             contiguousArr = reinterpret_cast<PyArrayObject *>( contiguousOwner.get() );
         }
 
@@ -313,9 +268,7 @@ protected:
         auto unit = datetimeUnitFromDescr( PyArray_DESCR( pyArr ) );
         int64_t scaling = scalingFromNumpyDtUnit( unit );
 
-        ARROW_OK_OR_THROW_WRITER(
-            m_valueBuilder -> Reserve( static_cast<int64_t>( len ) ),
-            "Failed to reserve date value builder" );
+        ARROW_OK_OR_THROW_WRITER( m_valueBuilder -> Reserve( static_cast<int64_t>( len ) ), "Failed to reserve date value builder" );
         for( npy_intp i = 0; i < len; ++i )
         {
             if( data[i] == NPY_DATETIME_NAT )
@@ -327,7 +280,6 @@ protected:
 
 private:
     std::shared_ptr<::arrow::Date32Builder>  m_valueBuilder;
-    std::shared_ptr<::arrow::ListBuilder>    m_listBuilder;
 };
 
 // --- Dispatch by npy_type ---
@@ -409,14 +361,22 @@ protected:
         // We call writeNext on the inner data writer which will check isSet and delegate to its doWrite
         m_dataWriter -> writeNext( s );
 
-        // Write shape/dims
+        // Write shape/dims — use null when shape is unchanged from previous row
         auto & dgt = m_field -> value<DialectGenericType>( s );
         auto shape = m_shapeCallback( dgt );
 
-        ARROW_OK_OR_THROW_WRITER( m_dimsListBuilder -> Append(), "Failed to start dims list" );
-        ARROW_OK_OR_THROW_WRITER(
-            m_dimsValueBuilder -> AppendValues( shape.data(), static_cast<int64_t>( shape.size() ) ),
-            "Failed to append dim values" );
+        if( shape == m_lastShape )
+        {
+            ARROW_OK_OR_THROW_WRITER( m_dimsListBuilder -> AppendNull(), "Failed to append null dims" );
+        }
+        else
+        {
+            ARROW_OK_OR_THROW_WRITER( m_dimsListBuilder -> Append(), "Failed to start dims list" );
+            ARROW_OK_OR_THROW_WRITER(
+                m_dimsValueBuilder -> AppendValues( shape.data(), static_cast<int64_t>( shape.size() ) ),
+                "Failed to append dim values" );
+            m_lastShape = std::move( shape );
+        }
     }
 
 private:
@@ -424,6 +384,7 @@ private:
     std::unique_ptr<csp::adapters::arrow::FieldWriter>  m_dataWriter;
     std::shared_ptr<::arrow::Int64Builder>              m_dimsValueBuilder;
     std::shared_ptr<::arrow::ListBuilder>               m_dimsListBuilder;
+    std::vector<int64_t>                                m_lastShape;
 };
 
 #undef ARROW_OK_OR_THROW_WRITER
@@ -431,6 +392,9 @@ private:
 // --- Standalone list-items writers for the ListFieldWriterFactory ---
 // These write all elements of a numpy array into an arrow value builder
 // (list start/end is handled by the caller, e.g. ListColumnArrayBuilder).
+
+template<typename T> struct ArrowArrayType       { using type = T; };
+template<>           struct ArrowArrayType<bool>  { using type = uint8_t; };
 
 template<typename CspT, typename ArrowBuilderT>
 inline csp::adapters::arrow::ListItemsWriter makeNativeListItemsWriter(
@@ -443,44 +407,20 @@ inline csp::adapters::arrow::ListItemsWriter makeNativeListItemsWriter(
 
         if( PyArray_IS_C_CONTIGUOUS( pyArr ) )
         {
-            auto * data = reinterpret_cast<const typename ArrowBuilderT::value_type *>( PyArray_DATA( pyArr ) );
+            using CastT = typename ArrowArrayType<typename ArrowBuilderT::value_type>::type;
+            auto * data = reinterpret_cast<const CastT *>( PyArray_DATA( pyArr ) );
             auto s = valueBuilder -> AppendValues( data, static_cast<int64_t>( len ) );
             CSP_TRUE_OR_THROW_RUNTIME( s.ok(), "Failed to append list elements: " << s.ToString() );
         }
         else
         {
+            using CastT = typename ArrowArrayType<typename ArrowBuilderT::value_type>::type;
             PyObjectPtr contiguousOwner{ PyObjectPtr::own(
                 reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) ) };
-            auto * data = reinterpret_cast<const typename ArrowBuilderT::value_type *>(
+            auto * data = reinterpret_cast<const CastT *>(
                 PyArray_DATA( reinterpret_cast<PyArrayObject *>( contiguousOwner.get() ) ) );
             auto s = valueBuilder -> AppendValues( data, static_cast<int64_t>( len ) );
             CSP_TRUE_OR_THROW_RUNTIME( s.ok(), "Failed to append list elements: " << s.ToString() );
-        }
-    };
-}
-
-inline csp::adapters::arrow::ListItemsWriter makeBoolListItemsWriter(
-    std::shared_ptr<::arrow::BooleanBuilder> valueBuilder )
-{
-    return [valueBuilder]( const DialectGenericType & dgt )
-    {
-        auto * pyArr = reinterpret_cast<PyArrayObject *>( csp::python::toPythonBorrowed( dgt ) );
-        npy_intp len = PyArray_SIZE( pyArr );
-
-        if( PyArray_IS_C_CONTIGUOUS( pyArr ) )
-        {
-            auto * data = reinterpret_cast<const uint8_t *>( PyArray_DATA( pyArr ) );
-            auto s = valueBuilder -> AppendValues( data, static_cast<int64_t>( len ) );
-            CSP_TRUE_OR_THROW_RUNTIME( s.ok(), "Failed to append bool list elements: " << s.ToString() );
-        }
-        else
-        {
-            PyObjectPtr contiguousOwner{ PyObjectPtr::own(
-                reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) ) };
-            auto * data = reinterpret_cast<const uint8_t *>(
-                PyArray_DATA( reinterpret_cast<PyArrayObject *>( contiguousOwner.get() ) ) );
-            auto s = valueBuilder -> AppendValues( data, static_cast<int64_t>( len ) );
-            CSP_TRUE_OR_THROW_RUNTIME( s.ok(), "Failed to append bool list elements: " << s.ToString() );
         }
     };
 }
@@ -568,7 +508,7 @@ inline void registerNumpyListFieldWriterFactory()
                 case CspType::Type::BOOL:
                 {
                     auto b = std::make_shared<::arrow::BooleanBuilder>();
-                    return { b, numpy::makeBoolListItemsWriter( b ) };
+                    return { b, numpy::makeNativeListItemsWriter<bool, ::arrow::BooleanBuilder>( b ) };
                 }
                 case CspType::Type::STRING:
                 {

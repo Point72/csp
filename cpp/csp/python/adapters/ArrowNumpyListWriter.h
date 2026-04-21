@@ -159,8 +159,7 @@ protected:
         PyObjectPtr contiguousOwner;
         if( !PyArray_IS_C_CONTIGUOUS( pyArr ) || PyArray_NDIM( pyArr ) > 1 )
         {
-            contiguousOwner = PyObjectPtr::own(
-                reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
+            contiguousOwner = PyObjectPtr::own( reinterpret_cast<PyObject *>( PyArray_GETCONTIGUOUS( pyArr ) ) );
             contiguousArr = reinterpret_cast<PyArrayObject *>( contiguousOwner.get() );
         }
 
@@ -486,8 +485,7 @@ inline csp::adapters::arrow::ListItemsWriter makeBoolListItemsWriter(
     };
 }
 
-inline csp::adapters::arrow::ListItemsWriter makeStringListItemsWriter(
-    std::shared_ptr<::arrow::StringBuilder> valueBuilder )
+inline csp::adapters::arrow::ListItemsWriter makeStringListItemsWriter( std::shared_ptr<::arrow::StringBuilder> valueBuilder )
 {
     return [valueBuilder]( const DialectGenericType & dgt )
     {

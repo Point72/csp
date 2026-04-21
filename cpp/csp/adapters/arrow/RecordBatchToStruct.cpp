@@ -10,25 +10,6 @@
 namespace csp::adapters::arrow
 {
 
-namespace
-{
-
-// Helper to resolve column name -> struct field name mapping
-// If fieldMap is null, column name = field name (identity mapping)
-std::string resolveFieldName( const DictionaryPtr & fieldMap, const std::string & columnName )
-{
-    if( !fieldMap )
-        return columnName;
-
-    std::string fieldName;
-    if( fieldMap -> tryGet<std::string>( columnName, fieldName ) )
-        return fieldName;
-
-    return columnName;
-}
-
-} // anonymous namespace
-
 RecordBatchToStructConverter::RecordBatchToStructConverter(
     const std::shared_ptr<::arrow::Schema> & schema,
     const std::shared_ptr<StructMeta> & structMeta,
@@ -51,11 +32,15 @@ RecordBatchToStructConverter::RecordBatchToStructConverter(
         if( customColumnNames.count( arrowField -> name() ) )
             continue;
 
-        // Skip columns that don't have a matching struct field
-        std::string fieldName = resolveFieldName( fieldMap, arrowField -> name() );
-        auto structField = structMeta -> field( fieldName );
-        if( !structField )
+        // Look up field name from the mapping; skip columns not in the map
+        std::string fieldName;
+        if( !fieldMap -> tryGet<std::string>( arrowField -> name(), fieldName ) )
             continue;
+
+        auto structField = structMeta -> field( fieldName );
+        CSP_TRUE_OR_THROW_RUNTIME( structField != nullptr,
+            "Struct field '" << fieldName << "' (mapped from column '" << arrowField -> name()
+            << "') not found on struct type '" << structMeta -> name() << "'" );
 
         m_scalarReaders.push_back( { createFieldReader( arrowField, structField ), i } );
     }

@@ -71,9 +71,7 @@ DECLARE_CPPNODE( record_batches_to_struct )
 
         // Parse properties
         auto & props = properties.value();
-        DictionaryPtr fieldMap;
-        if( props -> exists( "field_map" ) )
-            fieldMap = props -> get<DictionaryPtr>( "field_map" );
+        auto fieldMap = props -> get<DictionaryPtr>( "field_map" );
 
         // Optional: mapping of arrow_col_name -> dims_col_name for NDArray columns
         DictionaryPtr numpyDimensionNames;
@@ -189,9 +187,7 @@ DECLARE_CPPNODE( struct_to_record_batches )
 
         s_maxBatchSize = props -> get<int64_t>( "max_batch_size", 0 );
 
-        DictionaryPtr fieldMap;
-        if( props -> exists( "field_map" ) )
-            fieldMap = props -> get<DictionaryPtr>( "field_map" );
+        auto fieldMap = props -> get<DictionaryPtr>( "field_map" );
 
         DictionaryPtr numpyDimensionNames;
         if( props -> exists( "numpy_dimension_names" ) )
@@ -202,7 +198,7 @@ DECLARE_CPPNODE( struct_to_record_batches )
 
         if( props -> exists( "numpy_fields" ) )
         {
-            auto numpyFields      = props -> get<DictionaryPtr>( "numpy_fields" );
+            auto numpyFields = props -> get<DictionaryPtr>( "numpy_fields" );
             auto numpyElementTypes = props -> get<DictionaryPtr>( "numpy_element_types" );
 
             for( auto it = numpyFields -> begin(); it != numpyFields -> end(); ++it )

@@ -153,6 +153,47 @@ def write_record_batches(
                 s_prev_batch_size += len(batch)
 
 
+def _extract_numpy_metadata(cls, field_map, numpy_dimensions_column_map):
+    """Categorize struct fields into scalar and numpy fields.
+
+    Args:
+        cls: csp.Struct type
+        field_map: Resolved mapping of struct field name -> arrow column name (must not be None).
+        numpy_dimensions_column_map: Mapping of arrow column name -> dimensions column name.
+
+    Returns:
+        Tuple of (scalar_fields, numpy_fields, numpy_dimension_names, numpy_element_types) where:
+        - scalar_fields: list of (struct_field_name, arrow_col_name) tuples
+        - numpy_fields: dict {arrow_col_name: struct_field_name}
+        - numpy_dimension_names: dict {arrow_col_name: dim_col_name}
+        - numpy_element_types: dict {struct_field_name: python_type}
+    """
+    from csp.adapters.output_adapters.parquet import resolve_array_shape_column_name
+
+    numpy_dimensions_column_map = numpy_dimensions_column_map or {}
+    meta_typed = cls.metadata(typed=True)
+    scalar_fields = []
+    numpy_fields = {}
+    numpy_element_types = {}
+    numpy_dimension_names = {}
+
+    for struct_field_name, arrow_col_name in field_map.items():
+        field_typ = meta_typed[struct_field_name]
+        if CspTypingUtils.is_numpy_array_type(field_typ):
+            numpy_fields[arrow_col_name] = struct_field_name
+            numpy_element_types[struct_field_name] = field_typ.__args__[0]
+
+            if CspTypingUtils.is_numpy_nd_array_type(field_typ):
+                dim_col_name = resolve_array_shape_column_name(
+                    arrow_col_name, numpy_dimensions_column_map.get(arrow_col_name, None)
+                )
+                numpy_dimension_names[arrow_col_name] = dim_col_name
+        else:
+            scalar_fields.append((struct_field_name, arrow_col_name))
+
+    return scalar_fields, numpy_fields, numpy_dimension_names, numpy_element_types
+
+
 @csp.node(cppimpl=_arrowadapterimpl.record_batches_to_struct)
 def _record_batches_to_struct(
     schema_ptr: object,
@@ -168,8 +209,8 @@ def _record_batches_to_struct(
 def record_batches_to_struct(
     data: ts[List[pa.RecordBatch]],
     cls: "T",
-    field_map: Dict[str, str],
     schema: pa.Schema,
+    field_map: Optional[Dict[str, str]] = None,
     numpy_dimensions_column_map: Optional[Dict[str, str]] = None,
 ) -> ts[List["T"]]:
     """Convert ts[List[pa.RecordBatch]] into ts[List[T]] where T is a csp.Struct type.
@@ -177,8 +218,9 @@ def record_batches_to_struct(
     Args:
         data: Timeseries of lists of Arrow RecordBatches
         cls: Target csp.Struct type
-        field_map: Mapping of struct field name -> arrow column name.
         schema: Arrow schema of the record batches (required).
+        field_map: Optional mapping of struct field name -> arrow column name.
+            If None, defaults to identity naming for all fields.
         numpy_dimensions_column_map: Optional mapping of arrow column name -> dimensions column name
             for NumpyNDArray fields. If not provided for an NDArray field, defaults to
             ``<column_name>_csp_dimensions``.
@@ -186,28 +228,13 @@ def record_batches_to_struct(
     Returns:
         Timeseries of lists of struct instances
     """
-    from csp.adapters.output_adapters.parquet import resolve_array_shape_column_name
+    if field_map is None:
+        field_map = {name: name for name in cls.metadata(typed=True)}
 
-    numpy_dimensions_column_map = numpy_dimensions_column_map or {}
-
-    # Inspect struct metadata to separate scalar fields from numpy fields
-    meta_typed = cls.metadata(typed=True)
-    scalar_field_map = {}
-    numpy_fields = {}
-    numpy_dimension_names = {}
-
-    for struct_field_name, arrow_col_name in field_map.items():
-        field_typ = meta_typed[struct_field_name]
-        if CspTypingUtils.is_numpy_array_type(field_typ):
-            numpy_fields[arrow_col_name] = struct_field_name
-
-            if CspTypingUtils.is_numpy_nd_array_type(field_typ):
-                dim_col_name = resolve_array_shape_column_name(
-                    arrow_col_name, numpy_dimensions_column_map.get(arrow_col_name, None)
-                )
-                numpy_dimension_names[arrow_col_name] = dim_col_name
-        else:
-            scalar_field_map[arrow_col_name] = struct_field_name
+    scalar_fields, numpy_fields, numpy_dimension_names, _ = _extract_numpy_metadata(
+        cls, field_map, numpy_dimensions_column_map
+    )
+    scalar_field_map = {arrow_col: struct_field for struct_field, arrow_col in scalar_fields}
 
     # Build properties dict for the C++ node
     properties = {
@@ -252,8 +279,8 @@ def struct_to_record_batches(
     Args:
         data: Timeseries of lists of struct instances
         cls: Source csp.Struct type
-        field_map: Mapping of struct field name -> arrow column name.
-            If None, all non-numpy fields are included with identity naming.
+        field_map: Optional mapping of struct field name -> arrow column name.
+            If None, defaults to identity naming for all fields.
         numpy_dimensions_column_map: Optional mapping of arrow column name -> dimensions column name
             for NumpyNDArray fields. If not provided for an NDArray field, defaults to
             ``<column_name>_csp_dimensions``.
@@ -263,56 +290,22 @@ def struct_to_record_batches(
     Returns:
         Timeseries of lists of RecordBatch
     """
-    from csp.adapters.output_adapters.parquet import resolve_array_shape_column_name
+    if field_map is None:
+        field_map = {name: name for name in cls.metadata(typed=True)}
 
-    numpy_dimensions_column_map = numpy_dimensions_column_map or {}
-
-    # Inspect struct metadata to separate scalar fields from numpy fields
-    meta_typed = cls.metadata(typed=True)
-    scalar_field_map = {}
-    numpy_fields = {}  # {col_name: field_name}
-    numpy_element_types = {}  # {field_name: python_type}
-    numpy_dimension_names = {}  # {col_name: dims_col_name}
-
-    if field_map is not None:
-        for struct_field_name, arrow_col_name in field_map.items():
-            field_typ = meta_typed[struct_field_name]
-            if CspTypingUtils.is_numpy_array_type(field_typ):
-                numpy_fields[arrow_col_name] = struct_field_name
-                elem_type = field_typ.__args__[0]
-                numpy_element_types[struct_field_name] = elem_type
-
-                if CspTypingUtils.is_numpy_nd_array_type(field_typ):
-                    dim_col_name = resolve_array_shape_column_name(
-                        arrow_col_name, numpy_dimensions_column_map.get(arrow_col_name, None)
-                    )
-                    numpy_dimension_names[arrow_col_name] = dim_col_name
-            else:
-                scalar_field_map[struct_field_name] = arrow_col_name
-    else:
-        # No field_map: auto-detect all fields
-        for struct_field_name, field_typ in meta_typed.items():
-            if CspTypingUtils.is_numpy_array_type(field_typ):
-                arrow_col_name = struct_field_name
-                numpy_fields[arrow_col_name] = struct_field_name
-                elem_type = field_typ.__args__[0]
-                numpy_element_types[struct_field_name] = elem_type
-
-                if CspTypingUtils.is_numpy_nd_array_type(field_typ):
-                    dim_col_name = resolve_array_shape_column_name(
-                        arrow_col_name, numpy_dimensions_column_map.get(arrow_col_name, None)
-                    )
-                    numpy_dimension_names[arrow_col_name] = dim_col_name
+    scalar_fields, numpy_fields, numpy_dimension_names, numpy_element_types = _extract_numpy_metadata(
+        cls, field_map, numpy_dimensions_column_map
+    )
+    scalar_field_map = {struct_field: arrow_col for struct_field, arrow_col in scalar_fields}
 
     # Build properties dict for the C++ node
     properties = {
+        "field_map": scalar_field_map,
         "numpy_fields": numpy_fields,
         "numpy_element_types": numpy_element_types,
         "numpy_dimension_names": numpy_dimension_names,
         "max_batch_size": max_batch_size,
     }
-    if scalar_field_map or field_map is not None:
-        properties["field_map"] = scalar_field_map
 
     # Call C++ node, then convert capsule tuples -> RecordBatch
     c_data = _struct_to_record_batches(cls, properties, data)

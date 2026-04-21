@@ -72,8 +72,7 @@ struct ListValueProvider<double>
 // npyTypeOverride: if >= 0, use this NPY type instead of NPY_TYPE<CspT>::value.
 // Needed because NPY_TYPE<int32_t> maps to NPY_LONG which is 64-bit on Linux.
 template<typename CspT, typename ArrowValueArrayT>
-std::function<DialectGenericType( const ::arrow::Array &, int64_t )>
-makeNativeListReadValue( int npyTypeOverride = -1 )
+std::function<DialectGenericType( const ::arrow::Array &, int64_t )> makeNativeListReadValue( int npyTypeOverride = -1 )
 {
     auto * dtype = PyArray_DescrFromType( npyTypeOverride >= 0 ? npyTypeOverride : NPY_TYPE<CspT>::value );
 
@@ -108,8 +107,7 @@ makeNativeListReadValue( int npyTypeOverride = -1 )
 
 // Create a readValue lambda for string-typed list data
 template<typename ArrowStringArrayT>
-std::function<DialectGenericType( const ::arrow::Array &, int64_t )>
-makeStringListReadValue()
+std::function<DialectGenericType( const ::arrow::Array &, int64_t )> makeStringListReadValue()
 {
     // Shared converter object: avoids recreating codecvt facet per row.
     // The lambda is called sequentially so sharing a mutable converter is safe.
@@ -175,8 +173,7 @@ inline int64_t listTimeUnitMultiplier( ::arrow::TimeUnit::type unit )
 // ArrowValueArrayT is the typed Arrow array (TimestampArray, Date32Array, Date64Array)
 // multiplier converts from Arrow units to nanoseconds
 template<typename ArrowValueArrayT>
-std::function<DialectGenericType( const ::arrow::Array &, int64_t )>
-makeTimestampListReadValue( int64_t multiplier )
+std::function<DialectGenericType( const ::arrow::Array &, int64_t )> makeTimestampListReadValue( int64_t multiplier )
 {
     // Lazily create and cache the datetime64[ns] descriptor
     static PyArray_Descr * s_dtype = nullptr;
@@ -224,8 +221,7 @@ makeTimestampListReadValue( int64_t multiplier )
 
 // Create a readValue lambda for timedelta64[ns] from Arrow Duration/Time columns
 template<typename ArrowValueArrayT>
-std::function<DialectGenericType( const ::arrow::Array &, int64_t )>
-makeDurationListReadValue( int64_t multiplier )
+std::function<DialectGenericType( const ::arrow::Array &, int64_t )> makeDurationListReadValue( int64_t multiplier )
 {
     static PyArray_Descr * s_dtype = nullptr;
     if( !s_dtype )
@@ -386,7 +382,7 @@ protected:
     }
 
 private:
-    int                      m_colIdx;
+    int m_colIdx;
     std::function<DialectGenericType( const ::arrow::Array &, int64_t )> m_readValue;
 };
 

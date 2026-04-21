@@ -165,20 +165,20 @@ def _run_to_struct(batches, cls, field_map, schema, numpy_dimensions_column_map=
     def G(
         batches_: object,
         cls_: type,
-        field_map_: dict,
         schema_: object,
+        field_map_: dict,
         numpy_dims_: object,
     ):
         data = csp.const([batches_])
-        structs = record_batches_to_struct(data, cls_, field_map_, schema_, numpy_dims_)
+        structs = record_batches_to_struct(data, cls_, schema_, field_map_, numpy_dims_)
         csp.add_graph_output("structs", structs)
 
     results = csp.run(
         G,
         batches,
         cls,
-        field_map,
         schema,
+        field_map,
         numpy_dimensions_column_map,
         starttime=_STARTTIME,
         endtime=_STARTTIME + timedelta(seconds=1),
@@ -194,20 +194,20 @@ def _run_multi_tick_read(tick_batches, cls, field_map, schema, numpy_dimensions_
     def G(
         ticks_: object,
         cls_: type,
-        field_map_: dict,
         schema_: object,
+        field_map_: dict,
         numpy_dims_: object,
     ):
         data = csp.unroll(csp.const(ticks_))
-        structs = record_batches_to_struct(data, cls_, field_map_, schema_, numpy_dims_)
+        structs = record_batches_to_struct(data, cls_, schema_, field_map_, numpy_dims_)
         csp.add_graph_output("structs", structs)
 
     results = csp.run(
         G,
         tick_batches,
         cls,
-        field_map,
         schema,
+        field_map,
         numpy_dimensions_column_map,
         starttime=_STARTTIME,
         endtime=_STARTTIME + timedelta(seconds=len(tick_batches)),
@@ -285,7 +285,7 @@ def _run_round_trip(structs, cls, field_map, schema):
     def G(s_: object, cls_: type, fm_: object, schema_: object):
         data = csp.const(s_)
         batches = struct_to_record_batches(data, cls_, fm_)
-        result = record_batches_to_struct(batches, cls_, fm_, schema_)
+        result = record_batches_to_struct(batches, cls_, schema_, fm_)
         csp.add_graph_output("result", result)
 
     results = csp.run(
@@ -301,7 +301,7 @@ def _run_reverse_round_trip(batch, cls, field_map):
     @csp.graph
     def G(b_: object, cls_: type, fm_: dict, schema_: object):
         data = csp.const([b_])
-        structs = record_batches_to_struct(data, cls_, fm_, schema_)
+        structs = record_batches_to_struct(data, cls_, schema_, fm_)
         batches = struct_to_record_batches(structs, cls_, fm_)
         csp.add_graph_output("result", batches)
 
@@ -382,7 +382,7 @@ class TestReadScalarFields:
         def G():
             data = csp.const([batch1, batch2])
             field_map = {"x": "x", "y": "y"}
-            structs = record_batches_to_struct(data, NumericOnlyStruct, field_map, schema)
+            structs = record_batches_to_struct(data, NumericOnlyStruct, schema, field_map)
             csp.add_graph_output("structs", structs)
 
         results = csp.run(G, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
@@ -1339,7 +1339,7 @@ class TestMemoryLeak:
             def g(s_: object):
                 data = csp.const(s_)
                 batches = struct_to_record_batches(data, NumpyStruct, field_map)
-                result = record_batches_to_struct(batches, NumpyStruct, field_map, read_schema)
+                result = record_batches_to_struct(batches, NumpyStruct, read_schema, field_map)
                 csp.add_graph_output("r", result)
 
             csp.run(g, structs, starttime=_STARTTIME, endtime=_STARTTIME + timedelta(seconds=1))
@@ -1391,7 +1391,7 @@ class TestMemoryLeak:
             @csp.graph
             def g(b_: object, schema_: object):
                 data = csp.const([b_])
-                structs = record_batches_to_struct(data, NumpyStruct, field_map, schema_)
+                structs = record_batches_to_struct(data, NumpyStruct, schema_, field_map)
                 batches = struct_to_record_batches(structs, NumpyStruct, field_map)
                 csp.add_graph_output("r", batches)
 

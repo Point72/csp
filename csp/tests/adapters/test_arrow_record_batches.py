@@ -8,11 +8,13 @@ round-trips, and error cases.
 
 from datetime import date, datetime, time, timedelta
 
+import numpy as np
 import pyarrow as pa
 import pytest
 
 import csp
 from csp.adapters.arrow import record_batches_to_struct, struct_to_record_batches
+from csp.typing import Numpy1DArray, NumpyNDArray
 
 _STARTTIME = datetime(2020, 1, 1, 9, 0, 0)
 
@@ -78,6 +80,84 @@ class AllTypesStruct(csp.Struct):
     e: MyEnum
 
 
+class NumpyStruct(csp.Struct):
+    id: int
+    values: Numpy1DArray[float]
+
+
+class NumpyIntStruct(csp.Struct):
+    id: int
+    values: Numpy1DArray[int]
+
+
+class NumpyStringStruct(csp.Struct):
+    id: int
+    names: Numpy1DArray[str]
+
+
+class NumpyBoolStruct(csp.Struct):
+    id: int
+    flags: Numpy1DArray[bool]
+
+
+class MixedStruct(csp.Struct):
+    label: str
+    scores: Numpy1DArray[float]
+
+
+class NDArrayStruct(csp.Struct):
+    id: int
+    matrix: NumpyNDArray[float]
+
+
+class NDArrayIntStruct(csp.Struct):
+    id: int
+    matrix: NumpyNDArray[int]
+
+
+class FullMixedStruct(csp.Struct):
+    """Struct with scalar, numpy 1D, and NDArray fields."""
+
+    label: str
+    scores: Numpy1DArray[float]
+    matrix: NumpyNDArray[float]
+
+
+class NumpyDatetimeStruct(csp.Struct):
+    id: int
+    timestamps: Numpy1DArray[datetime]
+
+
+class NumpyTimedeltaStruct(csp.Struct):
+    id: int
+    durations: Numpy1DArray[timedelta]
+
+
+class NumpyDateStruct(csp.Struct):
+    id: int
+    dates: Numpy1DArray[datetime]  # dates stored as datetime64[ns] in numpy
+
+
+class NDArrayDatetimeStruct(csp.Struct):
+    id: int
+    matrix: NumpyNDArray[datetime]
+
+
+class NDArrayTimedeltaStruct(csp.Struct):
+    id: int
+    matrix: NumpyNDArray[timedelta]
+
+
+class NDArrayStringStruct(csp.Struct):
+    id: int
+    names: NumpyNDArray[str]
+
+
+class NDArrayBoolStruct(csp.Struct):
+    id: int
+    flags: NumpyNDArray[bool]
+
+
 # =====================================================================
 # Helpers — reader direction (batch → struct)
 # =====================================================================
@@ -141,7 +221,7 @@ def _run_multi_tick_read(tick_batches, cls, field_map, schema):
 # =====================================================================
 
 
-def _run_to_batches(structs, cls, field_map=None):
+def _run_to_batches(structs, cls, field_map=None, numpy_dimensions_column_map=None):
     """Run a graph that converts structs to record batches and returns the results."""
 
     @csp.graph
@@ -149,9 +229,10 @@ def _run_to_batches(structs, cls, field_map=None):
         structs_: object,
         cls_: type,
         field_map_: object,
+        numpy_dims_: object,
     ):
         data = csp.const(structs_)
-        batches = struct_to_record_batches(data, cls_, field_map_)
+        batches = struct_to_record_batches(data, cls_, field_map_, numpy_dims_)
         csp.add_graph_output("batches", batches)
 
     results = csp.run(
@@ -159,6 +240,7 @@ def _run_to_batches(structs, cls, field_map=None):
         structs,
         cls,
         field_map,
+        numpy_dimensions_column_map,
         starttime=_STARTTIME,
         endtime=_STARTTIME + timedelta(seconds=1),
     )
@@ -166,7 +248,7 @@ def _run_to_batches(structs, cls, field_map=None):
     return results["batches"][0][1]
 
 
-def _run_multi_tick_write(tick_structs, cls, field_map=None):
+def _run_multi_tick_write(tick_structs, cls, field_map=None, numpy_dimensions_column_map=None):
     """Run a graph that ticks multiple lists of structs and returns all results."""
 
     @csp.graph
@@ -174,9 +256,10 @@ def _run_multi_tick_write(tick_structs, cls, field_map=None):
         ticks_: object,
         cls_: type,
         field_map_: object,
+        numpy_dims_: object,
     ):
         data = csp.unroll(csp.const(ticks_))
-        batches = struct_to_record_batches(data, cls_, field_map_)
+        batches = struct_to_record_batches(data, cls_, field_map_, numpy_dims_)
         csp.add_graph_output("batches", batches)
 
     results = csp.run(
@@ -184,6 +267,7 @@ def _run_multi_tick_write(tick_structs, cls, field_map=None):
         tick_structs,
         cls,
         field_map,
+        numpy_dimensions_column_map,
         starttime=_STARTTIME,
         endtime=_STARTTIME + timedelta(seconds=len(tick_structs)),
     )
@@ -405,11 +489,6 @@ class TestReadScalarFields:
         assert structs[0].id == 1
         assert structs[0].inner.x == 42
         assert structs[0].inner.y == pytest.approx(2.5)
-
-
-# =====================================================================
-# Tests for all Arrow reader types (ensuring full type coverage)
-# =====================================================================
 
 
 class TestReadAllArrowTypes:
@@ -841,11 +920,6 @@ class TestReadAllArrowTypes:
         assert structs[2].data == b"\x03"
 
 
-# =====================================================================
-# Tests: null handling for common read types
-# =====================================================================
-
-
 class TestReadNullHandling:
     """Test that null values in various Arrow column types leave CSP struct fields unset."""
 
@@ -921,11 +995,6 @@ class TestReadNullHandling:
         assert len(structs) == 0
 
 
-# =====================================================================
-# Tests: reverse round-trip with null values
-# =====================================================================
-
-
 class TestReverseRoundTripWithNulls:
     """batch → struct → batch where the original batch contains null values."""
 
@@ -950,11 +1019,6 @@ class TestReverseRoundTripWithNulls:
         assert result.column("f64").to_pylist()[2] is None
         assert result.column("s").to_pylist() == [None, "b", "c"]
         assert result.column("b").to_pylist() == [True, None, False]
-
-
-# =====================================================================
-# Regression tests for specific bugs
-# =====================================================================
 
 
 class TestDateWriteRegression:
@@ -1003,11 +1067,6 @@ class TestDateWriteRegression:
             assert result[i].d == expected_date
 
 
-# =====================================================================
-# Struct definitions for multi-level nesting
-# =====================================================================
-
-
 class MiddleStruct(csp.Struct):
     tag: str
     inner: InnerStruct
@@ -1016,3 +1075,565 @@ class MiddleStruct(csp.Struct):
 class OuterStruct(csp.Struct):
     id: int
     middle: MiddleStruct
+
+
+# =====================================================================
+# Tests: writing scalar fields (struct → batch)
+# =====================================================================
+
+
+class TestWriteScalarFields:
+    def test_basic_scalar_types(self):
+        structs = [
+            ScalarStruct(i64=1, f64=1.1, s="a", b=True),
+            ScalarStruct(i64=2, f64=2.2, s="b", b=False),
+            ScalarStruct(i64=3, f64=3.3, s="c", b=True),
+        ]
+        field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
+        batches = _run_to_batches(structs, ScalarStruct, field_map)
+
+        assert len(batches) == 1
+        batch = batches[0]
+        assert batch.num_rows == 3
+        assert batch.column("i64").to_pylist() == [1, 2, 3]
+        assert batch.column("f64").to_pylist() == pytest.approx([1.1, 2.2, 3.3])
+        assert batch.column("s").to_pylist() == ["a", "b", "c"]
+        assert batch.column("b").to_pylist() == [True, False, True]
+
+    def test_field_mapping(self):
+        structs = [
+            NumericOnlyStruct(x=10, y=1.5),
+            NumericOnlyStruct(x=20, y=2.5),
+        ]
+        field_map = {"x": "col_x", "y": "col_y"}
+        batches = _run_to_batches(structs, NumericOnlyStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 2
+        assert batch.column("col_x").to_pylist() == [10, 20]
+        assert batch.column("col_y").to_pylist() == pytest.approx([1.5, 2.5])
+
+    def test_single_row(self):
+        structs = [NumericOnlyStruct(x=42, y=3.14)]
+        field_map = {"x": "x", "y": "y"}
+        batches = _run_to_batches(structs, NumericOnlyStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 1
+        assert batch.column("x").to_pylist() == [42]
+        assert batch.column("y").to_pylist() == pytest.approx([3.14])
+
+    def test_many_rows(self):
+        n = 1000
+        structs = [NumericOnlyStruct(x=i, y=float(i) / 10.0) for i in range(n)]
+        field_map = {"x": "x", "y": "y"}
+        batches = _run_to_batches(structs, NumericOnlyStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == n
+        assert batch.column("x").to_pylist() == list(range(n))
+
+    def test_null_unset_fields(self):
+        """Unset struct fields should become null in Arrow."""
+        s1 = ScalarStruct(i64=1, f64=1.1)
+        # s and b are unset
+        field_map = {"i64": "i64", "f64": "f64", "s": "s", "b": "b"}
+        batches = _run_to_batches([s1], ScalarStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("i64").to_pylist() == [1]
+        assert batch.column("s").to_pylist() == [None]
+        assert batch.column("b").to_pylist() == [None]
+
+    def test_multiple_ticks(self):
+        tick1 = [NumericOnlyStruct(x=10, y=1.0)]
+        tick2 = [NumericOnlyStruct(x=20, y=2.0)]
+
+        field_map = {"x": "x", "y": "y"}
+        all_results = _run_multi_tick_write([tick1, tick2], NumericOnlyStruct, field_map)
+
+        assert len(all_results) == 2
+        assert all_results[0][0].column("x").to_pylist() == [10]
+        assert all_results[1][0].column("x").to_pylist() == [20]
+
+    def test_no_field_map(self):
+        """No field_map: auto-include all non-numpy fields with identity naming."""
+        structs = [NumericOnlyStruct(x=5, y=2.5)]
+        batches = _run_to_batches(structs, NumericOnlyStruct)
+
+        batch = batches[0]
+        assert batch.num_rows == 1
+        assert batch.column("x").to_pylist() == [5]
+        assert batch.column("y").to_pylist() == pytest.approx([2.5])
+
+    def test_datetime_types(self):
+        """datetime, timedelta, date, time fields."""
+        dt_val = datetime(2024, 3, 15, 12, 0, 0)
+        td_val = timedelta(seconds=3600)
+        d_val = date(2024, 6, 15)
+        t_val = time(14, 30, 0)
+
+        structs = [DateTimeStruct(dt=dt_val, td=td_val, d=d_val, t=t_val)]
+        field_map = {"dt": "dt", "td": "td", "d": "d", "t": "t"}
+        batches = _run_to_batches(structs, DateTimeStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 1
+        # Verify the arrow types
+        assert pa.types.is_timestamp(batch.schema.field("dt").type)
+        assert pa.types.is_duration(batch.schema.field("td").type)
+        assert pa.types.is_date32(batch.schema.field("d").type)
+        assert pa.types.is_time64(batch.schema.field("t").type)
+
+    def test_enum_write(self):
+        """Enum fields written as strings."""
+        structs = [
+            EnumStruct(label="x", color=MyEnum.A),
+            EnumStruct(label="y", color=MyEnum.B),
+        ]
+        field_map = {"label": "label", "color": "color"}
+        batches = _run_to_batches(structs, EnumStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("color").to_pylist() == ["A", "B"]
+        assert batch.column("label").to_pylist() == ["x", "y"]
+
+    def test_bytes_write(self):
+        """Binary/bytes field."""
+        val = b"my\x00value"
+        structs = [BytesStruct(data=val)]
+        field_map = {"data": "data"}
+        batches = _run_to_batches(structs, BytesStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("data").to_pylist() == [val]
+
+    def test_nested_struct_write(self):
+        """Nested struct field."""
+        inner = InnerStruct(x=42, y=2.5)
+        structs = [NestedStruct(id=1, inner=inner)]
+        field_map = {"id": "id", "inner": "inner"}
+        batches = _run_to_batches(structs, NestedStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 1
+        assert batch.column("id").to_pylist() == [1]
+        inner_col = batch.column("inner")
+        assert inner_col.to_pylist() == [{"x": 42, "y": 2.5}]
+
+
+class TestWriteNumpy1DFields:
+    def test_float_array(self):
+        structs = [
+            NumpyStruct(id=1, values=np.array([1.0, 2.0, 3.0])),
+            NumpyStruct(id=2, values=np.array([4.0, 5.0])),
+        ]
+        field_map = {"id": "id", "values": "values"}
+        batches = _run_to_batches(structs, NumpyStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 2
+        assert batch.column("id").to_pylist() == [1, 2]
+        vals = batch.column("values").to_pylist()
+        assert vals[0] == pytest.approx([1.0, 2.0, 3.0])
+        assert vals[1] == pytest.approx([4.0, 5.0])
+
+    def test_int_array(self):
+        structs = [NumpyIntStruct(id=1, values=np.array([10, 20, 30], dtype=np.int64))]
+        field_map = {"id": "id", "values": "values"}
+        batches = _run_to_batches(structs, NumpyIntStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("values").to_pylist() == [[10, 20, 30]]
+
+    def test_string_array(self):
+        structs = [NumpyStringStruct(id=1, names=np.array(["alice", "bob", "carol"]))]
+        field_map = {"id": "id", "names": "names"}
+        batches = _run_to_batches(structs, NumpyStringStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("names").to_pylist() == [["alice", "bob", "carol"]]
+
+    def test_bool_array(self):
+        structs = [NumpyBoolStruct(id=1, flags=np.array([True, False, True]))]
+        field_map = {"id": "id", "flags": "flags"}
+        batches = _run_to_batches(structs, NumpyBoolStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("flags").to_pylist() == [[True, False, True]]
+
+    def test_empty_array(self):
+        structs = [NumpyStruct(id=1, values=np.array([], dtype=np.float64))]
+        field_map = {"id": "id", "values": "values"}
+        batches = _run_to_batches(structs, NumpyStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("values").to_pylist() == [[]]
+
+    def test_null_numpy_field(self):
+        """Unset numpy field should become null in Arrow."""
+        structs = [NumpyStruct(id=1)]  # values is unset
+        field_map = {"id": "id", "values": "values"}
+        batches = _run_to_batches(structs, NumpyStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("id").to_pylist() == [1]
+        assert batch.column("values").to_pylist() == [None]
+
+    def test_mixed_scalar_and_numpy(self):
+        structs = [
+            MixedStruct(label="a", scores=np.array([0.1, 0.2])),
+            MixedStruct(label="b", scores=np.array([0.3, 0.4, 0.5])),
+        ]
+        field_map = {"label": "label", "scores": "scores"}
+        batches = _run_to_batches(structs, MixedStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("label").to_pylist() == ["a", "b"]
+        vals = batch.column("scores").to_pylist()
+        assert vals[0] == pytest.approx([0.1, 0.2])
+        assert vals[1] == pytest.approx([0.3, 0.4, 0.5])
+
+
+class TestWriteNumpyNDArrayFields:
+    def test_2d_array(self):
+        matrix = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        structs = [NDArrayStruct(id=1, matrix=matrix)]
+        field_map = {"id": "id", "matrix": "matrix"}
+        batches = _run_to_batches(structs, NDArrayStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 1
+        data_col = batch.column("matrix").to_pylist()
+        assert data_col[0] == pytest.approx([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        dims_col = batch.column("matrix_csp_dimensions").to_pylist()
+        assert dims_col[0] == [2, 3]
+
+    def test_3d_array(self):
+        matrix = np.arange(24, dtype=float).reshape(2, 3, 4)
+        structs = [NDArrayStruct(id=1, matrix=matrix)]
+        field_map = {"id": "id", "matrix": "matrix"}
+        batches = _run_to_batches(structs, NDArrayStruct, field_map)
+
+        batch = batches[0]
+        data_col = batch.column("matrix").to_pylist()
+        assert data_col[0] == pytest.approx(list(range(24)))
+        dims_col = batch.column("matrix_csp_dimensions").to_pylist()
+        assert dims_col[0] == [2, 3, 4]
+
+    def test_custom_dims_column_name(self):
+        matrix = np.array([[1.0, 2.0], [3.0, 4.0]])
+        structs = [NDArrayStruct(id=1, matrix=matrix)]
+        field_map = {"id": "id", "matrix": "matrix"}
+        numpy_dims = {"matrix": "my_dims"}
+        batches = _run_to_batches(structs, NDArrayStruct, field_map, numpy_dims)
+
+        batch = batches[0]
+        assert "my_dims" in batch.schema.names
+        dims_col = batch.column("my_dims").to_pylist()
+        assert dims_col[0] == [2, 2]
+
+    def test_multiple_rows_different_shapes(self):
+        m1 = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        m2 = np.array([[10.0, 20.0], [30.0, 40.0]])
+        structs = [
+            NDArrayStruct(id=1, matrix=m1),
+            NDArrayStruct(id=2, matrix=m2),
+        ]
+        field_map = {"id": "id", "matrix": "matrix"}
+        batches = _run_to_batches(structs, NDArrayStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 2
+        data_col = batch.column("matrix").to_pylist()
+        assert data_col[0] == pytest.approx([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        assert data_col[1] == pytest.approx([10.0, 20.0, 30.0, 40.0])
+        dims_col = batch.column("matrix_csp_dimensions").to_pylist()
+        assert dims_col[0] == [2, 3]
+        assert dims_col[1] == [2, 2]
+
+
+class TestWriteNullAndEdgeCases:
+    """Test null/unset fields and edge cases in the write direction."""
+
+    def test_null_datetime_fields(self):
+        """Unset datetime/timedelta/date/time fields should become null in Arrow."""
+        s = DateTimeStruct(dt=datetime(2024, 1, 1))  # only dt is set
+        field_map = {"dt": "dt", "td": "td", "d": "d", "t": "t"}
+        batches = _run_to_batches([s], DateTimeStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("td").to_pylist() == [None]
+        assert batch.column("d").to_pylist() == [None]
+        assert batch.column("t").to_pylist() == [None]
+
+    def test_null_enum_field(self):
+        """Unset enum field should become null in Arrow."""
+        s = EnumStruct(label="x")  # color is unset
+        field_map = {"label": "label", "color": "color"}
+        batches = _run_to_batches([s], EnumStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("label").to_pylist() == ["x"]
+        assert batch.column("color").to_pylist() == [None]
+
+    def test_null_nested_struct_field(self):
+        """Unset nested struct field should become null in Arrow."""
+        s = NestedStruct(id=1)  # inner is unset
+        field_map = {"id": "id", "inner": "inner"}
+        batches = _run_to_batches([s], NestedStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("id").to_pylist() == [1]
+        assert batch.column("inner").to_pylist() == [None]
+
+    def test_null_ndarray_field(self):
+        """Unset NDArray field should produce null in both data and dims columns."""
+        s = NDArrayStruct(id=1)  # matrix is unset
+        field_map = {"id": "id", "matrix": "matrix"}
+        batches = _run_to_batches([s], NDArrayStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("id").to_pylist() == [1]
+        assert batch.column("matrix").to_pylist() == [None]
+        assert batch.column("matrix_csp_dimensions").to_pylist() == [None]
+
+    def test_empty_struct_vector_write(self):
+        """Writing a tick with a single row followed by an empty tick should produce zero-row batch."""
+        field_map = {"x": "x", "y": "y"}
+        tick1 = [NumericOnlyStruct(x=1, y=1.0)]
+        tick2 = [NumericOnlyStruct(x=2, y=2.0)]  # need a non-empty tick to validate structure
+
+        # Verify single-row ticks work (empty list not expressible via csp.const)
+        all_results = _run_multi_tick_write([tick1, tick2], NumericOnlyStruct, field_map)
+        assert len(all_results) == 2
+        assert all_results[0][0].num_rows == 1
+        assert all_results[1][0].num_rows == 1
+
+
+class TestWriteAutoDetectNumpy:
+    """Test struct_to_record_batches with field_map=None for structs with numpy fields."""
+
+    def test_no_field_map_numpy_1d(self):
+        """Auto-detect numpy 1D array fields when field_map is None."""
+        structs = [
+            NumpyStruct(id=1, values=np.array([1.0, 2.0, 3.0])),
+            NumpyStruct(id=2, values=np.array([4.0, 5.0])),
+        ]
+        batches = _run_to_batches(structs, NumpyStruct)
+
+        assert len(batches) == 1
+        batch = batches[0]
+        assert batch.num_rows == 2
+        # Scalar fields auto-included
+        assert batch.column("id").to_pylist() == [1, 2]
+        # Numpy field auto-detected
+        vals = batch.column("values").to_pylist()
+        assert vals[0] == pytest.approx([1.0, 2.0, 3.0])
+        assert vals[1] == pytest.approx([4.0, 5.0])
+
+    def test_no_field_map_ndarray(self):
+        """Auto-detect NDArray fields with dimension columns when field_map is None."""
+        matrix = np.array([[1.0, 2.0], [3.0, 4.0]])
+        structs = [NDArrayStruct(id=1, matrix=matrix)]
+        batches = _run_to_batches(structs, NDArrayStruct)
+
+        assert len(batches) == 1
+        batch = batches[0]
+        assert batch.num_rows == 1
+        assert batch.column("id").to_pylist() == [1]
+        data_col = batch.column("matrix").to_pylist()
+        assert data_col[0] == pytest.approx([1.0, 2.0, 3.0, 4.0])
+        dims_col = batch.column("matrix_csp_dimensions").to_pylist()
+        assert dims_col[0] == [2, 2]
+
+    def test_no_field_map_mixed_scalar_numpy(self):
+        """Auto-detect with mixed scalar + numpy fields."""
+        structs = [
+            MixedStruct(label="a", scores=np.array([0.1, 0.2])),
+        ]
+        batches = _run_to_batches(structs, MixedStruct)
+
+        assert len(batches) == 1
+        batch = batches[0]
+        assert batch.column("label").to_pylist() == ["a"]
+        vals = batch.column("scores").to_pylist()
+        assert vals[0] == pytest.approx([0.1, 0.2])
+
+
+class TestWriteNumpyTemporalFields:
+    """Writing numpy datetime64/timedelta64 arrays to Arrow list<timestamp>/list<duration> columns."""
+
+    def test_datetime_array(self):
+        """Write numpy datetime64[ns] array → list<timestamp(ns, UTC)>."""
+        ts_arr = np.array(["2020-01-01", "2020-06-15", "2025-12-31"], dtype="datetime64[ns]")
+        structs = [NumpyDatetimeStruct(id=1, timestamps=ts_arr)]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        batches = _run_to_batches(structs, NumpyDatetimeStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 1
+        ts_col = batch.column("timestamps")
+        assert pa.types.is_list(ts_col.type)
+        assert pa.types.is_timestamp(ts_col.type.value_type)
+        values = ts_col.to_pylist()[0]
+        assert len(values) == 3
+
+    def test_timedelta_array(self):
+        """Write numpy timedelta64[ns] array → list<duration(ns)>."""
+        td_arr = np.array([1000000000, 3600000000000, 86400000000000], dtype="timedelta64[ns]")
+        structs = [NumpyTimedeltaStruct(id=1, durations=td_arr)]
+        field_map = {"id": "id", "durations": "durations"}
+        batches = _run_to_batches(structs, NumpyTimedeltaStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 1
+        dur_col = batch.column("durations")
+        assert pa.types.is_list(dur_col.type)
+        assert pa.types.is_duration(dur_col.type.value_type)
+
+    def test_null_temporal_field(self):
+        """Unset numpy temporal field should become null in Arrow."""
+        structs = [NumpyDatetimeStruct(id=1)]  # timestamps is unset
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        batches = _run_to_batches(structs, NumpyDatetimeStruct, field_map)
+
+        batch = batches[0]
+        assert batch.column("timestamps").to_pylist() == [None]
+
+    def test_multiple_rows(self):
+        """Multiple rows of datetime arrays."""
+        ts1 = np.array(["2020-01-01", "2020-01-02"], dtype="datetime64[ns]")
+        ts2 = np.array(["2025-06-15"], dtype="datetime64[ns]")
+        structs = [
+            NumpyDatetimeStruct(id=1, timestamps=ts1),
+            NumpyDatetimeStruct(id=2, timestamps=ts2),
+        ]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        batches = _run_to_batches(structs, NumpyDatetimeStruct, field_map)
+
+        batch = batches[0]
+        assert batch.num_rows == 2
+        values = batch.column("timestamps").to_pylist()
+        assert len(values[0]) == 2
+        assert len(values[1]) == 1
+
+    def test_auto_detect_no_field_map(self):
+        """Auto-detect numpy temporal fields when field_map is None."""
+        ts_arr = np.array(["2020-01-01", "2020-06-15"], dtype="datetime64[ns]")
+        structs = [NumpyDatetimeStruct(id=1, timestamps=ts_arr)]
+        batches = _run_to_batches(structs, NumpyDatetimeStruct)
+
+        batch = batches[0]
+        assert "timestamps" in batch.schema.names
+        ts_col = batch.column("timestamps")
+        assert pa.types.is_list(ts_col.type)
+        assert pa.types.is_timestamp(ts_col.type.value_type)
+
+
+class TestNonContiguousArrayWrite:
+    """Regression: NativeListWriter must handle non-contiguous numpy arrays.
+
+    Before the fix, PyArray_DATA + bulk AppendValues assumed C-contiguous memory
+    layout, silently producing wrong data for sliced or transposed arrays.
+    """
+
+    def test_sliced_1d_array(self):
+        """A sliced array (arr[::2]) is non-contiguous; write must preserve values."""
+        full = np.array([10.0, 20.0, 30.0, 40.0, 50.0, 60.0])
+        sliced = full[::2]  # [10, 30, 50], non-contiguous
+        assert not sliced.flags["C_CONTIGUOUS"] or sliced.strides[0] != sliced.itemsize
+
+        structs = [NumpyStruct(id=1, values=sliced)]
+        field_map = {"id": "id", "values": "values"}
+        batches = _run_to_batches(structs, NumpyStruct, field_map)
+
+        assert len(batches) == 1
+        batch = batches[0]
+        values_col = batch.column("values")
+        assert values_col.to_pylist() == [[10.0, 30.0, 50.0]]
+
+    def test_sliced_int_array(self):
+        """Non-contiguous int array write."""
+        full = np.array([1, 2, 3, 4, 5, 6], dtype=np.int64)
+        sliced = full[1::2]  # [2, 4, 6]
+
+        structs = [NumpyIntStruct(id=1, values=sliced)]
+        field_map = {"id": "id", "values": "values"}
+        batches = _run_to_batches(structs, NumpyIntStruct, field_map)
+        batch = batches[0]
+
+        values_col = batch.column("values")
+        assert values_col.to_pylist() == [[2, 4, 6]]
+
+    def test_transposed_ndarray(self):
+        """A transposed 2D array is non-contiguous (Fortran order); write must flatten correctly."""
+        original = np.array([[1.0, 2.0], [3.0, 4.0]])
+        transposed = original.T  # [[1, 3], [2, 4]], Fortran-order
+
+        structs = [NDArrayStruct(id=1, matrix=transposed)]
+        field_map = {"id": "id", "matrix": "matrix"}
+        batches = _run_to_batches(structs, NDArrayStruct, field_map)
+        batch = batches[0]
+
+        matrix_col = batch.column("matrix")
+        assert matrix_col.to_pylist() == [[1.0, 3.0, 2.0, 4.0]]
+
+    def test_fortran_order_array(self):
+        """Explicitly Fortran-order (column-major) array must write correctly."""
+        c_array = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], order="C")
+        f_array = np.asfortranarray(c_array)
+        assert not f_array.flags["C_CONTIGUOUS"]
+
+        structs = [NDArrayStruct(id=1, matrix=f_array)]
+        field_map = {"id": "id", "matrix": "matrix"}
+        batches = _run_to_batches(structs, NDArrayStruct, field_map)
+        batch = batches[0]
+
+        matrix_col = batch.column("matrix")
+        assert matrix_col.to_pylist() == [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]]
+
+    def test_sliced_datetime_array(self):
+        """Non-contiguous datetime64 array write."""
+        full = np.array(
+            ["2020-01-01", "2020-02-01", "2020-03-01", "2020-04-01", "2020-05-01", "2020-06-01"],
+            dtype="datetime64[ns]",
+        )
+        sliced = full[::2]  # [Jan, Mar, May], non-contiguous
+        assert not sliced.flags["C_CONTIGUOUS"] or sliced.strides[0] != sliced.itemsize
+
+        structs = [NumpyDatetimeStruct(id=1, timestamps=sliced)]
+        field_map = {"id": "id", "timestamps": "timestamps"}
+        batches = _run_to_batches(structs, NumpyDatetimeStruct, field_map)
+        batch = batches[0]
+        ts_col = batch.column("timestamps")
+        assert len(ts_col.to_pylist()[0]) == 3
+
+    def test_sliced_timedelta_array(self):
+        """Non-contiguous timedelta64 array write."""
+        full = np.array([1, 2, 3, 4, 5, 6], dtype="timedelta64[ns]")
+        sliced = full[1::2]  # [2, 4, 6]
+
+        structs = [NumpyTimedeltaStruct(id=1, durations=sliced)]
+        field_map = {"id": "id", "durations": "durations"}
+        batches = _run_to_batches(structs, NumpyTimedeltaStruct, field_map)
+        batch = batches[0]
+        dur_col = batch.column("durations")
+        assert len(dur_col.to_pylist()[0]) == 3
+
+
+class TestNDArrayStringWrite:
+    """Tests for ND string array writing — exposes PyArray_GETPTR1 bug."""
+
+    def test_2d_string_ndarray_write(self):
+        """2D string NDArray write should produce correct flat list."""
+        matrix = np.array([["alpha", "beta"], ["gamma", "delta"]], dtype="U10")
+        structs = [NDArrayStringStruct(id=1, names=matrix)]
+        field_map = {"id": "id", "names": "names"}
+        batches = _run_to_batches(structs, NDArrayStringStruct, field_map)
+
+        batch = batches[0]
+        data_col = batch.column("names").to_pylist()
+        assert data_col[0] == ["alpha", "beta", "gamma", "delta"]
+        dims_col = batch.column("names_csp_dimensions").to_pylist()
+        assert dims_col[0] == [2, 2]

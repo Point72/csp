@@ -202,5 +202,66 @@ void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char )
     }
 }
 
+DialectGenericType numpyReshape( DialectGenericType flatData, const std::vector<int64_t> & dims )
+{
+    // PyArray_Newshape accepts a PyArray_Dims struct directly, avoiding a numpy array allocation for dims.
+    // Stack-allocate the dims for typical 2-8 dimensional arrays.
+    npy_intp dimsBuf[8];
+    npy_intp ndims = static_cast<npy_intp>( dims.size() );
+    npy_intp * dimsPtr;
+
+    std::vector<npy_intp> heapDims;
+    if( ndims <= 8 )
+    {
+        for( npy_intp i = 0; i < ndims; ++i )
+            dimsBuf[i] = static_cast<npy_intp>( dims[i] );
+        dimsPtr = dimsBuf;
+    }
+    else
+    {
+        heapDims.resize( ndims );
+        for( npy_intp i = 0; i < ndims; ++i )
+            heapDims[i] = static_cast<npy_intp>( dims[i] );
+        dimsPtr = heapDims.data();
+    }
+
+    PyArray_Dims newshape{ dimsPtr, static_cast<int>( ndims ) };
+    auto * flatPyArr = reinterpret_cast<PyArrayObject *>( toPythonBorrowed( flatData ) );
+    PyObjectPtr reshaped{ PyObjectPtr::own(
+        reinterpret_cast<PyObject *>( PyArray_Newshape( flatPyArr, &newshape, NPY_CORDER ) ) ) };
+    if( !reshaped.get() )
+        CSP_THROW( PythonPassthrough, "" );
+
+    return fromPython<DialectGenericType>( reshaped.get() );
+}
+
+std::vector<int64_t> numpyShape( DialectGenericType ndarray )
+{
+    auto * pyArr = reinterpret_cast<PyArrayObject *>( toPythonBorrowed( ndarray ) );
+    int ndim = PyArray_NDIM( pyArr );
+    npy_intp * shape = PyArray_SHAPE( pyArr );
+    std::vector<int64_t> result( ndim );
+    for( int i = 0; i < ndim; ++i )
+        result[i] = shape[i];
+    return result;
+}
+
+int npyTypeFromPyType( DialectGenericType pyTypeObj )
+{
+    auto & cspType = pyTypeAsCspType( toPythonBorrowed( pyTypeObj ) );
+
+    return csp::PartialSwitchCspType<csp::CspType::Type::DOUBLE, csp::CspType::Type::INT64,
+                                     csp::CspType::Type::BOOL, csp::CspType::Type::STRING,
+                                     csp::CspType::Type::DATETIME, csp::CspType::Type::TIMEDELTA,
+                                     csp::CspType::Type::DATE>::invoke(
+        cspType.get(),
+        []( auto tag ) -> int
+        {
+            using CValueType = typename decltype( tag )::type;
+            return NPY_TYPE<CValueType>::value;
+        }
+    );
+}
+
 
 }

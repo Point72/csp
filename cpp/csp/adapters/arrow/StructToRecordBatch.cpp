@@ -17,42 +17,22 @@ StructToRecordBatchConverter::StructToRecordBatchConverter(
 {
     std::vector<std::shared_ptr<::arrow::Field>> arrowFields;
 
-    if( fieldMap )
+    for( auto it = fieldMap -> begin(); it != fieldMap -> end(); ++it )
     {
-        // When fieldMap is provided, only include fields listed in it
-        for( auto it = fieldMap -> begin(); it != fieldMap -> end(); ++it )
-        {
-            auto fieldName = it.key();
-            auto colName   = it.value<std::string>();
-            auto structField = structMeta -> field( fieldName );
-            if( !structField )
-                continue;
+        auto fieldName = it.key();
+        auto colName   = it.value<std::string>();
+        auto structField = structMeta -> field( fieldName );
+        CSP_TRUE_OR_THROW_RUNTIME( structField != nullptr,
+            "Struct field '" << fieldName << "' not found on struct type '" << structMeta -> name() << "'" );
 
-            // Skip DIALECT_GENERIC fields (handled by custom writers)
-            if( structField -> type() -> type() == CspType::Type::DIALECT_GENERIC )
-                continue;
+        // Skip DIALECT_GENERIC fields (handled by custom writers)
+        if( structField -> type() -> type() == CspType::Type::DIALECT_GENERIC )
+            continue;
 
-            auto created = createFieldWriter( colName, structField );
-            for( auto & dt : created.writer -> dataTypes() )
-                arrowFields.push_back( std::make_shared<::arrow::Field>( colName, dt ) );
-            m_writers.push_back( std::move( created.writer ) );
-        }
-    }
-    else
-    {
-        // No fieldMap: include all non-DIALECT_GENERIC fields using fieldNames() for stable insertion order
-        // (fields() is sorted by type/size for memory layout optimization, not insertion order)
-        for( auto & fieldName : structMeta -> fieldNames() )
-        {
-            auto structField = structMeta -> field( fieldName );
-            if( !structField || structField -> type() -> type() == CspType::Type::DIALECT_GENERIC )
-                continue;
-
-            auto created = createFieldWriter( fieldName, structField );
-            for( auto & dt : created.writer -> dataTypes() )
-                arrowFields.push_back( std::make_shared<::arrow::Field>( fieldName, dt ) );
-            m_writers.push_back( std::move( created.writer ) );
-        }
+        auto created = createFieldWriter( colName, structField );
+        for( auto & dt : created.writer -> dataTypes() )
+            arrowFields.push_back( std::make_shared<::arrow::Field>( colName, dt ) );
+        m_writers.push_back( std::move( created.writer ) );
     }
 
     // Append custom writers and their columns to schema

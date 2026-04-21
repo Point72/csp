@@ -393,8 +393,8 @@ private:
 // These write all elements of a numpy array into an arrow value builder
 // (list start/end is handled by the caller, e.g. ListColumnArrayBuilder).
 
-template<typename T> struct ArrowArrayType       { using type = T; };
-template<>           struct ArrowArrayType<bool>  { using type = uint8_t; };
+template<typename T> struct ArrowArrayType  { using type = T; };
+template<> struct ArrowArrayType<bool>      { using type = uint8_t; };
 
 template<typename CspT, typename ArrowBuilderT>
 inline csp::adapters::arrow::ListItemsWriter makeNativeListItemsWriter(

@@ -96,7 +96,7 @@ inline PyObject * as_nparray( const csp::TimeSeriesProvider * ts, const TickBuff
 {
     int32_t len = startIndex - endIndex + 1;
     if( len <= 0 || !ts -> valid() || ( !tickBuffer && endIndex != 0 ) )
-        return empty_array( NPY_TYPE<DateTime>::value );
+        return empty_array( NPY_OBJECT );
 
     DateTime * values = getValues( tickBuffer, lastValue, startIndex, endIndex, &len, tailPadding );
     npy_intp dims[]{ ( npy_intp ) len };
@@ -107,6 +107,7 @@ inline PyObject * as_nparray( const csp::TimeSeriesProvider * ts, const TickBuff
         auto date_type = PyPtr<PyObject>::own( PyUnicode_FromString( "<M8[ns]" ) );
         PyArray_DescrConverter( date_type.get(), &datetime_descr );
     }
+
     // PyArray_NewFromDescr steals a reference
     Py_INCREF( datetime_descr );
     auto * array = PyArray_NewFromDescr( &PyArray_Type, datetime_descr, 1, dims, nullptr, values, 0, nullptr );
@@ -119,7 +120,7 @@ inline PyObject * as_nparray( const csp::TimeSeriesProvider * ts, const TickBuff
 {
     int32_t len = startIndex - endIndex + 1;
     if( len <= 0 || !ts -> valid()|| ( !tickBuffer && endIndex != 0 ) )
-        return empty_array( NPY_TYPE<TimeDelta>::value );
+        return empty_array( NPY_OBJECT );
 
     TimeDelta * values = getValues( tickBuffer, lastValue, startIndex, endIndex, &len, tailPadding );
     npy_intp dims[]{ ( npy_intp ) len };
@@ -130,6 +131,7 @@ inline PyObject * as_nparray( const csp::TimeSeriesProvider * ts, const TickBuff
         auto timedelta_type = PyPtr<PyObject>::own( PyUnicode_FromString( "<m8[ns]" ) );
         PyArray_DescrConverter( timedelta_type.get(), &timedelta_descr );
     }
+
     Py_INCREF( timedelta_descr );
     auto * array = PyArray_NewFromDescr( &PyArray_Type, timedelta_descr, 1, dims, nullptr, values, 0, nullptr );
     PyArray_ENABLEFLAGS( ( PyArrayObject * ) array, NPY_ARRAY_OWNDATA);

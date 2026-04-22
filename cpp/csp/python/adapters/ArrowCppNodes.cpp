@@ -4,15 +4,20 @@
 // RecordBatches are transported across the Python/C++ boundary as PyCapsules
 // using the Arrow C Data Interface.
 
+// Must include numpy first without NO_IMPORT_ARRAY to define PyArray_API in this TU
+#include <numpy/ndarrayobject.h>
 #include <csp/adapters/arrow/RecordBatchToStruct.h>
 #include <csp/adapters/arrow/StructToRecordBatch.h>
 #include <csp/engine/CppNode.h>
 #include <csp/engine/Dictionary.h>
+#include <csp/python/Common.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
 #include <csp/python/InitHelper.h>
 #include <csp/python/PyCppNode.h>
 #include <csp/python/PyNodeWrapper.h>
+#include <csp/python/adapters/ArrowNumpyListReader.h>
+#include <csp/python/adapters/ArrowNumpyListWriter.h>
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
 #include <arrow/record_batch.h>
@@ -67,12 +72,43 @@ DECLARE_CPPNODE( record_batches_to_struct )
 
         // Parse properties
         auto & props = properties.value();
-        DictionaryPtr fieldMap;
-        if( props -> exists( "field_map" ) )
-            fieldMap = props -> get<DictionaryPtr>( "field_map" );
+        auto fieldMap = props -> get<DictionaryPtr>( "field_map" );
+
+        // Optional: mapping of arrow_col_name -> dims_col_name for NDArray columns
+        DictionaryPtr numpyDimensionNames;
+        if( props -> exists( "numpy_dimension_names" ) )
+            numpyDimensionNames = props -> get<DictionaryPtr>( "numpy_dimension_names" );
 
         auto structMeta = cls.value();
-        s_converter = std::make_unique<RecordBatchToStructConverter>( s_schema, structMeta, fieldMap );
+
+        // Build FieldReader entries for numpy array fields
+        std::vector<std::unique_ptr<FieldReader>> customReaders;
+
+        if( props -> exists( "numpy_fields" ) )
+        {
+            auto numpyFields = props -> get<DictionaryPtr>( "numpy_fields" );
+
+            for( auto it = numpyFields -> begin(); it != numpyFields -> end(); ++it )
+            {
+                auto colName   = it.key();
+                auto fieldName = it.value<std::string>();
+                auto structField = structMeta -> field( fieldName );
+                CSP_TRUE_OR_THROW_RUNTIME( structField != nullptr,
+                                           "Struct field '" << fieldName << "' not found on struct type '" << structMeta -> name() << "'" );
+
+                if( numpyDimensionNames && numpyDimensionNames -> exists( colName ) )
+                {
+                    auto dimsColName = numpyDimensionNames -> get<std::string>( colName );
+                    customReaders.push_back( csp::python::createNumpyNDArrayReader(
+                        s_schema, colName, dimsColName, structField, csp::python::numpyReshape
+                    ) );
+                }
+                else
+                    customReaders.push_back( csp::python::createNumpyArrayReader( s_schema, colName, structField ) );
+            }
+        }
+
+        s_converter = std::make_unique<RecordBatchToStructConverter>( s_schema, structMeta, fieldMap, std::move( customReaders ) );
     }
 
     INVOKE()
@@ -150,11 +186,46 @@ DECLARE_CPPNODE( struct_to_record_batches )
 
         s_maxBatchSize = props -> get<int64_t>( "max_batch_size", 0 );
 
-        DictionaryPtr fieldMap;
-        if( props -> exists( "field_map" ) )
-            fieldMap = props -> get<DictionaryPtr>( "field_map" );
+        auto fieldMap = props -> get<DictionaryPtr>( "field_map" );
 
-        s_converter = std::make_unique<StructToRecordBatchConverter>( structMeta, fieldMap );
+        DictionaryPtr numpyDimensionNames;
+        if( props -> exists( "numpy_dimension_names" ) )
+            numpyDimensionNames = props -> get<DictionaryPtr>( "numpy_dimension_names" );
+
+        // Build FieldWriter entries for numpy array fields
+        std::vector<std::unique_ptr<FieldWriter>> customWriters;
+
+        if( props -> exists( "numpy_fields" ) )
+        {
+            auto numpyFields = props -> get<DictionaryPtr>( "numpy_fields" );
+            auto numpyElementTypes = props -> get<DictionaryPtr>( "numpy_element_types" );
+
+            for( auto it = numpyFields -> begin(); it != numpyFields -> end(); ++it )
+            {
+                auto colName   = it.key();
+                auto fieldName = it.value<std::string>();
+                auto structField = structMeta -> field( fieldName );
+                CSP_TRUE_OR_THROW_RUNTIME( structField != nullptr,
+                                           "Struct field '" << fieldName << "' not found on struct type '" << structMeta -> name() << "'" );
+
+                auto pyTypeObj = numpyElementTypes -> get<DialectGenericType>( fieldName );
+                int npyType = csp::python::npyTypeFromPyType( pyTypeObj );
+
+                if( numpyDimensionNames && numpyDimensionNames -> exists( colName ) )
+                {
+                    auto dimsColName = numpyDimensionNames -> get<std::string>( colName );
+                    customWriters.push_back(
+                        csp::python::createNumpyNDArrayWriter( colName, dimsColName, structField, npyType, csp::python::numpyShape ) );
+                }
+                else
+                {
+                    customWriters.push_back(
+                        csp::python::createNumpyArrayWriter( colName, structField, npyType ) );
+                }
+            }
+        }
+
+        s_converter = std::make_unique<StructToRecordBatchConverter>( structMeta, fieldMap, std::move( customWriters ) );
     }
 
     INVOKE()
@@ -196,3 +267,13 @@ EXPORT_CPPNODE( struct_to_record_batches );
 
 REGISTER_CPPNODE( csp::cppnodes, record_batches_to_struct );
 REGISTER_CPPNODE( csp::cppnodes, struct_to_record_batches );
+
+// import_array() expands to `return NULL` on error, so the enclosing function must return a pointer type
+static void * _init_numpy = []() -> void *
+{
+    csp::python::AcquireGIL gil;
+    import_array();
+    csp::python::registerNumpyListFieldReaderFactory();
+    csp::python::registerNumpyListFieldWriterFactory();
+    return nullptr;
+}();

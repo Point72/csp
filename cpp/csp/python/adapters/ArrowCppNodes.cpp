@@ -10,6 +10,7 @@
 #include <csp/adapters/arrow/StructToRecordBatch.h>
 #include <csp/engine/CppNode.h>
 #include <csp/engine/Dictionary.h>
+#include <csp/python/Common.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
 #include <csp/python/InitHelper.h>
@@ -98,14 +99,12 @@ DECLARE_CPPNODE( record_batches_to_struct )
                 if( numpyDimensionNames && numpyDimensionNames -> exists( colName ) )
                 {
                     auto dimsColName = numpyDimensionNames -> get<std::string>( colName );
-                    customReaders.push_back(
-                        csp::python::createNumpyNDArrayReader( s_schema, colName, dimsColName, structField, csp::python::numpyReshape ) );
+                    customReaders.push_back( csp::python::createNumpyNDArrayReader(
+                        s_schema, colName, dimsColName, structField, csp::python::numpyReshape
+                    ) );
                 }
                 else
-                {
-                    customReaders.push_back(
-                        csp::python::createNumpyArrayReader( s_schema, colName, structField ) );
-                }
+                    customReaders.push_back( csp::python::createNumpyArrayReader( s_schema, colName, structField ) );
             }
         }
 
@@ -269,17 +268,12 @@ EXPORT_CPPNODE( struct_to_record_batches );
 REGISTER_CPPNODE( csp::cppnodes, record_batches_to_struct );
 REGISTER_CPPNODE( csp::cppnodes, struct_to_record_batches );
 
-// Initialize numpy array API for this translation unit
-static bool _init_numpy = []()
+// import_array() expands to `return NULL` on error, so the enclosing function must return a pointer type
+static void * _init_numpy = []() -> void *
 {
-    csp::python::InitHelper::instance().registerCallback(
-        []( PyObject * module ) -> bool
-        {
-            import_array1( false );
-            csp::python::registerNumpyListFieldReaderFactory();
-            csp::python::registerNumpyListFieldWriterFactory();
-            return true;
-        }
-    );
-    return true;
+    csp::python::AcquireGIL gil;
+    import_array();
+    csp::python::registerNumpyListFieldReaderFactory();
+    csp::python::registerNumpyListFieldWriterFactory();
+    return nullptr;
 }();

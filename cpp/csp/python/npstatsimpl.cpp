@@ -1,6 +1,8 @@
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <Python.h> // needs to be included first
+
+#define NO_IMPORT_ARRAY
 #include <numpy/ndarrayobject.h>
 #include <numpy/npy_math.h> // need to be included before csp
 
@@ -25,14 +27,6 @@ template<> struct NPY_TYPE<int64_t>  { static const int value = NPY_LONGLONG; };
 template<> struct NPY_TYPE<double>   { static const int value = NPY_DOUBLE; };
 
 using namespace csp::cppnodes;
-
-static void * init_nparray()
-{
-    csp::python::AcquireGIL gil;
-    import_array();
-    return nullptr;
-}
-static void * s_init_array = init_nparray();
 
 // NumPy specific statistic functions
 

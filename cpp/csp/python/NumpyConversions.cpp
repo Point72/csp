@@ -1,4 +1,4 @@
-//this is included first so that we do include without NO_IMPORT_ARRAY defined, which is done in NumpyConversions.h
+#define NO_IMPORT_ARRAY
 #include <numpy/ndarrayobject.h>
 #include <numpy/npy_2_compat.h>
 
@@ -8,14 +8,6 @@
 
 #include <locale>
 #include <codecvt>
-
-static void * init_nparray()
-{
-    csp::python::AcquireGIL gil;
-    import_array();
-    return nullptr;
-}
-static void * s_init_array = init_nparray();
 
 namespace csp::python
 {

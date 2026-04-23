@@ -2,6 +2,7 @@ if(CSP_BUILD_ARROW_ADAPTER)
     add_library(arrowadapterimpl SHARED PyArrowInputAdapter.cpp ArrowCppNodes.cpp ArrowInputAdapter.h)
     target_link_libraries(arrowadapterimpl csp_core csp_engine cspimpl csp_arrow_adapter ${CSP_ARROW_LINK_LIBS})
     target_include_directories(arrowadapterimpl PUBLIC ${ARROW_INCLUDE_DIR})
+    target_compile_definitions(arrowadapterimpl PRIVATE PY_ARRAY_UNIQUE_SYMBOL=CSP_ARROWADAPTERIMPL_ARRAY_API)
     install(TARGETS arrowadapterimpl RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR} )
 endif()
 

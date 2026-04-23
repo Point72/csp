@@ -4,7 +4,7 @@
 // RecordBatches are transported across the Python/C++ boundary as PyCapsules
 // using the Arrow C Data Interface.
 
-// Must include numpy first without NO_IMPORT_ARRAY to define PyArray_API in this TU
+#define NO_IMPORT_ARRAY
 #include <numpy/ndarrayobject.h>
 #include <csp/adapters/arrow/RecordBatchToStruct.h>
 #include <csp/adapters/arrow/StructToRecordBatch.h>
@@ -268,11 +268,8 @@ EXPORT_CPPNODE( struct_to_record_batches );
 REGISTER_CPPNODE( csp::cppnodes, record_batches_to_struct );
 REGISTER_CPPNODE( csp::cppnodes, struct_to_record_batches );
 
-// import_array() expands to `return NULL` on error, so the enclosing function must return a pointer type
 static void * _init_numpy = []() -> void *
 {
-    csp::python::AcquireGIL gil;
-    import_array();
     csp::python::registerNumpyListFieldReaderFactory();
     csp::python::registerNumpyListFieldWriterFactory();
     return nullptr;

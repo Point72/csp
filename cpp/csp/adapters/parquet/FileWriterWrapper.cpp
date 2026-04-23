@@ -38,10 +38,10 @@ void FileWriterWrapper::open( const std::string &fileName, const std::string &co
     return it->second;
 }
 
-std::unique_ptr<arrow::util::Codec> FileWriterWrapper::resolveCompressionCodec( const std::string &compression )
+std::unique_ptr<::arrow::util::Codec> FileWriterWrapper::resolveCompressionCodec( const std::string &compression )
 {
     auto compressionType = resolveCompression( compression );
-    auto res = arrow::util::Codec::Create( compressionType );
+    auto res = ::arrow::util::Codec::Create( compressionType );
     STATUS_OK_OR_THROW_RUNTIME(res.status(), "Failed to create arrow codec for " << compressionType );
     return std::move(res.ValueUnsafe());
 }

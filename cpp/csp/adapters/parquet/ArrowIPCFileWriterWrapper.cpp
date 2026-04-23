@@ -13,9 +13,9 @@ void ArrowIPCFileWriterWrapper::openImpl( const std::string &fileName, const std
 
     PARQUET_ASSIGN_OR_THROW(
             m_outputStream,
-            arrow::io::FileOutputStream::Open( fileName.c_str()));
+            ::arrow::io::FileOutputStream::Open( fileName.c_str()));
 
-    arrow::ipc::IpcWriteOptions writeOptions;
+    ::arrow::ipc::IpcWriteOptions writeOptions;
     writeOptions.codec  = resolveCompressionCodec( compression );
 
     STATUS_OK_OR_THROW_RUNTIME(

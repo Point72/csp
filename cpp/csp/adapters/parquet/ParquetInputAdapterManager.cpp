@@ -1,32 +1,227 @@
 #include <csp/adapters/parquet/ParquetInputAdapterManager.h>
+#include <csp/adapters/arrow/ArrowTypeVisitor.h>
 #include <csp/engine/Dictionary.h>
-#include <csp/adapters/parquet/ParquetReader.h>
-#include <csp/adapters/parquet/ParquetReaderColumnAdapter.h>
+#include <csp/engine/CspEnum.h>
+#include <csp/engine/TypeCast.h>
+#include <csp/engine/PartialSwitchCspType.h>
 #include <arrow/type_traits.h>
 
 namespace csp::adapters::parquet
 {
 
-ParquetInputAdapterManager::ParquetInputAdapterManager( csp::Engine *engine, const Dictionary &properties,
-                                                        GeneratorPtr generatorPtr,
-                                                        TableGeneratorPtr tableGeneratorPtr) :
-        AdapterManager( engine ),
-        m_fileNameGeneratorReplicator( generatorPtr ? std::make_shared<FileNameGeneratorReplicator>( generatorPtr ) : nullptr ),
-        m_time_shift(0, 0),
-        m_tableGenerator(tableGeneratorPtr),
-        m_reader()
+uint16_t ParquetInputAdapterManager::DictBasketReaderRecord::getValueCount() const
 {
-    CSP_TRUE_OR_THROW_RUNTIME(!generatorPtr || !m_tableGenerator, "Trying to set both generatorPtr and tableGeneratorPtr");
-    CSP_TRUE_OR_THROW_RUNTIME(generatorPtr || m_tableGenerator, "Either generatorPtr or tableGeneratorPtr must be set");
+    auto opt = m_valueCountDispatcher -> getCurValue<uint16_t>();
+    CSP_TRUE_OR_THROW_RUNTIME( opt.has_value(), "Null value in dict basket value count column" );
+    return opt.value();
+}
+
+namespace
+{
+
+// Create a field setter lambda that reads from a ColumnDispatcher and writes to a Struct field.
+using FieldSetter = std::function<void( StructPtr & )>;
+
+template<typename ColType>
+FieldSetter makeFieldSetter( const StructFieldPtr & fieldPtr, arrow::ColumnDispatcher & dispatcher )
+{
+    using TypeSwitch = ConstructibleTypeSwitch<ColType>;
+    arrow::ColumnDispatcher * dispPtr = &dispatcher;
+    return TypeSwitch::invoke( fieldPtr -> type().get(),
+        [dispPtr, fieldPtr]( auto tag )
+        {
+            using FieldType = typename decltype(tag)::type;
+            return FieldSetter( [dispPtr, fieldPtr]( StructPtr & s )
+            {
+                auto & val = dispPtr -> getCurValue<ColType>();
+                if( val.has_value() )
+                    fieldPtr -> setValue<FieldType>( s.get(), csp::cast<FieldType>( val.value() ) );
+            } );
+        } );
+}
+
+FieldSetter createFieldSetterForDispatcher( const StructFieldPtr & fieldPtr,
+                                            arrow::ColumnDispatcher & dispatcher )
+{
+    arrow::ColumnDispatcher * dispPtr = &dispatcher;
+
+    // Enum fields: string → CspEnum coercion
+    if( fieldPtr -> type() -> type() == CspType::Type::ENUM )
+    {
+        auto enumMetaPtr = std::static_pointer_cast<const CspEnumType>( fieldPtr -> type() ) -> meta();
+        return FieldSetter( [dispPtr, fieldPtr, enumMetaPtr]( StructPtr & s )
+        {
+            auto & val = dispPtr -> getCurValue<std::string>();
+            if( val.has_value() )
+                fieldPtr -> setValue<CspEnum>( s.get(), enumMetaPtr -> fromString( val.value().c_str() ) );
+        } );
+    }
+
+    // Map arrow type to C++ column type via visitor
+    return arrow::visitArrowValueType( dispatcher.arrowTypeId(),
+        [&]( auto tag ) -> FieldSetter
+        {
+            using T = typename decltype( tag )::type;
+            return makeFieldSetter<T>( fieldPtr, dispatcher );
+        },
+        [&]() -> FieldSetter
+        {
+            CSP_THROW( TypeError, "Unsupported arrow type for struct field '" << fieldPtr -> fieldname() << "'" );
+        } );
+}
+
+} // anonymous namespace
+
+// Helper to validate arrow type is compatible with subscriber's CspType
+static void ensureType( const std::string & columnName, ::arrow::Type::type arrowType, const std::string & arrowTypeName,
+                        const CspType * cspType )
+{
+    using T = CspType::Type;
+    auto t = cspType -> type();
+
+    bool compatible = false;
+    switch( arrowType )
+    {
+        case ::arrow::Type::BOOL:
+            compatible = ( t == T::BOOL );
+            break;
+        case ::arrow::Type::INT8:
+        case ::arrow::Type::INT16:
+        case ::arrow::Type::INT32:
+        case ::arrow::Type::INT64:
+        case ::arrow::Type::UINT8:
+        case ::arrow::Type::UINT16:
+        case ::arrow::Type::UINT32:
+        case ::arrow::Type::UINT64:
+            compatible = ( t == T::INT8 || t == T::UINT8 || t == T::INT16 || t == T::UINT16 ||
+                           t == T::INT32 || t == T::UINT32 || t == T::INT64 || t == T::UINT64 ||
+                           t == T::DOUBLE );
+            break;
+        case ::arrow::Type::HALF_FLOAT:
+        case ::arrow::Type::FLOAT:
+        case ::arrow::Type::DOUBLE:
+            compatible = ( t == T::DOUBLE );
+            break;
+        case ::arrow::Type::STRING:
+        case ::arrow::Type::LARGE_STRING:
+        case ::arrow::Type::BINARY:
+        case ::arrow::Type::LARGE_BINARY:
+        case ::arrow::Type::FIXED_SIZE_BINARY:
+        case ::arrow::Type::DICTIONARY:
+            compatible = ( t == T::STRING || t == T::ENUM );
+            break;
+        case ::arrow::Type::TIMESTAMP:
+            compatible = ( t == T::DATETIME );
+            break;
+        case ::arrow::Type::DURATION:
+            compatible = ( t == T::TIMEDELTA );
+            break;
+        case ::arrow::Type::DATE32:
+        case ::arrow::Type::DATE64:
+            compatible = ( t == T::DATE );
+            break;
+        case ::arrow::Type::TIME32:
+        case ::arrow::Type::TIME64:
+            compatible = ( t == T::TIME );
+            break;
+        case ::arrow::Type::LIST:
+        case ::arrow::Type::LARGE_LIST:
+            compatible = ( t == T::DIALECT_GENERIC );
+            break;
+        case ::arrow::Type::STRUCT:
+            compatible = ( t == T::STRUCT );
+            break;
+        default:
+            compatible = false;
+    }
+
+    CSP_TRUE_OR_THROW( compatible, TypeError,
+        "Unexpected column type for column " << columnName << " , expected " << t.asCString()
+        << " got " << arrowTypeName );
+}
+
+// --- StructSubscription ---
+
+void ParquetInputAdapterManager::StructSubscription::createFieldSetters(
+    arrow::RecordBatchRowProcessor & processor,
+    const std::shared_ptr<::arrow::Schema> & schema )
+{
+    m_fieldSetters.clear();
+    for( auto it = m_fieldMap -> begin(); it != m_fieldMap -> end(); ++it )
+    {
+        auto & parquetColumnName = it.key();
+        auto & structFieldName   = it.value<std::string>();
+        auto * dispatcher        = processor.getDispatcher( parquetColumnName );
+        if( !dispatcher )
+            continue;  // missing column (allowMissing)
+
+        auto fieldPtr = m_structMeta -> field( structFieldName );
+        CSP_TRUE_OR_THROW_RUNTIME( fieldPtr != nullptr,
+            "No field '" << structFieldName << "' in struct " << m_structMeta -> name() );
+
+        // For STRUCT-type fields, ensure the dispatcher exists with proper StructMeta.
+        // If it doesn't already exist (because setupFromSchema skipped it), create and add it.
+        if( fieldPtr -> type() -> type() == CspType::Type::STRUCT &&
+            dispatcher -> arrowTypeId() != ::arrow::Type::STRUCT )
+        {
+            continue;  // type mismatch, skip
+        }
+
+        m_fieldSetters.push_back( createFieldSetterForDispatcher( fieldPtr, *dispatcher ) );
+    }
+}
+
+void ParquetInputAdapterManager::StructSubscription::dispatchValue( const utils::Symbol * symbol )
+{
+    auto allSymbolSubscribers = m_valueDispatcher.getSubscribers();
+    auto symbolSubscribers    = symbol != nullptr ? m_valueDispatcher.getSubscribersForSymbol( *symbol ) : nullptr;
+
+    if( allSymbolSubscribers == nullptr && symbolSubscribers == nullptr )
+        return;
+
+    StructPtr s{ m_structMeta -> create() };
+    for( auto & setter : m_fieldSetters )
+        setter( s );
+
+    if( allSymbolSubscribers )
+        m_valueDispatcher.dispatch( &s, *allSymbolSubscribers );
+    if( symbolSubscribers )
+        m_valueDispatcher.dispatch( &s, *symbolSubscribers );
+}
+
+void ParquetInputAdapterManager::StructSubscription::addSubscriber(
+    ManagedSimInputAdapter * adapter, std::optional<utils::Symbol> symbol )
+{
+    CSP_TRUE_OR_THROW( adapter -> type() -> type() == CspType::Type::STRUCT, TypeError,
+        "Subscribing unexpected type " << adapter -> type() -> type() << " as struct" );
+    auto meta = static_cast<const CspStructType *>( adapter -> type() ) -> meta();
+    CSP_TRUE_OR_THROW( meta == m_structMeta, TypeError,
+        "Subscribing " << meta -> name() << " where " << m_structMeta -> name() << " is expected" );
+
+    m_valueDispatcher.addSubscriber( [ adapter ]( StructPtr * s )
+    {
+        if( s )
+            adapter -> pushTick( *s );
+        else
+            adapter -> pushNullTick<StructPtr>();
+    }, symbol );
+}
+
+// --- ParquetInputAdapterManager core ---
+
+ParquetInputAdapterManager::ParquetInputAdapterManager( csp::Engine *engine, const Dictionary &properties,
+                                                        RecordBatchStreamSourcePtr streamSource) :
+        AdapterManager( engine ),
+        m_time_shift(0, 0),
+        m_streamSource(streamSource)
+{
+    CSP_TRUE_OR_THROW_RUNTIME( m_streamSource, "RecordBatch stream source must be provided" );
 
     m_symbolColumn        = properties.get<std::string>( "symbol_column", "" );
     m_timeColumn          = properties.get<std::string>( "time_column", "" );
     m_defaultTimezone     = properties.get<std::string>( "tz", "UTC" );
-    m_splitColumnsToFiles = properties.get<bool>( "split_columns_to_files" );
-    m_isArrowIPC = properties.get<bool>( "is_arrow_ipc", false );
     m_allowOverlappingPeriods = properties.get<bool>( "allow_overlapping_periods", false );
     m_allowMissingColumns = properties.get<bool>( "allow_missing_columns", false );
-    m_allowMissingFiles = properties.get<bool>( "allow_missing_files", false );
     properties.tryGet( "start_time", m_startTime );
     properties.tryGet( "end_time", m_endTime );
     properties.tryGet( "time_shift", m_time_shift );
@@ -40,6 +235,324 @@ ParquetInputAdapterManager::~ParquetInputAdapterManager()
 {
 }
 
+bool ParquetInputAdapterManager::getNextBatch()
+{
+    // Try pulling from current main reader (pure C++, no GIL needed)
+    if( m_mainReader )
+    {
+        std::shared_ptr<::arrow::RecordBatch> batch;
+        auto status = m_mainReader -> ReadNext( &batch );
+        if( !status.ok() )
+            CSP_THROW( RuntimeException, "Failed to read batch: " << status.ToString() );
+        if( batch )
+        {
+            m_curBatch  = batch;
+            m_curSchema = batch -> schema();
+            m_schemaChanged = false;  // same reader = same schema
+            m_hasData   = true;
+            return true;
+        }
+    }
+
+    // Reader exhausted — advance to next stream (requires Python/GIL)
+    while( m_streamSource -> nextStream() )
+    {
+        m_mainReader = m_streamSource -> mainReader();
+        m_curBasketBatches = m_streamSource -> basketBatches();
+
+        std::shared_ptr<::arrow::RecordBatch> batch;
+        auto status = m_mainReader -> ReadNext( &batch );
+        if( !status.ok() )
+            CSP_THROW( RuntimeException, "Failed to read batch: " << status.ToString() );
+        if( batch )
+        {
+            auto schema = batch -> schema();
+            m_schemaChanged = m_curSchema && !m_curSchema -> Equals( *schema );
+            m_curSchema = schema;
+            m_curBatch  = batch;
+            m_hasData   = true;
+            return true;
+        }
+        // Empty stream — try next
+    }
+
+    m_hasData  = false;
+    m_curBatch = nullptr;
+    m_curBasketBatches.clear();
+    return false;
+}
+
+void ParquetInputAdapterManager::collectAdapterColumns(
+    const AdaptersBySymbol & adaptersBySymbol,
+    std::set<std::string> & columns )
+{
+    for( auto && adaptersForSymbol : adaptersBySymbol )
+    {
+        for( auto && entry : adaptersForSymbol.second.m_adaptersByColumnName )
+            columns.insert( entry.first );
+
+        for( auto && entry : adaptersForSymbol.second.m_structAdapters )
+        {
+            auto && fieldMap = entry.first.fieldMap();
+            for( auto it = fieldMap -> begin(); it != fieldMap -> end(); ++it )
+                columns.insert( it.key() );
+        }
+    }
+}
+
+void ParquetInputAdapterManager::setupProcessor(
+    arrow::RecordBatchRowProcessor & processor,
+    const std::shared_ptr<::arrow::Schema> & schema,
+    const std::set<std::string> & neededColumns,
+    const AdaptersBySymbol & adaptersBySymbol,
+    bool subscribeAllOnEmptySymbol )
+{
+    // Collect all needed columns using the shared helper
+    std::set<std::string> allColumns{ neededColumns };
+    collectAdapterColumns( adaptersBySymbol, allColumns );
+
+    // Additionally collect StructMeta for STRUCT columns so setupFromSchema
+    // can create all dispatchers in a single pass.
+    std::unordered_map<std::string, std::shared_ptr<const StructMeta>> structMetaByColumn;
+
+    for( auto && adaptersForSymbol : adaptersBySymbol )
+    {
+        for( auto && entry : adaptersForSymbol.second.m_adaptersByColumnName )
+        {
+            auto * adapterType = entry.second.m_adapter -> dataType();
+            if( adapterType -> type() == CspType::Type::STRUCT )
+            {
+                auto meta = static_cast<const CspStructType *>( adapterType ) -> meta();
+                auto [it2, inserted] = structMetaByColumn.emplace( entry.first, meta );
+                if( !inserted && it2 -> second != meta )
+                    CSP_THROW( TypeError, "Conflicting struct types for column '" << entry.first
+                        << "': multiple subscriptions use different struct types for the same STRUCT column" );
+            }
+        }
+
+        for( auto && entry : adaptersForSymbol.second.m_structAdapters )
+        {
+            auto parentMeta = std::static_pointer_cast<const CspStructType>( entry.first.type() ) -> meta();
+            auto && fieldMap = entry.first.fieldMap();
+            for( auto it = fieldMap -> begin(); it != fieldMap -> end(); ++it )
+            {
+                auto & structFieldName = it.value<std::string>();
+                auto fieldPtr = parentMeta -> field( structFieldName );
+                if( fieldPtr && fieldPtr -> type() -> type() == CspType::Type::STRUCT )
+                {
+                    auto meta = std::static_pointer_cast<const CspStructType>( fieldPtr -> type() ) -> meta();
+                    auto [it2, inserted] = structMetaByColumn.emplace( it.key(), meta );
+                    if( !inserted && it2 -> second != meta )
+                        CSP_THROW( TypeError, "Conflicting struct types for column '" << it.key()
+                            << "': multiple subscriptions use different struct types for the same STRUCT column" );
+                }
+            }
+        }
+    }
+
+    processor.setupFromSchema( schema, allColumns, m_allowMissingColumns, structMetaByColumn );
+}
+
+void ParquetInputAdapterManager::subscribeAdapters(
+    arrow::RecordBatchRowProcessor & processor,
+    const AdaptersBySymbol & adaptersBySymbol,
+    bool subscribeAllOnEmptySymbol,
+    std::vector<std::unique_ptr<StructSubscription>> & structSubscriptions )
+{
+    for( auto & symMapPair : adaptersBySymbol )
+    {
+        std::optional<utils::Symbol> symbol;
+        if( !subscribeAllOnEmptySymbol ||
+            !std::holds_alternative<std::string>( symMapPair.first ) ||
+            ( std::holds_alternative<std::string>( symMapPair.first ) &&
+              std::get<std::string>( symMapPair.first ) != "" ) )
+        {
+            symbol = symMapPair.first;
+        }
+
+        // Validate symbol type if subscriber specified one
+        if( symbol.has_value() && !m_symbolColumn.empty() )
+        {
+            if( m_symbolType == CspType::Type::STRING )
+                CSP_TRUE_OR_THROW( std::holds_alternative<std::string>( symbol.value() ), TypeError,
+                    "Provided symbol type does not match symbol column type (string)" );
+            else if( m_symbolType == CspType::Type::INT64 )
+                CSP_TRUE_OR_THROW( std::holds_alternative<int64_t>( symbol.value() ), TypeError,
+                    "Provided symbol type does not match symbol column type (int64)" );
+        }
+
+        // Scalar/list column subscriptions
+        for( auto & columnPair : symMapPair.second.m_adaptersByColumnName )
+        {
+            if( !processor.hasColumn( columnPair.first ) )
+                continue;  // missing column
+
+            // List type validation: adapter type must match arrow column type
+            auto * dispatcher = processor.getDispatcher( columnPair.first );
+            bool isList = ( dispatcher -> arrowTypeId() == ::arrow::Type::LIST ||
+                            dispatcher -> arrowTypeId() == ::arrow::Type::LARGE_LIST );
+            bool isListAdapter = ( columnPair.second.m_adapter -> dataType() -> type() == CspType::Type::DIALECT_GENERIC );
+
+            CSP_TRUE_OR_THROW_RUNTIME( !isList || isListAdapter,
+                "Column " << columnPair.first << " is a list column while subscribing as non-list" );
+            CSP_TRUE_OR_THROW_RUNTIME( isList || !isListAdapter,
+                "Column " << columnPair.first << " is not a list column while subscribing as list" );
+
+            // Type validation: check arrow column type matches subscriber's CspType
+            auto * adapterCspType = columnPair.second.m_adapter -> dataType();
+            int colIdx = m_curSchema -> GetFieldIndex( columnPair.first );
+            if( colIdx >= 0 )
+            {
+                auto arrowField = m_curSchema -> field( colIdx );
+                ensureType( columnPair.first, dispatcher -> arrowTypeId(),
+                            arrowField -> type() -> name(), adapterCspType );
+            }
+
+            processor.addSubscriber( columnPair.first, columnPair.second.m_adapter, symbol );
+        }
+
+        // Struct subscriptions
+        for( auto & structPair : symMapPair.second.m_structAdapters )
+        {
+
+            auto structMeta = std::static_pointer_cast<const CspStructType>( structPair.first.type() ) -> meta();
+
+            // Find or create the StructSubscription
+            StructSubscription * sub = nullptr;
+            for( auto & existing : structSubscriptions )
+            {
+                if( existing -> m_structMeta == structMeta && existing -> m_fieldMap == structPair.first.fieldMap() )
+                {
+                    sub = existing.get();
+                    break;
+                }
+            }
+            if( !sub )
+            {
+                auto newSub = std::make_unique<StructSubscription>();
+                newSub -> m_structMeta = structMeta;
+                newSub -> m_fieldMap   = structPair.first.fieldMap();
+                sub = newSub.get();
+                structSubscriptions.push_back( std::move( newSub ) );
+            }
+
+            sub -> addSubscriber( structPair.second.m_adapter, symbol );
+            sub -> createFieldSetters( processor, m_curSchema );
+        }
+    }
+}
+
+void ParquetInputAdapterManager::setupBasketProcessor(
+    DictBasketReaderRecord & record,
+    const AdaptersBySymbol & adaptersBySymbol )
+{
+    std::string symCol = record.m_basketName + "__csp_symbol";
+    std::set<std::string> basketNeeded{ symCol };
+
+    // Use setupProcessor to collect columns, struct meta, and call setupFromSchema
+    auto batchIt = m_curBasketBatches.find( record.m_basketName );
+    auto schema = ( batchIt != m_curBasketBatches.end() )
+        ? batchIt -> second -> schema() : m_curSchema;
+
+    setupProcessor( *record.m_processor, schema, basketNeeded, adaptersBySymbol, false );
+
+    // Subscribe adapters
+    record.m_structSubscriptions.clear();
+    subscribeAdapters( *record.m_processor, adaptersBySymbol, false, record.m_structSubscriptions );
+
+    // Bind batch
+    if( batchIt != m_curBasketBatches.end() )
+        record.m_processor -> bindBatch( *batchIt -> second );
+}
+
+bool ParquetInputAdapterManager::readNextRow()
+{
+    if( !m_hasData ) [[unlikely]]
+        return false;
+
+    // If processor has more rows, read from it
+    if( m_processor -> hasMoreRows() )
+    {
+        m_processor -> readNextRow();
+        return true;
+    }
+
+    // Current batch exhausted — get next non-empty batch
+    do
+    {
+        if( !getNextBatch() )
+            return false;
+    } while( m_curBatch -> num_rows() == 0 );
+
+    // Handle schema change (new file with different columns)
+    if( m_schemaChanged )
+    {
+        m_structSubscriptions.clear();
+        setupProcessor( *m_processor, m_curSchema, m_neededColumns, m_simInputAdapters, true );
+        subscribeAdapters( *m_processor, m_simInputAdapters, true, m_structSubscriptions );
+
+        // Rebuild dict basket readers after schema change.
+        // setupProcessor destroys and recreates dispatchers in m_processor,
+        // invalidating the raw m_valueCountDispatcher pointers.
+        for( auto & record : m_dictBasketReaders )
+        {
+            auto adapterIt = m_dictBasketInputAdapters.find( record.m_basketName );
+            if( adapterIt == m_dictBasketInputAdapters.end() )
+                continue;
+
+            auto vcName = record.m_basketName + "__csp_value_count";
+            record.m_valueCountDispatcher = m_processor -> getDispatcher( vcName );
+            setupBasketProcessor( record, adapterIt -> second );
+        }
+
+        m_schemaChanged = false;
+    }
+
+    m_processor -> bindBatch( *m_curBatch );
+    // Rebind dict basket processors to their new basket batches
+    for( auto && record : m_dictBasketReaders )
+    {
+        auto it = m_curBasketBatches.find( record.m_basketName );
+        if( it != m_curBasketBatches.end() )
+            record.m_processor -> bindBatch( *it -> second );
+    }
+    m_processor -> readNextRow();
+    return true;
+}
+
+const utils::Symbol * ParquetInputAdapterManager::getCurSymbol()
+{
+    if( m_symbolColumn.empty() )
+        return nullptr;
+
+    auto * dispatcher = m_processor -> getDispatcher( m_symbolColumn );
+    if( !dispatcher )
+        return nullptr;
+
+    switch( m_symbolType )
+    {
+        case CspType::Type::STRING:
+        {
+            auto & curSymbol = dispatcher -> getCurValue<std::string>();
+            CSP_TRUE_OR_THROW_RUNTIME( curSymbol.has_value(),
+                "Parquet file row contains row with no value for symbol column " << m_symbolColumn );
+            m_curSymbol = curSymbol.value();
+            break;
+        }
+        case CspType::Type::INT64:
+        {
+            auto & curSymbol = dispatcher -> getCurValue<int64_t>();
+            CSP_TRUE_OR_THROW_RUNTIME( curSymbol.has_value(),
+                "Parquet file row contains row with no value for symbol column " << m_symbolColumn );
+            m_curSymbol = curSymbol.value();
+            break;
+        }
+        default:
+            CSP_THROW( RuntimeException, "Unexpected symbol type: " << m_symbolType );
+    }
+    return &m_curSymbol;
+}
+
 void ParquetInputAdapterManager::start( DateTime starttime, DateTime endtime )
 {
     if( !m_startTime.isNone() )
@@ -47,183 +560,135 @@ void ParquetInputAdapterManager::start( DateTime starttime, DateTime endtime )
         starttime = std::max(starttime, m_startTime);
     }
     AdapterManager::start( starttime, endtime );
-    CSP_TRUE_OR_THROW_RUNTIME( m_reader == nullptr, "Starting parquet adapter manager more than once" );
-    if(m_fileNameGeneratorReplicator)
-    {
-        m_fileNameGeneratorReplicator -> init( starttime, endtime );
-    }
-    else
-    {
-        m_tableGenerator->init(starttime, endtime);
-    }
+    CSP_TRUE_OR_THROW_RUNTIME( m_processor == nullptr, "Starting parquet adapter manager more than once" );
 
-    std::optional<std::string> symbolColumn;
-    std::set<std::string>      neededColumns;
-
+    // Collect base needed columns (used by setupProcessor for the main batch)
     if( m_symbolColumn != "" )
-    {
-        neededColumns.insert( m_symbolColumn );
-        symbolColumn = m_symbolColumn;
-    }
-    neededColumns.insert( m_timeColumn );
+        m_neededColumns.insert( m_symbolColumn );
+    m_neededColumns.insert( m_timeColumn );
 
-    for( auto &&it : m_dictBasketInputAdapters )
+    for( auto && it : m_dictBasketInputAdapters )
+        m_neededColumns.insert( it.first + "__csp_value_count" );
+
+    // Build complete projection set for the stream factory so the scanner
+    // only reads columns we actually need (parquet is columnar — skipping
+    // unneeded columns avoids disk IO).
+    std::set<std::string> projectionColumns = m_neededColumns;
+    collectAdapterColumns( m_simInputAdapters, projectionColumns );
+
+    for( auto && dictPair : m_dictBasketInputAdapters )
     {
-        neededColumns.insert( it.first + "__csp_value_count" );
-    }
-    m_reader = initializeParquetReader( symbolColumn, neededColumns, m_simInputAdapters, true, true );
-    if(m_reader == nullptr)
-    {
-        return;
+        projectionColumns.insert( dictPair.first + "__csp_symbol" );
+        collectAdapterColumns( dictPair.second, projectionColumns );
     }
 
-    for( auto &&it : m_dictBasketInputAdapters )
+    m_streamSource -> init( starttime, endtime, projectionColumns );
+
+    // Create processor and get first batch
+    m_processor = std::make_unique<arrow::RecordBatchRowProcessor>();
+
+    if( !getNextBatch() )
+        return;  // no data
+
+    // Setup processor with schema and subscribe adapters
+    setupProcessor( *m_processor, m_curSchema, m_neededColumns, m_simInputAdapters, true );
+
+    // Determine symbol type BEFORE subscribing (validation needs it)
+    if( !m_symbolColumn.empty() )
+    {
+        auto * symDispatcher = m_processor -> getDispatcher( m_symbolColumn );
+        CSP_TRUE_OR_THROW_RUNTIME( symDispatcher != nullptr, "Symbol column '" << m_symbolColumn << "' not found" );
+        auto symType = symDispatcher -> arrowTypeId();
+        if( symType == ::arrow::Type::STRING || symType == ::arrow::Type::LARGE_STRING ||
+            symType == ::arrow::Type::DICTIONARY )
+            m_symbolType = CspType::Type::STRING;
+        else if( symType == ::arrow::Type::INT64 )
+            m_symbolType = CspType::Type::INT64;
+        else
+            CSP_THROW( TypeError, "Invalid symbol column type. Only string and int64 symbols are currently supported" );
+    }
+
+    subscribeAdapters( *m_processor, m_simInputAdapters, true, m_structSubscriptions );
+
+    // Bind first batch to processor
+    m_processor -> bindBatch( *m_curBatch );
+
+    // Dict basket setup
+    for( auto && it : m_dictBasketInputAdapters )
     {
         auto valueCountColumnName = it.first + "__csp_value_count";
-        std::string basketSymbolColumn = it.first + +"__csp_symbol";
-        DictBasketReaderRecord record{ ( *m_reader )[ valueCountColumnName ], nullptr };
-        record.m_valueCountColumn -> ensureType( CspType::UINT16() );
-        neededColumns.insert( valueCountColumnName );
 
-        record.m_reader = initializeParquetReader( basketSymbolColumn, { basketSymbolColumn }, it.second,
-                                                     false );
+        DictBasketReaderRecord record;
+        record.m_basketName = it.first;
+        record.m_basketSymbolColumn = it.first + "__csp_symbol";
+        record.m_valueCountDispatcher = m_processor -> getDispatcher( valueCountColumnName );
+        CSP_TRUE_OR_THROW_RUNTIME( record.m_valueCountDispatcher != nullptr,
+            "Value count column '" << valueCountColumnName << "' not found" );
+
+        record.m_processor = std::make_unique<arrow::RecordBatchRowProcessor>();
+        setupBasketProcessor( record, it.second );
         m_dictBasketReaders.push_back( std::move( record ) );
     }
 
-    m_timestampColumnAdapter = ( *m_reader )[ m_timeColumn ];
-    CSP_TRUE_OR_THROW_RUNTIME( m_timestampColumnAdapter.valid(), "m_timestampColumnAdapter is NULL" );
-    m_timestampColumnAdapter -> ensureType( CspType::DATETIME() );
+    // Validate time column
+    auto * timeDispatcher = m_processor -> getDispatcher( m_timeColumn );
+    CSP_TRUE_OR_THROW_RUNTIME( timeDispatcher != nullptr, "Time column '" << m_timeColumn << "' not found" );
+    CSP_TRUE_OR_THROW_RUNTIME( timeDispatcher -> arrowTypeId() == ::arrow::Type::TIMESTAMP,
+        "Time column must be timestamp type" );
 
-}
-
-std::unique_ptr<ParquetReader> ParquetInputAdapterManager::initializeParquetReader( const std::optional<std::string> &symbolColumn,
-                                                                                    const std::set<std::string> &neededColumns,
-                                                                                    const ParquetInputAdapterManager::AdaptersBySymbol &adaptersBySymbol,
-                                                                                    bool subscribeAllOnEmptySymbol,
-                                                                                    bool nullOnEmpty) const
-{
-    std::set<std::string> neededColumnsCopy{ neededColumns };
-    for( auto &&adaptersForSymbol : adaptersBySymbol )
+    // Read first row
+    if( !readNextRow() )
     {
-        for( auto &&columnAdapterEntryIt : adaptersForSymbol.second.m_adaptersByColumnName )
-        {
-            neededColumnsCopy.insert(columnAdapterEntryIt.first);
-        }
-        for( auto &&structAdapterEntryIt : adaptersForSymbol.second.m_structAdapters )
-        {
-            auto &&fieldMap = structAdapterEntryIt.first.fieldMap();
-            for( auto it = fieldMap -> begin(); it != fieldMap -> end(); ++it )
-            {
-                neededColumnsCopy.insert( it.key() );
-            }
-        }
+        m_hasData = false;
+        return;
     }
-
-    std::vector<std::string>       columns( neededColumnsCopy.begin(), neededColumnsCopy.end() );
-    std::unique_ptr<ParquetReader> reader;
-
-    if( m_splitColumnsToFiles )
-    {
-        CSP_TRUE_OR_THROW_RUNTIME(m_fileNameGeneratorReplicator, "Trying to read split columns from file while reading in memory tables");
-        reader.reset( new MultipleFileParquetReader( m_fileNameGeneratorReplicator, columns, m_isArrowIPC, m_allowMissingColumns, symbolColumn ) );
-    }
-    else
-    {
-        if(m_fileNameGeneratorReplicator)
-        {
-            reader.reset( new SingleFileParquetReader( m_fileNameGeneratorReplicator -> getGeneratorReplica(), columns, m_isArrowIPC,
-                                                         m_allowMissingColumns, m_allowMissingFiles, symbolColumn ) );
-        }
-        else
-        {
-            reader.reset( new InMemoryTableParquetReader( m_tableGenerator, columns, m_allowMissingColumns, symbolColumn ) );
-        }
-    }
-    if(!reader->isEmpty())
-    {
-        for( auto &symMapPair : adaptersBySymbol )
-        {
-            std::optional<utils::Symbol> symbol;
-            if( !subscribeAllOnEmptySymbol ||
-                !std::holds_alternative<std::string>( symMapPair.first ) ||
-                ( std::holds_alternative<std::string>( symMapPair.first ) &&
-                  std::get<std::string>( symMapPair.first ) != "" ) )
-            {
-                symbol = symMapPair.first;
-            }
-
-            for( auto &columnAdapterPair:symMapPair.second.m_adaptersByColumnName )
-            {
-                auto &&columnAdapter       = ( *reader )[ columnAdapterPair.first ];
-                auto &&listReaderInterface = columnAdapterPair.second.m_listReaderInterface;
-                CSP_TRUE_OR_THROW_RUNTIME( !columnAdapter->isListType() || listReaderInterface != nullptr,
-                                           "Column " << columnAdapterPair.first << " is a list column in parquet file "
-                                                     << reader -> getCurFileOrTableName() << " while subscribing as non list" );
-                CSP_TRUE_OR_THROW_RUNTIME( columnAdapter->isListType() || listReaderInterface == nullptr,
-                                           "Column " << columnAdapterPair.first << " is a list is non list in parquet file "
-                                                     << reader -> getCurFileOrTableName() << " while subscribing to it as list" );
-
-                if(columnAdapter->isListType())
-                {
-                    reader->addListSubscriber(columnAdapterPair.first, columnAdapterPair.second.m_adapter,
-                            symbol, listReaderInterface);
-
-                }
-                else
-                {
-                    reader -> addSubscriber( columnAdapterPair.first, columnAdapterPair.second.m_adapter,
-                                             symbol );
-                }
-            }
-            for( auto &structAdapterPair:symMapPair.second.m_structAdapters )
-            {
-                CSP_TRUE_OR_THROW_RUNTIME( structAdapterPair.second.m_listReaderInterface == nullptr,
-                                           "Struct adapter is not expected to have list reader interface set" );
-                reader -> getStructAdapter( structAdapterPair.first ).addSubscriber(
-                        structAdapterPair.second.m_adapter, symbol );
-            }
-        }
-    }
-    if(!reader->start() && nullOnEmpty)
-    {
-        return std::unique_ptr<ParquetReader>(nullptr);
-    }
-    return reader;
 }
 
 void ParquetInputAdapterManager::stop()
 {
-    m_reader.reset( nullptr );
+    m_processor.reset();
+    m_mainReader.reset();
+    m_curBatch.reset();
+    m_curSchema.reset();
     m_dictBasketReaders.clear();
-    m_timestampColumnAdapter      = nullptr;
-    m_fileNameGeneratorReplicator = nullptr;
-    m_tableGenerator = nullptr;
+    m_structSubscriptions.clear();
+    m_hasData = false;
+    m_streamSource = nullptr;
     AdapterManager::stop();
 }
 
 DateTime ParquetInputAdapterManager::processNextSimTimeSlice( DateTime time )
 {
-    if( !m_reader || !m_reader -> hasData() ) [[unlikely]]
+    if( !m_hasData ) [[unlikely]]
     {
         return DateTime::NONE();
     }
+
+    auto getTimeDispatcher = [this]() { return m_processor -> getDispatcher( m_timeColumn ); };
     auto data_reference_time = time - m_time_shift;
-    auto nextDataTime = m_timestampColumnAdapter -> getCurValue<DateTime>();
+    auto nextDataTime = getTimeDispatcher() -> getCurValue<DateTime>();
+    CSP_TRUE_OR_THROW_RUNTIME( nextDataTime.has_value(), "Null value in time column '" << m_timeColumn << "'" );
+
     while( !nextDataTime.value().isNone() && nextDataTime.value() < data_reference_time )
     {
-        for( auto &&dictBasketRecord:m_dictBasketReaders )
+        for( auto && dictBasketRecord : m_dictBasketReaders )
         {
-            auto numValuesToSkip = dictBasketRecord.m_valueCountColumn -> getCurValue<uint16_t>().value();
-            dictBasketRecord.m_reader -> skipRows( numValuesToSkip );
+            auto numValuesToSkip = dictBasketRecord.getValueCount();
+            for( uint16_t i = 0; i < numValuesToSkip; ++i )
+            {
+                dictBasketRecord.m_processor -> skipRow();
+            }
         }
-        if(!m_reader -> skipRow())
+        if( !readNextRow() )
         {
             nextDataTime = DateTime::NONE();
             break;
         }
-        nextDataTime = m_timestampColumnAdapter -> getCurValue<DateTime>();
+        nextDataTime = getTimeDispatcher() -> getCurValue<DateTime>();
+        CSP_TRUE_OR_THROW_RUNTIME( nextDataTime.has_value(), "Null value in time column '" << m_timeColumn << "'" );
     }
-    if( nextDataTime.value().isNone() || ( !m_endTime.isNone() && ( m_endTime - m_time_shift ) < nextDataTime ) ) [[unlikely]]
+
+    if( nextDataTime.value().isNone() || ( !m_endTime.isNone() && ( m_endTime - m_time_shift ) < nextDataTime.value() ) ) [[unlikely]]
     {
         return DateTime::NONE();
     }
@@ -233,24 +698,53 @@ DateTime ParquetInputAdapterManager::processNextSimTimeSlice( DateTime time )
         return nextDataTime.value() + m_time_shift;
     }
 
-    CSP_TRUE_OR_THROW_RUNTIME( data_reference_time == nextDataTime, "Expected time " << nextDataTime.value() << " got " << data_reference_time );
+    CSP_TRUE_OR_THROW_RUNTIME( data_reference_time == nextDataTime.value(), "Expected time " << nextDataTime.value() << " got " << data_reference_time );
     do
     {
-        for( auto &&dictBasketRecord:m_dictBasketReaders )
+        // Dispatch dict baskets
+        for( auto && dictBasketRecord : m_dictBasketReaders )
         {
-            auto numValuesToDispatch = dictBasketRecord.m_valueCountColumn -> getCurValue<uint16_t>().value();
-
+            auto numValuesToDispatch = dictBasketRecord.getValueCount();
+            const auto & basketSymbolColumn = dictBasketRecord.m_basketSymbolColumn;
             for( uint16_t i = 0; i < numValuesToDispatch; ++i )
             {
-                dictBasketRecord.m_reader -> dispatchRow();
+                dictBasketRecord.m_processor -> readNextRow();
+                // Use the basket's own symbol column for routing
+                auto * symDispatcher = dictBasketRecord.m_processor -> getDispatcher( basketSymbolColumn );
+                const utils::Symbol * basketSymbol = nullptr;
+                utils::Symbol tmpSymbol;
+                if( symDispatcher )
+                {
+                    auto & symVal = symDispatcher -> getCurValue<std::string>();
+                    if( symVal.has_value() )
+                    {
+                        tmpSymbol = symVal.value();
+                        basketSymbol = &tmpSymbol;
+                    }
+                }
+                dictBasketRecord.m_processor -> dispatchRow( basketSymbol );
+                for( auto & structSub : dictBasketRecord.m_structSubscriptions )
+                    structSub -> dispatchValue( basketSymbol );
             }
         }
-        m_reader -> dispatchRow();
 
-        nextDataTime = m_reader -> hasData() ? m_timestampColumnAdapter -> getCurValue<DateTime>() : DateTime::NONE();
-    } while( !nextDataTime.value().isNone() && nextDataTime == data_reference_time );
+        // Dispatch main row
+        auto * symbol = getCurSymbol();
+        m_processor -> dispatchRow( symbol );
+        for( auto & structSub : m_structSubscriptions )
+            structSub -> dispatchValue( symbol );
 
-    if( nextDataTime -> isNone() ) [[unlikely]]
+        // Read next row
+        if( !readNextRow() )
+        {
+            nextDataTime = DateTime::NONE();
+            break;
+        }
+        nextDataTime = getTimeDispatcher() -> getCurValue<DateTime>();
+        CSP_TRUE_OR_THROW_RUNTIME( nextDataTime.has_value(), "Null value in time column '" << m_timeColumn << "'" );
+    } while( !nextDataTime.value().isNone() && nextDataTime.value() == data_reference_time );
+
+    if( nextDataTime.value().isNone() ) [[unlikely]]
     {
         return DateTime::NONE();
     }
@@ -263,8 +757,7 @@ DateTime ParquetInputAdapterManager::processNextSimTimeSlice( DateTime time )
 }
 
 
-ManagedSimInputAdapter *ParquetInputAdapterManager::getInputAdapter( CspTypePtr &type, const Dictionary &properties, PushMode pushMode,
-                                                                     const DialectGenericListReaderInterface::Ptr &listReaderInterface )
+ManagedSimInputAdapter *ParquetInputAdapterManager::getInputAdapter( CspTypePtr &type, const Dictionary &properties, PushMode pushMode )
 {
     CSP_TRUE_OR_THROW( !m_pushMode.has_value() || m_pushMode.value() == pushMode, NotImplemented,
                        "Subscribing with varying push modes is not currently supported. previous=" << m_pushMode.value()
@@ -286,19 +779,18 @@ ManagedSimInputAdapter *ParquetInputAdapterManager::getInputAdapter( CspTypePtr 
 
     if( basketName.empty() )
     {
-        return getRegularAdapter( type, properties, pushMode, symbol, listReaderInterface );
+        return getRegularAdapter( type, properties, pushMode, symbol );
     }
     else
     {
-        CSP_TRUE_OR_THROW(listReaderInterface == nullptr, NotImplemented, "Reading of baskets of arrays is unsupported");
+        CSP_TRUE_OR_THROW( type -> type() != CspType::Type::DIALECT_GENERIC, NotImplemented, "Reading of baskets of arrays is unsupported" );
         return getDictBasketAdapter( type, properties, pushMode, symbol, basketName );
     }
 }
 
 ManagedSimInputAdapter *
 ParquetInputAdapterManager::getRegularAdapter( const CspTypePtr &type, const Dictionary &properties, const PushMode &pushMode,
-                                               const utils::Symbol &symbol,
-                                               const DialectGenericListReaderInterface::Ptr &listReaderInterface )
+                                               const utils::Symbol &symbol )
 {
     if( pushMode == PushMode::NON_COLLAPSING )
     {
@@ -326,11 +818,11 @@ ParquetInputAdapterManager::getRegularAdapter( const CspTypePtr &type, const Dic
     if( std::holds_alternative<std::string>( fieldMap ) )
     {
         auto field = properties.get<std::string>( "field_map" );
-        return getSingleColumnAdapter( type, symbol, field, pushMode, listReaderInterface );
+        return getSingleColumnAdapter( type, symbol, field, pushMode );
     }
     else if( std::holds_alternative<DictionaryPtr>( fieldMap ) )
     {
-        CSP_TRUE_OR_THROW(listReaderInterface == nullptr, NotImplemented, "Reading of arrays of structs is unsupported");
+        CSP_TRUE_OR_THROW( type -> type() != CspType::Type::DIALECT_GENERIC, NotImplemented, "Reading of arrays of structs is unsupported" );
         auto dictFieldMap = properties.get<DictionaryPtr>( "field_map" );
         return getStructAdapter( type, symbol, dictFieldMap, pushMode );
     }
@@ -373,8 +865,7 @@ ManagedSimInputAdapter *ParquetInputAdapterManager::getDictBasketAdapter( const 
 ManagedSimInputAdapter *
 ParquetInputAdapterManager::getOrCreateSingleColumnAdapter( ParquetInputAdapterManager::AdaptersBySymbol &inputAdaptersContainer,
                                                             const CspTypePtr &type, const utils::Symbol &symbol, const std::string &field,
-                                                            const PushMode &pushMode,
-                                                            const DialectGenericListReaderInterface::Ptr &listReaderInterface )
+                                                            const PushMode &pushMode )
 {
     auto itBySymbol = inputAdaptersContainer.find( symbol );
     if( itBySymbol == inputAdaptersContainer.end() )
@@ -383,25 +874,22 @@ ParquetInputAdapterManager::getOrCreateSingleColumnAdapter( ParquetInputAdapterM
     }
 
     auto itByColumn = itBySymbol -> second.m_adaptersByColumnName.find( field );
-    const CspTypePtr& adapterType = (listReaderInterface==nullptr) ? type : CspType::DIALECT_GENERIC();
 
     if( itByColumn == itBySymbol -> second.m_adaptersByColumnName.end() )
     {
         itByColumn = itBySymbol -> second.m_adaptersByColumnName.emplace(
                 field, AdapterInfo{ engine() -> createOwnedObject<ManagedSimInputAdapter>(
-                        adapterType, this,
-                        pushMode ), listReaderInterface } ).first;
+                        type, this,
+                        pushMode ) } ).first;
     }
     return itByColumn -> second.m_adapter;
 }
 
 ManagedSimInputAdapter *
 ParquetInputAdapterManager::getSingleColumnAdapter( const CspTypePtr &type, const utils::Symbol &symbol,
-                                                    const std::string &field, PushMode pushMode,
-                                                    const DialectGenericListReaderInterface::Ptr &listReaderInterface)
+                                                    const std::string &field, PushMode pushMode )
 {
-    return getOrCreateSingleColumnAdapter( m_simInputAdapters, type, symbol, field,
-                                           pushMode, listReaderInterface );
+    return getOrCreateSingleColumnAdapter( m_simInputAdapters, type, symbol, field, pushMode );
 }
 
 

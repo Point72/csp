@@ -86,8 +86,7 @@ class ParquetReader:
         if read_from_memory_tables:
             if not _CAN_READ_ARROW_BINARY:
                 raise TypeError("CSP Cannot load binary arrows derived from pyarrow versions less than 4.0.1")
-            wrapped = self._filenames_gen
-            self._filenames_gen = lambda starttime, endtime: self._arrow_c_data_interface(wrapped, starttime, endtime)
+            self._table_gen = self._filenames_gen  # Keep original for RB path
             binary_arrow = True
         self._properties = {"split_columns_to_files": split_columns_to_files}
         if symbol_column:
@@ -111,14 +110,6 @@ class ParquetReader:
             self._properties["time_shift"] = time_shift
         self._properties["allow_missing_columns"] = allow_missing_columns
         self._properties["allow_missing_files"] = allow_missing_files
-
-    @classmethod
-    def _arrow_c_data_interface(cls, gen, startime, endtime):
-        for v in gen(startime, endtime):
-            if not isinstance(v, pyarrow.Table):
-                raise TypeError(f"Expected PyTable from generator, got {type(v).__name__}")
-            # Use the PyCapsule C data interface to pass data zero copy
-            yield v.__arrow_c_stream__()
 
     @node
     def _reconstruct_struct_array_fields(self, s: ts["T"], fields: {str: ts[object]}, struct_typ: "T") -> ts["T"]:
@@ -259,20 +250,35 @@ class ParquetReader:
     def subscribe_dict_basket(self, typ, name, shape, push_mode: PushMode = PushMode.NON_COLLAPSING):
         return {v: self._subscribe_impl(v, typ, None, push_mode, name) for v in shape}
 
-    def subscribe_dict_basket_struct_column(
-        self, typ, name, shape, field_name, push_mode: PushMode = PushMode.NON_COLLAPSING
-    ):
-        # field_type = typ.metadata()[field_name]
-        # return {v: self._subscribe_impl(v, field_type, field_name, push_mode, name) for v in shape}
-        raise NotImplementedError
-
     def status(self, push_mode=PushMode.NON_COLLAPSING):
         ts_type = Status
         return status_adapter_def(self, ts_type, push_mode=push_mode)
 
     def _create(self, engine, memo):
         """method needs to return the wrapped c++ adapter manager"""
-        return _parquetadapterimpl._parquet_input_adapter_manager(engine, self._properties, self._filenames_gen)
+        from csp.adapters._parquet_rb_iterators import (
+            memory_table_stream_factory,
+            parquet_file_stream_factory,
+            split_columns_stream_factory,
+        )
+
+        props = self._properties
+
+        if props.get("read_from_memory_tables"):
+            stream_factory = memory_table_stream_factory(self._table_gen)
+        elif props.get("split_columns_to_files"):
+            stream_factory = split_columns_stream_factory(
+                self._filenames_gen,
+                is_arrow_ipc=props.get("is_arrow_ipc", False),
+            )
+        else:
+            stream_factory = parquet_file_stream_factory(
+                self._filenames_gen,
+                allow_missing_files=props.get("allow_missing_files", False),
+                is_arrow_ipc=props.get("is_arrow_ipc", False),
+            )
+
+        return _parquetadapterimpl._parquet_input_adapter_manager(engine, self._properties, stream_factory)
 
 
 _parquet_input_adapter_def = input_adapter_def(

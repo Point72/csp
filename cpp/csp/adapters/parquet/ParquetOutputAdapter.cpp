@@ -159,13 +159,13 @@ std::shared_ptr<::arrow::ArrayBuilder> ListColumnParquetOutputHandler::createVal
     switch( elemType -> type() )
     {
         case CspType::TypeTraits::BOOL:
-            return makeArrayAndAttachToWriter<arrow::BooleanBuilder>(listWriterInterface);
+            return makeArrayAndAttachToWriter<::arrow::BooleanBuilder>(listWriterInterface);
         case CspType::TypeTraits::INT64:
-            return makeArrayAndAttachToWriter<arrow::Int64Builder>(listWriterInterface);
+            return makeArrayAndAttachToWriter<::arrow::Int64Builder>(listWriterInterface);
         case CspType::TypeTraits::DOUBLE:
-            return makeArrayAndAttachToWriter<arrow::DoubleBuilder>(listWriterInterface);
+            return makeArrayAndAttachToWriter<::arrow::DoubleBuilder>(listWriterInterface);
         case CspType::TypeTraits::STRING:
-            return makeArrayAndAttachToWriter<arrow::StringBuilder, std::string>(listWriterInterface);
+            return makeArrayAndAttachToWriter<::arrow::StringBuilder, std::string>(listWriterInterface);
         default:
         {
             CSP_THROW( TypeError,

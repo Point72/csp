@@ -13,7 +13,7 @@ void ParquetFileWriterWrapper::openImpl( const std::string &fileName, const std:
 
     PARQUET_ASSIGN_OR_THROW(
             m_outputStream,
-            arrow::io::FileOutputStream::Open( fileName.c_str()));
+            ::arrow::io::FileOutputStream::Open( fileName.c_str()));
 
     ::parquet::WriterProperties::Builder builder;
     builder.compression( resolveCompression( compression ));
@@ -25,7 +25,7 @@ void ParquetFileWriterWrapper::openImpl( const std::string &fileName, const std:
     ::parquet::ArrowWriterProperties::Builder arrowBuilder;
     arrowBuilder.store_schema();
 
-    auto res = ::parquet::arrow::FileWriter::Open( *getSchema(), arrow::default_memory_pool(), m_outputStream, builder.build(), arrowBuilder.build() );
+    auto res = ::parquet::arrow::FileWriter::Open( *getSchema(), ::arrow::default_memory_pool(), m_outputStream, builder.build(), arrowBuilder.build() );
     STATUS_OK_OR_THROW_RUNTIME( res.status(), "Failed to open parquet file writer" );
     m_fileWriter = res.MoveValueUnsafe();
 }

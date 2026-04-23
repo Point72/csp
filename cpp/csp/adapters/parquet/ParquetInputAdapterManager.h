@@ -3,10 +3,9 @@
 
 #include <csp/adapters/arrow/ColumnDispatcher.h>
 #include <csp/adapters/arrow/RecordBatchRowProcessor.h>
-#include <csp/adapters/parquet/RecordBatchWithFlag.h>
+#include <csp/adapters/parquet/RecordBatchStreamSource.h>
 #include <csp/adapters/utils/StructAdapterInfo.h>
 #include <csp/adapters/utils/ValueDispatcher.h>
-#include <csp/core/Generator.h>
 #include <csp/engine/AdapterManager.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/Struct.h>
@@ -24,10 +23,10 @@ namespace csp::adapters::parquet
 class ParquetInputAdapterManager final : public csp::AdapterManager
 {
 public:
-    using RecordBatchGeneratorPtr = csp::Generator<RecordBatchWithFlag, csp::DateTime, csp::DateTime>::Ptr;
+    using RecordBatchStreamSourcePtr = RecordBatchStreamSource::Ptr;
 
     ParquetInputAdapterManager( csp::Engine *engine, const Dictionary &properties,
-                                RecordBatchGeneratorPtr rbGeneratorPtr );
+                                RecordBatchStreamSourcePtr streamSource );
 
     ~ParquetInputAdapterManager();
 
@@ -73,7 +72,6 @@ private:
         DictionaryPtr                     m_fieldMap;
         std::vector<FieldSetter>          m_fieldSetters;
         ValueDispatcher                   m_valueDispatcher;
-        bool                              m_needsReset = false;
 
         void createFieldSetters( arrow::RecordBatchRowProcessor & processor,
                                  const std::shared_ptr<::arrow::Schema> & schema );
@@ -84,9 +82,12 @@ private:
     struct DictBasketReaderRecord
     {
         std::string                                     m_basketName;
+        std::string                                     m_basketSymbolColumn;
         arrow::ColumnDispatcher *                        m_valueCountDispatcher = nullptr;
         std::unique_ptr<arrow::RecordBatchRowProcessor>  m_processor;
         std::vector<std::unique_ptr<StructSubscription>>  m_structSubscriptions;
+
+        uint16_t getValueCount() const;
     };
 
     using AdaptersBySymbol = std::unordered_map<utils::Symbol, AdaptersSingleSymbol>;
@@ -95,6 +96,10 @@ private:
     // Fetch the next record batch from the generator, handling schema changes.
     // Returns false when no more data is available.
     bool getNextBatch();
+
+    // Collect all column names referenced by adapters in the given map.
+    static void collectAdapterColumns( const AdaptersBySymbol & adaptersBySymbol,
+                                       std::set<std::string> & columns );
 
     // Set up a processor from the current batch schema and subscribe adapters.
     void setupProcessor( arrow::RecordBatchRowProcessor & processor,
@@ -106,7 +111,12 @@ private:
     // Subscribe adapters to a processor's dispatchers.
     void subscribeAdapters( arrow::RecordBatchRowProcessor & processor,
                             const AdaptersBySymbol & adaptersBySymbol,
-                            bool subscribeAllOnEmptySymbol );
+                            bool subscribeAllOnEmptySymbol,
+                            std::vector<std::unique_ptr<StructSubscription>> & structSubscriptions );
+
+    // Set up a dict basket processor: setupFromSchema + subscribe adapters + bind batch.
+    void setupBasketProcessor( DictBasketReaderRecord & record,
+                               const AdaptersBySymbol & adaptersBySymbol );
 
     // Read the next row into the main processor (handles batch boundaries).
     bool readNextRow();
@@ -139,7 +149,7 @@ private:
     csp::DateTime                       m_startTime;
     csp::DateTime                       m_endTime;
     csp::TimeDelta                      m_time_shift;
-    RecordBatchGeneratorPtr             m_rbGenerator;
+    RecordBatchStreamSourcePtr          m_streamSource;
     std::string                         m_symbolColumn;
     std::string                         m_timeColumn;
     std::string                         m_defaultTimezone;
@@ -151,6 +161,7 @@ private:
 
     // Processor-based reader state
     std::unique_ptr<arrow::RecordBatchRowProcessor>  m_processor;
+    std::shared_ptr<::arrow::RecordBatchReader>      m_mainReader;
     std::shared_ptr<::arrow::RecordBatch>            m_curBatch;
     std::shared_ptr<::arrow::Schema>                 m_curSchema;
     std::unordered_map<std::string, std::shared_ptr<::arrow::RecordBatch>> m_curBasketBatches;

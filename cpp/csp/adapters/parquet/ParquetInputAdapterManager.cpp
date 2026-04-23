@@ -9,6 +9,13 @@
 namespace csp::adapters::parquet
 {
 
+uint16_t ParquetInputAdapterManager::DictBasketReaderRecord::getValueCount() const
+{
+    auto opt = m_valueCountDispatcher -> getCurValue<uint16_t>();
+    CSP_TRUE_OR_THROW_RUNTIME( opt.has_value(), "Null value in dict basket value count column" );
+    return opt.value();
+}
+
 namespace
 {
 
@@ -203,12 +210,12 @@ void ParquetInputAdapterManager::StructSubscription::addSubscriber(
 // --- ParquetInputAdapterManager core ---
 
 ParquetInputAdapterManager::ParquetInputAdapterManager( csp::Engine *engine, const Dictionary &properties,
-                                                        RecordBatchGeneratorPtr rbGeneratorPtr) :
+                                                        RecordBatchStreamSourcePtr streamSource) :
         AdapterManager( engine ),
         m_time_shift(0, 0),
-        m_rbGenerator(rbGeneratorPtr)
+        m_streamSource(streamSource)
 {
-    CSP_TRUE_OR_THROW_RUNTIME( m_rbGenerator, "RecordBatch generator must be provided" );
+    CSP_TRUE_OR_THROW_RUNTIME( m_streamSource, "RecordBatch stream source must be provided" );
 
     m_symbolColumn        = properties.get<std::string>( "symbol_column", "" );
     m_timeColumn          = properties.get<std::string>( "time_column", "" );
@@ -230,24 +237,67 @@ ParquetInputAdapterManager::~ParquetInputAdapterManager()
 
 bool ParquetInputAdapterManager::getNextBatch()
 {
-    RecordBatchWithFlag item;
-    if( !m_rbGenerator -> next( item ) )
+    // Try pulling from current main reader (pure C++, no GIL needed)
+    if( m_mainReader )
     {
-        m_hasData  = false;
-        m_curBatch = nullptr;
-        m_curBasketBatches.clear();
-        return false;
+        std::shared_ptr<::arrow::RecordBatch> batch;
+        auto status = m_mainReader -> ReadNext( &batch );
+        if( !status.ok() )
+            CSP_THROW( RuntimeException, "Failed to read batch: " << status.ToString() );
+        if( batch )
+        {
+            m_curBatch  = batch;
+            m_curSchema = batch -> schema();
+            m_schemaChanged = false;  // same reader = same schema
+            m_hasData   = true;
+            return true;
+        }
     }
-    CSP_TRUE_OR_THROW_RUNTIME( item.batch, "RecordBatch generator yielded null batch" );
 
-    auto schema = item.batch -> schema();
-    m_schemaChanged = m_curSchema && !m_curSchema -> Equals( *schema );
+    // Reader exhausted — advance to next stream (requires Python/GIL)
+    while( m_streamSource -> nextStream() )
+    {
+        m_mainReader = m_streamSource -> mainReader();
+        m_curBasketBatches = m_streamSource -> basketBatches();
 
-    m_curBatch  = item.batch;
-    m_curSchema = schema;
-    m_curBasketBatches = std::move( item.basketBatches );
-    m_hasData   = true;
-    return true;
+        std::shared_ptr<::arrow::RecordBatch> batch;
+        auto status = m_mainReader -> ReadNext( &batch );
+        if( !status.ok() )
+            CSP_THROW( RuntimeException, "Failed to read batch: " << status.ToString() );
+        if( batch )
+        {
+            auto schema = batch -> schema();
+            m_schemaChanged = m_curSchema && !m_curSchema -> Equals( *schema );
+            m_curSchema = schema;
+            m_curBatch  = batch;
+            m_hasData   = true;
+            return true;
+        }
+        // Empty stream — try next
+    }
+
+    m_hasData  = false;
+    m_curBatch = nullptr;
+    m_curBasketBatches.clear();
+    return false;
+}
+
+void ParquetInputAdapterManager::collectAdapterColumns(
+    const AdaptersBySymbol & adaptersBySymbol,
+    std::set<std::string> & columns )
+{
+    for( auto && adaptersForSymbol : adaptersBySymbol )
+    {
+        for( auto && entry : adaptersForSymbol.second.m_adaptersByColumnName )
+            columns.insert( entry.first );
+
+        for( auto && entry : adaptersForSymbol.second.m_structAdapters )
+        {
+            auto && fieldMap = entry.first.fieldMap();
+            for( auto it = fieldMap -> begin(); it != fieldMap -> end(); ++it )
+                columns.insert( it.key() );
+        }
+    }
 }
 
 void ParquetInputAdapterManager::setupProcessor(
@@ -257,51 +307,43 @@ void ParquetInputAdapterManager::setupProcessor(
     const AdaptersBySymbol & adaptersBySymbol,
     bool subscribeAllOnEmptySymbol )
 {
-    // Collect all needed columns: explicit + from adapters + from struct field maps.
-    // Also collect StructMeta for any STRUCT columns so setupFromSchema can create
-    // all dispatchers in a single pass.
+    // Collect all needed columns using the shared helper
     std::set<std::string> allColumns{ neededColumns };
+    collectAdapterColumns( adaptersBySymbol, allColumns );
+
+    // Additionally collect StructMeta for STRUCT columns so setupFromSchema
+    // can create all dispatchers in a single pass.
     std::unordered_map<std::string, std::shared_ptr<const StructMeta>> structMetaByColumn;
 
     for( auto && adaptersForSymbol : adaptersBySymbol )
     {
-        // Scalar column subscriptions
         for( auto && entry : adaptersForSymbol.second.m_adaptersByColumnName )
         {
-            auto & colName = entry.first;
-            allColumns.insert( colName );
-
-            // If subscribing to a STRUCT column, extract meta from adapter type
             auto * adapterType = entry.second.m_adapter -> dataType();
             if( adapterType -> type() == CspType::Type::STRUCT )
             {
                 auto meta = static_cast<const CspStructType *>( adapterType ) -> meta();
-                auto [it2, inserted] = structMetaByColumn.emplace( colName, meta );
+                auto [it2, inserted] = structMetaByColumn.emplace( entry.first, meta );
                 if( !inserted && it2 -> second != meta )
-                    CSP_THROW( TypeError, "Conflicting struct types for column '" << colName
+                    CSP_THROW( TypeError, "Conflicting struct types for column '" << entry.first
                         << "': multiple subscriptions use different struct types for the same STRUCT column" );
             }
         }
 
-        // Struct subscriptions with field maps
         for( auto && entry : adaptersForSymbol.second.m_structAdapters )
         {
             auto parentMeta = std::static_pointer_cast<const CspStructType>( entry.first.type() ) -> meta();
             auto && fieldMap = entry.first.fieldMap();
             for( auto it = fieldMap -> begin(); it != fieldMap -> end(); ++it )
             {
-                auto & colName = it.key();
-                allColumns.insert( colName );
-
-                // If the struct field is itself a STRUCT, extract its nested meta
                 auto & structFieldName = it.value<std::string>();
                 auto fieldPtr = parentMeta -> field( structFieldName );
                 if( fieldPtr && fieldPtr -> type() -> type() == CspType::Type::STRUCT )
                 {
                     auto meta = std::static_pointer_cast<const CspStructType>( fieldPtr -> type() ) -> meta();
-                    auto [it2, inserted] = structMetaByColumn.emplace( colName, meta );
+                    auto [it2, inserted] = structMetaByColumn.emplace( it.key(), meta );
                     if( !inserted && it2 -> second != meta )
-                        CSP_THROW( TypeError, "Conflicting struct types for column '" << colName
+                        CSP_THROW( TypeError, "Conflicting struct types for column '" << it.key()
                             << "': multiple subscriptions use different struct types for the same STRUCT column" );
                 }
             }
@@ -314,7 +356,8 @@ void ParquetInputAdapterManager::setupProcessor(
 void ParquetInputAdapterManager::subscribeAdapters(
     arrow::RecordBatchRowProcessor & processor,
     const AdaptersBySymbol & adaptersBySymbol,
-    bool subscribeAllOnEmptySymbol )
+    bool subscribeAllOnEmptySymbol,
+    std::vector<std::unique_ptr<StructSubscription>> & structSubscriptions )
 {
     for( auto & symMapPair : adaptersBySymbol )
     {
@@ -376,7 +419,7 @@ void ParquetInputAdapterManager::subscribeAdapters(
 
             // Find or create the StructSubscription
             StructSubscription * sub = nullptr;
-            for( auto & existing : m_structSubscriptions )
+            for( auto & existing : structSubscriptions )
             {
                 if( existing -> m_structMeta == structMeta && existing -> m_fieldMap == structPair.first.fieldMap() )
                 {
@@ -390,13 +433,36 @@ void ParquetInputAdapterManager::subscribeAdapters(
                 newSub -> m_structMeta = structMeta;
                 newSub -> m_fieldMap   = structPair.first.fieldMap();
                 sub = newSub.get();
-                m_structSubscriptions.push_back( std::move( newSub ) );
+                structSubscriptions.push_back( std::move( newSub ) );
             }
 
             sub -> addSubscriber( structPair.second.m_adapter, symbol );
             sub -> createFieldSetters( processor, m_curSchema );
         }
     }
+}
+
+void ParquetInputAdapterManager::setupBasketProcessor(
+    DictBasketReaderRecord & record,
+    const AdaptersBySymbol & adaptersBySymbol )
+{
+    std::string symCol = record.m_basketName + "__csp_symbol";
+    std::set<std::string> basketNeeded{ symCol };
+
+    // Use setupProcessor to collect columns, struct meta, and call setupFromSchema
+    auto batchIt = m_curBasketBatches.find( record.m_basketName );
+    auto schema = ( batchIt != m_curBasketBatches.end() )
+        ? batchIt -> second -> schema() : m_curSchema;
+
+    setupProcessor( *record.m_processor, schema, basketNeeded, adaptersBySymbol, false );
+
+    // Subscribe adapters
+    record.m_structSubscriptions.clear();
+    subscribeAdapters( *record.m_processor, adaptersBySymbol, false, record.m_structSubscriptions );
+
+    // Bind batch
+    if( batchIt != m_curBasketBatches.end() )
+        record.m_processor -> bindBatch( *batchIt -> second );
 }
 
 bool ParquetInputAdapterManager::readNextRow()
@@ -423,12 +489,11 @@ bool ParquetInputAdapterManager::readNextRow()
     {
         m_structSubscriptions.clear();
         setupProcessor( *m_processor, m_curSchema, m_neededColumns, m_simInputAdapters, true );
-        subscribeAdapters( *m_processor, m_simInputAdapters, true );
+        subscribeAdapters( *m_processor, m_simInputAdapters, true, m_structSubscriptions );
 
-        // C3: Rebuild dict basket readers after schema change.
+        // Rebuild dict basket readers after schema change.
         // setupProcessor destroys and recreates dispatchers in m_processor,
-        // invalidating the raw m_valueCountDispatcher pointers.  Also rebuild
-        // basket processors since basket batch schemas may have changed.
+        // invalidating the raw m_valueCountDispatcher pointers.
         for( auto & record : m_dictBasketReaders )
         {
             auto adapterIt = m_dictBasketInputAdapters.find( record.m_basketName );
@@ -437,76 +502,7 @@ bool ParquetInputAdapterManager::readNextRow()
 
             auto vcName = record.m_basketName + "__csp_value_count";
             record.m_valueCountDispatcher = m_processor -> getDispatcher( vcName );
-
-            std::string symCol = record.m_basketName + "__csp_symbol";
-            std::set<std::string> basketColumns{ symCol };
-            std::unordered_map<std::string, std::shared_ptr<const StructMeta>> basketStructMeta;
-            for( auto && symPair : adapterIt -> second )
-            {
-                for( auto && colPair : symPair.second.m_adaptersByColumnName )
-                    basketColumns.insert( colPair.first );
-
-                for( auto && structPair : symPair.second.m_structAdapters )
-                {
-                    auto parentMeta = std::static_pointer_cast<const CspStructType>( structPair.first.type() ) -> meta();
-                    auto && fieldMap = structPair.first.fieldMap();
-                    for( auto fmIt = fieldMap -> begin(); fmIt != fieldMap -> end(); ++fmIt )
-                    {
-                        auto & colName = fmIt.key();
-                        basketColumns.insert( colName );
-
-                        auto & structFieldName = fmIt.value<std::string>();
-                        auto fieldPtr = parentMeta -> field( structFieldName );
-                        if( fieldPtr && fieldPtr -> type() -> type() == CspType::Type::STRUCT )
-                        {
-                            auto meta = std::static_pointer_cast<const CspStructType>( fieldPtr -> type() ) -> meta();
-                            basketStructMeta.emplace( colName, meta );
-                        }
-                    }
-                }
-            }
-
-            auto batchIt = m_curBasketBatches.find( record.m_basketName );
-            if( batchIt != m_curBasketBatches.end() )
-                record.m_processor -> setupFromSchema( batchIt -> second -> schema(), basketColumns, m_allowMissingColumns, basketStructMeta );
-            else
-                record.m_processor -> setupFromSchema( m_curSchema, basketColumns, m_allowMissingColumns, basketStructMeta );
-
-            record.m_structSubscriptions.clear();
-            auto basketSchema = ( batchIt != m_curBasketBatches.end() )
-                ? batchIt -> second -> schema() : m_curSchema;
-            for( auto & symMapPair : adapterIt -> second )
-            {
-                std::optional<utils::Symbol> symbol = symMapPair.first;
-                for( auto & columnPair : symMapPair.second.m_adaptersByColumnName )
-                {
-                    if( record.m_processor -> hasColumn( columnPair.first ) )
-                        record.m_processor -> addSubscriber( columnPair.first, columnPair.second.m_adapter, symbol );
-                }
-                for( auto & structPair : symMapPair.second.m_structAdapters )
-                {
-                    auto structMeta = std::static_pointer_cast<const CspStructType>( structPair.first.type() ) -> meta();
-                    StructSubscription * sub = nullptr;
-                    for( auto & existing : record.m_structSubscriptions )
-                    {
-                        if( existing -> m_structMeta == structMeta && existing -> m_fieldMap == structPair.first.fieldMap() )
-                        {
-                            sub = existing.get();
-                            break;
-                        }
-                    }
-                    if( !sub )
-                    {
-                        auto newSub = std::make_unique<StructSubscription>();
-                        newSub -> m_structMeta = structMeta;
-                        newSub -> m_fieldMap   = structPair.first.fieldMap();
-                        sub = newSub.get();
-                        record.m_structSubscriptions.push_back( std::move( newSub ) );
-                    }
-                    sub -> addSubscriber( structPair.second.m_adapter, symbol );
-                    sub -> createFieldSetters( *record.m_processor, basketSchema );
-                }
-            }
+            setupBasketProcessor( record, adapterIt -> second );
         }
 
         m_schemaChanged = false;
@@ -566,15 +562,27 @@ void ParquetInputAdapterManager::start( DateTime starttime, DateTime endtime )
     AdapterManager::start( starttime, endtime );
     CSP_TRUE_OR_THROW_RUNTIME( m_processor == nullptr, "Starting parquet adapter manager more than once" );
 
-    m_rbGenerator->init(starttime, endtime);
-
-    // Collect needed columns
+    // Collect base needed columns (used by setupProcessor for the main batch)
     if( m_symbolColumn != "" )
         m_neededColumns.insert( m_symbolColumn );
     m_neededColumns.insert( m_timeColumn );
 
     for( auto && it : m_dictBasketInputAdapters )
         m_neededColumns.insert( it.first + "__csp_value_count" );
+
+    // Build complete projection set for the stream factory so the scanner
+    // only reads columns we actually need (parquet is columnar — skipping
+    // unneeded columns avoids disk IO).
+    std::set<std::string> projectionColumns = m_neededColumns;
+    collectAdapterColumns( m_simInputAdapters, projectionColumns );
+
+    for( auto && dictPair : m_dictBasketInputAdapters )
+    {
+        projectionColumns.insert( dictPair.first + "__csp_symbol" );
+        collectAdapterColumns( dictPair.second, projectionColumns );
+    }
+
+    m_streamSource -> init( starttime, endtime, projectionColumns );
 
     // Create processor and get first batch
     m_processor = std::make_unique<arrow::RecordBatchRowProcessor>();
@@ -600,7 +608,7 @@ void ParquetInputAdapterManager::start( DateTime starttime, DateTime endtime )
             CSP_THROW( TypeError, "Invalid symbol column type. Only string and int64 symbols are currently supported" );
     }
 
-    subscribeAdapters( *m_processor, m_simInputAdapters, true );
+    subscribeAdapters( *m_processor, m_simInputAdapters, true, m_structSubscriptions );
 
     // Bind first batch to processor
     m_processor -> bindBatch( *m_curBatch );
@@ -609,96 +617,16 @@ void ParquetInputAdapterManager::start( DateTime starttime, DateTime endtime )
     for( auto && it : m_dictBasketInputAdapters )
     {
         auto valueCountColumnName = it.first + "__csp_value_count";
-        std::string basketSymbolColumn = it.first + "__csp_symbol";
 
         DictBasketReaderRecord record;
         record.m_basketName = it.first;
+        record.m_basketSymbolColumn = it.first + "__csp_symbol";
         record.m_valueCountDispatcher = m_processor -> getDispatcher( valueCountColumnName );
         CSP_TRUE_OR_THROW_RUNTIME( record.m_valueCountDispatcher != nullptr,
             "Value count column '" << valueCountColumnName << "' not found" );
 
         record.m_processor = std::make_unique<arrow::RecordBatchRowProcessor>();
-        std::set<std::string> basketColumns{ basketSymbolColumn };
-        std::unordered_map<std::string, std::shared_ptr<const StructMeta>> basketStructMeta;
-        // Collect basket adapter columns (scalar + struct field columns)
-        for( auto && symPair : it.second )
-        {
-            for( auto && colPair : symPair.second.m_adaptersByColumnName )
-                basketColumns.insert( colPair.first );
-
-            for( auto && structPair : symPair.second.m_structAdapters )
-            {
-                auto parentMeta = std::static_pointer_cast<const CspStructType>( structPair.first.type() ) -> meta();
-                auto && fieldMap = structPair.first.fieldMap();
-                for( auto fmIt = fieldMap -> begin(); fmIt != fieldMap -> end(); ++fmIt )
-                {
-                    auto & colName = fmIt.key();
-                    basketColumns.insert( colName );
-
-                    auto & structFieldName = fmIt.value<std::string>();
-                    auto fieldPtr = parentMeta -> field( structFieldName );
-                    if( fieldPtr && fieldPtr -> type() -> type() == CspType::Type::STRUCT )
-                    {
-                        auto meta = std::static_pointer_cast<const CspStructType>( fieldPtr -> type() ) -> meta();
-                        basketStructMeta.emplace( colName, meta );
-                    }
-                }
-            }
-        }
-
-        // Get basket batch schema for setupFromSchema
-        auto basketBatchIt = m_curBasketBatches.find( it.first );
-        if( basketBatchIt != m_curBasketBatches.end() )
-        {
-            record.m_processor -> setupFromSchema( basketBatchIt -> second -> schema(), basketColumns, m_allowMissingColumns, basketStructMeta );
-        }
-        else
-        {
-            record.m_processor -> setupFromSchema( m_curSchema, basketColumns, m_allowMissingColumns, basketStructMeta );
-        }
-        // Subscribe basket adapters (scalar)
-        for( auto & symMapPair : it.second )
-        {
-            std::optional<utils::Symbol> symbol = symMapPair.first;
-            for( auto & columnPair : symMapPair.second.m_adaptersByColumnName )
-            {
-                if( record.m_processor -> hasColumn( columnPair.first ) )
-                    record.m_processor -> addSubscriber( columnPair.first, columnPair.second.m_adapter, symbol );
-            }
-        }
-        // Subscribe basket adapters (struct)
-        auto basketSchema = ( basketBatchIt != m_curBasketBatches.end() )
-            ? basketBatchIt -> second -> schema() : m_curSchema;
-        for( auto & symMapPair : it.second )
-        {
-            std::optional<utils::Symbol> symbol = symMapPair.first;
-            for( auto & structPair : symMapPair.second.m_structAdapters )
-            {
-                auto structMeta = std::static_pointer_cast<const CspStructType>( structPair.first.type() ) -> meta();
-                StructSubscription * sub = nullptr;
-                for( auto & existing : record.m_structSubscriptions )
-                {
-                    if( existing -> m_structMeta == structMeta && existing -> m_fieldMap == structPair.first.fieldMap() )
-                    {
-                        sub = existing.get();
-                        break;
-                    }
-                }
-                if( !sub )
-                {
-                    auto newSub = std::make_unique<StructSubscription>();
-                    newSub -> m_structMeta = structMeta;
-                    newSub -> m_fieldMap   = structPair.first.fieldMap();
-                    sub = newSub.get();
-                    record.m_structSubscriptions.push_back( std::move( newSub ) );
-                }
-                sub -> addSubscriber( structPair.second.m_adapter, symbol );
-                sub -> createFieldSetters( *record.m_processor, basketSchema );
-            }
-        }
-        // Bind basket processor to its own basket batch
-        if( basketBatchIt != m_curBasketBatches.end() )
-            record.m_processor -> bindBatch( *basketBatchIt -> second );
+        setupBasketProcessor( record, it.second );
         m_dictBasketReaders.push_back( std::move( record ) );
     }
 
@@ -719,12 +647,13 @@ void ParquetInputAdapterManager::start( DateTime starttime, DateTime endtime )
 void ParquetInputAdapterManager::stop()
 {
     m_processor.reset();
+    m_mainReader.reset();
     m_curBatch.reset();
     m_curSchema.reset();
     m_dictBasketReaders.clear();
     m_structSubscriptions.clear();
     m_hasData = false;
-    m_rbGenerator = nullptr;
+    m_streamSource = nullptr;
     AdapterManager::stop();
 }
 
@@ -744,9 +673,7 @@ DateTime ParquetInputAdapterManager::processNextSimTimeSlice( DateTime time )
     {
         for( auto && dictBasketRecord : m_dictBasketReaders )
         {
-            auto numValuesOpt = dictBasketRecord.m_valueCountDispatcher -> getCurValue<uint16_t>();
-            CSP_TRUE_OR_THROW_RUNTIME( numValuesOpt.has_value(), "Null value in dict basket value count column" );
-            auto numValuesToSkip = numValuesOpt.value();
+            auto numValuesToSkip = dictBasketRecord.getValueCount();
             for( uint16_t i = 0; i < numValuesToSkip; ++i )
             {
                 dictBasketRecord.m_processor -> skipRow();
@@ -777,10 +704,8 @@ DateTime ParquetInputAdapterManager::processNextSimTimeSlice( DateTime time )
         // Dispatch dict baskets
         for( auto && dictBasketRecord : m_dictBasketReaders )
         {
-            auto numValuesOpt = dictBasketRecord.m_valueCountDispatcher -> getCurValue<uint16_t>();
-            CSP_TRUE_OR_THROW_RUNTIME( numValuesOpt.has_value(), "Null value in dict basket value count column" );
-            auto numValuesToDispatch = numValuesOpt.value();
-            std::string basketSymbolColumn = dictBasketRecord.m_basketName + "__csp_symbol";
+            auto numValuesToDispatch = dictBasketRecord.getValueCount();
+            const auto & basketSymbolColumn = dictBasketRecord.m_basketSymbolColumn;
             for( uint16_t i = 0; i < numValuesToDispatch; ++i )
             {
                 dictBasketRecord.m_processor -> readNextRow();

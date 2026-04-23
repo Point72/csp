@@ -12,7 +12,7 @@ set(PARQUET_HEADER_FILES
         ParquetOutputFilenameAdapter.h
         ParquetStatusUtils.h
         ParquetWriter.h
-        RecordBatchWithFlag.h
+        RecordBatchStreamSource.h
 )
 
 set(PARQUET_SOURCE_FILES

@@ -3,7 +3,6 @@
 #include <csp/adapters/parquet/ParquetOutputAdapterManager.h>
 #include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
-#include <csp/core/Generator.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
@@ -81,30 +80,50 @@ REGISTER_CPPNODE( csp::cppnodes, parquet_dict_basket_writer );
 namespace
 {
 
-// Generator that wraps a Python generator yielding (RecordBatch, dict, bool) tuples.
-// The dict maps basket names to RecordBatches; the bool indicates schema change.
-class RecordBatchGenerator : public csp::Generator<RecordBatchWithFlag, csp::DateTime, csp::DateTime>
+// Generator that wraps a Python "stream factory" callable.
+// The factory signature: factory(starttime, endtime, needed_columns) -> iterator of (reader, basket_dict)
+// Each reader is a pyarrow.RecordBatchReader; basket_dict maps basket names to readers.
+// Readers are imported via ArrowArrayStream for GIL-free batch pulling in C++.
+class PyRecordBatchStreamSource : public csp::adapters::parquet::RecordBatchStreamSource
 {
 public:
-    RecordBatchGenerator( PyObject *wrappedGenerator )
-            : m_wrappedGenerator( csp::python::PyObjectPtr::incref( wrappedGenerator ) )
+    PyRecordBatchStreamSource( PyObject *factory )
+            : m_factory( csp::python::PyObjectPtr::incref( factory ) )
     {
     }
 
-    void init( csp::DateTime start, csp::DateTime end ) override
+    void init( csp::DateTime start, csp::DateTime end,
+               const std::set<std::string> & neededColumns ) override
     {
-        auto tp = csp::python::PyObjectPtr::own( PyTuple_New( 2 ) );
+        auto tp = csp::python::PyObjectPtr::own( PyTuple_New( 3 ) );
         if( !tp.get() )
             CSP_THROW( csp::python::PythonPassthrough, "" );
 
         PyTuple_SET_ITEM( tp.get(), 0, csp::python::toPython( start ) );
         PyTuple_SET_ITEM( tp.get(), 1, csp::python::toPython( end ) );
-        m_iter = csp::python::PyObjectPtr::check( PyObject_Call( m_wrappedGenerator.ptr(), tp.get(), nullptr ) );
+
+        if( neededColumns.empty() )
+        {
+            Py_INCREF( Py_None );
+            PyTuple_SET_ITEM( tp.get(), 2, Py_None );
+        }
+        else
+        {
+            auto pyList = csp::python::PyObjectPtr::own( PyList_New( neededColumns.size() ) );
+            if( !pyList.get() )
+                CSP_THROW( csp::python::PythonPassthrough, "" );
+            Py_ssize_t idx = 0;
+            for( auto & col : neededColumns )
+                PyList_SET_ITEM( pyList.get(), idx++, PyUnicode_FromStringAndSize( col.c_str(), col.size() ) );
+            PyTuple_SET_ITEM( tp.get(), 2, pyList.release() );
+        }
+
+        m_iter = csp::python::PyObjectPtr::check( PyObject_Call( m_factory.ptr(), tp.get(), nullptr ) );
         CSP_TRUE_OR_THROW( PyIter_Check( m_iter.ptr() ), csp::TypeError,
-                           "RecordBatch generator expected to return iterator" );
+                           "Stream factory expected to return iterator" );
     }
 
-    bool next( RecordBatchWithFlag &value ) override
+    bool nextStream() override
     {
         if( m_iter.ptr() == nullptr )
             return false;
@@ -115,21 +134,18 @@ public:
         if( nextVal.get() == nullptr )
             return false;
 
-        // Expect a tuple of (RecordBatch, dict, bool)
-        CSP_TRUE_OR_THROW( PyTuple_Check( nextVal.get() ) && PyTuple_GET_SIZE( nextVal.get() ) == 3,
-                           csp::TypeError, "RecordBatch generator expected to yield (batch, basket_batches, schema_changed) tuples" );
+        // Expect a tuple of (RecordBatchReader, dict)
+        CSP_TRUE_OR_THROW( PyTuple_Check( nextVal.get() ) && PyTuple_GET_SIZE( nextVal.get() ) == 2,
+                           csp::TypeError, "Stream factory expected to yield (reader, basket_dict) tuples" );
 
-        PyObject *pyBatch         = PyTuple_GET_ITEM( nextVal.get(), 0 );
-        PyObject *pyBasketDict    = PyTuple_GET_ITEM( nextVal.get(), 1 );
-        PyObject *pySchemaChanged = PyTuple_GET_ITEM( nextVal.get(), 2 );
+        PyObject *pyReader     = PyTuple_GET_ITEM( nextVal.get(), 0 );
+        PyObject *pyBasketDict = PyTuple_GET_ITEM( nextVal.get(), 1 );
 
-        value.schemaChanged = PyObject_IsTrue( pySchemaChanged );
+        // Import main reader via ArrowArrayStream
+        m_mainReader = importRecordBatchReader( pyReader );
 
-        // Import main RecordBatch via PyCapsule C Data Interface
-        value.batch = importRecordBatch( pyBatch );
-
-        // Import basket RecordBatches
-        value.basketBatches.clear();
+        // Import basket readers and read their single batch
+        m_basketBatches.clear();
         if( PyDict_Check( pyBasketDict ) )
         {
             PyObject *key, *val;
@@ -139,43 +155,55 @@ public:
                 const char *basketName = PyUnicode_AsUTF8( key );
                 if( !basketName )
                     CSP_THROW( csp::python::PythonPassthrough, "" );
-                value.basketBatches[ basketName ] = importRecordBatch( val );
+
+                auto basketReader = importRecordBatchReader( val );
+                std::shared_ptr<::arrow::RecordBatch> batch;
+                auto status = basketReader -> ReadNext( &batch );
+                if( !status.ok() )
+                    CSP_THROW( csp::ValueError, "Failed to read basket batch: " << status.ToString() );
+                if( batch )
+                    m_basketBatches[ basketName ] = batch;
             }
         }
 
         return true;
     }
 
-private:
-    static std::shared_ptr<::arrow::RecordBatch> importRecordBatch( PyObject *pyBatch )
+    std::shared_ptr<::arrow::RecordBatchReader> mainReader() override
     {
-        auto exportResult = csp::python::PyObjectPtr::own(
-            PyObject_CallMethod( pyBatch, "__arrow_c_array__", nullptr ) );
-        if( !exportResult.get() || PyErr_Occurred() )
-            CSP_THROW( csp::python::PythonPassthrough, "" );
-
-        CSP_TRUE_OR_THROW( PyTuple_Check( exportResult.get() ) && PyTuple_GET_SIZE( exportResult.get() ) == 2,
-                           csp::TypeError, "__arrow_c_array__ expected to return (schema_capsule, array_capsule)" );
-
-        PyObject *pySchemaCapsule = PyTuple_GET_ITEM( exportResult.get(), 0 );
-        PyObject *pyArrayCapsule  = PyTuple_GET_ITEM( exportResult.get(), 1 );
-
-        auto *c_schema = reinterpret_cast<struct ArrowSchema *>( PyCapsule_GetPointer( pySchemaCapsule, "arrow_schema" ) );
-        auto *c_array  = reinterpret_cast<struct ArrowArray *>( PyCapsule_GetPointer( pyArrayCapsule, "arrow_array" ) );
-
-        auto schemaResult = arrow::ImportSchema( c_schema );
-        if( !schemaResult.ok() )
-            CSP_THROW( csp::ValueError, "Failed to import RecordBatch schema: " << schemaResult.status().ToString() );
-
-        auto batchResult = arrow::ImportRecordBatch( c_array, schemaResult.ValueUnsafe() );
-        if( !batchResult.ok() )
-            CSP_THROW( csp::ValueError, "Failed to import RecordBatch: " << batchResult.status().ToString() );
-
-        return std::move( batchResult.ValueUnsafe() );
+        return m_mainReader;
     }
 
-    csp::python::PyObjectPtr m_wrappedGenerator;
+    const std::unordered_map<std::string, std::shared_ptr<::arrow::RecordBatch>> & basketBatches() const override
+    {
+        return m_basketBatches;
+    }
+
+private:
+    static std::shared_ptr<::arrow::RecordBatchReader> importRecordBatchReader( PyObject *pyReader )
+    {
+        // Call __arrow_c_stream__() to export as ArrowArrayStream PyCapsule
+        auto capsule = csp::python::PyObjectPtr::own(
+            PyObject_CallMethod( pyReader, "__arrow_c_stream__", nullptr ) );
+        if( !capsule.get() || PyErr_Occurred() )
+            CSP_THROW( csp::python::PythonPassthrough, "" );
+
+        auto *stream = reinterpret_cast<struct ArrowArrayStream *>(
+            PyCapsule_GetPointer( capsule.get(), "arrow_array_stream" ) );
+        if( !stream )
+            CSP_THROW( csp::ValueError, "Failed to get ArrowArrayStream from PyCapsule" );
+
+        auto result = ::arrow::ImportRecordBatchReader( stream );
+        if( !result.ok() )
+            CSP_THROW( csp::ValueError, "Failed to import RecordBatchReader: " << result.status().ToString() );
+
+        return result.ValueUnsafe();
+    }
+
+    csp::python::PyObjectPtr m_factory;
     csp::python::PyObjectPtr m_iter;
+    std::shared_ptr<::arrow::RecordBatchReader> m_mainReader;
+    std::unordered_map<std::string, std::shared_ptr<::arrow::RecordBatch>> m_basketBatches;
 };
 
 }
@@ -185,9 +213,9 @@ namespace csp::python
 
 //AdapterManager
 csp::AdapterManager *create_parquet_input_adapter_manager_impl( PyEngine *engine, const Dictionary &properties,
-                                                                RecordBatchGenerator::Ptr rbGenerator )
+                                                                ParquetInputAdapterManager::RecordBatchStreamSourcePtr streamSource )
 {
-    auto res = engine -> engine() -> createOwnedObject<ParquetInputAdapterManager>( properties, rbGenerator );
+    auto res = engine -> engine() -> createOwnedObject<ParquetInputAdapterManager>( properties, streamSource );
     return res;
 }
 
@@ -443,9 +471,9 @@ static PyObject *create_parquet_input_adapter_manager( PyObject *args )
                                &PyFunction_Type, &pyFileGenerator ) )
             CSP_THROW( PythonPassthrough, "" );
 
-        auto rbGenerator = std::make_shared<RecordBatchGenerator>( pyFileGenerator );
+        auto streamSource = std::make_shared<PyRecordBatchStreamSource>( pyFileGenerator );
         auto *adapterMgr = create_parquet_input_adapter_manager_impl( pyEngine, fromPython<Dictionary>( pyProperties ),
-                                                                      rbGenerator );
+                                                                      streamSource );
         auto res         = PyCapsule_New( adapterMgr, "adapterMgr", nullptr );
         return res;
     CSP_RETURN_NULL;

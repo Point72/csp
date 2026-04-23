@@ -1218,6 +1218,7 @@ class TestDictBasket(unittest.TestCase):
 
         basket_data: dict of {symbol: [(timedelta, value), ...]}
         """
+
         @csp.graph
         def writer_g(output_dir: str):
             basket = {}
@@ -1235,6 +1236,7 @@ class TestDictBasket(unittest.TestCase):
 
     def _read_dict_basket(self, input_dir, start, symbols, endtime_seconds=10, start_time=None):
         """Helper to read dict basket data via csp graph."""
+
         @csp.graph
         def reader_g(input_dir: str):
             reader = ParquetReader(
@@ -1286,7 +1288,9 @@ class TestDictBasket(unittest.TestCase):
             self._write_dict_basket(d, start, basket_data)
             # Read starting at second 3 — seconds 1,2 should be skipped
             result = self._read_dict_basket(
-                d, start, ["AAPL"],
+                d,
+                start,
+                ["AAPL"],
                 start_time=start + timedelta(seconds=3),
             )
 
@@ -1312,7 +1316,10 @@ class TestDictBasket(unittest.TestCase):
             os.makedirs(d2)
             self._write_dict_basket(d1, start, basket_data, endtime_seconds=5)
             self._write_dict_basket(
-                d2, start + timedelta(seconds=10), basket_data, endtime_seconds=5,
+                d2,
+                start + timedelta(seconds=10),
+                basket_data,
+                endtime_seconds=5,
             )
 
             @csp.graph
@@ -1371,7 +1378,9 @@ class TestDictBasket(unittest.TestCase):
             self._write_dict_basket(d, start, basket_data, endtime_seconds=10)
             # Skip seconds 1-4 (4 main rows, each with 2 basket entries)
             result = self._read_dict_basket(
-                d, start, ["AAPL", "IBM"],
+                d,
+                start,
+                ["AAPL", "IBM"],
                 start_time=start + timedelta(seconds=5),
             )
 
@@ -1404,7 +1413,10 @@ class TestDictBasket(unittest.TestCase):
             os.makedirs(d2)
             self._write_dict_basket(d1, start, data1, endtime_seconds=5)
             self._write_dict_basket(
-                d2, start + timedelta(seconds=10), data2, endtime_seconds=5,
+                d2,
+                start + timedelta(seconds=10),
+                data2,
+                endtime_seconds=5,
             )
 
             @csp.graph
@@ -1419,7 +1431,9 @@ class TestDictBasket(unittest.TestCase):
                 csp.add_graph_output("IBM", basket["IBM"])
 
             result = csp.run(
-                reader_g, starttime=start, endtime=start + timedelta(seconds=20),
+                reader_g,
+                starttime=start,
+                endtime=start + timedelta(seconds=20),
             )
 
             aapl_vals = [v[1] for v in result["AAPL"]]
@@ -1476,7 +1490,10 @@ class TestDictBasket(unittest.TestCase):
                 "AAPL": [(timedelta(seconds=1), 30.0), (timedelta(seconds=2), 40.0)],
             }
             self._write_dict_basket(
-                d2, start + timedelta(seconds=10), basket_data_2, endtime_seconds=5,
+                d2,
+                start + timedelta(seconds=10),
+                basket_data_2,
+                endtime_seconds=5,
             )
 
             @csp.graph
@@ -1493,7 +1510,9 @@ class TestDictBasket(unittest.TestCase):
                 csp.add_graph_output("AAPL", basket["AAPL"])
 
             result = csp.run(
-                reader_g, starttime=start, endtime=start + timedelta(seconds=20),
+                reader_g,
+                starttime=start,
+                endtime=start + timedelta(seconds=20),
             )
 
             aapl_vals = [v[1] for v in result["AAPL"]]
@@ -1563,7 +1582,11 @@ class TestMissingParquetCoverage(unittest.TestCase):
             # produce data for timestamps AFTER the last timestamp in file 1,
             # effectively deduplicating the overlap.
             res = csp.run(
-                g_read, [f1, f2], True, starttime=start, endtime=start + timedelta(seconds=20),
+                g_read,
+                [f1, f2],
+                True,
+                starttime=start,
+                endtime=start + timedelta(seconds=20),
             )
             vals = [v[1] for v in res[0]]
             # File 1 contributes all 5, file 2 has nothing after second 5 so 5 total
@@ -1597,7 +1620,10 @@ class TestMissingParquetCoverage(unittest.TestCase):
             # because file 2 tries to schedule an event in the past
             with self.assertRaisesRegex(ValueError, ".*Cannot schedule event in the past.*"):
                 csp.run(
-                    g_read, [f1, f2], starttime=start, endtime=start + timedelta(seconds=20),
+                    g_read,
+                    [f1, f2],
+                    starttime=start,
+                    endtime=start + timedelta(seconds=20),
                 )
 
     # ── 2. time_shift parameter ───────────────────────────────────────
@@ -1658,7 +1684,11 @@ class TestMissingParquetCoverage(unittest.TestCase):
             # Only read up to second 5
             cutoff = start + timedelta(seconds=5)
             res = csp.run(
-                g_read, fname, cutoff, starttime=start, endtime=start + timedelta(seconds=20),
+                g_read,
+                fname,
+                cutoff,
+                starttime=start,
+                endtime=start + timedelta(seconds=20),
             )
             vals = [v[1] for v in res[0]]
             self.assertEqual(vals, [1, 2, 3, 4, 5])
@@ -1816,16 +1846,28 @@ class TestMissingParquetCoverage(unittest.TestCase):
         def g_write(file_name: str):
             writer = ParquetWriter(file_name, "csp_timestamp")
             # Three values at the same timestamp
-            writer.publish("symbol", csp.curve(str, [
-                (timedelta(seconds=1), "A"),
-                (timedelta(seconds=1), "A"),
-                (timedelta(seconds=1), "A"),
-            ]))
-            writer.publish("value", csp.curve(int, [
-                (timedelta(seconds=1), 10),
-                (timedelta(seconds=1), 20),
-                (timedelta(seconds=1), 30),
-            ]))
+            writer.publish(
+                "symbol",
+                csp.curve(
+                    str,
+                    [
+                        (timedelta(seconds=1), "A"),
+                        (timedelta(seconds=1), "A"),
+                        (timedelta(seconds=1), "A"),
+                    ],
+                ),
+            )
+            writer.publish(
+                "value",
+                csp.curve(
+                    int,
+                    [
+                        (timedelta(seconds=1), 10),
+                        (timedelta(seconds=1), 20),
+                        (timedelta(seconds=1), 30),
+                    ],
+                ),
+            )
 
         @csp.graph
         def g_read(file_name: str) -> csp.ts[int]:
@@ -1848,16 +1890,28 @@ class TestMissingParquetCoverage(unittest.TestCase):
         @csp.graph
         def g_write(file_name: str):
             writer = ParquetWriter(file_name, "csp_timestamp")
-            writer.publish("symbol", csp.curve(str, [
-                (timedelta(seconds=1), "A"),
-                (timedelta(seconds=1), "A"),
-                (timedelta(seconds=1), "A"),
-            ]))
-            writer.publish("value", csp.curve(int, [
-                (timedelta(seconds=1), 10),
-                (timedelta(seconds=1), 20),
-                (timedelta(seconds=1), 30),
-            ]))
+            writer.publish(
+                "symbol",
+                csp.curve(
+                    str,
+                    [
+                        (timedelta(seconds=1), "A"),
+                        (timedelta(seconds=1), "A"),
+                        (timedelta(seconds=1), "A"),
+                    ],
+                ),
+            )
+            writer.publish(
+                "value",
+                csp.curve(
+                    int,
+                    [
+                        (timedelta(seconds=1), 10),
+                        (timedelta(seconds=1), 20),
+                        (timedelta(seconds=1), 30),
+                    ],
+                ),
+            )
 
         @csp.graph
         def g_read(file_name: str) -> csp.ts[[int]]:
@@ -1879,16 +1933,28 @@ class TestMissingParquetCoverage(unittest.TestCase):
         @csp.graph
         def g_write(file_name: str):
             writer = ParquetWriter(file_name, "csp_timestamp")
-            writer.publish("symbol", csp.curve(str, [
-                (timedelta(seconds=1), "A"),
-                (timedelta(seconds=1), "A"),
-                (timedelta(seconds=1), "A"),
-            ]))
-            writer.publish("value", csp.curve(int, [
-                (timedelta(seconds=1), 10),
-                (timedelta(seconds=1), 20),
-                (timedelta(seconds=1), 30),
-            ]))
+            writer.publish(
+                "symbol",
+                csp.curve(
+                    str,
+                    [
+                        (timedelta(seconds=1), "A"),
+                        (timedelta(seconds=1), "A"),
+                        (timedelta(seconds=1), "A"),
+                    ],
+                ),
+            )
+            writer.publish(
+                "value",
+                csp.curve(
+                    int,
+                    [
+                        (timedelta(seconds=1), 10),
+                        (timedelta(seconds=1), 20),
+                        (timedelta(seconds=1), 30),
+                    ],
+                ),
+            )
 
         @csp.graph
         def g_read(file_name: str) -> csp.ts[int]:
@@ -1987,6 +2053,271 @@ class TestMissingParquetCoverage(unittest.TestCase):
             self.assertEqual(structs[0], SimpleStruct(a=1, b=1.5))
             self.assertEqual(structs[1], SimpleStruct(a=2, b=3.0))
             self.assertEqual(structs[2], SimpleStruct(a=3, b=4.5))
+
+
+class TestAdditionalParquetCoverage(unittest.TestCase):
+    """Additional tests for gaps identified in RecordBatch-based parquet processing."""
+
+    def test_multi_row_group_file(self):
+        """Write a parquet file with multiple row groups and verify all rows read back correctly.
+
+        Uses pyarrow.parquet.write_table with row_group_size=100 and 500 rows to ensure
+        the C++ RecordBatchReader handles multiple batches from a single file.
+        """
+        start = datetime(2020, 1, 1)
+        n_rows = 500
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "multi_rg.parquet")
+            timestamps = [start + timedelta(seconds=i) for i in range(1, n_rows + 1)]
+            values = list(range(1, n_rows + 1))
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(timestamps, type=pyarrow.timestamp("ns", tz="UTC")),
+                    "value": pyarrow.array(values, type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname, row_group_size=100)
+
+            # Verify file has multiple row groups
+            pf = pyarrow.parquet.ParquetFile(fname)
+            self.assertEqual(pf.metadata.num_row_groups, 5)
+            pf.close()
+
+            @csp.graph
+            def g_read(file_name: str) -> csp.ts[int]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            res = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=n_rows + 1))
+            result_vals = [v[1] for v in res[0]]
+            self.assertEqual(len(result_vals), n_rows)
+            self.assertEqual(result_vals, values)
+
+    def test_ipc_with_allow_missing_columns(self):
+        """IPC files with differing schemas: allow_missing_columns=True fills missing fields,
+        allow_missing_columns=False raises RuntimeError.
+        """
+        start = datetime(2020, 1, 1)
+
+        class ValExtra(csp.Struct):
+            value: int
+            extra: float
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.arrow")
+            f2 = os.path.join(d, "f2.arrow")
+
+            # File 1: has both value and extra
+            schema1 = pyarrow.schema(
+                [
+                    ("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")),
+                    ("value", pyarrow.int64()),
+                    ("extra", pyarrow.float64()),
+                ]
+            )
+            t1 = pyarrow.table(
+                [
+                    pyarrow.array([start + timedelta(seconds=1), start + timedelta(seconds=2)]),
+                    pyarrow.array([1, 2], type=pyarrow.int64()),
+                    pyarrow.array([10.0, 20.0]),
+                ],
+                schema=schema1,
+            )
+            with open(f1, "wb") as w:
+                writer = pyarrow.RecordBatchStreamWriter(w, schema1)
+                writer.write_table(t1)
+                writer.close()
+
+            # File 2: no extra column
+            schema2 = pyarrow.schema(
+                [
+                    ("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")),
+                    ("value", pyarrow.int64()),
+                ]
+            )
+            t2 = pyarrow.table(
+                [
+                    pyarrow.array([start + timedelta(seconds=3), start + timedelta(seconds=4)]),
+                    pyarrow.array([3, 4], type=pyarrow.int64()),
+                ],
+                schema=schema2,
+            )
+            with open(f2, "wb") as w:
+                writer = pyarrow.RecordBatchStreamWriter(w, schema2)
+                writer.write_table(t2)
+                writer.close()
+
+            # With allow_missing_columns=True: should read all 4 rows
+            @csp.graph
+            def g_read_ok(file_names: object) -> csp.ts[ValExtra]:
+                reader = ParquetReader(
+                    file_names,
+                    time_column="csp_timestamp",
+                    binary_arrow=True,
+                    allow_missing_columns=True,
+                )
+                return reader.subscribe_all(ValExtra)
+
+            res = csp.run(
+                g_read_ok,
+                [f1, f2],
+                starttime=start,
+                endtime=start + timedelta(seconds=10),
+            )
+            structs = [v[1] for v in res[0]]
+            self.assertEqual(len(structs), 4)
+            self.assertEqual(structs[0].value, 1)
+            self.assertEqual(structs[0].extra, 10.0)
+            self.assertEqual(structs[1].value, 2)
+            self.assertEqual(structs[1].extra, 20.0)
+            self.assertEqual(structs[2].value, 3)
+            self.assertEqual(structs[3].value, 4)
+
+            # With allow_missing_columns=False: should raise
+            @csp.graph
+            def g_read_fail(file_names: object) -> csp.ts[ValExtra]:
+                reader = ParquetReader(
+                    file_names,
+                    time_column="csp_timestamp",
+                    binary_arrow=True,
+                    allow_missing_columns=False,
+                )
+                return reader.subscribe_all(ValExtra)
+
+            with self.assertRaises((RuntimeError, KeyError)):
+                csp.run(
+                    g_read_fail,
+                    [f1, f2],
+                    starttime=start,
+                    endtime=start + timedelta(seconds=10),
+                )
+
+    def test_split_columns_missing_column_file(self):
+        """split_columns_to_files with a deleted column file:
+        allow_missing_columns=True succeeds, False raises RuntimeError.
+        """
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(output_dir: str):
+            writer = ParquetWriter(
+                os.path.join(output_dir, "data.parquet"),
+                "csp_timestamp",
+                config=ParquetOutputConfig(allow_overwrite=True),
+                split_columns_to_files=True,
+            )
+            writer.publish("x", csp.curve(int, [(timedelta(seconds=i), i) for i in range(1, 4)]))
+            writer.publish("y", csp.curve(float, [(timedelta(seconds=i), i * 10.0) for i in range(1, 4)]))
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            csp.run(g_write, d, starttime=start, endtime=timedelta(seconds=10))
+
+            split_dir = os.path.join(d, "data.parquet")
+            y_file = os.path.join(split_dir, "y.parquet")
+            self.assertTrue(os.path.exists(y_file))
+            os.remove(y_file)
+
+            # allow_missing_columns=True: should succeed, returning only x data
+            @csp.graph
+            def g_read_ok(input_dir: str):
+                reader = ParquetReader(
+                    os.path.join(input_dir, "data.parquet"),
+                    time_column="csp_timestamp",
+                    split_columns_to_files=True,
+                    allow_missing_columns=True,
+                )
+                csp.add_graph_output("x", reader.subscribe_all(int, "x"))
+
+            res = csp.run(g_read_ok, d, starttime=start, endtime=start + timedelta(seconds=10))
+            x_vals = [v[1] for v in res["x"]]
+            self.assertEqual(x_vals, [1, 2, 3])
+
+            # allow_missing_columns=False: should raise RuntimeError about missing column
+            @csp.graph
+            def g_read_fail(input_dir: str):
+                reader = ParquetReader(
+                    os.path.join(input_dir, "data.parquet"),
+                    time_column="csp_timestamp",
+                    split_columns_to_files=True,
+                    allow_missing_columns=False,
+                )
+                csp.add_graph_output("x", reader.subscribe_all(int, "x"))
+                csp.add_graph_output("y", reader.subscribe_all(float, "y"))
+
+            with self.assertRaisesRegex(RuntimeError, "Missing column"):
+                csp.run(g_read_fail, d, starttime=start, endtime=start + timedelta(seconds=10))
+
+    def test_time_shift_with_end_time(self):
+        """time_shift combined with end_time: only shifted timestamps within range are returned."""
+        start = datetime(2020, 1, 1)
+        shift = timedelta(hours=1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish(
+                "value",
+                csp.curve(int, [(timedelta(seconds=i), i) for i in range(1, 6)]),
+            )
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[int]:
+            reader = ParquetReader(
+                file_name,
+                time_column="csp_timestamp",
+                time_shift=shift,
+                end_time=start + timedelta(hours=1, seconds=3),
+            )
+            return reader.subscribe_all(int, "value")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=10))
+
+            res = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(hours=2))
+            vals = [v[1] for v in res[0]]
+            # Values 1-3 shift to hours 1:01, 1:02, 1:03 — within end_time
+            # Values 4-5 shift to 1:04, 1:05 — past end_time
+            self.assertEqual(vals, [1, 2, 3])
+
+    def test_column_projection_subset(self):
+        """Subscribe to a subset of columns from a file with many columns.
+
+        Verifies the column projection optimization reads only needed columns.
+        """
+        start = datetime(2020, 1, 1)
+        n_cols = 10
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            for c in range(n_cols):
+                writer.publish(
+                    f"col_{c}",
+                    csp.curve(int, [(timedelta(seconds=i), c * 100 + i) for i in range(1, 4)]),
+                )
+
+        @csp.graph
+        def g_read(file_name: str):
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            csp.add_graph_output("col_2", reader.subscribe_all(int, "col_2"))
+            csp.add_graph_output("col_7", reader.subscribe_all(int, "col_7"))
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "wide.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=10))
+
+            res = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            col2_vals = [v[1] for v in res["col_2"]]
+            col7_vals = [v[1] for v in res["col_7"]]
+            self.assertEqual(col2_vals, [201, 202, 203])
+            self.assertEqual(col7_vals, [701, 702, 703])
+
+    @unittest.skip("publish_dict_basket does not support struct values")
+    def test_dict_basket_with_struct_values(self):
+        """Dict basket where basket values are csp.Struct rather than primitives."""
+        pass
 
 
 if __name__ == "__main__":

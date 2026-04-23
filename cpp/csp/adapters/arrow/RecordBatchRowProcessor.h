@@ -64,8 +64,6 @@ public:
     // Get dispatcher for a column (nullptr if not found).
     ColumnDispatcher * getDispatcher( const std::string & name );
 
-    int64_t numRows() const { return m_numRows; }
-    int64_t currentRow() const { return m_currentRow; }
     bool hasMoreRows() const { return m_currentRow < m_numRows; }
 
     // Schema from last setupFromSchema call.

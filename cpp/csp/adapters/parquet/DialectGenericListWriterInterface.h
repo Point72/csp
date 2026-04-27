@@ -3,7 +3,6 @@
 
 #include <memory>
 #include <csp/engine/DialectGenericType.h>
-#include <csp/adapters/parquet/ParquetReaderColumnAdapter.h>
 #include <arrow/array/builder_base.h>
 
 namespace csp::adapters::parquet

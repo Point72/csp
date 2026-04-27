@@ -1,8 +1,4 @@
-// Concrete FieldReader implementations for all scalar Arrow types.
-//
-// Most readers use LambdaReader<ArrowArrayT> — a single template that
-// takes a read-one-row callable at construction.  Only readers with
-// extra state (EnumFromString, Dict*, NestedStruct) are separate classes.
+// Concrete FieldReader implementations for Arrow types.
 
 #include <csp/adapters/arrow/ArrowFieldReader.h>
 #include <csp/engine/CspType.h>
@@ -15,7 +11,6 @@
 namespace csp::adapters::arrow
 {
 
-// Registered factory for list FieldReaders (set by Python-aware layer).
 static ListFieldReaderFactory s_listFieldReaderFactory;
 
 void registerListFieldReaderFactory( ListFieldReaderFactory factory )
@@ -40,9 +35,6 @@ void readColumn( const ArrowArrayT & typed, std::vector<StructPtr> & structs, in
                 fn( typed, i, structs[i].get() );
 }
 
-// --- Generic lambda-based reader (covers Primitive, HalfFloat, StringLike, Nanos, Date) ---
-// ExtractFn signature: ValueT(const ArrowArrayT &, int64_t row)
-
 template<typename ArrowArrayT, typename ValueT, typename ExtractFn>
 class LambdaReader final : public TypedFieldReader<ValueT>
 {
@@ -55,14 +47,9 @@ public:
     void readAll( std::vector<StructPtr> & structs, int64_t numRows ) override
     {
         auto & typed = static_cast<const ArrowArrayT &>( *this -> m_column );
-        auto & f = this -> m_field;
-        if( typed.null_count() == 0 )
-            for( int64_t i = 0; i < numRows; ++i )
-                f -> template setValue<ValueT>( structs[i].get(), m_extractFn( typed, i ) );
-        else
-            for( int64_t i = 0; i < numRows; ++i )
-                if( typed.IsValid( i ) )
-                    f -> template setValue<ValueT>( structs[i].get(), m_extractFn( typed, i ) );
+        readColumn( typed, structs, numRows, [this]( auto & arr, int64_t i, Struct * s ) {
+            this -> m_field -> template setValue<ValueT>( s, m_extractFn( arr, i ) );
+        } );
         this -> m_row = numRows;
     }
 
@@ -82,7 +69,6 @@ private:
     ExtractFn  m_extractFn;
 };
 
-// Factory: creates a LambdaReader, deducing function types
 template<typename ArrowArrayT, typename ValueT, typename ExtractFn>
 std::unique_ptr<FieldReader> makeReader( const std::string & name, const StructFieldPtr & field,
                                          ExtractFn && extractFn )
@@ -92,7 +78,6 @@ std::unique_ptr<FieldReader> makeReader( const std::string & name, const StructF
         name, field, std::forward<ExtractFn>( extractFn ) );
 }
 
-// Factory: primitive numeric reader (static_cast Value(i) to CspT)
 template<typename CspT, typename ArrowArrayT>
 std::unique_ptr<FieldReader> makePrimitiveReader( const std::string & name, const StructFieldPtr & f )
 {
@@ -102,7 +87,6 @@ std::unique_ptr<FieldReader> makePrimitiveReader( const std::string & name, cons
         } );
 }
 
-// Factory: string/binary reader (GetView → std::string)
 template<typename ArrowArrayT>
 std::unique_ptr<FieldReader> makeStringReader( const std::string & name, const StructFieldPtr & f )
 {
@@ -113,7 +97,6 @@ std::unique_ptr<FieldReader> makeStringReader( const std::string & name, const S
         } );
 }
 
-// Factory: nanosecond-based temporal reader (Value * multiplier → CspT::fromNanoseconds)
 template<typename CspT, typename ArrowArrayT>
 std::unique_ptr<FieldReader> makeNanosReader( const std::string & name, const StructFieldPtr & f, int64_t mult )
 {
@@ -123,7 +106,6 @@ std::unique_ptr<FieldReader> makeNanosReader( const std::string & name, const St
         } );
 }
 
-// --- Enum from string column (needs m_enumMeta + m_tmpStr state) ---
 
 template<typename ArrowStringArrayT>
 class EnumFromStringReader final : public TypedFieldReader<CspEnum>
@@ -164,89 +146,58 @@ private:
     mutable std::string                m_tmpStr;
 };
 
-// --- Dictionary-encoded string ---
 
-class DictStringReader final : public TypedFieldReader<std::string>
+template<typename ValueT, typename ConvertFn>
+class DictReader final : public TypedFieldReader<ValueT>
 {
-    using Base = TypedFieldReader<std::string>;
+    using Base = TypedFieldReader<ValueT>;
 public:
-    using Base::Base;
+    DictReader( const std::string & columnName, const StructFieldPtr & field, ConvertFn convert )
+        : Base( columnName, field ), m_convert( std::move( convert ) ) {}
+
+    void onBind() override
+    {
+        auto & typed = static_cast<const ::arrow::DictionaryArray &>( *this -> m_column );
+        m_dict = &static_cast<const ::arrow::StringArray &>( *typed.dictionary() );
+    }
 
     void readAll( std::vector<StructPtr> & structs, int64_t numRows ) override
     {
-        auto & typed = static_cast<const ::arrow::DictionaryArray &>( *m_column );
+        auto & typed = static_cast<const ::arrow::DictionaryArray &>( *this -> m_column );
         const auto * dict = &static_cast<const ::arrow::StringArray &>( *typed.dictionary() );
         readColumn( typed, structs, numRows, [this, dict]( auto & arr, int64_t i, Struct * s ) {
             auto view = dict -> GetView( arr.GetValueIndex( i ) );
-            m_field -> template setValue<std::string>( s, std::string( view.data(), view.size() ) );
+            this -> m_field -> template setValue<ValueT>( s, m_convert( view ) );
         } );
-        m_row = numRows;
+        this -> m_row = numRows;
     }
 
 protected:
-    bool doExtract( int64_t row, std::string & out ) override
+    bool doExtract( int64_t row, ValueT & out ) override
     {
-        auto & typed = static_cast<const ::arrow::DictionaryArray &>( *m_column );
-        if( row == 0 )
-            m_dict = &static_cast<const ::arrow::StringArray &>( *typed.dictionary() );
+        auto & typed = static_cast<const ::arrow::DictionaryArray &>( *this -> m_column );
         if( typed.IsValid( row ) )
         {
             auto view = m_dict -> GetView( typed.GetValueIndex( row ) );
-            out.assign( view.data(), view.size() );
+            out = m_convert( view );
             return true;
         }
         return false;
     }
 
 private:
+    ConvertFn                    m_convert;
     const ::arrow::StringArray * m_dict = nullptr;
 };
 
-// --- Dictionary-encoded enum ---
-
-class DictEnumReader final : public TypedFieldReader<CspEnum>
+template<typename ValueT, typename ConvertFn>
+std::unique_ptr<FieldReader> makeDictReader( const std::string & name, const StructFieldPtr & field,
+                                              ConvertFn && convert )
 {
-    using Base = TypedFieldReader<CspEnum>;
-public:
-    DictEnumReader( const std::string & columnName, const StructFieldPtr & field )
-        : Base( columnName, field ),
-          m_enumMeta( std::static_pointer_cast<const CspEnumType>( field -> type() ) -> meta() ) {}
+    return std::make_unique<DictReader<ValueT, std::decay_t<ConvertFn>>>(
+        name, field, std::forward<ConvertFn>( convert ) );
+}
 
-    void readAll( std::vector<StructPtr> & structs, int64_t numRows ) override
-    {
-        auto & typed = static_cast<const ::arrow::DictionaryArray &>( *m_column );
-        const auto * dict = &static_cast<const ::arrow::StringArray &>( *typed.dictionary() );
-        readColumn( typed, structs, numRows, [this, dict]( auto & arr, int64_t i, Struct * s ) {
-            auto view = dict -> GetView( arr.GetValueIndex( i ) );
-            m_tmpStr.assign( view.data(), view.size() );
-            m_field -> template setValue<CspEnum>( s, m_enumMeta -> fromString( m_tmpStr.c_str() ) );
-        } );
-        m_row = numRows;
-    }
-
-protected:
-    bool doExtract( int64_t row, CspEnum & out ) override
-    {
-        auto & typed = static_cast<const ::arrow::DictionaryArray &>( *m_column );
-        if( row == 0 )
-            m_dict = &static_cast<const ::arrow::StringArray &>( *typed.dictionary() );
-        if( typed.IsValid( row ) )
-        {
-            auto view = m_dict -> GetView( typed.GetValueIndex( row ) );
-            m_tmpStr.assign( view.data(), view.size() );
-            out = m_enumMeta -> fromString( m_tmpStr.c_str() );
-            return true;
-        }
-        return false;
-    }
-
-private:
-    std::shared_ptr<const CspEnumMeta> m_enumMeta;
-    const ::arrow::StringArray *       m_dict = nullptr;
-    mutable std::string                m_tmpStr;
-};
-
-// --- Nested struct (recursive) ---
 
 class NestedStructReader final : public TypedFieldReader<StructPtr>
 {
@@ -274,11 +225,16 @@ public:
         }
     }
 
-    void readAll( std::vector<StructPtr> & structs, int64_t numRows ) override
+    void onBind() override
     {
         auto & typed = static_cast<const ::arrow::StructArray &>( *m_column );
         for( size_t i = 0; i < m_childReaders.size(); ++i )
             m_childReaders[i] -> bindColumn( typed.field( m_childIndices[i] ).get() );
+    }
+
+    void readAll( std::vector<StructPtr> & structs, int64_t numRows ) override
+    {
+        auto & typed = static_cast<const ::arrow::StructArray &>( *m_column );
 
         if( typed.null_count() == 0 )
         {
@@ -363,7 +319,6 @@ std::unique_ptr<FieldReader> createFieldReader(
 
     switch( typeId )
     {
-        // --- Numeric ---
         case ::arrow::Type::BOOL:   return makePrimitiveReader<bool,     ::arrow::BooleanArray>( name, f );
         case ::arrow::Type::INT8:   return makePrimitiveReader<int8_t,   ::arrow::Int8Array>( name, f );
         case ::arrow::Type::INT16:  return makePrimitiveReader<int16_t,  ::arrow::Int16Array>( name, f );
@@ -382,7 +337,6 @@ std::unique_ptr<FieldReader> createFieldReader(
                     return ::arrow::util::Float16::FromBits( arr.Value( i ) ).ToDouble();
                 } );
 
-        // --- String ---
         case ::arrow::Type::STRING:
             if( isEnum ) return std::make_unique<EnumFromStringReader<::arrow::StringArray>>( name, f );
             return makeStringReader<::arrow::StringArray>( name, f );
@@ -390,26 +344,22 @@ std::unique_ptr<FieldReader> createFieldReader(
             if( isEnum ) return std::make_unique<EnumFromStringReader<::arrow::LargeStringArray>>( name, f );
             return makeStringReader<::arrow::LargeStringArray>( name, f );
 
-        // --- Binary / bytes ---
         case ::arrow::Type::BINARY:            return makeStringReader<::arrow::BinaryArray>( name, f );
         case ::arrow::Type::LARGE_BINARY:      return makeStringReader<::arrow::LargeBinaryArray>( name, f );
         case ::arrow::Type::FIXED_SIZE_BINARY: return makeStringReader<::arrow::FixedSizeBinaryArray>( name, f );
 
-        // --- Timestamp -> DateTime ---
         case ::arrow::Type::TIMESTAMP:
         {
             auto mult = timeUnitMultiplier( std::static_pointer_cast<::arrow::TimestampType>( arrowField -> type() ) -> unit() );
             return makeNanosReader<DateTime, ::arrow::TimestampArray>( name, f, mult );
         }
 
-        // --- Duration -> TimeDelta ---
         case ::arrow::Type::DURATION:
         {
             auto mult = timeUnitMultiplier( std::static_pointer_cast<::arrow::DurationType>( arrowField -> type() ) -> unit() );
             return makeNanosReader<TimeDelta, ::arrow::DurationArray>( name, f, mult );
         }
 
-        // --- Date ---
         case ::arrow::Type::DATE32:
             return makeReader<::arrow::Date32Array, Date>( name, f,
                 []( auto & arr, int64_t i ) -> Date {
@@ -421,7 +371,6 @@ std::unique_ptr<FieldReader> createFieldReader(
                     return DateTime::fromNanoseconds( arr.Value( i ) * csp::NANOS_PER_MILLISECOND ).date();
                 } );
 
-        // --- Time ---
         case ::arrow::Type::TIME32:
         {
             auto mult = timeUnitMultiplier( std::static_pointer_cast<::arrow::Time32Type>( arrowField -> type() ) -> unit() );
@@ -433,24 +382,32 @@ std::unique_ptr<FieldReader> createFieldReader(
             return makeNanosReader<Time, ::arrow::Time64Array>( name, f, mult );
         }
 
-        // --- Dictionary-encoded ---
         case ::arrow::Type::DICTIONARY:
         {
             auto dictType = std::static_pointer_cast<::arrow::DictionaryType>( arrowField -> type() );
             if( dictType -> value_type() -> id() != ::arrow::Type::STRING )
                 CSP_THROW( TypeError, "Unsupported dictionary value type " << dictType -> value_type() -> ToString()
                                        << " for column '" << name << "'; only string dictionaries supported" );
-            if( isEnum ) return std::make_unique<DictEnumReader>( name, f );
-            return std::make_unique<DictStringReader>( name, f );
+            if( isEnum )
+            {
+                auto enumMeta = std::static_pointer_cast<const CspEnumType>( f -> type() ) -> meta();
+                return makeDictReader<CspEnum>( name, f,
+                    [enumMeta, tmp = std::string{}]( auto view ) mutable -> CspEnum {
+                        tmp.assign( view.data(), view.size() );
+                        return enumMeta -> fromString( tmp.c_str() );
+                    } );
+            }
+            return makeDictReader<std::string>( name, f,
+                []( auto view ) -> std::string {
+                    return std::string( view.data(), view.size() );
+                } );
         }
 
-        // --- Nested struct ---
         case ::arrow::Type::STRUCT:
             if( !f && !structMeta )
                 return nullptr;  // no struct info available (ColumnDispatcher without meta)
             return std::make_unique<NestedStructReader>( name, f, arrowField -> type(), structMeta );
 
-        // --- List (requires registered factory from Python layer) ---
         case ::arrow::Type::LIST:
         case ::arrow::Type::LARGE_LIST:
             CSP_TRUE_OR_THROW_RUNTIME( s_listFieldReaderFactory,

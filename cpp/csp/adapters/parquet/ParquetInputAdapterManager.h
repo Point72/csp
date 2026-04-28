@@ -1,8 +1,6 @@
 #ifndef _IN_CSP_ADAPTERS_PARQUET_ParquetInputAdapterManager_H
 #define _IN_CSP_ADAPTERS_PARQUET_ParquetInputAdapterManager_H
 
-#include <csp/adapters/arrow/ColumnDispatcher.h>
-#include <csp/adapters/arrow/RecordBatchRowProcessor.h>
 #include <csp/adapters/parquet/RecordBatchStreamSource.h>
 #include <csp/adapters/utils/StructAdapterInfo.h>
 #include <csp/adapters/utils/ValueDispatcher.h>
@@ -13,6 +11,12 @@
 #include <set>
 #include <string>
 #include <optional>
+
+namespace csp::adapters::arrow
+{
+class ColumnDispatcher;
+class RecordBatchRowProcessor;
+}
 
 
 namespace csp::adapters::parquet

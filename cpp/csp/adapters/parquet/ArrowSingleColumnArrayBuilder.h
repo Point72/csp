@@ -24,8 +24,8 @@ public:
 
     virtual ~ArrowSingleColumnArrayBuilder() {}
 
-    virtual std::shared_ptr<arrow::DataType> getDataType() = 0;
-    virtual std::shared_ptr<arrow::ArrayBuilder> getBuilder() = 0;
+    virtual std::shared_ptr<::arrow::DataType> getDataType() = 0;
+    virtual std::shared_ptr<::arrow::ArrayBuilder> getBuilder() = 0;
 
     virtual int64_t length() const = 0;
 
@@ -36,7 +36,7 @@ public:
     // Called for each row of the output parquet row, if no value was provided a null should be appended
     virtual void handleRowFinished() = 0;
     // Release the array from the currently built values
-    virtual std::shared_ptr<arrow::Array> buildArray() = 0;
+    virtual std::shared_ptr<::arrow::Array> buildArray() = 0;
 
 private:
     const std::string   m_columnName;
@@ -55,19 +55,19 @@ public:
                               FieldValueSetter fieldValueSetter )
             : ArrowSingleColumnArrayBuilder( columnName, chunkSize ),
               m_childArrayBuilders( childArrayBuilders ),
-              m_builderPtr( std::make_shared<::arrow::StructBuilder>( type, arrow::default_memory_pool(),
+              m_builderPtr( std::make_shared<::arrow::StructBuilder>( type, ::arrow::default_memory_pool(),
                                                                       getArrowChildArrayBuilders( childArrayBuilders ) ) ),
               m_fieldValueSetter( fieldValueSetter ),
               m_hasValue( false )
     {
     }
 
-    virtual std::shared_ptr<arrow::DataType> getDataType() override
+    virtual std::shared_ptr<::arrow::DataType> getDataType() override
     {
         return m_builderPtr -> type();
     }
 
-    virtual std::shared_ptr<arrow::ArrayBuilder> getBuilder() override
+    virtual std::shared_ptr<::arrow::ArrayBuilder> getBuilder() override
     {
         return m_builderPtr;
     }
@@ -96,9 +96,9 @@ public:
     }
 
     // Release the array from the currently built values
-    virtual std::shared_ptr<arrow::Array> buildArray() override
+    virtual std::shared_ptr<::arrow::Array> buildArray() override
     {
-        std::shared_ptr<arrow::Array> array;
+        std::shared_ptr<::arrow::Array> array;
         STATUS_OK_OR_THROW_RUNTIME( m_builderPtr -> Finish( &array ), "Failed to create arrow array" );
         return array;
     }
@@ -136,22 +136,22 @@ public:
     using ColumnBuilderPtr = std::shared_ptr<ArrowSingleColumnArrayBuilder>;
 
     ListColumnArrayBuilder( std::string columnName, std::uint32_t chunkSize,
-                            const std::shared_ptr<arrow::ArrayBuilder>& valueBuilder,
+                            const std::shared_ptr<::arrow::ArrayBuilder>& valueBuilder,
                             const DialectGenericListWriterInterface::Ptr& listWriterInterface)
             : ArrowSingleColumnArrayBuilder( columnName, chunkSize ),
               m_valueBuilder( valueBuilder ),
-              m_builderPtr( std::make_shared<::arrow::ListBuilder>( arrow::default_memory_pool(), m_valueBuilder ) ),
+              m_builderPtr( std::make_shared<::arrow::ListBuilder>( ::arrow::default_memory_pool(), m_valueBuilder ) ),
               m_listWriterInterface(listWriterInterface)
     {
 
     }
 
-    virtual std::shared_ptr<arrow::DataType> getDataType() override
+    virtual std::shared_ptr<::arrow::DataType> getDataType() override
     {
         return m_builderPtr -> type();
     }
 
-    virtual std::shared_ptr<arrow::ArrayBuilder> getBuilder() override
+    virtual std::shared_ptr<::arrow::ArrayBuilder> getBuilder() override
     {
         return m_builderPtr;
     }
@@ -177,9 +177,9 @@ public:
     }
 
     // Release the array from the currently built values
-    virtual std::shared_ptr<arrow::Array> buildArray() override
+    virtual std::shared_ptr<::arrow::Array> buildArray() override
     {
-        std::shared_ptr<arrow::Array> array;
+        std::shared_ptr<::arrow::Array> array;
         STATUS_OK_OR_THROW_RUNTIME( m_builderPtr -> Finish( &array ), "Failed to create arrow list array" );
         return array;
     }
@@ -190,16 +190,16 @@ public:
     }
 
 private:
-    static std::shared_ptr<arrow::ArrayBuilder> createValueArrayBuilderForType( const std::shared_ptr<::arrow::DataType> &childType)
+    static std::shared_ptr<::arrow::ArrayBuilder> createValueArrayBuilderForType( const std::shared_ptr<::arrow::DataType> &childType)
     {
         switch(childType->id())
         {
-            case arrow::Type::INT64:
-                return std::make_shared<arrow::Int64Builder>();
-            case arrow::Type::DOUBLE:
-                return std::make_shared<arrow::DoubleBuilder>();
-            case arrow::Type::BOOL:
-                return std::make_shared<arrow::BooleanBuilder>();
+            case ::arrow::Type::INT64:
+                return std::make_shared<::arrow::Int64Builder>();
+            case ::arrow::Type::DOUBLE:
+                return std::make_shared<::arrow::DoubleBuilder>();
+            case ::arrow::Type::BOOL:
+                return std::make_shared<::arrow::BooleanBuilder>();
             default:
                 CSP_THROW(TypeError, "Trying to create arrow list array builder for unsupported element type " << childType->name());
         }
@@ -218,7 +218,7 @@ private:
     }
 
 private:
-    std::shared_ptr<arrow::ArrayBuilder>   m_valueBuilder;
+    std::shared_ptr<::arrow::ArrayBuilder>   m_valueBuilder;
     std::shared_ptr<::arrow::ListBuilder>  m_builderPtr;
     DialectGenericListWriterInterface::Ptr m_listWriterInterface;
     std::optional<DialectGenericType>      m_value;
@@ -239,12 +239,12 @@ public:
         CSP_TRUE_OR_THROW_RUNTIME( m_builderPtr -> Reserve( getChunkSize() ).ok(), "Failed to reserve arrow array size" );
     }
 
-    std::shared_ptr<arrow::ArrayBuilder> getBuilder() override
+    std::shared_ptr<::arrow::ArrayBuilder> getBuilder() override
     {
         return m_builderPtr;
     }
 
-    std::shared_ptr<arrow::DataType> getDataType() override
+    std::shared_ptr<::arrow::DataType> getDataType() override
     {
         return m_builderPtr -> type();
     }
@@ -267,9 +267,9 @@ public:
         m_value = nullptr;
     }
 
-    std::shared_ptr<arrow::Array> buildArray() override
+    std::shared_ptr<::arrow::Array> buildArray() override
     {
-        std::shared_ptr<arrow::Array> array;
+        std::shared_ptr<::arrow::Array> array;
         CSP_TRUE_OR_THROW_RUNTIME( m_builderPtr -> Finish( &array ).ok(), "Failed to create arrow array" );
         return array;
     }
@@ -308,10 +308,10 @@ protected:
     }
 };
 
-class StringArrayBuilder : public BaseTypedArrayBuilder<std::string, arrow::StringBuilder>
+class StringArrayBuilder : public BaseTypedArrayBuilder<std::string, ::arrow::StringBuilder>
 {
 public:
-    using BaseTypedArrayBuilder<std::string, arrow::StringBuilder>::BaseTypedArrayBuilder;
+    using BaseTypedArrayBuilder<std::string, ::arrow::StringBuilder>::BaseTypedArrayBuilder;
 
 protected:
     void pushValueToArray()
@@ -322,10 +322,10 @@ protected:
     }
 };
 
-class BytesArrayBuilder : public BaseTypedArrayBuilder<std::string, arrow::BinaryBuilder>
+class BytesArrayBuilder : public BaseTypedArrayBuilder<std::string, ::arrow::BinaryBuilder>
 {
 public:
-    using BaseTypedArrayBuilder<std::string, arrow::BinaryBuilder>::BaseTypedArrayBuilder;
+    using BaseTypedArrayBuilder<std::string, ::arrow::BinaryBuilder>::BaseTypedArrayBuilder;
 
 protected:
     void pushValueToArray()
@@ -336,10 +336,10 @@ protected:
     }
 };
 
-class [[maybe_unused]] CStringArrayBuilder : public BaseTypedArrayBuilder<const char *, arrow::StringBuilder>
+class [[maybe_unused]] CStringArrayBuilder : public BaseTypedArrayBuilder<const char *, ::arrow::StringBuilder>
 {
 public:
-    using BaseTypedArrayBuilder<const char *, arrow::StringBuilder>::BaseTypedArrayBuilder;
+    using BaseTypedArrayBuilder<const char *, ::arrow::StringBuilder>::BaseTypedArrayBuilder;
 
     [[maybe_unused]] void setValueCopyPtr( const char *value )
     {
@@ -359,15 +359,15 @@ private:
 };
 
 
-class DatetimeArrayBuilder : public BaseTypedArrayBuilder<csp::DateTime, arrow::TimestampBuilder>
+class DatetimeArrayBuilder : public BaseTypedArrayBuilder<csp::DateTime, ::arrow::TimestampBuilder>
 {
 public:
     DatetimeArrayBuilder( std::string columnName, std::uint32_t chunkSize )
-            : BaseTypedArrayBuilder<csp::DateTime, arrow::TimestampBuilder>( columnName,
+            : BaseTypedArrayBuilder<csp::DateTime, ::arrow::TimestampBuilder>( columnName,
                                                                              chunkSize,
-                                                                             std::make_shared<arrow::TimestampType>( arrow::TimeUnit::NANO,
+                                                                             std::make_shared<::arrow::TimestampType>( ::arrow::TimeUnit::NANO,
                                                                                                                      "UTC" ),
-                                                                             arrow::default_memory_pool() )
+                                                                             ::arrow::default_memory_pool() )
     {
     }
 
@@ -379,11 +379,11 @@ protected:
     }
 };
 
-class DateArrayBuilder : public BaseTypedArrayBuilder<csp::Date, arrow::Date32Builder>
+class DateArrayBuilder : public BaseTypedArrayBuilder<csp::Date, ::arrow::Date32Builder>
 {
 public:
     DateArrayBuilder( std::string columnName, std::uint32_t chunkSize )
-            : BaseTypedArrayBuilder<csp::Date, arrow::Date32Builder>( columnName,
+            : BaseTypedArrayBuilder<csp::Date, ::arrow::Date32Builder>( columnName,
                                                                       chunkSize )
     {
     }
@@ -403,12 +403,12 @@ private:
     }
 };
 
-class TimeArrayBuilder : public BaseTypedArrayBuilder<csp::Time, arrow::Time64Builder>
+class TimeArrayBuilder : public BaseTypedArrayBuilder<csp::Time, ::arrow::Time64Builder>
 {
 public:
     TimeArrayBuilder( std::string columnName, std::uint32_t chunkSize )
-        : BaseTypedArrayBuilder<csp::Time, arrow::Time64Builder>( columnName, chunkSize,
-                                                                  std::make_shared<arrow::Time64Type>( arrow::TimeUnit::NANO ), arrow::default_memory_pool() )
+        : BaseTypedArrayBuilder<csp::Time, ::arrow::Time64Builder>( columnName, chunkSize,
+                                                                  std::make_shared<::arrow::Time64Type>( ::arrow::TimeUnit::NANO ), ::arrow::default_memory_pool() )
     {
     }
 
@@ -419,13 +419,13 @@ protected:
     }
 };
 
-class TimedeltaArrayBuilder : public BaseTypedArrayBuilder<csp::TimeDelta, arrow::DurationBuilder>
+class TimedeltaArrayBuilder : public BaseTypedArrayBuilder<csp::TimeDelta, ::arrow::DurationBuilder>
 {
 public:
     TimedeltaArrayBuilder( std::string columnName, std::uint32_t chunkSize )
-            : BaseTypedArrayBuilder<csp::TimeDelta, arrow::DurationBuilder>(
-            columnName, chunkSize, std::make_shared<arrow::DurationType>( arrow::TimeUnit::NANO ),
-            arrow::default_memory_pool() )
+            : BaseTypedArrayBuilder<csp::TimeDelta, ::arrow::DurationBuilder>(
+            columnName, chunkSize, std::make_shared<::arrow::DurationType>( ::arrow::TimeUnit::NANO ),
+            ::arrow::default_memory_pool() )
     {
     }
 
@@ -437,16 +437,16 @@ protected:
     }
 };
 
-using BoolArrayBuilder = PrimitiveTypedArrayBuilder<bool, arrow::BooleanBuilder>;
-using Int8ArrayBuilder = PrimitiveTypedArrayBuilder<std::int8_t, arrow::Int8Builder>;
-using Int16ArrayBuilder = PrimitiveTypedArrayBuilder<std::int16_t, arrow::Int16Builder>;
-using Int32ArrayBuilder = PrimitiveTypedArrayBuilder<std::int32_t, arrow::Int32Builder>;
-using Int64ArrayBuilder = PrimitiveTypedArrayBuilder<std::int64_t, arrow::Int64Builder>;
-using UInt8ArrayBuilder = PrimitiveTypedArrayBuilder<std::uint8_t, arrow::UInt8Builder>;
-using UInt16ArrayBuilder = PrimitiveTypedArrayBuilder<std::uint16_t, arrow::UInt16Builder>;
-using UInt32ArrayBuilder = PrimitiveTypedArrayBuilder<std::uint32_t, arrow::UInt32Builder>;
-using UInt64ArrayBuilder = PrimitiveTypedArrayBuilder<std::uint64_t, arrow::UInt64Builder>;
-using DoubleArrayBuilder = PrimitiveTypedArrayBuilder<double, arrow::DoubleBuilder>;
+using BoolArrayBuilder = PrimitiveTypedArrayBuilder<bool, ::arrow::BooleanBuilder>;
+using Int8ArrayBuilder = PrimitiveTypedArrayBuilder<std::int8_t, ::arrow::Int8Builder>;
+using Int16ArrayBuilder = PrimitiveTypedArrayBuilder<std::int16_t, ::arrow::Int16Builder>;
+using Int32ArrayBuilder = PrimitiveTypedArrayBuilder<std::int32_t, ::arrow::Int32Builder>;
+using Int64ArrayBuilder = PrimitiveTypedArrayBuilder<std::int64_t, ::arrow::Int64Builder>;
+using UInt8ArrayBuilder = PrimitiveTypedArrayBuilder<std::uint8_t, ::arrow::UInt8Builder>;
+using UInt16ArrayBuilder = PrimitiveTypedArrayBuilder<std::uint16_t, ::arrow::UInt16Builder>;
+using UInt32ArrayBuilder = PrimitiveTypedArrayBuilder<std::uint32_t, ::arrow::UInt32Builder>;
+using UInt64ArrayBuilder = PrimitiveTypedArrayBuilder<std::uint64_t, ::arrow::UInt64Builder>;
+using DoubleArrayBuilder = PrimitiveTypedArrayBuilder<double, ::arrow::DoubleBuilder>;
 }
 
 #endif

@@ -1,4 +1,6 @@
 #include <csp/adapters/parquet/ParquetInputAdapterManager.h>
+#include <csp/adapters/arrow/ColumnDispatcher.h>
+#include <csp/adapters/arrow/RecordBatchRowProcessor.h>
 #include <csp/adapters/arrow/ArrowTypeVisitor.h>
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/CspEnum.h>

@@ -7,7 +7,7 @@ from csp.impl.wiring.feedback import *
 from csp.impl.wiring.graph import *
 from csp.impl.wiring.node import *
 from csp.impl.wiring.node_parser import *
-from csp.impl.wiring.numba_node import *
+from csp.impl.wiring.csp_numba.numba_node import *
 from csp.impl.wiring.outputs import *
 from csp.impl.wiring.runtime import *
 from csp.impl.wiring.signature import *

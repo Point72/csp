@@ -275,6 +275,20 @@ public:
     }
 
 private:
+    // Count the number of leaf (primitive) columns an Arrow field contributes to parquet.
+    static int countLeafColumns( const std::shared_ptr<::arrow::Field> & field )
+    {
+        auto type = field -> type();
+        if( type -> id() == ::arrow::Type::STRUCT )
+        {
+            int count = 0;
+            for( int i = 0; i < type -> num_fields(); ++i )
+                count += countLeafColumns( type -> field( i ) );
+            return count;
+        }
+        return 1;  // scalar or list types are one leaf in parquet
+    }
+
     // Open a single parquet file, projecting only needed columns.
     bool openSingleFile( const std::string & path )    {
         auto fileReader = makeFileReader( path );
@@ -288,19 +302,31 @@ private:
             auto status = fileReader -> GetSchema( &arrowSchema );
             if( status.ok() && arrowSchema )
             {
+                // Map from top-level Arrow schema fields to parquet leaf column indices.
+                // Parquet stores nested struct fields as separate leaf columns.
+                int leafIdx = 0;
                 for( int i = 0; i < arrowSchema -> num_fields(); ++i )
                 {
-                    auto fieldName = arrowSchema -> field( i ) -> name();
-                    if( m_neededColumns.count( fieldName ) )
+                    auto field = arrowSchema -> field( i );
+                    auto fieldName = field -> name();
+                    int numLeaves = countLeafColumns( field );
+
+                    bool include = m_neededColumns.count( fieldName ) > 0;
+                    if( !include )
                     {
-                        colIndices.push_back( i );
-                        continue;
+                        // Include parent fields of needed nested columns (e.g. "struct.i" → "struct")
+                        std::string prefix = fieldName + ".";
+                        auto lb = m_neededColumns.lower_bound( prefix );
+                        include = lb != m_neededColumns.end() && lb -> compare( 0, prefix.size(), prefix ) == 0;
                     }
-                    // Include parent fields of needed nested columns (e.g. "struct.i" → "struct")
-                    std::string prefix = fieldName + ".";
-                    auto lb = m_neededColumns.lower_bound( prefix );
-                    if( lb != m_neededColumns.end() && lb -> compare( 0, prefix.size(), prefix ) == 0 )
-                        colIndices.push_back( i );
+
+                    if( include )
+                    {
+                        for( int leaf = 0; leaf < numLeaves; ++leaf )
+                            colIndices.push_back( leafIdx + leaf );
+                    }
+
+                    leafIdx += numLeaves;
                 }
             }
         }

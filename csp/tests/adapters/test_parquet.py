@@ -3518,5 +3518,1901 @@ class TestAdversarialFindings(unittest.TestCase):
             self.assertEqual(extra_vals, [1.0, 2.0, 3.0, 4.0])
 
 
+class TestCoverageGaps(unittest.TestCase):
+    """Tests for specific coverage gaps in the parquet input adapter rewrite."""
+
+    def test_gap1_column_type_change_across_files(self):
+        """Gap 1: Column type changes from int32 in file1 to float64 in file2.
+
+        Tests isArrowTypeCompatible and FieldReader recreation on schema change.
+        Arrow should allow int32→float64 widening when subscribing as float.
+        """
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "01_int.parquet")
+            f2 = os.path.join(d, "02_float.parquet")
+
+            # File 1: value column as int32
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([10, 20], type=pyarrow.int32()),
+                }
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            # File 2: value column as float64
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=3), start + timedelta(seconds=4)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([30.5, 40.5], type=pyarrow.float64()),
+                }
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[float]:
+                reader = ParquetReader(file_names, time_column="csp_timestamp")
+                return reader.subscribe_all(float, "value")
+
+            result = csp.run(
+                g,
+                [f1, f2],
+                starttime=start,
+                endtime=start + timedelta(seconds=10),
+            )
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [10.0, 20.0, 30.5, 40.5])
+
+    def test_gap2_dict_basket_and_regular_subscribe_same_reader(self):
+        """Gap 2: Subscribe to both a regular column AND a dict basket on the same reader.
+
+        Verifies that the two subscription types coexist without interference.
+        """
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            # Write data with both a regular column and basket columns
+            @csp.graph
+            def writer_g(output_dir: str):
+                pw = ParquetWriter(
+                    os.path.join(output_dir, "data.parquet"),
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                )
+                # Regular column
+                pw.publish(
+                    "price",
+                    csp.curve(float, [(timedelta(seconds=1), 100.0), (timedelta(seconds=2), 200.0)]),
+                )
+                # Dict basket
+                basket = {
+                    "AAPL": csp.curve(float, [(timedelta(seconds=1), 1.5), (timedelta(seconds=2), 2.5)]),
+                    "IBM": csp.curve(float, [(timedelta(seconds=1), 3.5), (timedelta(seconds=2), 4.5)]),
+                }
+                pw.publish_dict_basket("basket_price", basket, str, float)
+
+            csp.run(writer_g, d, starttime=start, endtime=timedelta(seconds=5))
+
+            @csp.graph
+            def reader_g():
+                reader = ParquetReader(
+                    os.path.join(d, "data.parquet"),
+                    time_column="csp_timestamp",
+                    split_columns_to_files=True,
+                )
+                # Subscribe to regular column
+                csp.add_graph_output("price", reader.subscribe_all(float, "price"))
+                # Subscribe to dict basket on same reader
+                basket = reader.subscribe_dict_basket(float, "basket_price", ["AAPL", "IBM"])
+                csp.add_graph_output("AAPL", basket["AAPL"])
+                csp.add_graph_output("IBM", basket["IBM"])
+
+            result = csp.run(
+                reader_g,
+                starttime=start,
+                endtime=start + timedelta(seconds=10),
+            )
+
+            price_vals = [v[1] for v in result["price"]]
+            self.assertEqual(price_vals, [100.0, 200.0])
+
+            aapl_vals = [v[1] for v in result["AAPL"]]
+            self.assertEqual(aapl_vals, [1.5, 2.5])
+
+            ibm_vals = [v[1] for v in result["IBM"]]
+            self.assertEqual(ibm_vals, [3.5, 4.5])
+
+    def test_gap3_null_values_in_scalar_column(self):
+        """Gap 3: Null values in an int64 column via pyarrow validity bitmap.
+
+        Verifies that non-null rows are delivered correctly and null rows
+        don't crash. Expected: null values produce no tick for that timestamp.
+        """
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "nulls.parquet")
+
+            # Create table with nulls in value column
+            timestamps = pyarrow.array(
+                [start + timedelta(seconds=i) for i in range(1, 6)],
+                type=pyarrow.timestamp("ns", tz="UTC"),
+            )
+            # Values: 10, None, 30, None, 50
+            values = pyarrow.array([10, None, 30, None, 50], type=pyarrow.int64())
+            table = pyarrow.table({"csp_timestamp": timestamps, "value": values})
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[int]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            # Null rows should be skipped (no tick dispatched)
+            self.assertEqual(vals, [10, 30, 50])
+
+    def test_gap4_empty_parquet_file_in_multi_file_read(self):
+        """Gap 4: Empty (0-row) parquet file between files with data.
+
+        Verifies that the adapter skips the empty file gracefully and
+        returns data from file1 and file3.
+        """
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "01_data.parquet")
+            f2 = os.path.join(d, "02_empty.parquet")
+            f3 = os.path.join(d, "03_data.parquet")
+
+            schema = pyarrow.schema(
+                [
+                    ("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")),
+                    ("value", pyarrow.int64()),
+                ]
+            )
+
+            # File 1: 2 rows
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([1, 2], type=pyarrow.int64()),
+                },
+                schema=schema,
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            # File 2: 0 rows (empty table with correct schema)
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array([], type=pyarrow.timestamp("ns", tz="UTC")),
+                    "value": pyarrow.array([], type=pyarrow.int64()),
+                },
+                schema=schema,
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            # File 3: 2 rows
+            t3 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=3), start + timedelta(seconds=4)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([3, 4], type=pyarrow.int64()),
+                },
+                schema=schema,
+            )
+            pyarrow.parquet.write_table(t3, f3)
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[int]:
+                reader = ParquetReader(file_names, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(
+                g,
+                [f1, f2, f3],
+                starttime=start,
+                endtime=start + timedelta(seconds=10),
+            )
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [1, 2, 3, 4])
+
+    def test_gap5_symbol_column_absent_allow_missing(self):
+        """Gap 5: Symbol column present in file1 but absent in file2.
+
+        With allow_missing_columns=True, file1 filters by symbol normally.
+        File2 (missing symbol column) cannot perform symbol filtering, so
+        those rows are silently skipped for all symbol-based subscribers.
+        This verifies allow_missing_columns doesn't crash and file1 data
+        is still correctly filtered by symbol.
+        """
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "01_with_symbol.parquet")
+            f2 = os.path.join(d, "02_no_symbol.parquet")
+
+            # File 1: has symbol column
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1), start + timedelta(seconds=2), start + timedelta(seconds=3)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "symbol": pyarrow.array(["AAPL", "IBM", "AAPL"]),
+                    "value": pyarrow.array([100.0, 200.0, 101.0]),
+                }
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            # File 2: no symbol column
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=4), start + timedelta(seconds=5)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([300.0, 400.0]),
+                }
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            @csp.graph
+            def g(file_names: object):
+                reader = ParquetReader(
+                    file_names,
+                    time_column="csp_timestamp",
+                    symbol_column="symbol",
+                    allow_missing_columns=True,
+                )
+                csp.add_graph_output("AAPL", reader.subscribe("AAPL", float, "value"))
+                csp.add_graph_output("IBM", reader.subscribe("IBM", float, "value"))
+
+            result = csp.run(
+                g,
+                [f1, f2],
+                starttime=start,
+                endtime=start + timedelta(seconds=10),
+            )
+
+            aapl_vals = [v[1] for v in result["AAPL"]]
+            ibm_vals = [v[1] for v in result["IBM"]]
+            # File1: AAPL gets rows at seconds 1,3; IBM gets row at second 2
+            # File2: symbol column absent — rows are skipped (no symbol match possible)
+            self.assertEqual(aapl_vals, [100.0, 101.0])
+            self.assertEqual(ibm_vals, [200.0])
+
+
+class TestComprehensiveCoverage(unittest.TestCase):
+    """Comprehensive tests covering findings, edge cases, and all code paths."""
+
+    # ── Finding #3: Time column type change across files ──────────────
+
+    def test_f3_time_column_precision_change_across_files(self):
+        """F3: Time column changes from timestamp[s] to timestamp[ns] across files.
+
+        The adapter re-fetches the time dispatcher on schema change. This test
+        verifies it handles different timestamp precisions correctly.
+        """
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.parquet")
+            f2 = os.path.join(d, "f2.parquet")
+
+            # File 1: timestamp[s]
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+                        type=pyarrow.timestamp("s", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([10, 20], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            # File 2: timestamp[ns]
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=3), start + timedelta(seconds=4)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([30, 40], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[int]:
+                reader = ParquetReader(file_names, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, [f1, f2], starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [10, 20, 30, 40])
+
+    def test_f3_time_column_us_to_ms_precision(self):
+        """F3 variant: timestamp[us] to timestamp[ms] across files."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.parquet")
+            f2 = os.path.join(d, "f2.parquet")
+
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1)],
+                        type=pyarrow.timestamp("us", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([100], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=2)],
+                        type=pyarrow.timestamp("ms", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([200], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[int]:
+                reader = ParquetReader(file_names, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, [f1, f2], starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [100, 200])
+
+    # ── Finding #4: Schema change across files (dispatcher pointers) ──
+
+    def test_f4_schema_change_columns_added_across_files(self):
+        """F4: Schema change triggers setupFromSchema which clears dispatchers.
+
+        File1 has {timestamp, value}. File2 has {timestamp, value, extra}.
+        Verifies dispatchers are correctly rebuilt after schema change.
+        """
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.parquet")
+            f2 = os.path.join(d, "f2.parquet")
+
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([10, 20], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=3), start + timedelta(seconds=4)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([30, 40], type=pyarrow.int64()),
+                    "extra": pyarrow.array([300.0, 400.0]),
+                }
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            class MyStruct(csp.Struct):
+                value: int
+                extra: float
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[MyStruct]:
+                reader = ParquetReader(
+                    file_names, time_column="csp_timestamp", allow_missing_columns=True
+                )
+                return reader.subscribe_all(MyStruct)
+
+            result = csp.run(g, [f1, f2], starttime=start, endtime=start + timedelta(seconds=10))
+            structs = [v[1] for v in result[0]]
+            self.assertEqual(len(structs), 4)
+            self.assertEqual(structs[0].value, 10)
+            self.assertFalse(hasattr(structs[0], "extra") and structs[0].extra is not None)
+            self.assertEqual(structs[2].value, 30)
+            self.assertEqual(structs[2].extra, 300.0)
+
+    def test_f4_schema_change_columns_removed_across_files(self):
+        """F4 variant: columns removed in second file."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.parquet")
+            f2 = os.path.join(d, "f2.parquet")
+
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([10], type=pyarrow.int64()),
+                    "extra": pyarrow.array([100.0]),
+                }
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=2)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([20], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[int]:
+                reader = ParquetReader(
+                    file_names, time_column="csp_timestamp", allow_missing_columns=True
+                )
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, [f1, f2], starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [10, 20])
+
+    def test_f4_schema_change_with_symbol_column(self):
+        """F4: Schema change with symbol column verifies m_cachedSymbolDispatcher is refreshed."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.parquet")
+            f2 = os.path.join(d, "f2.parquet")
+
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "symbol": pyarrow.array(["AAPL", "IBM"]),
+                    "value": pyarrow.array([10.0, 20.0]),
+                }
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            # File 2: same schema but different column order triggers schema change
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=3), start + timedelta(seconds=4)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "symbol": pyarrow.array(["AAPL", "IBM"]),
+                    "value": pyarrow.array([30.0, 40.0]),
+                    "extra": pyarrow.array([1, 2], type=pyarrow.int32()),
+                }
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            @csp.graph
+            def g(file_names: object):
+                reader = ParquetReader(
+                    file_names,
+                    time_column="csp_timestamp",
+                    symbol_column="symbol",
+                    allow_missing_columns=True,
+                )
+                csp.add_graph_output("AAPL", reader.subscribe("AAPL", float, "value"))
+                csp.add_graph_output("IBM", reader.subscribe("IBM", float, "value"))
+
+            result = csp.run(g, [f1, f2], starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result["AAPL"]], [10.0, 30.0])
+            self.assertEqual([v[1] for v in result["IBM"]], [20.0, 40.0])
+
+    # ── Finding #6: No symbol column (subscribe_all path) ─────────────
+
+    def test_f6_no_symbol_column_subscribe_all(self):
+        """F6: m_symbolType uninitialized when no symbol column is configured.
+
+        subscribe_all path should work correctly without a symbol column.
+        """
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("value", csp.curve(int, [(timedelta(seconds=i), i * 10) for i in range(1, 6)]))
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[int]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(int, "value")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=10))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [10, 20, 30, 40, 50])
+
+    def test_f6_no_symbol_column_subscribe_all_struct(self):
+        """F6 variant: subscribe_all with struct type, no symbol column."""
+        start = datetime(2020, 1, 1)
+
+        class SimpleStruct(csp.Struct):
+            value: int
+            name: str
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish_struct(
+                csp.curve(
+                    SimpleStruct,
+                    [
+                        (timedelta(seconds=1), SimpleStruct(value=1, name="a")),
+                        (timedelta(seconds=2), SimpleStruct(value=2, name="b")),
+                    ],
+                )
+            )
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[SimpleStruct]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(SimpleStruct)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            structs = [v[1] for v in result[0]]
+            self.assertEqual(len(structs), 2)
+            self.assertEqual(structs[0].value, 1)
+            self.assertEqual(structs[0].name, "a")
+            self.assertEqual(structs[1].value, 2)
+            self.assertEqual(structs[1].name, "b")
+
+    # ── Finding #7: NestedStructReader with null entries ───────────────
+
+    def test_f7_struct_column_with_nulls(self):
+        """F7: Struct column with null entries interspersed with valid entries.
+
+        NestedStructReader has a two-path strategy: fast columnar path when
+        no nulls, row-by-row with skipNext() when nulls exist. This test
+        exercises the null path via in-memory tables.
+        """
+        start = datetime(2020, 1, 1)
+
+        class Inner(csp.Struct):
+            x: int
+            y: float
+
+        class Outer(csp.Struct):
+            inner: Inner
+
+        # Build table with struct column containing nulls
+        inner_type = pyarrow.struct([("x", pyarrow.int64()), ("y", pyarrow.float64())])
+        inner_data = pyarrow.array(
+            [{"x": 1, "y": 1.5}, None, {"x": 3, "y": 3.5}, None, {"x": 5, "y": 5.5}],
+            type=inner_type,
+        )
+        timestamps = pyarrow.array(
+            [start + timedelta(seconds=i) for i in range(1, 6)],
+            type=pyarrow.timestamp("ns", tz="UTC"),
+        )
+        table = pyarrow.table({"csp_timestamp": timestamps, "inner": inner_data})
+
+        @csp.graph
+        def g(t: object) -> csp.ts[Outer]:
+            reader = ParquetReader(
+                t,
+                time_column="csp_timestamp",
+                binary_arrow=True,
+                read_from_memory_tables=True,
+            )
+            return reader.subscribe_all(Outer)
+
+        result = csp.run(g, table, starttime=start, endtime=start + timedelta(seconds=10))
+        structs = [v[1] for v in result[0]]
+        # Rows with null struct should still produce ticks (with unset inner field)
+        self.assertEqual(len(structs), 5)
+        self.assertEqual(structs[0].inner.x, 1)
+        self.assertEqual(structs[0].inner.y, 1.5)
+        # Null struct entries: inner may be unset
+        self.assertFalse(hasattr(structs[1], "inner") and structs[1].inner is not None)
+        self.assertEqual(structs[2].inner.x, 3)
+        self.assertEqual(structs[2].inner.y, 3.5)
+        self.assertFalse(hasattr(structs[3], "inner") and structs[3].inner is not None)
+        self.assertEqual(structs[4].inner.x, 5)
+        self.assertEqual(structs[4].inner.y, 5.5)
+
+    # ── Finding #8: Dict basket thorough testing ──────────────────────
+
+    def test_f8_dict_basket_round_trip(self):
+        """F8: Thorough dict basket round-trip to ensure existing code paths work."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+
+            @csp.graph
+            def writer_g(output_dir: str):
+                pw = ParquetWriter(
+                    os.path.join(output_dir, "data.parquet"),
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                )
+                basket = {
+                    "A": csp.curve(float, [(timedelta(seconds=i), float(i)) for i in range(1, 4)]),
+                    "B": csp.curve(float, [(timedelta(seconds=i), float(i * 10)) for i in range(1, 4)]),
+                    "C": csp.curve(float, [(timedelta(seconds=2), 99.0)]),
+                }
+                pw.publish_dict_basket("vals", basket, str, float)
+
+            csp.run(writer_g, d, starttime=start, endtime=timedelta(seconds=5))
+
+            @csp.graph
+            def reader_g(input_dir: str):
+                reader = ParquetReader(
+                    os.path.join(input_dir, "data.parquet"),
+                    time_column="csp_timestamp",
+                    split_columns_to_files=True,
+                )
+                basket = reader.subscribe_dict_basket(float, "vals", ["A", "B", "C"])
+                csp.add_graph_output("A", basket["A"])
+                csp.add_graph_output("B", basket["B"])
+                csp.add_graph_output("C", basket["C"])
+
+            result = csp.run(reader_g, d, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result["A"]], [1.0, 2.0, 3.0])
+            self.assertEqual([v[1] for v in result["B"]], [10.0, 20.0, 30.0])
+            self.assertEqual([v[1] for v in result["C"]], [99.0])
+
+    # ── Finding #9: Scalar (non-struct) subscription ──────────────────
+
+    def test_f9_scalar_subscription_int(self):
+        """F9: Scalar int subscription exercises ColumnDispatcher without struct m_field."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("val", csp.curve(int, [(timedelta(seconds=1), 42), (timedelta(seconds=2), 99)]))
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[int]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(int, "val")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result[0]], [42, 99])
+
+    def test_f9_scalar_subscription_float(self):
+        """F9: Scalar float subscription."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("val", csp.curve(float, [(timedelta(seconds=1), 3.14), (timedelta(seconds=2), 2.72)]))
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[float]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(float, "val")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertAlmostEqual(result[0][0][1], 3.14, places=5)
+            self.assertAlmostEqual(result[0][1][1], 2.72, places=5)
+
+    def test_f9_scalar_subscription_string(self):
+        """F9: Scalar string subscription."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("val", csp.curve(str, [(timedelta(seconds=1), "hello"), (timedelta(seconds=2), "world")]))
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[str]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(str, "val")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result[0]], ["hello", "world"])
+
+    def test_f9_scalar_subscription_bool(self):
+        """F9: Scalar bool subscription."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("val", csp.curve(bool, [(timedelta(seconds=1), True), (timedelta(seconds=2), False)]))
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[bool]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(bool, "val")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result[0]], [True, False])
+
+    def test_f9_scalar_subscription_datetime(self):
+        """F9: Scalar datetime subscription."""
+        start = datetime(2020, 1, 1)
+        dt1 = datetime(2021, 6, 15, 12, 0, 0)
+        dt2 = datetime(2021, 12, 25, 8, 30, 0)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish(
+                "val", csp.curve(datetime, [(timedelta(seconds=1), dt1), (timedelta(seconds=2), dt2)])
+            )
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[datetime]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(datetime, "val")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual(len(result[0]), 2)
+
+    def test_f9_scalar_subscription_timedelta(self):
+        """F9: Scalar timedelta subscription (arrow IPC only)."""
+        start = datetime(2020, 1, 1)
+        td1 = timedelta(seconds=10, microseconds=500)
+        td2 = timedelta(hours=1, minutes=30)
+
+        timestamps = pyarrow.array(
+            [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+            type=pyarrow.timestamp("ns", tz="UTC"),
+        )
+        values = pyarrow.array([td1, td2], type=pyarrow.duration("ns"))
+        table = pyarrow.table({"csp_timestamp": timestamps, "val": values})
+
+        @csp.graph
+        def g(t: object) -> csp.ts[timedelta]:
+            reader = ParquetReader(
+                t, time_column="csp_timestamp", binary_arrow=True, read_from_memory_tables=True
+            )
+            return reader.subscribe_all(timedelta, "val")
+
+        result = csp.run(g, table, starttime=start, endtime=start + timedelta(seconds=10))
+        self.assertEqual(len(result[0]), 2)
+        self.assertEqual(result[0][0][1], td1)
+        self.assertEqual(result[0][1][1], td2)
+
+    # ── Additional Coverage: All scalar types via struct ──────────────
+
+    def test_all_scalar_types_individually(self):
+        """Test bool, int, float, string each as standalone scalar subscription."""
+        start = datetime(2020, 1, 1)
+
+        for csp_type, values in [
+            (bool, [True, False, True]),
+            (int, [1, 2, 3]),
+            (float, [1.1, 2.2, 3.3]),
+            (str, ["a", "bb", "ccc"]),
+        ]:
+
+            @csp.graph
+            def g_write(file_name: str, vals: list):
+                writer = ParquetWriter(file_name, "csp_timestamp")
+                writer.publish(
+                    "data",
+                    csp.curve(csp_type, [(timedelta(seconds=i + 1), v) for i, v in enumerate(vals)]),
+                )
+
+            @csp.graph
+            def g_read(file_name: str) -> csp.ts[csp_type]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(csp_type, "data")
+
+            with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+                fname = os.path.join(d, "data.parquet")
+                csp.run(g_write, fname, values, starttime=start, endtime=timedelta(seconds=10))
+                result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+                result_vals = [v[1] for v in result[0]]
+                if csp_type == float:
+                    for rv, ev in zip(result_vals, values):
+                        self.assertAlmostEqual(rv, ev, places=5)
+                else:
+                    self.assertEqual(result_vals, values, f"Failed for type {csp_type}")
+
+    # ── Additional Coverage: Enum type ────────────────────────────────
+
+    def test_enum_type_subscription(self):
+        """Enum type as standalone scalar subscription."""
+        start = datetime(2020, 1, 1)
+
+        class Color(csp.Enum):
+            RED = 1
+            GREEN = 2
+            BLUE = 3
+
+        class EnumStruct(csp.Struct):
+            color: Color
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish_struct(
+                csp.curve(
+                    EnumStruct,
+                    [
+                        (timedelta(seconds=1), EnumStruct(color=Color.RED)),
+                        (timedelta(seconds=2), EnumStruct(color=Color.GREEN)),
+                        (timedelta(seconds=3), EnumStruct(color=Color.BLUE)),
+                    ],
+                )
+            )
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[EnumStruct]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(EnumStruct)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=10))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            colors = [v[1].color for v in result[0]]
+            self.assertEqual(colors, [Color.RED, Color.GREEN, Color.BLUE])
+
+    # ── Additional Coverage: Multiple files with schema evolution ─────
+
+    def test_schema_evolution_columns_added_removed(self):
+        """Columns added in file2, removed in file3, with allow_missing_columns=True."""
+        start = datetime(2020, 1, 1)
+
+        class Full(csp.Struct):
+            a: int
+            b: float
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.parquet")
+            f2 = os.path.join(d, "f2.parquet")
+            f3 = os.path.join(d, "f3.parquet")
+
+            # File 1: only column 'a'
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1)], type=pyarrow.timestamp("ns", tz="UTC")
+                    ),
+                    "a": pyarrow.array([1], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            # File 2: both 'a' and 'b'
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=2)], type=pyarrow.timestamp("ns", tz="UTC")
+                    ),
+                    "a": pyarrow.array([2], type=pyarrow.int64()),
+                    "b": pyarrow.array([20.0]),
+                }
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            # File 3: only 'a' again
+            t3 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=3)], type=pyarrow.timestamp("ns", tz="UTC")
+                    ),
+                    "a": pyarrow.array([3], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(t3, f3)
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[Full]:
+                reader = ParquetReader(
+                    file_names, time_column="csp_timestamp", allow_missing_columns=True
+                )
+                return reader.subscribe_all(Full)
+
+            result = csp.run(g, [f1, f2, f3], starttime=start, endtime=start + timedelta(seconds=10))
+            structs = [v[1] for v in result[0]]
+            self.assertEqual(len(structs), 3)
+            self.assertEqual(structs[0].a, 1)
+            self.assertEqual(structs[1].a, 2)
+            self.assertEqual(structs[1].b, 20.0)
+            self.assertEqual(structs[2].a, 3)
+
+    # ── Additional Coverage: Dict basket + regular subscribe ──────────
+
+    def test_dict_basket_and_subscribe_on_same_reader(self):
+        """Dict basket and regular subscribe on the same reader instance."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+
+            @csp.graph
+            def writer_g(output_dir: str):
+                pw = ParquetWriter(
+                    os.path.join(output_dir, "data.parquet"),
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                )
+                pw.publish(
+                    "regular",
+                    csp.curve(int, [(timedelta(seconds=1), 100), (timedelta(seconds=2), 200)]),
+                )
+                basket = {
+                    "SYM1": csp.curve(float, [(timedelta(seconds=1), 1.0), (timedelta(seconds=2), 2.0)]),
+                }
+                pw.publish_dict_basket("bkt", basket, str, float)
+
+            csp.run(writer_g, d, starttime=start, endtime=timedelta(seconds=5))
+
+            @csp.graph
+            def reader_g(input_dir: str):
+                reader = ParquetReader(
+                    os.path.join(input_dir, "data.parquet"),
+                    time_column="csp_timestamp",
+                    split_columns_to_files=True,
+                )
+                csp.add_graph_output("regular", reader.subscribe_all(int, "regular"))
+                basket = reader.subscribe_dict_basket(float, "bkt", ["SYM1"])
+                csp.add_graph_output("SYM1", basket["SYM1"])
+
+            result = csp.run(reader_g, d, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result["regular"]], [100, 200])
+            self.assertEqual([v[1] for v in result["SYM1"]], [1.0, 2.0])
+
+    # ── Additional Coverage: Large batch sizes / multi-batch ──────────
+
+    def test_large_multi_row_group(self):
+        """Write enough rows to trigger multiple record batches (row groups)."""
+        start = datetime(2020, 1, 1)
+        n_rows = 1000
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "large.parquet")
+            timestamps = [start + timedelta(milliseconds=i) for i in range(n_rows)]
+            values = list(range(n_rows))
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(timestamps, type=pyarrow.timestamp("ns", tz="UTC")),
+                    "value": pyarrow.array(values, type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname, row_group_size=50)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[int]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=n_rows))
+            result_vals = [v[1] for v in result[0]]
+            self.assertEqual(len(result_vals), n_rows)
+            self.assertEqual(result_vals[0], 0)
+            self.assertEqual(result_vals[-1], n_rows - 1)
+
+    # ── Additional Coverage: Null values in every scalar type ─────────
+
+    def test_null_values_int(self):
+        """Null values intermixed in int column."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "nulls_int.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=i) for i in range(1, 6)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([1, None, 3, None, 5], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[int]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [1, 3, 5])
+
+    def test_null_values_float(self):
+        """Null values intermixed in float column."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "nulls_float.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=i) for i in range(1, 5)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([1.1, None, 3.3, None], type=pyarrow.float64()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[float]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(float, "value")
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertAlmostEqual(vals[0], 1.1, places=5)
+            self.assertAlmostEqual(vals[1], 3.3, places=5)
+
+    def test_null_values_string(self):
+        """Null values intermixed in string column."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "nulls_str.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=i) for i in range(1, 5)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array(["a", None, "c", None], type=pyarrow.string()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[str]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(str, "value")
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, ["a", "c"])
+
+    def test_null_values_bool(self):
+        """Null values intermixed in bool column."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "nulls_bool.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=i) for i in range(1, 5)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([True, None, False, None], type=pyarrow.bool_()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[bool]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(bool, "value")
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [True, False])
+
+    # ── Additional Coverage: Time filtering edge cases ────────────────
+
+    def test_starttime_exactly_at_row_timestamp(self):
+        """Start time exactly matches a row timestamp — that row should be included."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=i) for i in range(1, 6)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([10, 20, 30, 40, 50], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[int]:
+                reader = ParquetReader(
+                    file_name,
+                    time_column="csp_timestamp",
+                    start_time=start + timedelta(seconds=3),
+                )
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [30, 40, 50])
+
+    def test_endtime_exactly_at_row_timestamp(self):
+        """End time exactly matches a row timestamp — that row should be included."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=i) for i in range(1, 6)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "value": pyarrow.array([10, 20, 30, 40, 50], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[int]:
+                reader = ParquetReader(
+                    file_name,
+                    time_column="csp_timestamp",
+                    end_time=start + timedelta(seconds=3),
+                )
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [10, 20, 30])
+
+    # ── Additional Coverage: Symbol column with various types ─────────
+
+    def test_symbol_column_string(self):
+        """Symbol column as regular (non-dict-encoded) string."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("symbol", csp.curve(str, [(timedelta(seconds=1), "X"), (timedelta(seconds=2), "Y")]))
+            writer.publish("val", csp.curve(int, [(timedelta(seconds=1), 10), (timedelta(seconds=2), 20)]))
+
+        @csp.graph
+        def g_read(file_name: str):
+            reader = ParquetReader(file_name, time_column="csp_timestamp", symbol_column="symbol")
+            csp.add_graph_output("X", reader.subscribe("X", int, "val"))
+            csp.add_graph_output("Y", reader.subscribe("Y", int, "val"))
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result["X"]], [10])
+            self.assertEqual([v[1] for v in result["Y"]], [20])
+
+    def test_symbol_column_int64(self):
+        """Symbol column as int64."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("symbol", csp.curve(int, [(timedelta(seconds=1), 1), (timedelta(seconds=2), 2)]))
+            writer.publish("val", csp.curve(float, [(timedelta(seconds=1), 10.0), (timedelta(seconds=2), 20.0)]))
+
+        @csp.graph
+        def g_read(file_name: str):
+            reader = ParquetReader(file_name, time_column="csp_timestamp", symbol_column="symbol")
+            csp.add_graph_output("s1", reader.subscribe(1, float, "val"))
+            csp.add_graph_output("s2", reader.subscribe(2, float, "val"))
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result["s1"]], [10.0])
+            self.assertEqual([v[1] for v in result["s2"]], [20.0])
+
+    def test_symbol_column_dict_encoded_string(self):
+        """Symbol column as dictionary-encoded string via in-memory tables."""
+        start = datetime(2020, 1, 1)
+
+        timestamps = pyarrow.array(
+            [start + timedelta(seconds=i) for i in range(1, 5)],
+            type=pyarrow.timestamp("ns", tz="UTC"),
+        )
+        symbols = pyarrow.array(["AAPL", "IBM", "AAPL", "IBM"]).dictionary_encode()
+        values = pyarrow.array([100.0, 200.0, 101.0, 201.0])
+        table = pyarrow.table({"csp_timestamp": timestamps, "symbol": symbols, "value": values})
+
+        @csp.graph
+        def g(t: object):
+            reader = ParquetReader(
+                t,
+                time_column="csp_timestamp",
+                symbol_column="symbol",
+                binary_arrow=True,
+                read_from_memory_tables=True,
+            )
+            csp.add_graph_output("AAPL", reader.subscribe("AAPL", float, "value"))
+            csp.add_graph_output("IBM", reader.subscribe("IBM", float, "value"))
+
+        result = csp.run(g, table, starttime=start, endtime=start + timedelta(seconds=10))
+        self.assertEqual([v[1] for v in result["AAPL"]], [100.0, 101.0])
+        self.assertEqual([v[1] for v in result["IBM"]], [200.0, 201.0])
+
+    # ── Additional Coverage: Empty file in middle of split dir ────────
+
+    def test_empty_file_in_middle_of_file_list(self):
+        """File1 has data, file2 is empty (0 rows), file3 has data."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.parquet")
+            f2 = os.path.join(d, "f2.parquet")
+            f3 = os.path.join(d, "f3.parquet")
+
+            schema = pyarrow.schema(
+                [("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")), ("value", pyarrow.int64())]
+            )
+
+            pyarrow.parquet.write_table(
+                pyarrow.table(
+                    {
+                        "csp_timestamp": pyarrow.array(
+                            [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+                            type=pyarrow.timestamp("ns", tz="UTC"),
+                        ),
+                        "value": pyarrow.array([1, 2], type=pyarrow.int64()),
+                    },
+                    schema=schema,
+                ),
+                f1,
+            )
+
+            pyarrow.parquet.write_table(
+                pyarrow.table(
+                    {
+                        "csp_timestamp": pyarrow.array([], type=pyarrow.timestamp("ns", tz="UTC")),
+                        "value": pyarrow.array([], type=pyarrow.int64()),
+                    },
+                    schema=schema,
+                ),
+                f2,
+            )
+
+            pyarrow.parquet.write_table(
+                pyarrow.table(
+                    {
+                        "csp_timestamp": pyarrow.array(
+                            [start + timedelta(seconds=3), start + timedelta(seconds=4)],
+                            type=pyarrow.timestamp("ns", tz="UTC"),
+                        ),
+                        "value": pyarrow.array([3, 4], type=pyarrow.int64()),
+                    },
+                    schema=schema,
+                ),
+                f3,
+            )
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[int]:
+                reader = ParquetReader(file_names, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, [f1, f2, f3], starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in result[0]]
+            self.assertEqual(vals, [1, 2, 3, 4])
+
+    # ── Additional Coverage: Struct with nested struct ────────────────
+
+    def test_struct_with_nested_struct(self):
+        """Multi-level struct nesting: outer.inner.x via write+read.
+
+        NOTE: sub-struct reading in native parquet mode only reads the first field
+        of the nested struct (known limitation, also noted in test_all_types).
+        We use arrow IPC (binary_arrow=True via in-memory tables) to test full nesting.
+        """
+        start = datetime(2020, 1, 1)
+
+        class InnerStruct(csp.Struct):
+            x: int
+            y: float
+
+        class OuterStruct(csp.Struct):
+            name: str
+            inner: InnerStruct
+
+        # Use in-memory tables with proper nested struct Arrow arrays
+        inner_type = pyarrow.struct([("x", pyarrow.int64()), ("y", pyarrow.float64())])
+        timestamps = pyarrow.array(
+            [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+            type=pyarrow.timestamp("ns", tz="UTC"),
+        )
+        names = pyarrow.array(["first", "second"])
+        inners = pyarrow.array([{"x": 1, "y": 1.5}, {"x": 2, "y": 2.5}], type=inner_type)
+        table = pyarrow.table({"csp_timestamp": timestamps, "name": names, "inner": inners})
+
+        @csp.graph
+        def g(t: object) -> csp.ts[OuterStruct]:
+            reader = ParquetReader(
+                t, time_column="csp_timestamp", binary_arrow=True, read_from_memory_tables=True
+            )
+            return reader.subscribe_all(OuterStruct)
+
+        result = csp.run(g, table, starttime=start, endtime=start + timedelta(seconds=10))
+        structs = [v[1] for v in result[0]]
+        self.assertEqual(len(structs), 2)
+        self.assertEqual(structs[0].name, "first")
+        self.assertEqual(structs[0].inner.x, 1)
+        self.assertEqual(structs[0].inner.y, 1.5)
+        self.assertEqual(structs[1].name, "second")
+        self.assertEqual(structs[1].inner.x, 2)
+        self.assertEqual(structs[1].inner.y, 2.5)
+
+    # ── Struct-in-middle: leaf index offset for fields after struct ────
+
+    def test_struct_in_middle_of_schema(self):
+        """Struct in middle of schema: fields after it must get correct leaf indices.
+
+        Schema: [timestamp, before(int), middle(struct<a,b,c>), after(float)]
+        Parquet leaves: [0]timestamp [1]before [2]middle.a [3]middle.b [4]middle.c [5]after
+        Without countLeafColumns fix, 'after' would be read from leaf 3 (middle.b) instead of leaf 5.
+        """
+        start = datetime(2020, 1, 1)
+
+        class MiddleStruct(csp.Struct):
+            a: int
+            b: float
+            c: str
+
+        class Row(csp.Struct):
+            before: int
+            middle: MiddleStruct
+            after: float
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "struct_middle.parquet")
+
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=i) for i in range(1, 4)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "before": pyarrow.array([10, 20, 30], type=pyarrow.int64()),
+                    "middle": pyarrow.array(
+                        [
+                            {"a": 1, "b": 1.1, "c": "x"},
+                            {"a": 2, "b": 2.2, "c": "y"},
+                            {"a": 3, "b": 3.3, "c": "z"},
+                        ],
+                        type=pyarrow.struct(
+                            [
+                                ("a", pyarrow.int64()),
+                                ("b", pyarrow.float64()),
+                                ("c", pyarrow.string()),
+                            ]
+                        ),
+                    ),
+                    "after": pyarrow.array([100.0, 200.0, 300.0]),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g() -> csp.ts[Row]:
+                reader = ParquetReader(
+                    fname,
+                    time_column="csp_timestamp",
+                )
+                return reader.subscribe_all(Row)
+
+            result = csp.run(g, starttime=start, endtime=start + timedelta(seconds=10))
+            rows = [v[1] for v in result[0]]
+
+            self.assertEqual(len(rows), 3)
+
+            # Verify scalar before struct
+            self.assertEqual(rows[0].before, 10)
+            self.assertEqual(rows[1].before, 20)
+            self.assertEqual(rows[2].before, 30)
+
+            # Verify struct fields (all sub-fields present)
+            self.assertEqual(rows[0].middle.a, 1)
+            self.assertAlmostEqual(rows[0].middle.b, 1.1)
+            self.assertEqual(rows[0].middle.c, "x")
+            self.assertEqual(rows[2].middle.a, 3)
+            self.assertAlmostEqual(rows[2].middle.b, 3.3)
+            self.assertEqual(rows[2].middle.c, "z")
+
+            # Verify scalar AFTER struct — this is the key assertion.
+            # Without the fix, 'after' reads from wrong leaf index.
+            self.assertAlmostEqual(rows[0].after, 100.0)
+            self.assertAlmostEqual(rows[1].after, 200.0)
+            self.assertAlmostEqual(rows[2].after, 300.0)
+
+    # ── Additional Coverage: allow_missing_columns=False raises ───────
+
+    def test_allow_missing_columns_false_raises(self):
+        """allow_missing_columns=False raises when column is missing in a file."""
+        start = datetime(2020, 1, 1)
+
+        class Full(csp.Struct):
+            a: int
+            b: float
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.parquet")
+            f2 = os.path.join(d, "f2.parquet")
+
+            t1 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1)], type=pyarrow.timestamp("ns", tz="UTC")
+                    ),
+                    "a": pyarrow.array([1], type=pyarrow.int64()),
+                    "b": pyarrow.array([10.0]),
+                }
+            )
+            pyarrow.parquet.write_table(t1, f1)
+
+            # File 2: missing column 'b'
+            t2 = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=2)], type=pyarrow.timestamp("ns", tz="UTC")
+                    ),
+                    "a": pyarrow.array([2], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(t2, f2)
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[Full]:
+                reader = ParquetReader(
+                    file_names, time_column="csp_timestamp", allow_missing_columns=False
+                )
+                return reader.subscribe_all(Full)
+
+            with self.assertRaisesRegex(RuntimeError, "Missing column"):
+                csp.run(g, [f1, f2], starttime=start, endtime=start + timedelta(seconds=10))
+
+    # ── Additional Coverage: Dict basket with multiple symbols ────────
+
+    def test_dict_basket_multiple_symbols_routing(self):
+        """Dict basket with 3 symbols at various ticks, verifying routing."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+
+            @csp.graph
+            def writer_g(output_dir: str):
+                pw = ParquetWriter(
+                    os.path.join(output_dir, "data.parquet"),
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                )
+                basket = {
+                    "A": csp.curve(float, [(timedelta(seconds=1), 1.0), (timedelta(seconds=3), 3.0)]),
+                    "B": csp.curve(float, [(timedelta(seconds=2), 20.0)]),
+                    "C": csp.curve(
+                        float,
+                        [
+                            (timedelta(seconds=1), 100.0),
+                            (timedelta(seconds=2), 200.0),
+                            (timedelta(seconds=3), 300.0),
+                        ],
+                    ),
+                }
+                pw.publish_dict_basket("price", basket, str, float)
+
+            csp.run(writer_g, d, starttime=start, endtime=timedelta(seconds=5))
+
+            @csp.graph
+            def reader_g(input_dir: str):
+                reader = ParquetReader(
+                    os.path.join(input_dir, "data.parquet"),
+                    time_column="csp_timestamp",
+                    split_columns_to_files=True,
+                )
+                basket = reader.subscribe_dict_basket(float, "price", ["A", "B", "C"])
+                csp.add_graph_output("A", basket["A"])
+                csp.add_graph_output("B", basket["B"])
+                csp.add_graph_output("C", basket["C"])
+
+            result = csp.run(reader_g, d, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result["A"]], [1.0, 3.0])
+            self.assertEqual([v[1] for v in result["B"]], [20.0])
+            self.assertEqual([v[1] for v in result["C"]], [100.0, 200.0, 300.0])
+
+    # ── Additional Coverage: In-memory table with IPC ─────────────────
+
+    def test_memory_table_struct_subscription(self):
+        """In-memory pyarrow table with struct subscription."""
+        start = datetime(2020, 1, 1)
+
+        class MyS(csp.Struct):
+            price: float
+            size: int
+
+        timestamps = pyarrow.array(
+            [start + timedelta(seconds=i) for i in range(1, 4)],
+            type=pyarrow.timestamp("ns", tz="UTC"),
+        )
+        prices = pyarrow.array([100.5, 200.5, 300.5])
+        sizes = pyarrow.array([10, 20, 30], type=pyarrow.int64())
+        table = pyarrow.table({"csp_timestamp": timestamps, "price": prices, "size": sizes})
+
+        @csp.graph
+        def g(t: object) -> csp.ts[MyS]:
+            reader = ParquetReader(
+                t, time_column="csp_timestamp", binary_arrow=True, read_from_memory_tables=True
+            )
+            return reader.subscribe_all(MyS, MyS.default_field_map())
+
+        result = csp.run(g, table, starttime=start, endtime=start + timedelta(seconds=10))
+        structs = [v[1] for v in result[0]]
+        self.assertEqual(len(structs), 3)
+        self.assertEqual(structs[0].price, 100.5)
+        self.assertEqual(structs[0].size, 10)
+        self.assertEqual(structs[2].price, 300.5)
+        self.assertEqual(structs[2].size, 30)
+
+    # ── Additional Coverage: Multiple subscribers on same reader ──────
+
+    def test_multiple_scalar_subscribers_same_reader(self):
+        """Multiple scalar fields from the same reader."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("a", csp.curve(int, [(timedelta(seconds=1), 1), (timedelta(seconds=2), 2)]))
+            writer.publish("b", csp.curve(float, [(timedelta(seconds=1), 10.0), (timedelta(seconds=2), 20.0)]))
+            writer.publish("c", csp.curve(str, [(timedelta(seconds=1), "x"), (timedelta(seconds=2), "y")]))
+
+        @csp.graph
+        def g_read(file_name: str):
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            csp.add_graph_output("a", reader.subscribe_all(int, "a"))
+            csp.add_graph_output("b", reader.subscribe_all(float, "b"))
+            csp.add_graph_output("c", reader.subscribe_all(str, "c"))
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result["a"]], [1, 2])
+            self.assertEqual([v[1] for v in result["b"]], [10.0, 20.0])
+            self.assertEqual([v[1] for v in result["c"]], ["x", "y"])
+
+    # ── Additional Coverage: IPC (arrow binary) round-trip ────────────
+
+    def test_arrow_ipc_round_trip_with_symbol(self):
+        """Arrow IPC file round-trip with symbol column filtering."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            config = ParquetOutputConfig(write_arrow_binary=True)
+            writer = ParquetWriter(file_name, "csp_timestamp", config=config)
+            writer.publish("symbol", csp.curve(str, [(timedelta(seconds=1), "A"), (timedelta(seconds=2), "B")]))
+            writer.publish("val", csp.curve(int, [(timedelta(seconds=1), 10), (timedelta(seconds=2), 20)]))
+
+        @csp.graph
+        def g_read(file_name: str):
+            reader = ParquetReader(file_name, time_column="csp_timestamp", symbol_column="symbol", binary_arrow=True)
+            csp.add_graph_output("A", reader.subscribe("A", int, "val"))
+            csp.add_graph_output("B", reader.subscribe("B", int, "val"))
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.arrow")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result["A"]], [10])
+            self.assertEqual([v[1] for v in result["B"]], [20])
+
+    # ── Additional Coverage: Null values in struct fields ─────────────
+
+    def test_null_values_in_struct_fields(self):
+        """Struct with some fields null on some rows."""
+        start = datetime(2020, 1, 1)
+
+        class MyS(csp.Struct):
+            x: int
+            y: str
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "struct_nulls.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=i) for i in range(1, 4)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "x": pyarrow.array([1, None, 3], type=pyarrow.int64()),
+                    "y": pyarrow.array(["a", "b", None], type=pyarrow.string()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[MyS]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(MyS, MyS.default_field_map())
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            structs = [v[1] for v in result[0]]
+            # All 3 rows should produce ticks (struct ticks even when some fields null)
+            self.assertEqual(len(structs), 3)
+            self.assertEqual(structs[0].x, 1)
+            self.assertEqual(structs[0].y, "a")
+            self.assertEqual(structs[1].y, "b")
+            self.assertEqual(structs[2].x, 3)
+
+    # ── Additional Coverage: Single row file ──────────────────────────
+
+    def test_single_row_file(self):
+        """Edge case: parquet file with exactly one row."""
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "single.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1)], type=pyarrow.timestamp("ns", tz="UTC")
+                    ),
+                    "value": pyarrow.array([42], type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[int]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result[0]], [42])
+
+    # ── Additional Coverage: date and time types via pyarrow ──────────
+
+    def test_date_type_subscription(self):
+        """date32 column read as date type."""
+        from datetime import date
+
+        start = datetime(2020, 1, 1)
+
+        class DateStruct(csp.Struct):
+            d: date
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "dates.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "d": pyarrow.array([date(2021, 1, 1), date(2021, 6, 15)], type=pyarrow.date32()),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[DateStruct]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(DateStruct)
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            dates = [v[1].d for v in result[0]]
+            self.assertEqual(dates, [date(2021, 1, 1), date(2021, 6, 15)])
+
+    def test_time_type_subscription(self):
+        """time64 column read as time type."""
+        from datetime import time
+
+        start = datetime(2020, 1, 1)
+
+        class TimeStruct(csp.Struct):
+            t: time
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "times.parquet")
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(
+                        [start + timedelta(seconds=1), start + timedelta(seconds=2)],
+                        type=pyarrow.timestamp("ns", tz="UTC"),
+                    ),
+                    "t": pyarrow.array([time(9, 30, 0), time(16, 0, 0)], type=pyarrow.time64("ns")),
+                }
+            )
+            pyarrow.parquet.write_table(table, fname)
+
+            @csp.graph
+            def g(file_name: str) -> csp.ts[TimeStruct]:
+                reader = ParquetReader(file_name, time_column="csp_timestamp")
+                return reader.subscribe_all(TimeStruct)
+
+            result = csp.run(g, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            times = [v[1].t for v in result[0]]
+            self.assertEqual(times, [time(9, 30, 0), time(16, 0, 0)])
+
+    # ── Additional Coverage: Bytes type subscription ──────────────────
+
+    def test_bytes_type_subscription(self):
+        """Bytes column subscription via parquet."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish(
+                "data",
+                csp.curve(bytes, [(timedelta(seconds=1), b"hello"), (timedelta(seconds=2), b"world")]),
+            )
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[bytes]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(bytes, "data")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result[0]], [b"hello", b"world"])
+
+    # ── Additional Coverage: Repeated runs same config ────────────────
+
+    def test_repeated_runs_consistent_results(self):
+        """Multiple csp.run calls with the same reader config produce identical results."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("val", csp.curve(int, [(timedelta(seconds=i), i) for i in range(1, 6)]))
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[int]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(int, "val")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=10))
+            for _ in range(5):
+                result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+                vals = [v[1] for v in result[0]]
+                self.assertEqual(vals, [1, 2, 3, 4, 5])
+
+    # ── Additional Coverage: field_map for scalar subscriptions ───────
+
+    def test_scalar_with_field_map_string(self):
+        """Scalar subscription with field_map (string alias for column name)."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("PRICE_USD", csp.curve(float, [(timedelta(seconds=1), 100.0)]))
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[float]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(float, field_map="PRICE_USD")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual([v[1] for v in result[0]], [100.0])
+
+    # ── Additional Coverage: csp.run starttime after data ─────────────
+
+    def test_csp_run_starttime_after_all_data(self):
+        """csp.run starttime is after all data in the file → no output."""
+        start = datetime(2020, 1, 1)
+
+        @csp.graph
+        def g_write(file_name: str):
+            writer = ParquetWriter(file_name, "csp_timestamp")
+            writer.publish("val", csp.curve(int, [(timedelta(seconds=1), 10)]))
+
+        @csp.graph
+        def g_read(file_name: str) -> csp.ts[int]:
+            reader = ParquetReader(file_name, time_column="csp_timestamp")
+            return reader.subscribe_all(int, "val")
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            fname = os.path.join(d, "data.parquet")
+            csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
+            # Start after all data
+            result = csp.run(
+                g_read, fname, starttime=start + timedelta(hours=1), endtime=start + timedelta(hours=2)
+            )
+            self.assertEqual(result[0], [])
+
+    # ── Additional Coverage: Multiple files all empty ─────────────────
+
+    def test_all_files_empty(self):
+        """All files in the list are empty (0 rows)."""
+        start = datetime(2020, 1, 1)
+        schema = pyarrow.schema(
+            [("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")), ("value", pyarrow.int64())]
+        )
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            files = []
+            for i in range(3):
+                f = os.path.join(d, f"empty_{i}.parquet")
+                pyarrow.parquet.write_table(
+                    pyarrow.table(
+                        {
+                            "csp_timestamp": pyarrow.array([], type=pyarrow.timestamp("ns", tz="UTC")),
+                            "value": pyarrow.array([], type=pyarrow.int64()),
+                        },
+                        schema=schema,
+                    ),
+                    f,
+                )
+                files.append(f)
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[int]:
+                reader = ParquetReader(file_names, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            result = csp.run(g, files, starttime=start, endtime=start + timedelta(seconds=10))
+            self.assertEqual(result[0], [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -356,12 +356,13 @@ private:
 
         auto parquetReader = ::parquet::ParquetFileReader::Open( fileResult.ValueUnsafe() );
 
-        auto result = ::parquet::arrow::FileReader::Make(
-            ::arrow::default_memory_pool(), std::move( parquetReader ) );
-        if( !result.ok() )
-            CSP_THROW( csp::ValueError, "Failed to create Arrow FileReader for " << path << ": " << result.status().ToString() );
+        std::unique_ptr<::parquet::arrow::FileReader> fileReader;
+        auto status = ::parquet::arrow::FileReader::Make(
+            ::arrow::default_memory_pool(), std::move( parquetReader ), &fileReader );
+        if( !status.ok() )
+            CSP_THROW( csp::ValueError, "Failed to create Arrow FileReader for " << path << ": " << status.ToString() );
 
-        return std::move( result ).ValueUnsafe();
+        return fileReader;
     }
 
     static std::shared_ptr<::arrow::RecordBatchReader> getRecordBatchReader(

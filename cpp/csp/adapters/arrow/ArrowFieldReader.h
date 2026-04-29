@@ -9,6 +9,7 @@
 #include <csp/engine/Struct.h>
 #include <csp/core/Exception.h>
 #include <csp/core/Time.h>
+#include <arrow/array.h>
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
 #include <functional>
@@ -128,6 +129,79 @@ protected:
         else
             out.reset();
     }
+};
+
+// Columnar bulk-read helper: dispatches fn(arr, row, struct*) for each row,
+// skipping nulls when null_count > 0.
+template<typename ArrowArrayT, typename Fn>
+inline void readColumn( const ArrowArrayT & typed, std::vector<StructPtr> & structs, int64_t numRows, Fn && fn )
+{
+    if( typed.null_count() == 0 )
+        for( int64_t i = 0; i < numRows; ++i )
+            fn( typed, i, structs[i].get() );
+    else
+        for( int64_t i = 0; i < numRows; ++i )
+            if( typed.IsValid( i ) )
+                fn( typed, i, structs[i].get() );
+}
+
+// Concrete FieldReader that extracts values via a stateless or capturing lambda.
+// This is the single point of array access for scalar columns.
+template<typename ArrowArrayT, typename ValueT, typename ExtractFn>
+class LambdaReader final : public TypedFieldReader<ValueT>
+{
+    using Base = TypedFieldReader<ValueT>;
+public:
+    LambdaReader( const std::string & columnName, const StructFieldPtr & field,
+                  ExtractFn extractFn )
+        : Base( columnName, field ), m_extractFn( std::move( extractFn ) ) {}
+
+    void readAll( std::vector<StructPtr> & structs, int64_t numRows ) override
+    {
+        auto & typed = static_cast<const ArrowArrayT &>( *this -> m_column );
+        readColumn( typed, structs, numRows, [this]( auto & arr, int64_t i, Struct * s ) {
+            this -> m_field -> template setValue<ValueT>( s, m_extractFn( arr, i ) );
+        } );
+        this -> m_row = numRows;
+    }
+
+    // Non-virtual direct read: called from TypedColumnDispatcher to avoid
+    // virtual dispatch through FieldReader::doReadNextValue.
+    void readDirect( int64_t row, std::optional<ValueT> & out )
+    {
+        auto & typed = static_cast<const ArrowArrayT &>( *this -> m_column );
+        if( typed.IsValid( row ) )
+            out = m_extractFn( typed, row );
+        else
+            out.reset();
+    }
+
+    const ExtractFn & extractFn() const { return m_extractFn; }
+
+protected:
+    bool doExtract( int64_t row, ValueT & out ) override
+    {
+        auto & typed = static_cast<const ArrowArrayT &>( *this -> m_column );
+        if( typed.IsValid( row ) )
+        {
+            out = m_extractFn( typed, row );
+            return true;
+        }
+        return false;
+    }
+
+    void doReadNextValue( int64_t row, void * optionalOut ) override
+    {
+        auto & out = *static_cast<std::optional<ValueT> *>( optionalOut );
+        auto & typed = static_cast<const ArrowArrayT &>( *this -> m_column );
+        if( typed.IsValid( row ) )
+            out = m_extractFn( typed, row );
+        else
+            out.reset();
+    }
+
+private:
+    ExtractFn  m_extractFn;
 };
 
 // Factory: create a FieldReader for a given Arrow field + CSP struct field.

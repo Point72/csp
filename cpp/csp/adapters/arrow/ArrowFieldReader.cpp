@@ -21,53 +21,8 @@ void registerListFieldReaderFactory( ListFieldReaderFactory factory )
 namespace
 {
 
-// Columnar bulk-read helper: dispatches fn(arr, row, struct*) for each row,
-// skipping nulls when null_count > 0.
-template<typename ArrowArrayT, typename Fn>
-void readColumn( const ArrowArrayT & typed, std::vector<StructPtr> & structs, int64_t numRows, Fn && fn )
-{
-    if( typed.null_count() == 0 )
-        for( int64_t i = 0; i < numRows; ++i )
-            fn( typed, i, structs[i].get() );
-    else
-        for( int64_t i = 0; i < numRows; ++i )
-            if( typed.IsValid( i ) )
-                fn( typed, i, structs[i].get() );
-}
-
-template<typename ArrowArrayT, typename ValueT, typename ExtractFn>
-class LambdaReader final : public TypedFieldReader<ValueT>
-{
-    using Base = TypedFieldReader<ValueT>;
-public:
-    LambdaReader( const std::string & columnName, const StructFieldPtr & field,
-                  ExtractFn extractFn )
-        : Base( columnName, field ), m_extractFn( std::move( extractFn ) ) {}
-
-    void readAll( std::vector<StructPtr> & structs, int64_t numRows ) override
-    {
-        auto & typed = static_cast<const ArrowArrayT &>( *this -> m_column );
-        readColumn( typed, structs, numRows, [this]( auto & arr, int64_t i, Struct * s ) {
-            this -> m_field -> template setValue<ValueT>( s, m_extractFn( arr, i ) );
-        } );
-        this -> m_row = numRows;
-    }
-
-protected:
-    bool doExtract( int64_t row, ValueT & out ) override
-    {
-        auto & typed = static_cast<const ArrowArrayT &>( *this -> m_column );
-        if( typed.IsValid( row ) )
-        {
-            out = m_extractFn( typed, row );
-            return true;
-        }
-        return false;
-    }
-
-private:
-    ExtractFn  m_extractFn;
-};
+// LambdaReader and readColumn are now defined in ArrowFieldReader.h.
+// Keep makeReader/makePrimitiveReader here for createFieldReader factory.
 
 template<typename ArrowArrayT, typename ValueT, typename ExtractFn>
 std::unique_ptr<FieldReader> makeReader( const std::string & name, const StructFieldPtr & field,
@@ -141,6 +96,20 @@ protected:
         return false;
     }
 
+    void doReadNextValue( int64_t row, void * optionalOut ) override
+    {
+        auto & out = *static_cast<std::optional<CspEnum> *>( optionalOut );
+        auto & typed = static_cast<const ArrowStringArrayT &>( *this -> m_column );
+        if( typed.IsValid( row ) )
+        {
+            auto view = typed.GetView( row );
+            m_tmpStr.assign( view.data(), view.size() );
+            out = m_enumMeta -> fromString( m_tmpStr.c_str() );
+        }
+        else
+            out.reset();
+    }
+
 private:
     std::shared_ptr<const CspEnumMeta> m_enumMeta;
     mutable std::string                m_tmpStr;
@@ -183,6 +152,19 @@ protected:
             return true;
         }
         return false;
+    }
+
+    void doReadNextValue( int64_t row, void * optionalOut ) override
+    {
+        auto & out = *static_cast<std::optional<ValueT> *>( optionalOut );
+        auto & typed = static_cast<const ::arrow::DictionaryArray &>( *this -> m_column );
+        if( typed.IsValid( row ) )
+        {
+            auto view = m_dict -> GetView( typed.GetValueIndex( row ) );
+            out = m_convert( view );
+        }
+        else
+            out.reset();
     }
 
 private:

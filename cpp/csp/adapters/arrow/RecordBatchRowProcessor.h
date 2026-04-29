@@ -78,8 +78,17 @@ private:
     std::unordered_map<std::string, ColumnDispatcher *>  m_nameToDispatcher;
     std::vector<SourceEntry>                             m_sources;
 
-    bool ensureBatch( SourceEntry & entry );
+    // Cold path: fetch next batch when current is exhausted.
+    bool fetchNextBatch( SourceEntry & entry );
     void rebindSource( SourceEntry & entry );
+
+    // Inline fast-path: just checks if current row is within batch bounds.
+    inline bool ensureBatch( SourceEntry & entry )
+    {
+        if( entry.currentRow < entry.numRows ) [[likely]]
+            return true;
+        return fetchNextBatch( entry );
+    }
 };
 
 } // namespace csp::adapters::arrow

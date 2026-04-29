@@ -123,7 +123,7 @@ void RecordBatchRowProcessor::bindSources(
     }
 }
 
-bool RecordBatchRowProcessor::ensureBatch( SourceEntry & entry )
+bool RecordBatchRowProcessor::fetchNextBatch( SourceEntry & entry )
 {
     while( entry.currentRow >= entry.numRows )
     {

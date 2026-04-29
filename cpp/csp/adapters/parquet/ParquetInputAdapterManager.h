@@ -95,8 +95,6 @@ private:
         std::unique_ptr<arrow::RecordBatchRowProcessor>  m_processor;
         std::vector<std::unique_ptr<StructSubscription>>  m_structSubscriptions;
 
-        std::vector<std::shared_ptr<::arrow::RecordBatchReader>> m_rbSources;
-
         uint16_t getValueCount() const;
     };
 

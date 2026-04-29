@@ -409,8 +409,6 @@ std::shared_ptr<::arrow::Schema> ParquetInputAdapterManager::buildLogicalSchema(
 bool ParquetInputAdapterManager::bindSourcesFromReaders()
 {
     m_mainRBSources.clear();
-    for( auto & record : m_dictBasketReaders )
-        record.m_rbSources.clear();
 
     // Build a lookup from basket name → DictBasketReaderRecord
     std::unordered_map<std::string, DictBasketReaderRecord *> basketByName;

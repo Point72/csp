@@ -3930,9 +3930,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
 
             @csp.graph
             def g(file_names: object) -> csp.ts[MyStruct]:
-                reader = ParquetReader(
-                    file_names, time_column="csp_timestamp", allow_missing_columns=True
-                )
+                reader = ParquetReader(file_names, time_column="csp_timestamp", allow_missing_columns=True)
                 return reader.subscribe_all(MyStruct)
 
             result = csp.run(g, [f1, f2], starttime=start, endtime=start + timedelta(seconds=10))
@@ -3976,9 +3974,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
 
             @csp.graph
             def g(file_names: object) -> csp.ts[int]:
-                reader = ParquetReader(
-                    file_names, time_column="csp_timestamp", allow_missing_columns=True
-                )
+                reader = ParquetReader(file_names, time_column="csp_timestamp", allow_missing_columns=True)
                 return reader.subscribe_all(int, "value")
 
             result = csp.run(g, [f1, f2], starttime=start, endtime=start + timedelta(seconds=10))
@@ -4285,9 +4281,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
         @csp.graph
         def g_write(file_name: str):
             writer = ParquetWriter(file_name, "csp_timestamp")
-            writer.publish(
-                "val", csp.curve(datetime, [(timedelta(seconds=1), dt1), (timedelta(seconds=2), dt2)])
-            )
+            writer.publish("val", csp.curve(datetime, [(timedelta(seconds=1), dt1), (timedelta(seconds=2), dt2)]))
 
         @csp.graph
         def g_read(file_name: str) -> csp.ts[datetime]:
@@ -4315,9 +4309,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
 
         @csp.graph
         def g(t: object) -> csp.ts[timedelta]:
-            reader = ParquetReader(
-                t, time_column="csp_timestamp", binary_arrow=True, read_from_memory_tables=True
-            )
+            reader = ParquetReader(t, time_column="csp_timestamp", binary_arrow=True, read_from_memory_tables=True)
             return reader.subscribe_all(timedelta, "val")
 
         result = csp.run(g, table, starttime=start, endtime=start + timedelta(seconds=10))
@@ -4356,7 +4348,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
                 csp.run(g_write, fname, values, starttime=start, endtime=timedelta(seconds=10))
                 result = csp.run(g_read, fname, starttime=start, endtime=start + timedelta(seconds=10))
                 result_vals = [v[1] for v in result[0]]
-                if csp_type == float:
+                if csp_type is float:
                     for rv, ev in zip(result_vals, values):
                         self.assertAlmostEqual(rv, ev, places=5)
                 else:
@@ -4453,9 +4445,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
 
             @csp.graph
             def g(file_names: object) -> csp.ts[Full]:
-                reader = ParquetReader(
-                    file_names, time_column="csp_timestamp", allow_missing_columns=True
-                )
+                reader = ParquetReader(file_names, time_column="csp_timestamp", allow_missing_columns=True)
                 return reader.subscribe_all(Full)
 
             result = csp.run(g, [f1, f2, f3], starttime=start, endtime=start + timedelta(seconds=10))
@@ -4794,9 +4784,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
             f2 = os.path.join(d, "f2.parquet")
             f3 = os.path.join(d, "f3.parquet")
 
-            schema = pyarrow.schema(
-                [("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")), ("value", pyarrow.int64())]
-            )
+            schema = pyarrow.schema([("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")), ("value", pyarrow.int64())])
 
             pyarrow.parquet.write_table(
                 pyarrow.table(
@@ -4877,9 +4865,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
 
         @csp.graph
         def g(t: object) -> csp.ts[OuterStruct]:
-            reader = ParquetReader(
-                t, time_column="csp_timestamp", binary_arrow=True, read_from_memory_tables=True
-            )
+            reader = ParquetReader(t, time_column="csp_timestamp", binary_arrow=True, read_from_memory_tables=True)
             return reader.subscribe_all(OuterStruct)
 
         result = csp.run(g, table, starttime=start, endtime=start + timedelta(seconds=10))
@@ -5012,9 +4998,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
 
             @csp.graph
             def g(file_names: object) -> csp.ts[Full]:
-                reader = ParquetReader(
-                    file_names, time_column="csp_timestamp", allow_missing_columns=False
-                )
+                reader = ParquetReader(file_names, time_column="csp_timestamp", allow_missing_columns=False)
                 return reader.subscribe_all(Full)
 
             with self.assertRaisesRegex(RuntimeError, "Missing column"):
@@ -5089,9 +5073,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
 
         @csp.graph
         def g(t: object) -> csp.ts[MyS]:
-            reader = ParquetReader(
-                t, time_column="csp_timestamp", binary_arrow=True, read_from_memory_tables=True
-            )
+            reader = ParquetReader(t, time_column="csp_timestamp", binary_arrow=True, read_from_memory_tables=True)
             return reader.subscribe_all(MyS, MyS.default_field_map())
 
         result = csp.run(g, table, starttime=start, endtime=start + timedelta(seconds=10))
@@ -5375,9 +5357,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
             fname = os.path.join(d, "data.parquet")
             csp.run(g_write, fname, starttime=start, endtime=timedelta(seconds=5))
             # Start after all data
-            result = csp.run(
-                g_read, fname, starttime=start + timedelta(hours=1), endtime=start + timedelta(hours=2)
-            )
+            result = csp.run(g_read, fname, starttime=start + timedelta(hours=1), endtime=start + timedelta(hours=2))
             self.assertEqual(result[0], [])
 
     # ── Additional Coverage: Multiple files all empty ─────────────────
@@ -5385,9 +5365,7 @@ class TestComprehensiveCoverage(unittest.TestCase):
     def test_all_files_empty(self):
         """All files in the list are empty (0 rows)."""
         start = datetime(2020, 1, 1)
-        schema = pyarrow.schema(
-            [("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")), ("value", pyarrow.int64())]
-        )
+        schema = pyarrow.schema([("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")), ("value", pyarrow.int64())])
 
         with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
             files = []

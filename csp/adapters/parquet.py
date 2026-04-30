@@ -1,9 +1,11 @@
 import datetime
+import os
 from importlib.metadata import PackageNotFoundError, version as get_package_version
 from typing import TypeVar
 
 import numpy
 import pyarrow
+import pyarrow.ipc
 import pyarrow.parquet
 from packaging import version
 
@@ -32,6 +34,74 @@ try:
 except (PackageNotFoundError, ValueError, TypeError):
     # Cannot read binary arrow
     ...
+
+
+def _ipc_stream_factory(
+    filenames_gen,
+    allow_missing_files=False,
+    split_columns=False,
+):
+    """Create a stream factory for Arrow IPC stream files.
+
+    Returns a callable(starttime, endtime, needed_columns) -> iterator of
+    {column: reader} dicts.
+    """
+
+    def factory(starttime, endtime, needed_columns):
+        if split_columns:
+            for directory in filenames_gen(starttime, endtime):
+                if not os.path.isdir(directory):
+                    raise NotADirectoryError(f"split_columns_to_files expects a directory, got: {directory}")
+
+                if needed_columns:
+                    columns = list(needed_columns)
+                else:
+                    columns = sorted(f[: -len(".arrow")] for f in os.listdir(directory) if f.endswith(".arrow"))
+
+                readers = {}
+                for col in columns:
+                    col_path = os.path.join(directory, f"{col}.arrow")
+                    if not os.path.exists(col_path):
+                        continue
+                    readers[col] = pyarrow.ipc.open_stream(col_path)
+
+                if readers:
+                    yield readers
+        else:
+            files = list(filenames_gen(starttime, endtime))
+            if allow_missing_files:
+                files = [f for f in files if os.path.exists(f)]
+            else:
+                for f in files:
+                    if not os.path.exists(f):
+                        raise FileNotFoundError(f"IPC file not found: {f}")
+
+            for f in files:
+                reader = pyarrow.ipc.open_stream(f)
+                yield {reader.schema.names[0]: reader}
+
+    return factory
+
+
+def _memory_table_stream_factory(table_gen):
+    """Create a stream factory for in-memory Arrow Tables.
+
+    Returns a callable(starttime, endtime, needed_columns) -> iterator of
+    {column: reader} dicts.
+    """
+
+    def factory(starttime, endtime, needed_columns):
+        for table in table_gen(starttime, endtime):
+            if not isinstance(table, pyarrow.Table):
+                raise TypeError(f"Expected pyarrow.Table, got {type(table).__name__}")
+            if needed_columns:
+                available = set(table.column_names)
+                cols = [c for c in needed_columns if c in available]
+                table = table.select(cols)
+            reader = table.to_reader()
+            yield {reader.schema.names[0]: reader}
+
+    return factory
 
 
 class ParquetReader:
@@ -86,8 +156,7 @@ class ParquetReader:
         if read_from_memory_tables:
             if not _CAN_READ_ARROW_BINARY:
                 raise TypeError("CSP Cannot load binary arrows derived from pyarrow versions less than 4.0.1")
-            wrapped = self._filenames_gen
-            self._filenames_gen = lambda starttime, endtime: self._arrow_c_data_interface(wrapped, starttime, endtime)
+            self._table_gen = self._filenames_gen  # Alias: memory-table path uses _table_gen
             binary_arrow = True
         self._properties = {"split_columns_to_files": split_columns_to_files}
         if symbol_column:
@@ -111,14 +180,6 @@ class ParquetReader:
             self._properties["time_shift"] = time_shift
         self._properties["allow_missing_columns"] = allow_missing_columns
         self._properties["allow_missing_files"] = allow_missing_files
-
-    @classmethod
-    def _arrow_c_data_interface(cls, gen, startime, endtime):
-        for v in gen(startime, endtime):
-            if not isinstance(v, pyarrow.Table):
-                raise TypeError(f"Expected PyTable from generator, got {type(v).__name__}")
-            # Use the PyCapsule C data interface to pass data zero copy
-            yield v.__arrow_c_stream__()
 
     @node
     def _reconstruct_struct_array_fields(self, s: ts["T"], fields: {str: ts[object]}, struct_typ: "T") -> ts["T"]:
@@ -158,7 +219,7 @@ class ParquetReader:
                     for k, v in field_map.items():
                         field_typ = meta_typed[v]
                         if CspTypingUtils.is_numpy_array_type(field_typ):
-                            array_fields[v] = self.subscribe(symbol, field_typ, k)
+                            array_fields[v] = self.subscribe(symbol, field_typ, k, push_mode=push_mode)
                         else:
                             new_field_map[k] = v
                     field_map = new_field_map
@@ -259,20 +320,30 @@ class ParquetReader:
     def subscribe_dict_basket(self, typ, name, shape, push_mode: PushMode = PushMode.NON_COLLAPSING):
         return {v: self._subscribe_impl(v, typ, None, push_mode, name) for v in shape}
 
-    def subscribe_dict_basket_struct_column(
-        self, typ, name, shape, field_name, push_mode: PushMode = PushMode.NON_COLLAPSING
-    ):
-        # field_type = typ.metadata()[field_name]
-        # return {v: self._subscribe_impl(v, field_type, field_name, push_mode, name) for v in shape}
-        raise NotImplementedError
-
     def status(self, push_mode=PushMode.NON_COLLAPSING):
         ts_type = Status
         return status_adapter_def(self, ts_type, push_mode=push_mode)
 
     def _create(self, engine, memo):
         """method needs to return the wrapped c++ adapter manager"""
-        return _parquetadapterimpl._parquet_input_adapter_manager(engine, self._properties, self._filenames_gen)
+        props = self._properties
+
+        if props.get("read_from_memory_tables"):
+            stream_factory = _memory_table_stream_factory(self._table_gen)
+            return _parquetadapterimpl._parquet_input_adapter_manager(engine, self._properties, stream_factory)
+
+        if props.get("is_arrow_ipc"):
+            if props.get("split_columns_to_files"):
+                stream_factory = _ipc_stream_factory(self._filenames_gen, split_columns=True)
+            else:
+                stream_factory = _ipc_stream_factory(
+                    self._filenames_gen,
+                    allow_missing_files=props.get("allow_missing_files", False),
+                )
+            return _parquetadapterimpl._parquet_input_adapter_manager(engine, self._properties, stream_factory)
+
+        # Native C++ parquet reader — no Python in the read loop
+        return _parquetadapterimpl._parquet_input_adapter_manager_native(engine, self._properties, self._filenames_gen)
 
 
 _parquet_input_adapter_def = input_adapter_def(

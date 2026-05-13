@@ -24,6 +24,9 @@ template<> struct NPY_TYPE<int64_t>  { static const int value = NPY_LONGLONG; };
 template<> struct NPY_TYPE<uint64_t> { static const int value = NPY_ULONGLONG; };
 template<> struct NPY_TYPE<double>   { static const int value = NPY_DOUBLE; };
 template<> struct NPY_TYPE<std::string>   { static const int value = NPY_UNICODE; };
+template<> struct NPY_TYPE<DateTime>      { static const int value = NPY_DATETIME; };
+template<> struct NPY_TYPE<TimeDelta>     { static const int value = NPY_TIMEDELTA; };
+template<> struct NPY_TYPE<Date>          { static const int value = NPY_DATETIME; };
 
 template<typename T> struct is_native  { static constexpr bool value = false; };
 template<> struct is_native<bool>      { static constexpr bool value = true; };
@@ -93,7 +96,7 @@ inline PyObject * as_nparray( const csp::TimeSeriesProvider * ts, const TickBuff
 {
     int32_t len = startIndex - endIndex + 1;
     if( len <= 0 || !ts -> valid() || ( !tickBuffer && endIndex != 0 ) )
-        return empty_array( NPY_TYPE<DateTime>::value );
+        return empty_array( NPY_OBJECT );
 
     DateTime * values = getValues( tickBuffer, lastValue, startIndex, endIndex, &len, tailPadding );
     npy_intp dims[]{ ( npy_intp ) len };
@@ -104,6 +107,7 @@ inline PyObject * as_nparray( const csp::TimeSeriesProvider * ts, const TickBuff
         auto date_type = PyPtr<PyObject>::own( PyUnicode_FromString( "<M8[ns]" ) );
         PyArray_DescrConverter( date_type.get(), &datetime_descr );
     }
+
     // PyArray_NewFromDescr steals a reference
     Py_INCREF( datetime_descr );
     auto * array = PyArray_NewFromDescr( &PyArray_Type, datetime_descr, 1, dims, nullptr, values, 0, nullptr );
@@ -116,7 +120,7 @@ inline PyObject * as_nparray( const csp::TimeSeriesProvider * ts, const TickBuff
 {
     int32_t len = startIndex - endIndex + 1;
     if( len <= 0 || !ts -> valid()|| ( !tickBuffer && endIndex != 0 ) )
-        return empty_array( NPY_TYPE<TimeDelta>::value );
+        return empty_array( NPY_OBJECT );
 
     TimeDelta * values = getValues( tickBuffer, lastValue, startIndex, endIndex, &len, tailPadding );
     npy_intp dims[]{ ( npy_intp ) len };
@@ -127,6 +131,7 @@ inline PyObject * as_nparray( const csp::TimeSeriesProvider * ts, const TickBuff
         auto timedelta_type = PyPtr<PyObject>::own( PyUnicode_FromString( "<m8[ns]" ) );
         PyArray_DescrConverter( timedelta_type.get(), &timedelta_descr );
     }
+
     Py_INCREF( timedelta_descr );
     auto * array = PyArray_NewFromDescr( &PyArray_Type, timedelta_descr, 1, dims, nullptr, values, 0, nullptr );
     PyArray_ENABLEFLAGS( ( PyArrayObject * ) array, NPY_ARRAY_OWNDATA);
@@ -232,13 +237,22 @@ PyObject * valuesAtIndexToNumpy( ValueType valueType, const csp::TimeSeriesProvi
                                  autogen::TimeIndexPolicy startPolicy, autogen::TimeIndexPolicy endPolicy,
                                  DateTime startDt = DateTime::NONE(), DateTime endDt = DateTime::NONE() );
 
-int64_t scalingFromNumpyDtUnit( NPY_DATETIMEUNIT base );
-NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr );
+CSPIMPL_EXPORT int64_t scalingFromNumpyDtUnit( NPY_DATETIMEUNIT base );
+CSPIMPL_EXPORT NPY_DATETIMEUNIT datetimeUnitFromDescr( PyArray_Descr* descr );
 
 // for getting strings from elems of numpy arrays of strings
 void stringFromNumpyStr( void* data, std::string& out, char numpy_type, int elem_size_bytes );
 
 void validateNumpyTypeVsCspType( const CspTypePtr & type, char numpy_type_char );
+
+// Reshape a flat 1D numpy array into an NDArray using the given dimensions.
+CSPIMPL_EXPORT DialectGenericType numpyReshape( DialectGenericType flatData, const std::vector<int64_t> & dims );
+
+// Extract shape from a numpy NDArray as a vector of dimension sizes.
+CSPIMPL_EXPORT std::vector<int64_t> numpyShape( DialectGenericType ndarray );
+
+// Convert a Python type object (passed as DialectGenericType) to an NPY type constant.
+CSPIMPL_EXPORT int npyTypeFromPyType( DialectGenericType pyTypeObj );
 
 }
 

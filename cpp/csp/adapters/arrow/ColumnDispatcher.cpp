@@ -181,6 +181,10 @@ std::unique_ptr<ColumnDispatcher> createColumnDispatcher(
 {
     auto typeId = arrowField -> type() -> id();
     auto & name = arrowField -> name();
+    auto viewToString = []( const auto & arr, int64_t i ) -> std::string {
+        auto view = arr.GetView( i );
+        return std::string( view.data(), view.size() );
+    };
 
     if( typeId == ::arrow::Type::STRUCT && !structMeta )
         return nullptr;
@@ -227,35 +231,15 @@ std::unique_ptr<ColumnDispatcher> createColumnDispatcher(
                 return ::arrow::util::Float16::FromBits( arr.Value( i ) ).ToDouble();
             } );
     case ::arrow::Type::STRING:
-        return makeInlinedDispatcher<std::string, ::arrow::StringArray>( name, typeId,
-            []( const ::arrow::StringArray & arr, int64_t i ) -> std::string {
-                auto view = arr.GetView( i );
-                return std::string( view.data(), view.size() );
-            } );
+        return makeInlinedDispatcher<std::string, ::arrow::StringArray>( name, typeId, viewToString );
     case ::arrow::Type::LARGE_STRING:
-        return makeInlinedDispatcher<std::string, ::arrow::LargeStringArray>( name, typeId,
-            []( const ::arrow::LargeStringArray & arr, int64_t i ) -> std::string {
-                auto view = arr.GetView( i );
-                return std::string( view.data(), view.size() );
-            } );
+        return makeInlinedDispatcher<std::string, ::arrow::LargeStringArray>( name, typeId, viewToString );
     case ::arrow::Type::BINARY:
-        return makeInlinedDispatcher<std::string, ::arrow::BinaryArray>( name, typeId,
-            []( const ::arrow::BinaryArray & arr, int64_t i ) -> std::string {
-                auto view = arr.GetView( i );
-                return std::string( view.data(), view.size() );
-            } );
+        return makeInlinedDispatcher<std::string, ::arrow::BinaryArray>( name, typeId, viewToString );
     case ::arrow::Type::LARGE_BINARY:
-        return makeInlinedDispatcher<std::string, ::arrow::LargeBinaryArray>( name, typeId,
-            []( const ::arrow::LargeBinaryArray & arr, int64_t i ) -> std::string {
-                auto view = arr.GetView( i );
-                return std::string( view.data(), view.size() );
-            } );
+        return makeInlinedDispatcher<std::string, ::arrow::LargeBinaryArray>( name, typeId, viewToString );
     case ::arrow::Type::FIXED_SIZE_BINARY:
-        return makeInlinedDispatcher<std::string, ::arrow::FixedSizeBinaryArray>( name, typeId,
-            []( const ::arrow::FixedSizeBinaryArray & arr, int64_t i ) -> std::string {
-                auto view = arr.GetView( i );
-                return std::string( view.data(), view.size() );
-            } );
+        return makeInlinedDispatcher<std::string, ::arrow::FixedSizeBinaryArray>( name, typeId, viewToString );
     case ::arrow::Type::TIMESTAMP:
     {
         auto mult = timeUnitMultiplier(

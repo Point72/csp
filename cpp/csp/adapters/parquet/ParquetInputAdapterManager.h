@@ -89,7 +89,6 @@ private:
     struct DictBasketReaderRecord
     {
         std::string                                     m_basketName;
-        std::string                                     m_basketSymbolColumn;
         arrow::ColumnDispatcher *                        m_valueCountDispatcher = nullptr;
         arrow::ColumnDispatcher *                        m_cachedSymbolDispatcher = nullptr;
         std::unique_ptr<arrow::RecordBatchRowProcessor>  m_processor;

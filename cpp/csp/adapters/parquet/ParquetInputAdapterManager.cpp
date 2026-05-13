@@ -381,7 +381,6 @@ void ParquetInputAdapterManager::setupDictBaskets()
 
         DictBasketReaderRecord record;
         record.m_basketName = it.first;
-        record.m_basketSymbolColumn = it.first + "__csp_symbol";
         record.m_valueCountDispatcher = m_processor -> getDispatcher( valueCountColumnName );
         CSP_TRUE_OR_THROW_RUNTIME( record.m_valueCountDispatcher != nullptr,
             "Value count column '" << valueCountColumnName << "' not found" );
@@ -710,10 +709,10 @@ void ParquetInputAdapterManager::stop()
 
 void ParquetInputAdapterManager::processDictBaskets( bool dispatch )
 {
+    const char * phase = dispatch ? "dispatch" : "skip";
     for( auto && record : m_dictBasketReaders )
     {
         auto numValues = record.getValueCount();
-        const char * phase = dispatch ? "dispatch" : "skip";
         for( uint16_t i = 0; i < numValues; ++i )
         {
             if( dispatch )
@@ -870,7 +869,6 @@ ParquetInputAdapterManager::getRegularAdapter( const CspTypePtr &type, const Dic
         auto dictFieldMap = properties.get<DictionaryPtr>( "field_map" );
         return getOrCreateStructColumnAdapter( m_simInputAdapters, type, symbol, dictFieldMap, pushMode );
     }
-    properties.get<std::string>( "field_map" );
     CSP_THROW( RuntimeException, "Unexpected field_map type" );
 }
 

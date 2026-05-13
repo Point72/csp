@@ -181,7 +181,7 @@ std::unique_ptr<ColumnDispatcher> createColumnDispatcher(
 {
     auto typeId = arrowField -> type() -> id();
     auto & name = arrowField -> name();
-    auto viewToString = []( const auto & arr, int64_t i ) -> std::string {
+    static auto viewToString = []( const auto & arr, int64_t i ) -> std::string {
         auto view = arr.GetView( i );
         return std::string( view.data(), view.size() );
     };

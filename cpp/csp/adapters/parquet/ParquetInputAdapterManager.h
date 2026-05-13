@@ -166,7 +166,6 @@ private:
     RecordBatchStreamSourcePtr          m_streamSource;
     std::string                         m_symbolColumn;
     std::string                         m_timeColumn;
-    std::string                         m_defaultTimezone;
     bool                                m_allowOverlappingPeriods;
     bool                                m_allowMissingColumns;
     std::optional<PushMode>             m_pushMode;

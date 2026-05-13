@@ -190,15 +190,6 @@ protected:
         return false;
     }
 
-    void doReadNextValue( int64_t row, void * optionalOut ) override
-    {
-        auto & out = *static_cast<std::optional<ValueT> *>( optionalOut );
-        auto & typed = static_cast<const ArrowArrayT &>( *this -> m_column );
-        if( typed.IsValid( row ) )
-            out = m_extractFn( typed, row );
-        else
-            out.reset();
-    }
 
 private:
     ExtractFn  m_extractFn;

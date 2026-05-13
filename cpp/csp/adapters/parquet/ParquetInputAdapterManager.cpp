@@ -189,7 +189,9 @@ ParquetInputAdapterManager::ParquetInputAdapterManager( csp::Engine *engine, con
 
     m_symbolColumn        = properties.get<std::string>( "symbol_column", "" );
     m_timeColumn          = properties.get<std::string>( "time_column", "" );
-    m_defaultTimezone     = properties.get<std::string>( "tz", "UTC" );
+    auto tz = properties.get<std::string>( "tz", "UTC" );
+    CSP_TRUE_OR_THROW_RUNTIME( tz == "UTC",
+                               "Only UTC default timezone is supported, got:" << tz );
     m_allowOverlappingPeriods = properties.get<bool>( "allow_overlapping_periods", false );
     m_allowMissingColumns = properties.get<bool>( "allow_missing_columns", false );
     properties.tryGet( "start_time", m_startTime );
@@ -197,8 +199,6 @@ ParquetInputAdapterManager::ParquetInputAdapterManager( csp::Engine *engine, con
     properties.tryGet( "time_shift", m_time_shift );
 
     CSP_TRUE_OR_THROW_RUNTIME( m_timeColumn != "", "Time column can't be empty" );
-    CSP_TRUE_OR_THROW_RUNTIME( m_defaultTimezone == "UTC",
-                               "Only UTC default timezone is supported, got:" << m_defaultTimezone );
 }
 
 ParquetInputAdapterManager::~ParquetInputAdapterManager() = default;

@@ -57,8 +57,8 @@ protected:
 
     virtual void * getCurValueUntyped() = 0;
 
-    ::arrow::Type::type m_arrowTypeId;
-    std::string         m_columnName;
+    const ::arrow::Type::type m_arrowTypeId;
+    const std::string         m_columnName;
 };
 
 // Factory: create a typed ColumnDispatcher for an arrow field.

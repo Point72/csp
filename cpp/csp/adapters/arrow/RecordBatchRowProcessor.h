@@ -31,16 +31,6 @@ public:
         int         colIndex;
     };
 
-    struct SourceEntry
-    {
-        ::arrow::RecordBatchReader *                  source = nullptr;
-        std::shared_ptr<::arrow::RecordBatch>        currentBatch;
-        int64_t                                      numRows    = 0;
-        int64_t                                      currentRow = 0;
-        std::vector<int>                             colIndices;
-        std::vector<ColumnDispatcher *>              dispatchers;
-    };
-
     RecordBatchRowProcessor() = default;
 
     // (Re)create dispatchers for the given schema and requested columns.
@@ -74,6 +64,16 @@ public:
     bool readRowAndAdvance();
 
 private:
+    struct SourceEntry
+    {
+        ::arrow::RecordBatchReader *                  source = nullptr;
+        std::shared_ptr<::arrow::RecordBatch>        currentBatch;
+        int64_t                                      numRows    = 0;
+        int64_t                                      currentRow = 0;
+        std::vector<int>                             colIndices;
+        std::vector<ColumnDispatcher *>              dispatchers;
+    };
+
     std::vector<std::unique_ptr<ColumnDispatcher>>      m_dispatchers;
     std::unordered_map<std::string, ColumnDispatcher *>  m_nameToDispatcher;
     std::vector<SourceEntry>                             m_sources;

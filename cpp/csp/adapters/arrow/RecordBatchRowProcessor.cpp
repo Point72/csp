@@ -102,22 +102,7 @@ void RecordBatchRowProcessor::bindSources(
         }
 
         // Pull first non-empty batch
-        for( ;; )
-        {
-            auto status = entry.source -> ReadNext( &entry.currentBatch );
-            CSP_TRUE_OR_THROW_RUNTIME( status.ok(),
-                "bindSources: failed to read first batch: " << status.ToString() );
-
-            if( !entry.currentBatch )
-                break;
-
-            entry.numRows    = entry.currentBatch -> num_rows();
-            entry.currentRow = 0;
-            rebindSource( entry );
-
-            if( entry.numRows > 0 )
-                break;
-        }
+        fetchNextBatch( entry );
 
         m_sources.push_back( std::move( entry ) );
     }
@@ -143,8 +128,9 @@ bool RecordBatchRowProcessor::fetchNextBatch( SourceEntry & entry )
 
 void RecordBatchRowProcessor::rebindSource( SourceEntry & entry )
 {
+    auto & cols = entry.currentBatch -> columns();
     for( size_t i = 0; i < entry.dispatchers.size(); ++i )
-        entry.dispatchers[i] -> bindColumn( entry.currentBatch -> column( entry.colIndices[i] ).get() );
+        entry.dispatchers[i] -> bindColumn( cols[entry.colIndices[i]].get() );
 }
 
 bool RecordBatchRowProcessor::skipRow()

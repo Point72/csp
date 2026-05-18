@@ -9,8 +9,12 @@ def deps():
     return requires + develop
 
 def main():
-    os.system("python -m pip install toml")
-    os.system("python -m pip install " + " ".join(f'"{_}"' for _ in deps()))
+    ret = os.system("python -m pip install --prefer-binary toml")
+    if ret != 0:
+        raise ValueError("Python requirement install failed: see output for error")
+    ret = os.system("python -m pip install --prefer-binary " + " ".join(f'"{_}"' for _ in deps()))
+    if ret != 0:
+        raise ValueError("Python requirement install failed: see output for error")
 
 
 if __name__ == "__main__":

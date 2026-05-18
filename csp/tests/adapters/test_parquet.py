@@ -5727,6 +5727,43 @@ class TestComprehensiveCoverage(unittest.TestCase):
             got = [v[1] for v in result[0]]
             self.assertEqual(got, [10, 20, 30, 40])
 
+    def test_partial_read_many_row_groups(self):
+        """Partial read with many row groups exercises prefetch thread shutdown.
+
+        Regression test: when CSP stops mid-file, the PrefetchingRecordBatchReader
+        must cleanly shut down its background thread before the FileReader is released.
+        """
+        start = datetime(2020, 1, 1)
+        n_rows = 50_000
+        row_group_size = 100  # 500 row groups
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            path = os.path.join(d, "many_rg.parquet")
+            timestamps = [start + timedelta(seconds=i) for i in range(1, n_rows + 1)]
+            table = pyarrow.table(
+                {
+                    "csp_timestamp": pyarrow.array(timestamps, type=pyarrow.timestamp("ns", tz="UTC")),
+                    "value": pyarrow.array(range(n_rows), type=pyarrow.int64()),
+                }
+            )
+            pyarrow.parquet.write_table(table, path, row_group_size=row_group_size)
+
+            @csp.graph
+            def g() -> csp.ts[int]:
+                reader = ParquetReader(path, time_column="csp_timestamp")
+                return reader.subscribe_all(int, "value")
+
+            # Partial read: only consume ~17% of the file (first day of ~0.6 days worth)
+            end = start + timedelta(hours=2)
+
+            # Run multiple times to exercise the race condition
+            for _ in range(10):
+                result = csp.run(g, starttime=start, endtime=end)
+                ticks = [v[1] for v in result[0]]
+                self.assertEqual(len(ticks), 7200)
+                self.assertEqual(ticks[0], 0)
+                self.assertEqual(ticks[-1], 7199)
+
 
 if __name__ == "__main__":
     unittest.main()

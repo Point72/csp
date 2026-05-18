@@ -23,8 +23,10 @@
 #include <arrow/io/file.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/file_reader.h>
+#include <parquet/properties.h>
 #include <csp/engine/PartialSwitchCspType.h>
 #include <filesystem>
+#include <future>
 #include <locale>
 #include <codecvt>
 #include <numeric>
@@ -188,6 +190,75 @@ private:
     csp::python::PyObjectPtr m_iter;
 
     ColumnReaderMap m_columnReaders;
+};
+
+// Wraps a RecordBatchReader to prefetch the next batch on a background thread.
+// This overlaps Arrow decode (ReadNext) with CSP's per-row processing.
+class PrefetchingRecordBatchReader : public ::arrow::RecordBatchReader
+{
+public:
+    PrefetchingRecordBatchReader( std::shared_ptr<::arrow::RecordBatchReader> inner,
+                                  std::shared_ptr<::parquet::arrow::FileReader> fileReader )
+        : m_inner( std::move( inner ) ), m_fileReader( std::move( fileReader ) ), m_eof( false )
+    {
+        // Kick off the first prefetch
+        m_prefetch = std::async( std::launch::async, [this] { return readOne(); } );
+    }
+
+    ~PrefetchingRecordBatchReader() override
+    {
+        // Ensure the background task finishes before m_inner/m_fileReader are released
+        if( m_prefetch.valid() )
+            m_prefetch.wait();
+    }
+
+    std::shared_ptr<::arrow::Schema> schema() const override
+    {
+        return m_inner -> schema();
+    }
+
+    ::arrow::Status ReadNext( std::shared_ptr<::arrow::RecordBatch> * batch ) override
+    {
+        if( m_eof )
+        {
+            *batch = nullptr;
+            return ::arrow::Status::OK();
+        }
+
+        // Get the prefetched result
+        auto result = m_prefetch.get();
+        if( !result.ok() )
+            return result.status();
+
+        *batch = result.MoveValueUnsafe();
+
+        if( *batch == nullptr )
+        {
+            m_eof = true;
+        }
+        else
+        {
+            // Start prefetching the next batch
+            m_prefetch = std::async( std::launch::async, [this] { return readOne(); } );
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+private:
+    ::arrow::Result<std::shared_ptr<::arrow::RecordBatch>> readOne()
+    {
+        std::shared_ptr<::arrow::RecordBatch> batch;
+        auto status = m_inner -> ReadNext( &batch );
+        if( !status.ok() )
+            return status;
+        return batch;
+    }
+
+    std::shared_ptr<::arrow::RecordBatchReader>                              m_inner;
+    std::shared_ptr<::parquet::arrow::FileReader>                            m_fileReader;
+    std::future<::arrow::Result<std::shared_ptr<::arrow::RecordBatch>>>      m_prefetch;
+    bool                                                                     m_eof;
 };
 
 // Native C++ parquet reader — opens parquet files directly, bypassing Python.
@@ -374,7 +445,7 @@ private:
         return !m_columnReaders.empty();
     }
 
-    static std::unique_ptr<::parquet::arrow::FileReader> makeFileReader( const std::string & path )
+    static std::shared_ptr<::parquet::arrow::FileReader> makeFileReader( const std::string & path )
     {
         auto fileResult = ::arrow::io::ReadableFile::Open( path );
         if( !fileResult.ok() )
@@ -382,9 +453,13 @@ private:
 
         auto parquetReader = ::parquet::ParquetFileReader::Open( fileResult.ValueUnsafe() );
 
+        ::parquet::ArrowReaderProperties arrowProps;
+        arrowProps.set_use_threads( true );
+        arrowProps.set_pre_buffer( true );
+
         std::unique_ptr<::parquet::arrow::FileReader> fileReader;
         auto status = ::parquet::arrow::FileReader::Make(
-            ::arrow::default_memory_pool(), std::move( parquetReader ), &fileReader );
+            ::arrow::default_memory_pool(), std::move( parquetReader ), arrowProps, &fileReader );
         if( !status.ok() )
             CSP_THROW( csp::ValueError, "Failed to create Arrow FileReader for " << path << ": " << status.ToString() );
 
@@ -392,7 +467,7 @@ private:
     }
 
     static std::shared_ptr<::arrow::RecordBatchReader> getRecordBatchReader(
-        const std::unique_ptr<::parquet::arrow::FileReader> & fileReader,
+        const std::shared_ptr<::parquet::arrow::FileReader> & fileReader,
         const std::vector<int> & colIndices )
     {
         int numRG = fileReader -> num_row_groups();
@@ -408,8 +483,9 @@ private:
         if( !result.ok() )
             CSP_THROW( csp::ValueError, "GetRecordBatchReader failed: " << result.status().ToString() );
 
-        // Convert unique_ptr → shared_ptr
-        return std::shared_ptr<::arrow::RecordBatchReader>( std::move( result ).ValueUnsafe() );
+        // Wrap in prefetching reader; it co-owns the FileReader to keep it alive
+        auto inner = std::shared_ptr<::arrow::RecordBatchReader>( std::move( result ).ValueUnsafe() );
+        return std::make_shared<PrefetchingRecordBatchReader>( std::move( inner ), fileReader );
     }
 
     csp::python::PyObjectPtr                                      m_filenameGen;
@@ -419,9 +495,8 @@ private:
     std::vector<std::string>                                      m_filenames;
     size_t                                                        m_fileIdx = 0;
     ColumnReaderMap                                                m_columnReaders;
-    // FileReaders must outlive their RecordBatchReaders
-    std::vector<std::unique_ptr<::parquet::arrow::FileReader>>    m_fileReaders;
-    std::vector<std::unique_ptr<::parquet::arrow::FileReader>>    m_prevFileReaders;
+    std::vector<std::shared_ptr<::parquet::arrow::FileReader>>    m_fileReaders;
+    std::vector<std::shared_ptr<::parquet::arrow::FileReader>>    m_prevFileReaders;
 };
 
 }

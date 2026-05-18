@@ -1,3 +1,5 @@
+#include <numpy/ndarrayobject.h>
+
 #include <csp/engine/DynamicEngine.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/InitHelper.h>
@@ -155,6 +157,9 @@ PyMODINIT_FUNC PyInit__cspimpl(void)
 
     if( m == NULL )
         return NULL;
+
+    // Call _import_array from PyInit rather than a static initializer to avoid running the numpy import machinery at dlopen time, which could deadlock
+    import_array();
 
     if( !InitHelper::instance().execute( m ) )
         return NULL;

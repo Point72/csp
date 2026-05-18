@@ -625,7 +625,7 @@ public:
     using FieldNames = std::vector<std::string>;
 
     //Fields will be re-arranged and assigned their offsets in StructMeta for optimal performance
-    StructMeta( const std::string & name, const Fields & fields, bool isStrict, std::shared_ptr<StructMeta> base = nullptr );
+    StructMeta( const std::string & name, Fields fields, bool isStrict, std::shared_ptr<StructMeta> base = nullptr );
     virtual ~StructMeta();
 
     const std::string & name() const          { return m_name; }

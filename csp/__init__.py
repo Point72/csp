@@ -44,7 +44,7 @@ from csp.impl.async_adapter import (  # noqa: E402
     schedule_async_alarm,
 )
 
-__version__ = "0.14.0"
+__version__ = "0.15.0"
 
 
 def get_include_path():

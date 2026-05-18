@@ -182,6 +182,52 @@ static PyObject * PyStructMeta_new( PyTypeObject *subtype, PyObject *args, PyObj
             metabase = ( ( PyStructMeta * ) base ) -> structMeta;
         }
     }
+    
+    // validate overriden fields in the derived class, if they exist
+    if( metabase )
+    {
+        for( const auto & derivedField : fields )
+        {
+            const auto & baseField = metabase -> field( derivedField -> fieldname() );
+            if( !baseField )
+                continue;
+
+            // ensure the types are compatible i.e. derived field type is a subclass of base
+            auto baseTypeEnum    = baseField -> type() -> type();
+            auto derivedTypeEnum = derivedField -> type() -> type();
+
+            if( baseTypeEnum != derivedTypeEnum )
+            {
+                CSP_THROW( TypeError, "Field '" << derivedField -> fieldname() << "' on struct " << name
+                           << " has type incompatible with base field type: base type is " << baseTypeEnum
+                           << ", derived type is " << derivedTypeEnum );
+            }
+
+            // field overrides are only valid for Python objects and structs, not native types
+            if( baseTypeEnum == CspType::Type::DIALECT_GENERIC )
+            {
+                auto * basePyField    = static_cast<PyObjectStructField *>( baseField.get() );
+                auto * derivedPyField = static_cast<PyObjectStructField *>( derivedField.get() );
+                if( !PyType_IsSubtype( derivedPyField -> pytype(), basePyField -> pytype() ) )
+                {
+                    CSP_THROW( TypeError, "Field '" << derivedField -> fieldname() << "' on struct " << name
+                               << ": expected subclass of " << basePyField -> pytype() -> tp_name
+                               << ", got " << derivedPyField -> pytype() -> tp_name  << " which is not a subclass" );
+                }
+            }
+            else if( baseTypeEnum == CspType::Type::STRUCT )
+            {
+                auto baseMeta    = static_cast<const CspStructType &>( *baseField -> type() ).meta();
+                auto derivedMeta = static_cast<const CspStructType &>( *derivedField -> type() ).meta();
+                if( !StructMeta::isDerivedType( derivedMeta.get(), baseMeta.get() ) )
+                {
+                    CSP_THROW( TypeError, "Field '" << derivedField -> fieldname() << "' on struct " << name
+                               << ": expected struct derived from " << baseMeta -> name()
+                               << ", got " << derivedMeta -> name() << " which is not a subclass" );
+                }
+            }
+        }
+    }
 
     /*back reference to the struct type that will be accessible on the csp struct -> meta()
       DialectStructMeta needs a strong reference to the type.  This creates a known strong circular dep

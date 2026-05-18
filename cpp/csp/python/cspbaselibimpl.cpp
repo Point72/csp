@@ -6,14 +6,6 @@
 #include <csp/engine/CppNode.h>
 #include <csp/python/Conversions.h>
 
-static void * init_nparray()
-{
-    csp::python::AcquireGIL gil;
-    import_array();
-    return nullptr;
-}
-static void * s_init_array = init_nparray();
-
 namespace csp::cppnodes
 {
 DECLARE_CPPNODE( exprtk_impl )
@@ -376,6 +368,9 @@ PyMODINIT_FUNC PyInit__cspbaselibimpl(void)
 
     if( m == NULL )
         return NULL;
+
+    // Call _import_array from PyInit rather than a static initializer to avoid running the numpy import machinery at dlopen time, which could deadlock
+    import_array();
 
     if( !csp::python::InitHelper::instance().execute( m ) )
         return NULL;

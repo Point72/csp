@@ -1,7 +1,9 @@
-## Table of Contents
+When starting out with CSP, some behaviors can be unfamiliar and/or unexpected.
+We are collecting common questions and scenarios on this page, with explanations and, if applicable, corrected code.
 
 - [Graphs vs. nodes](#graphs-vs-nodes)
 - [Always use engine time](#always-use-engine-time)
+- [`csp.output` vs `return`](#cspoutput-vs-return)
 
 ## Graphs vs. nodes
 
@@ -21,7 +23,7 @@ def square(x: ts[int]) -> ts[int]:
 
 @csp.node
 def cube(x: ts[int]) -> ts[int]:
-    return x*square(x) 
+    return x*square(x)
 
 
 csp.run(cube(csp.const(1)), starttime=datetime(2020,1,1), endtime=timedelta())
@@ -35,7 +37,7 @@ Corrected code - we simply make `cube` a graph, not a node.
 ```python
 @csp.graph
 def cube(x: ts[int]) -> ts[int]:
-    return x*square(x) 
+    return x*square(x)
 ```
 
 2. *Graph code does not access runtime values*. This is the inverse of (1): graph code treats all time-series as Edges and simply "wires" together the application.
@@ -90,4 +92,45 @@ Corrected code - we use `csp.now` instead of `datetime.now` so the node works on
     for time in show_times:
             if time >= csp.now():
                 ...
+```
+
+## `csp.output` vs `return`
+
+Sequencing of ticks and returns can be important, and `return` semantics
+are the same in CSP as Python generally.
+In the below example, if `x` ticks at the same time as `alarm`, the second `if` block will not execute.
+
+```python
+
+@csp.node
+def my_node(x: ts[float]) -> ts[float]:
+  with csp.alarms():
+    alarm = csp.alarm(bool)
+  with csp.start():
+    csp.schedule_alarm(alarm, timedelta(seconds=1), True)
+  if csp.ticked(x):
+    print("input ticked")
+    return x
+  if csp.ticked(alarm):
+    csp.schedule_alarm(alarm, timedelta(seconds=10), True)
+    print("alarm ticked")
+    return x
+
+```
+
+If you want node execution to continue after setting an output's value, you can instead use `csp.output` to emit, but not end Python control flow.
+
+```python
+@csp.node
+def my_node(x: ts[float]) -> ts[float]:
+    with csp.alarms():
+        alarm = csp.alarm(bool)
+    with csp.start():
+        csp.schedule_alarm(alarm, timedelta(seconds=1), True)
+    if csp.ticked(x):
+        print("input ticked")
+        csp.output(x)
+    if csp.ticked(alarm):
+        csp.schedule_alarm(alarm, timedelta(seconds=1), True)
+        print("alarm ticked")
 ```

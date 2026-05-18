@@ -71,6 +71,9 @@ PyMODINIT_FUNC PyInit__cspnpstatsimpl(void)
     if( m == NULL )
         return NULL;
 
+    // Call _import_array from PyInit rather than a static initializer to avoid running the numpy import machinery at dlopen time, which could deadlock
+    import_array();
+
     if( !csp::python::InitHelper::instance().execute( m ) )
         return NULL;
 

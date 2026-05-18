@@ -18,7 +18,7 @@ dependencies:
  - graphviz
  - gtest
  - httpx>=0.20,<1
- - libarrow<23
+ - libarrow<24
  - libboost>=1.80.0
  - libboost-headers>=1.80.0
  - librdkafka
@@ -33,7 +33,7 @@ dependencies:
  - pillow
  - polars
  - psutil
- - pyarrow>=15,<23
+ - pyarrow>=15,<24
  - pydantic>=2
  - pytest
  - pytest-asyncio

@@ -5,7 +5,7 @@ requires = [
     # oldest numpy 2 we can
     "numpy>=2,<2.1; python_version < '3.13'",
     "numpy>=2,<2.2",
-    "pyarrow>=15,<23",
+    "pyarrow>=15,<24",
     "ruamel.yaml",
     "scikit-build",
     "setuptools>=69,<74",
@@ -18,7 +18,7 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.14.0"
+version = "0.15.0"
 requires-python = ">=3.10"
 
 dependencies = [
@@ -27,7 +27,7 @@ dependencies = [
     "packaging",
     "pandas",
     "psutil",
-    "pyarrow>=15,<23",
+    "pyarrow>=15,<24",
     "pydantic>=2",
     "pytz",
     "ruamel.yaml",
@@ -122,7 +122,7 @@ slack = [
 ]
 
 [tool.bumpversion]
-current_version = "0.14.0"
+current_version = "0.15.0"
 commit = false
 tag = false
 commit_args = "-s"

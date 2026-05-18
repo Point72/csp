@@ -77,9 +77,10 @@ void PendingPushEvents::processPendingEvents( std::vector<PushGroup*> & dirtyGro
         //for ungrouped events we'll never process more than one at a time
         auto * event = it -> second.head;
         it -> second.head = event -> next;
-        bool rv = it -> first -> consumeEvent( event, dirtyGroups );
-        (void)rv;
-        assert( rv == true );
+        // reconsuming=true: event was already transformed on the first pass, skip transformRawEvent
+        PushEvent * pending_event = it -> first -> consumeEvent( event, dirtyGroups, true );
+        (void)pending_event;
+        assert( pending_event == nullptr );
 
         if( it -> second.head == nullptr )
             it = m_ungroupedEvents.erase( it );
@@ -99,19 +100,20 @@ void PendingPushEvents::processPendingEvents( std::vector<PushGroup*> & dirtyGro
         {
             PushEvent * next = event -> next;
 
-            bool consumed = event -> adapter() -> consumeEvent( event, dirtyGroups );
+            // reconsuming=true: event was already transformed on the first pass, skip transformRawEvent
+            PushEvent * pending_event = event -> adapter() -> consumeEvent( event, dirtyGroups, true );
 
-            if( !consumed )
+            if( pending_event != nullptr )
             {
-                if( !deferred_head ) 
+                if( !deferred_head )
                 {
-                    deferred_head = event;
-                    deferred_tail = event;
+                    deferred_head = pending_event;
+                    deferred_tail = pending_event;
                 }
                 else
                 {
-                    deferred_tail -> next = event;
-                    deferred_tail = event;
+                    deferred_tail -> next = pending_event;
+                    deferred_tail = pending_event;
                 }
             }
 

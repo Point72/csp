@@ -109,7 +109,8 @@ target_compile_definitions(cspimpl PRIVATE CSPIMPL_EXPORTS=1)
 
 ## Baselib c++ module
 add_library(cspbaselibimpl SHARED cspbaselibimpl.cpp)
-target_link_libraries(cspbaselibimpl cspimpl baselibimpl)
+
+target_link_libraries(cspbaselibimpl cspimpl baselibimpl csp_arrow_adapter ${CSP_ARROW_LINK_LIBS})
 
 # Include exprtk include directory for exprtk node
 target_include_directories(cspbaselibimpl PRIVATE ${EXPRTK_INCLUDE_DIRS})
@@ -140,6 +141,12 @@ target_include_directories(cspnpstatsimpl PRIVATE ${NUMPY_INCLUDE_DIRS})
 ## C API Meta Library
 add_library(cspcapiimpl INTERFACE)
 set_target_properties(cspcapiimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_C_API_HEADERS}")
+
+# By default numpy declares PyArray_API as a TU-local `static` — each translation unit gets its own copy and must call import_array() itself
+# Setting PY_ARRAY_UNIQUE_SYMBOL turns it into a named extern symbol, so all TUs within one .so share a single pointer and a single import_array() from PyInit_* is enough
+target_compile_definitions(cspimpl PRIVATE PY_ARRAY_UNIQUE_SYMBOL=CSP_CSPIMPL_ARRAY_API)
+target_compile_definitions(npstatsimpl PRIVATE PY_ARRAY_UNIQUE_SYMBOL=CSP_CSPNPSTATSIMPL_ARRAY_API)
+target_compile_definitions(cspnpstatsimpl PRIVATE PY_ARRAY_UNIQUE_SYMBOL=CSP_CSPNPSTATSIMPL_ARRAY_API)
 
 install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl csptestlibimpl cspnpstatsimpl
         PUBLIC_HEADER DESTINATION include/csp/python

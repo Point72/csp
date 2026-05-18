@@ -79,8 +79,8 @@ class PushInputAdapter : public InputAdapter
 {
 public:
     PushInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode,
-                      PushGroup * group = nullptr ) : InputAdapter( engine, type, pushMode ),
-                                                      m_group( group )
+                      PushGroup * group = nullptr, bool transformEvents = false )
+        : InputAdapter( engine, type, pushMode ), m_group( group ), m_transformEvents( transformEvents )
     {
     }
 
@@ -91,12 +91,23 @@ public:
     void pushTick( T &&value, PushBatch *batch = nullptr );
 
     //called from engine processing thread
-    //will delete event if processed, returns true if processed
-    bool consumeEvent( PushEvent *, std::vector<PushGroup *> & dirtyGroups );
+    //returns nullptr if event was consumed, otherwise returns the (possibly transformed) event for reconsuming on a later cycle
+    //reconsuming=true indicates the event was already transformed and should not be transformed again
+    PushEvent * consumeEvent( PushEvent *, std::vector<PushGroup *> & dirtyGroups, bool reconsuming = false );
+
+    // Override to transform a raw event into a new parsed event for the csp engine.
+    // The implementation must:
+    //   - delete the original raw event
+    //   - preserve event properties (e.g. isGroupEnd flag) on the new event
+    virtual PushEvent * transformRawEvent( PushEvent * raw_event ) { return nullptr; };
 
 private:
 
     PushGroup * m_group;
+    // When enabled, consumeEvent will call transformRawEvent on the first pass to convert pushed events
+    // before consumption. On reconsuming (from PendingPushEvents), the transform is skipped since
+    // the event was already transformed on the first pass.
+    bool        m_transformEvents = false;
 };
 
 template<typename T>
@@ -119,10 +130,18 @@ inline void PushInputAdapter::pushTick( T &&value, PushBatch *batch )
     rootEngine() -> schedulePushEvent( event );
 }
 
-inline bool PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushGroup *> & dirtyGroups )
+inline PushEvent * PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushGroup *> & dirtyGroups, bool reconsuming )
 {
+    // transform the raw event, if enabled and not reconsuming
+    if( m_transformEvents && !reconsuming )
+    {
+        PushEvent * raw_event = event;
+        event = transformRawEvent( raw_event );
+        CSP_ASSERT( event != nullptr );
+    }
+
     if( m_group && m_group -> state == PushGroup::LOCKED )
-        return false;
+        return event;
 
     bool isGroupEnd = event -> isGroupEnd();
 
@@ -136,6 +155,7 @@ inline bool PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushG
                                            delete tevent;
                                        return consumed;
                                    } );
+
     if( m_group )
     {
         if( pushMode() == PushMode::NON_COLLAPSING )
@@ -152,7 +172,10 @@ inline bool PushInputAdapter::consumeEvent( PushEvent * event, std::vector<PushG
         }
     }
 
-    return consumed;
+    if( consumed )
+        return nullptr;
+    else
+        return event;
 }
 
 inline void PushBatch::append( PushEvent * event )

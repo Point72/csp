@@ -306,28 +306,28 @@ jobs:
           run: make dist-check
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v6
+          uses: actions/upload-artifact@v7
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.10
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp310' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v6
+          uses: actions/upload-artifact@v7
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.11
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp311' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v6
+          uses: actions/upload-artifact@v7
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.12
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp312' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v6
+          uses: actions/upload-artifact@v7
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.13
             path: dist/*.whl
@@ -388,7 +388,7 @@ jobs:
           run: make dist-check
 
         - name: Upload SDist
-          uses: actions/upload-artifact@v6
+          uses: actions/upload-artifact@v7
           with:
               name: csp-sdist
               path: dist/*.tar.gz
@@ -482,7 +482,7 @@ jobs:
           run: make requirements
 
         - name: Download wheel
-          uses: actions/download-artifact@v7
+          uses: actions/download-artifact@v8
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -693,7 +693,7 @@ jobs:
         - name: Install requirements
           run: sudo make dependencies-debian
 
-        - uses: actions/download-artifact@v7
+        - uses: actions/download-artifact@v8
           with:
             name: csp-sdist
             path: dist/
@@ -773,7 +773,7 @@ jobs:
           run: sudo apt-get install graphviz
 
         - name: Download wheel
-          uses: actions/download-artifact@v7
+          uses: actions/download-artifact@v8
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -854,7 +854,7 @@ jobs:
 
       steps:
         - name: Download wheels and sdist
-          uses: actions/download-artifact@v7
+          uses: actions/download-artifact@v8
           with:
             name:
             merge-multiple: true

@@ -24,7 +24,7 @@ Notes for editors:
 - [Execution Modes](Execution-Modes)
 - [Adapters](Adapters)
 - [Feedback and Delayed Edge](Feedback-and-Delayed-Edge)
-- [Common Mistakes](Common-Mistakes)
+- [Common Mistakes / FAQ](Common-Mistakes)
 
 **How-to guides**
 

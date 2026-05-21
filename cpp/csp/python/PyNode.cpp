@@ -307,8 +307,12 @@ void PyNode::executeImpl()
 
             if( tsinputTicked( idx ) || passiveConvert )
             {
-                Py_XDECREF( *m_localVars[ idx ] );
+                //Note this is intentionally kept in a temp and decref-ed after updating m_localVars[idx] since
+                //lastValueToPython can trigger a GC Collect which can reach into generator vars ( localVars ) which would be nulled out
+                PyObject * old = *m_localVars[ idx ];
                 *m_localVars[ idx ] = lastValueToPython( ts );
+                Py_XDECREF( old );
+                
                 if( passiveConvert )
                     m_passiveCounts[ idx ] = count;
             }

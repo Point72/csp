@@ -145,10 +145,15 @@ class StructMeta(_csptypesimpl.PyStructMeta):
 
         def serializer(val, handler):
             # We don't use 'to_dict' since that works recursively, we ignore underscore leading fields
-            new_val = {
-                k: getattr(val, k) for k in val.__full_metadata_typed__ if not k.startswith("_") and hasattr(val, k)
-            }
-            return handler(new_val)
+            # This matches __getstate__, but excludes underscore fields
+            new_dict = {}
+            for k in val.__full_metadata_typed__:
+                if k.startswith("_"):
+                    continue
+                v = getattr(val, k, csp.UNSET)
+                if v is not csp.UNSET:
+                    new_dict[k] = v
+            return handler(new_dict)
 
         return core_schema.no_info_wrap_validator_function(
             function=create_instance,

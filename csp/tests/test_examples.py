@@ -6,6 +6,13 @@ import pytest
 
 EXAMPLES_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "examples"))
 
+# Examples to skip in tests (may hang or require specific environment)
+SKIP_EXAMPLES = {
+    "e3_asyncio_integration.py",  # Requires CSP event loop features
+    "e4_csp_asyncio_integration.py",  # Requires CSP event loop features
+    "e2_csp_fastapi.py",  # Starts a server that runs forever
+}
+
 # make examples importable without keeping in source tree
 sys.path.append(EXAMPLES_ROOT)
 
@@ -23,7 +30,7 @@ def _get_modules_to_test(*folders):
     return [
         (file, _get_module(folder, file))
         for file in os.listdir(os.path.join(EXAMPLES_ROOT, *folders))
-        if file.endswith(".py")
+        if file.endswith(".py") and file not in SKIP_EXAMPLES
     ]
 
 

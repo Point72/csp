@@ -241,6 +241,7 @@ class ArgKind(IntEnum):
     BASKET_TS = TS | 0x4
     DYNAMIC_BASKET_TS = BASKET_TS | 0x8
     ALARM = TS | 0x10
+    ASYNC_ALARM = TS | 0x20
 
     def is_any_ts(self):
         return self & ArgKind.TS
@@ -262,7 +263,7 @@ class ArgKind(IntEnum):
         return self == ArgKind.DYNAMIC_BASKET_TS
 
     def is_alarm(self):
-        return self == ArgKind.ALARM
+        return self == ArgKind.ALARM or self == ArgKind.ASYNC_ALARM
 
 
 class BasketKind(Enum):

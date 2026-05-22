@@ -156,7 +156,7 @@ class NodeDef:
         node = None
         if self._cppimpl:
             cppinputs = [
-                (input_def.name, input_type, input_def.ts_idx, input_def.kind == ArgKind.ALARM)
+                (input_def.name, input_type, input_def.ts_idx, input_def.kind.is_alarm())
                 for input_type, input_def in zip(inputs, self._signature.ts_inputs)
             ]
             cppoutputs = [

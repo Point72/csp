@@ -23,7 +23,7 @@ Here is a very simple example of a small `csp` program to calculate a [bid-ask s
 ```python
 import csp
 from csp import ts
-from datetime import datetime
+from csp.utils.datetime import utc_now
 
 
 @csp.node
@@ -44,7 +44,7 @@ def my_graph():
 
 
 if __name__ == '__main__':
-    csp.run(my_graph, starttime=datetime.utcnow())
+    csp.run(my_graph, starttime=utc_now())
 ```
 
 Running this, our output should look like (with some slight variations for current time):

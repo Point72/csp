@@ -12,9 +12,9 @@ from typing import Any, Optional, get_args, get_origin
 from csp.impl.struct import Struct as CspStruct
 from csp.impl.types.tstype import TsType
 
-from numba_type_utils.function_analyzer import OutputTypeHandler
-from numba_type_utils.models import OutputAnalysis
-from numba_type_utils.defaults import is_supported_type
+from numba_cfunc_compiler.function_analyzer import OutputTypeHandler
+from numba_cfunc_compiler.models import OutputAnalysis
+from numba_cfunc_compiler.defaults import is_supported_type
 
 
 def validate_output_type(t: Any, context: str) -> None:
@@ -82,7 +82,7 @@ class CspOutputsHandler(OutputTypeHandler):
 
 
 def register():
-    from numba_type_utils.function_analyzer import FunctionAnalyzer
+    from numba_cfunc_compiler.function_analyzer import FunctionAnalyzer
 
     FunctionAnalyzer.register_output_handler(SingleTsOutputHandler())
     FunctionAnalyzer.register_output_handler(CspOutputsHandler())

@@ -21,9 +21,6 @@ void registerListFieldReaderFactory( ListFieldReaderFactory factory )
 namespace
 {
 
-// LambdaReader and readColumn are now defined in ArrowFieldReader.h.
-// Keep makeReader/makePrimitiveReader here for createFieldReader factory.
-
 template<typename ArrowArrayT, typename ValueT, typename ExtractFn>
 std::unique_ptr<FieldReader> makeReader( const std::string & name, const StructFieldPtr & field,
                                          ExtractFn && extractFn )

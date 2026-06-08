@@ -114,7 +114,7 @@ bool RecordBatchRowProcessor::fetchNextBatch( SourceEntry & entry )
     {
         auto status = entry.source -> ReadNext( &entry.currentBatch );
         CSP_TRUE_OR_THROW_RUNTIME( status.ok(),
-            "ensureBatch: failed to read next batch: " << status.ToString() );
+            "fetchNextBatch: failed to read next batch: " << status.ToString() );
 
         if( !entry.currentBatch )
             return false;

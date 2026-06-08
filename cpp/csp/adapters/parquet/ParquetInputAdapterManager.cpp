@@ -686,14 +686,12 @@ void ParquetInputAdapterManager::start( DateTime starttime, DateTime endtime )
 
     bindSourcesFromReaders();
 
-    // Validate time column
     auto * timeDispatcher = m_processor -> getDispatcher( m_timeColumn );
     CSP_TRUE_OR_THROW_RUNTIME( timeDispatcher != nullptr, "Time column '" << m_timeColumn << "' not found" );
     CSP_TRUE_OR_THROW_RUNTIME( timeDispatcher -> arrowTypeId() == ::arrow::Type::TIMESTAMP,
         "Time column must be timestamp type" );
     m_cachedTimeDispatcher = timeDispatcher;
 
-    // Read first row
     if( !readNextRow() )
     {
         m_hasData = false;
@@ -900,7 +898,6 @@ ManagedSimInputAdapter *ParquetInputAdapterManager::getDictBasketAdapter( const 
         auto fieldMapTyped = properties.get<DictionaryPtr>( "field_map" );
         return getOrCreateStructColumnAdapter( basketRecord, type, symbol, fieldMapTyped, pushMode );
     }
-    properties.get<std::string>( "field_map" );
     CSP_THROW( RuntimeException, "Unexpected field_map type" );
 }
 

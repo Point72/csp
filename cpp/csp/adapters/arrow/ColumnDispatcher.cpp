@@ -17,8 +17,6 @@ namespace csp::adapters::arrow
 namespace
 {
 
-// Lightweight reader for the inlined (fast) path: just a cached typed pointer + extract fn.
-// No FieldReader overhead — only 8 + sizeof(ExtractFn) bytes.
 template<typename ArrowArrayT, typename ValueT, typename ExtractFn>
 struct InlineReader
 {
@@ -41,7 +39,7 @@ struct InlineReader
     ExtractFn           m_extractFn;
 };
 
-// Wrapper for runtime-polymorphic FieldReader (used by STRUCT, DICTIONARY, LIST).
+// Virtual dispatch fallback for STRUCT, DICTIONARY, LIST columns.
 template<typename ValueType>
 struct ErasedReader
 {
@@ -58,9 +56,7 @@ struct ErasedReader
 };
 
 
-// TypedColumnDispatcher: holds a ConcreteReader by value.
-// For primitive types, ConcreteReader is InlineReader (tiny, fast).
-// For complex types, ConcreteReader is ErasedReader (virtual fallback).
+// TypedColumnDispatcher: ConcreteReader is InlineReader for primitives, ErasedReader for complex types.
 template<typename ValueType, typename ConcreteReader>
 class TypedColumnDispatcher final : public ColumnDispatcher
 {
@@ -151,7 +147,6 @@ private:
 };
 
 
-// Helper: create a TypedColumnDispatcher with an InlineReader (fast path).
 template<typename ValueType, typename ArrowArrayT, typename ExtractFn>
 std::unique_ptr<ColumnDispatcher> makeInlinedDispatcher(
     const std::string & name, ::arrow::Type::type typeId, ExtractFn extractFn )
@@ -162,7 +157,6 @@ std::unique_ptr<ColumnDispatcher> makeInlinedDispatcher(
         name, std::move( reader ), typeId );
 }
 
-// Helper: create a TypedColumnDispatcher with an ErasedReader (virtual fallback).
 template<typename ValueType>
 std::unique_ptr<ColumnDispatcher> makeErasedDispatcher(
     const std::string & name, std::unique_ptr<FieldReader> reader, ::arrow::Type::type typeId )
@@ -189,7 +183,7 @@ std::unique_ptr<ColumnDispatcher> createColumnDispatcher(
     if( typeId == ::arrow::Type::STRUCT && !structMeta )
         return nullptr;
 
-    // Primitive types: use InlineReader (cached typed pointer + extract lambda).
+    // Primitive types use InlineReader; complex types (STRUCT, DICTIONARY, LIST) use ErasedReader below.
     switch( typeId )
     {
     case ::arrow::Type::INT8:

@@ -51,7 +51,6 @@ public:
 private:
     using StructAdapterInfo = csp::adapters::utils::StructAdapterInfo;
 
-    // ── Adapter registration types ──────────────────────────────────
 
     struct AdapterInfo
     {
@@ -65,7 +64,6 @@ private:
         std::unordered_map<StructAdapterInfo, AdapterInfo>      m_structAdapters;
     };
 
-    // ── Struct subscriptions ─────────────────────────────────────────
     // Combines multiple column dispatchers into a single CSP Struct value.
     struct StructSubscription
     {
@@ -83,7 +81,6 @@ private:
         void addSubscriber( ManagedSimInputAdapter * adapter, std::optional<utils::Symbol> symbol );
     };
 
-    // ── Dict basket tracking ────────────────────────────────────────
     // A dict basket is a sub-table whose rows are keyed by a per-basket
     // symbol column and whose row count per main row is in a value-count column.
     struct DictBasketReaderRecord
@@ -100,7 +97,6 @@ private:
     using AdaptersBySymbol = std::unordered_map<utils::Symbol, AdaptersSingleSymbol>;
     using DictBasketSymbolAdapters = std::unordered_map<std::string, AdaptersBySymbol>;
 
-    // ── Processor setup & wiring ─────────────────────────────────────
 
     static void collectAdapterColumns( const AdaptersBySymbol & adaptersBySymbol,
                                        std::set<std::string> & columns );
@@ -121,23 +117,19 @@ private:
 
     void setupDictBaskets();
 
-    // ── Row reading & dispatch ───────────────────────────────────────
 
     bool readNextRow();
     void processDictBaskets( bool dispatch );
     bool advanceToNextStream();
 
-    // ── Symbol handling ──────────────────────────────────────────────
 
     void detectSymbolType( arrow::ColumnDispatcher * symDispatcher );
     const utils::Symbol * getCurSymbol();
 
-    // ── Source binding ───────────────────────────────────────────────
 
     static std::shared_ptr<::arrow::Schema> buildLogicalSchema( const ColumnReaderMap & readers );
     bool bindSourcesFromReaders();
 
-    // ── Adapter registration ─────────────────────────────────────────
 
     ManagedSimInputAdapter *getRegularAdapter( const CspTypePtr &type,
                                                const Dictionary &properties, const PushMode &pushMode, const utils::Symbol &symbol );
@@ -153,7 +145,6 @@ private:
                                                             const csp::DictionaryPtr &fieldMap, const PushMode &pushMode );
 
 
-    // ── Member state ────────────────────────────────────────────────
 
     // Registration-phase state (populated by getInputAdapter before start)
     DictBasketSymbolAdapters m_dictBasketInputAdapters;

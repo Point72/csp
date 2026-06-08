@@ -1,11 +1,4 @@
 // Row-by-row RecordBatch processor using ColumnDispatchers.
-// Owns a set of ColumnDispatchers (one per data column) and provides
-// row reading and value dispatch via bound RecordBatchReaders.
-//
-// Usage: setupFromSchema() → bindSources() → readRowAndAdvance()/skipRow() → dispatchRow()
-//
-// Schema change handling is external: the caller detects schema changes
-// and calls setupFromSchema() + re-registers subscribers.
 
 #ifndef _IN_CSP_ADAPTERS_ARROW_RecordBatchRowProcessor_H
 #define _IN_CSP_ADAPTERS_ARROW_RecordBatchRowProcessor_H
@@ -78,11 +71,9 @@ private:
     std::unordered_map<std::string, ColumnDispatcher *>  m_nameToDispatcher;
     std::vector<SourceEntry>                             m_sources;
 
-    // Cold path: fetch next batch when current is exhausted.
     bool fetchNextBatch( SourceEntry & entry );
     void rebindSource( SourceEntry & entry );
 
-    // Inline fast-path: just checks if current row is within batch bounds.
     inline bool ensureBatch( SourceEntry & entry )
     {
         if( entry.currentRow < entry.numRows ) [[likely]]

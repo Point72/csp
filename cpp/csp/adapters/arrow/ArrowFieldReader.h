@@ -165,19 +165,6 @@ public:
         this -> m_row = numRows;
     }
 
-    // Non-virtual direct read: called from TypedColumnDispatcher to avoid
-    // virtual dispatch through FieldReader::doReadNextValue.
-    void readDirect( int64_t row, std::optional<ValueT> & out )
-    {
-        auto & typed = static_cast<const ArrowArrayT &>( *this -> m_column );
-        if( typed.IsValid( row ) )
-            out = m_extractFn( typed, row );
-        else
-            out.reset();
-    }
-
-    const ExtractFn & extractFn() const { return m_extractFn; }
-
 protected:
     bool doExtract( int64_t row, ValueT & out ) override
     {

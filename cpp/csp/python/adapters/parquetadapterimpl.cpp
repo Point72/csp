@@ -84,8 +84,7 @@ REGISTER_CPPNODE( csp::cppnodes, parquet_dict_basket_writer );
 namespace
 {
 
-// Wraps a Python "stream factory" callable.
-// Supports non-split (yields {col: reader}) and split-column protocols.
+// Wraps a Python "stream factory" callable (yields {col: reader} dicts).
 class PyRecordBatchStreamSource : public csp::adapters::parquet::RecordBatchStreamSource
 {
 public:
@@ -136,7 +135,6 @@ public:
         if( nextVal.get() == nullptr )
             return false;
 
-        // Expect a dict of {col_name: RecordBatchReader}
         CSP_TRUE_OR_THROW( PyDict_Check( nextVal.get() ), csp::TypeError,
                            "Stream factory expected to yield {column: reader} dicts" );
 
@@ -192,8 +190,7 @@ private:
     ColumnReaderMap m_columnReaders;
 };
 
-// Wraps a RecordBatchReader to prefetch the next batch on a background thread.
-// This overlaps Arrow decode (ReadNext) with CSP's per-row processing.
+// Overlaps Arrow decode with CSP's per-row processing by prefetching the next batch.
 class PrefetchingRecordBatchReader : public ::arrow::RecordBatchReader
 {
 public:
@@ -201,7 +198,6 @@ public:
                                   std::shared_ptr<::parquet::arrow::FileReader> fileReader )
         : m_inner( std::move( inner ) ), m_fileReader( std::move( fileReader ) ), m_eof( false )
     {
-        // Kick off the first prefetch
         m_prefetch = std::async( std::launch::async, [this] { return readOne(); } );
     }
 
@@ -225,7 +221,6 @@ public:
             return ::arrow::Status::OK();
         }
 
-        // Get the prefetched result
         auto result = m_prefetch.get();
         if( !result.ok() )
         {
@@ -241,7 +236,6 @@ public:
         }
         else
         {
-            // Start prefetching the next batch
             m_prefetch = std::async( std::launch::async, [this] { return readOne(); } );
         }
 
@@ -264,8 +258,7 @@ private:
     bool                                                                     m_eof;
 };
 
-// Native C++ parquet reader — opens parquet files directly, bypassing Python.
-// Used for regular and split-column parquet. IPC/memory tables use PyRecordBatchStreamSource.
+// Native C++ parquet reader for regular and split-column parquet files.
 class NativeParquetStreamSource : public csp::adapters::parquet::RecordBatchStreamSource
 {
 public:

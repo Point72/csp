@@ -228,7 +228,10 @@ public:
         // Get the prefetched result
         auto result = m_prefetch.get();
         if( !result.ok() )
+        {
+            m_eof = true;
             return result.status();
+        }
 
         *batch = result.MoveValueUnsafe();
 

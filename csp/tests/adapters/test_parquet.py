@@ -5765,5 +5765,156 @@ class TestComprehensiveCoverage(unittest.TestCase):
                 self.assertEqual(ticks[-1], 7199)
 
 
+class TestReviewBugFixes(unittest.TestCase):
+    """Regression tests for bugs identified in code review."""
+
+    def test_time_column_type_change_after_schema_change(self):
+        """Bug 1: Time column type re-validation missing on schema change.
+
+        If a later file has the time column with a non-TIMESTAMP type (e.g. INT64),
+        advanceToNextStream() must reject it rather than allowing an unchecked cast.
+        """
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            f1 = os.path.join(d, "f1.arrow")
+            f2 = os.path.join(d, "f2.arrow")
+
+            # File 1: correct — time column is timestamp
+            schema1 = pyarrow.schema(
+                [
+                    ("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")),
+                    ("value", pyarrow.int64()),
+                ]
+            )
+            t1 = pyarrow.table(
+                [
+                    pyarrow.array([start + timedelta(seconds=1)]),
+                    pyarrow.array([100], type=pyarrow.int64()),
+                ],
+                schema=schema1,
+            )
+            with open(f1, "wb") as w:
+                writer = pyarrow.RecordBatchStreamWriter(w, schema1)
+                writer.write_table(t1)
+                writer.close()
+
+            # File 2: time column is INT64 instead of TIMESTAMP — type mismatch
+            schema2 = pyarrow.schema(
+                [
+                    ("csp_timestamp", pyarrow.int64()),
+                    ("value", pyarrow.int64()),
+                ]
+            )
+            t2 = pyarrow.table(
+                [
+                    pyarrow.array([999], type=pyarrow.int64()),
+                    pyarrow.array([200], type=pyarrow.int64()),
+                ],
+                schema=schema2,
+            )
+            with open(f2, "wb") as w:
+                writer = pyarrow.RecordBatchStreamWriter(w, schema2)
+                writer.write_table(t2)
+                writer.close()
+
+            @csp.graph
+            def g(file_names: object) -> csp.ts[int]:
+                reader = ParquetReader(
+                    file_names,
+                    time_column="csp_timestamp",
+                    binary_arrow=True,
+                    allow_missing_columns=True,
+                )
+                return reader.subscribe_all(int, "value")
+
+            with self.assertRaisesRegex(RuntimeError, "timestamp type"):
+                csp.run(
+                    g,
+                    [f1, f2],
+                    starttime=start,
+                    endtime=start + timedelta(seconds=10),
+                )
+
+    def test_ipc_split_columns_allow_missing_files(self):
+        """Bug 3: allow_missing_files not forwarded in split-columns IPC branch.
+
+        With split_columns_to_files=True and binary_arrow=True (IPC mode),
+        allow_missing_files=True should skip missing directories instead of raising.
+        """
+        start = datetime(2020, 1, 1)
+
+        with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
+            split_dir = os.path.join(d, "data.parquet")
+            os.makedirs(split_dir)
+
+            # Write a single IPC column file
+            schema = pyarrow.schema(
+                [
+                    ("csp_timestamp", pyarrow.timestamp("ns", tz="UTC")),
+                ]
+            )
+            ts_file = os.path.join(split_dir, "csp_timestamp.arrow")
+            with open(ts_file, "wb") as w:
+                writer = pyarrow.RecordBatchStreamWriter(w, schema)
+                writer.write_table(
+                    pyarrow.table(
+                        [pyarrow.array([start + timedelta(seconds=1), start + timedelta(seconds=2)])],
+                        schema=schema,
+                    )
+                )
+                writer.close()
+
+            val_schema = pyarrow.schema([("value", pyarrow.int64())])
+            val_file = os.path.join(split_dir, "value.arrow")
+            with open(val_file, "wb") as w:
+                writer = pyarrow.RecordBatchStreamWriter(w, val_schema)
+                writer.write_table(
+                    pyarrow.table(
+                        [pyarrow.array([10, 20], type=pyarrow.int64())],
+                        schema=val_schema,
+                    )
+                )
+                writer.close()
+
+            # Filenames generator yields existing dir + a nonexistent dir
+            nonexistent = os.path.join(d, "no_such_dir")
+            file_list = [split_dir, nonexistent]
+
+            def filenames_gen(starttime, endtime):
+                return iter(file_list)
+
+            # Without allow_missing_files: should raise
+            @csp.graph
+            def g_fail() -> csp.ts[int]:
+                reader = ParquetReader(
+                    filenames_gen,
+                    time_column="csp_timestamp",
+                    binary_arrow=True,
+                    split_columns_to_files=True,
+                    allow_missing_files=False,
+                )
+                return reader.subscribe_all(int, "value")
+
+            with self.assertRaises((NotADirectoryError, RuntimeError)):
+                csp.run(g_fail, starttime=start, endtime=start + timedelta(seconds=10))
+
+            # With allow_missing_files: should succeed, reading from the existing dir
+            @csp.graph
+            def g_ok() -> csp.ts[int]:
+                reader = ParquetReader(
+                    filenames_gen,
+                    time_column="csp_timestamp",
+                    binary_arrow=True,
+                    split_columns_to_files=True,
+                    allow_missing_files=True,
+                )
+                return reader.subscribe_all(int, "value")
+
+            res = csp.run(g_ok, starttime=start, endtime=start + timedelta(seconds=10))
+            vals = [v[1] for v in res[0]]
+            self.assertEqual(vals, [10, 20])
+
+
 if __name__ == "__main__":
     unittest.main()

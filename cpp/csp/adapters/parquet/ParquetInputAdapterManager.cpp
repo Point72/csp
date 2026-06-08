@@ -407,7 +407,9 @@ std::shared_ptr<::arrow::Schema> ParquetInputAdapterManager::buildLogicalSchema(
 
 bool ParquetInputAdapterManager::bindSourcesFromReaders()
 {
-    m_mainRBSources.clear();
+    // Build into a local vector to keep old readers alive (m_mainRBSources) until
+    // bindSources installs new raw pointers in the processor.
+    std::vector<std::shared_ptr<::arrow::RecordBatchReader>> newRBSources;
 
     // Build a lookup from basket name → DictBasketReaderRecord
     std::unordered_map<std::string, DictBasketReaderRecord *> basketByName;
@@ -463,13 +465,17 @@ bool ParquetInputAdapterManager::bindSourcesFromReaders()
             basketMappings[ bname ].push_back( std::move( cols ) );
         }
 
-        m_mainRBSources.push_back( reader );
+        newRBSources.push_back( reader );
     }
 
     // Bind main processor
     if( mainSources.empty() )
         return false;
     m_processor -> bindSources( mainSources, mainMappings );
+
+    // Now that new raw pointers are installed, replace the owning vector.
+    // Old readers (if any) are released here, after the processor no longer references them.
+    m_mainRBSources = std::move( newRBSources );
 
     // Bind basket processors
     for( auto & record : m_dictBasketReaders )
@@ -517,6 +523,8 @@ bool ParquetInputAdapterManager::advanceToNextStream()
             m_cachedTimeDispatcher = m_processor -> getDispatcher( m_timeColumn );
             CSP_TRUE_OR_THROW_RUNTIME( m_cachedTimeDispatcher != nullptr,
                 "Time column '" << m_timeColumn << "' not found after schema change" );
+            CSP_TRUE_OR_THROW_RUNTIME( m_cachedTimeDispatcher -> arrowTypeId() == ::arrow::Type::TIMESTAMP,
+                "Time column '" << m_timeColumn << "' must be timestamp type, got different type after schema change" );
 
             for( auto & record : m_dictBasketReaders )
             {

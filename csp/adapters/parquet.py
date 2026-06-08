@@ -51,6 +51,8 @@ def _ipc_stream_factory(
         if split_columns:
             for directory in filenames_gen(starttime, endtime):
                 if not os.path.isdir(directory):
+                    if allow_missing_files:
+                        continue
                     raise NotADirectoryError(f"split_columns_to_files expects a directory, got: {directory}")
 
                 if needed_columns:
@@ -334,7 +336,11 @@ class ParquetReader:
 
         if props.get("is_arrow_ipc"):
             if props.get("split_columns_to_files"):
-                stream_factory = _ipc_stream_factory(self._filenames_gen, split_columns=True)
+                stream_factory = _ipc_stream_factory(
+                    self._filenames_gen,
+                    split_columns=True,
+                    allow_missing_files=props.get("allow_missing_files", False),
+                )
             else:
                 stream_factory = _ipc_stream_factory(
                     self._filenames_gen,

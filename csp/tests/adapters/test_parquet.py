@@ -1360,10 +1360,10 @@ class TestDictBasket(unittest.TestCase):
             self.assertEqual(ibm_vals, [200.0, 202.0])
 
     def test_dict_basket_skip_rows(self):
-        """C1 regression: dict basket with start_time exercises the skip loop.
+        """Dict basket with start_time exercises the skip loop.
 
         When start_time is after some data, the adapter skips rows. The skip loop
-        previously called both readNextRow() and skipRow(), double-advancing.
+        must not double-advance by calling both readNextRow() and skipRow().
         """
         start = datetime(2020, 1, 1)
         basket_data = {
@@ -1448,11 +1448,11 @@ class TestDictBasket(unittest.TestCase):
             self.assertEqual(ibm_vals, [200.0, 201.0])
 
     def test_dict_basket_skip_multi_symbol(self):
-        """C1 regression: skip loop with multiple symbols per tick.
+        """Skip loop with multiple symbols per tick.
 
-        Each skipped main row has value_count=2 (AAPL + IBM).  Without the
-        C1 fix the double-advance skips 4 basket rows per main row instead
-        of 2, corrupting row alignment and losing data.
+        Each skipped main row has value_count=2 (AAPL + IBM).  A double-advance
+        would skip 4 basket rows per main row instead of 2, corrupting row
+        alignment and losing data.
         """
         start = datetime(2020, 1, 1)
         basket_data = {
@@ -1476,7 +1476,7 @@ class TestDictBasket(unittest.TestCase):
             self.assertEqual(ibm_vals, [500.0, 600.0, 700.0])
 
     def test_dict_basket_multiple_files_multi_symbol(self):
-        """C2 regression: multiple symbols spanning file boundaries.
+        """Multiple symbols spanning file boundaries.
 
         After crossing the file boundary, both AAPL and IBM must read
         correctly from the new basket batch.  Distinct values across files
@@ -1528,14 +1528,13 @@ class TestDictBasket(unittest.TestCase):
             self.assertEqual(ibm_vals, [100.0, 200.0, 300.0, 400.0])
 
     def test_dict_basket_schema_change(self):
-        """C3 regression: basket across files with different main-batch schemas.
+        """Basket across files with different main-batch schemas.
 
         File 1 has an extra regular column, making its main-batch schema
         wider than file 2.  When crossing to file 2, the schema change
         triggers setupProcessor which destroys and recreates dispatchers
-        in the main processor.  Without the C3 fix, the raw
-        m_valueCountDispatcher pointer in DictBasketReaderRecord dangles,
-        and basket processors keep stale dispatcher state.
+        in the main processor.  The m_valueCountDispatcher pointer in
+        DictBasketReaderRecord must remain valid after the transition.
         """
         start = datetime(2020, 1, 1)
 
@@ -1606,12 +1605,11 @@ class TestDictBasket(unittest.TestCase):
             self.assertEqual(aapl_vals, [10.0, 20.0, 30.0, 40.0])
 
     def test_dict_basket_symbol_routing_three_symbols(self):
-        """C4 regression: three symbols with mixed overlapping ticks.
+        """Three symbols with mixed overlapping ticks.
 
         Each tick dispatches basket entries to subscribers by reading the
-        basket's own __csp_symbol column.  Without the C4 fix, the main
-        processor's symbol (empty string for no-symbol-column configs) was
-        passed instead, and ValueDispatcher silently dropped every entry.
+        basket's own __csp_symbol column.  The main processor's symbol must
+        not be passed instead, or ValueDispatcher silently drops every entry.
         Three symbols with different tick patterns stress the routing logic.
         """
         start = datetime(2020, 1, 1)
@@ -3564,10 +3562,10 @@ class TestParquetSchemaEvolution(unittest.TestCase):
 
 
 class TestParquetTypes(unittest.TestCase):
-    """Comprehensive tests covering findings, edge cases, and all code paths."""
+    """Tests for type handling, schema transitions, and edge cases."""
 
     def test_time_column_precision_change_across_files(self):
-        """F3: Time column changes from timestamp[s] to timestamp[ns] across files.
+        """Time column changes from timestamp[s] to timestamp[ns] across files.
 
         The adapter re-fetches the time dispatcher on schema change. This test
         verifies it handles different timestamp precisions correctly.
@@ -3612,7 +3610,7 @@ class TestParquetTypes(unittest.TestCase):
             self.assertEqual(vals, [10, 20, 30, 40])
 
     def test_schema_change_with_symbol_column(self):
-        """F4: Schema change with symbol column verifies m_cachedSymbolDispatcher is refreshed."""
+        """Schema change with symbol column verifies m_cachedSymbolDispatcher is refreshed."""
         start = datetime(2020, 1, 1)
 
         with tempfile.TemporaryDirectory(prefix="csp_unit_tests") as d:
@@ -3661,7 +3659,7 @@ class TestParquetTypes(unittest.TestCase):
             self.assertEqual([v[1] for v in result["IBM"]], [20.0, 40.0])
 
     def test_struct_column_with_nulls(self):
-        """F7: Struct column with null entries interspersed with valid entries.
+        """Struct column with null entries interspersed with valid entries.
 
         NestedStructReader has a two-path strategy: fast columnar path when
         no nulls, row-by-row with skipNext() when nulls exist. This test
@@ -4499,11 +4497,11 @@ class TestParquetTypes(unittest.TestCase):
                 self.assertEqual(ticks[-1], 7199)
 
 
-class TestReviewBugFixes(unittest.TestCase):
-    """Regression tests for bugs identified in code review."""
+class TestParquetSchemaValidation(unittest.TestCase):
+    """Tests for schema validation across file boundaries."""
 
     def test_time_column_type_change_after_schema_change(self):
-        """Bug 1: Time column type re-validation missing on schema change.
+        """Time column type re-validation on schema change.
 
         If a later file has the time column with a non-TIMESTAMP type (e.g. INT64),
         advanceToNextStream() must reject it rather than allowing an unchecked cast.
@@ -4571,7 +4569,7 @@ class TestReviewBugFixes(unittest.TestCase):
                 )
 
     def test_ipc_split_columns_allow_missing_files(self):
-        """Bug 3: allow_missing_files not forwarded in split-columns IPC branch.
+        """allow_missing_files forwarded in split-columns IPC branch.
 
         With split_columns_to_files=True and binary_arrow=True (IPC mode),
         allow_missing_files=True should skip missing directories instead of raising.

@@ -272,6 +272,12 @@ public:
 
             if( m_splitColumns )
             {
+                if( !std::filesystem::exists( path ) )
+                {
+                    if( m_allowMissingFiles )
+                        continue;
+                    CSP_THROW( csp::ValueError, "split_columns directory not found: " << path );
+                }
                 if( !std::filesystem::is_directory( path ) )
                     CSP_THROW( csp::ValueError,
                                "split_columns_to_files expects a directory, got: " << path );

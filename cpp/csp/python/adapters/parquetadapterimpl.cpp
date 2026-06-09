@@ -21,12 +21,14 @@
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
 #include <arrow/io/file.h>
+#include <arrow/util/future.h>
+#include <arrow/util/thread_pool.h>
 #include <parquet/arrow/reader.h>
+#include <parquet/arrow/schema.h>
 #include <parquet/file_reader.h>
 #include <parquet/properties.h>
 #include <csp/engine/PartialSwitchCspType.h>
 #include <filesystem>
-#include <future>
 #include <locale>
 #include <codecvt>
 #include <numeric>
@@ -138,17 +140,19 @@ public:
         CSP_TRUE_OR_THROW( PyDict_Check( nextVal.get() ), csp::TypeError,
                            "Stream factory expected to yield {column: reader} dicts" );
 
-        importColumnReaderDict( nextVal.get(), m_columnReaders );
+        importColumnSourceDict( nextVal.get(), m_columnSources );
         return true;
     }
 
-    const ColumnReaderMap & columnReaders() const override
+    const ColumnSourceMap & columnSources() const override
     {
-        return m_columnReaders;
+        return m_columnSources;
     }
 
 private:
-    static std::shared_ptr<::arrow::RecordBatchReader> importRecordBatchReader( PyObject *pyReader )
+    // Import a Python RecordBatchReader via Arrow C stream interface and wrap
+    // it into a ColumnSource (schema from reader, readNext from reader).
+    static std::shared_ptr<ColumnSource> importAsColumnSource( PyObject *pyReader )
     {
         auto capsule = csp::python::PyObjectPtr::own(
             PyObject_CallMethod( pyReader, "__arrow_c_stream__", nullptr ) );
@@ -164,10 +168,17 @@ private:
         if( !result.ok() )
             CSP_THROW( csp::ValueError, "Failed to import RecordBatchReader: " << result.status().ToString() );
 
-        return result.ValueUnsafe();
+        auto reader = result.MoveValueUnsafe();
+        auto source = std::make_shared<ColumnSource>();
+        source -> schema = reader -> schema();
+        source -> readNext = [reader = std::move( reader )]( std::shared_ptr<::arrow::RecordBatch> * batch ) mutable
+        {
+            return reader -> ReadNext( batch );
+        };
+        return source;
     }
 
-    static void importColumnReaderDict( PyObject *pyDict, ColumnReaderMap & out )
+    static void importColumnSourceDict( PyObject *pyDict, ColumnSourceMap & out )
     {
         out.clear();
         CSP_TRUE_OR_THROW( PyDict_Check( pyDict ), csp::TypeError,
@@ -180,85 +191,29 @@ private:
             const char *colName = PyUnicode_AsUTF8( key );
             if( !colName )
                 CSP_THROW( csp::python::PythonPassthrough, "" );
-            out[ colName ] = importRecordBatchReader( val );
+            out[ colName ] = importAsColumnSource( val );
         }
     }
 
     csp::python::PyObjectPtr m_factory;
     csp::python::PyObjectPtr m_iter;
 
-    ColumnReaderMap m_columnReaders;
-};
-
-// Overlaps Arrow decode with CSP's per-row processing by prefetching the next batch.
-class PrefetchingRecordBatchReader : public ::arrow::RecordBatchReader
-{
-public:
-    PrefetchingRecordBatchReader( std::shared_ptr<::arrow::RecordBatchReader> inner,
-                                  std::shared_ptr<::parquet::arrow::FileReader> fileReader )
-        : m_inner( std::move( inner ) ), m_fileReader( std::move( fileReader ) ), m_eof( false )
-    {
-        m_prefetch = std::async( std::launch::async, [this] { return readOne(); } );
-    }
-
-    ~PrefetchingRecordBatchReader() override
-    {
-        // Ensure the background task finishes before m_inner/m_fileReader are released
-        if( m_prefetch.valid() )
-            m_prefetch.wait();
-    }
-
-    std::shared_ptr<::arrow::Schema> schema() const override
-    {
-        return m_inner -> schema();
-    }
-
-    ::arrow::Status ReadNext( std::shared_ptr<::arrow::RecordBatch> * batch ) override
-    {
-        if( m_eof )
-        {
-            *batch = nullptr;
-            return ::arrow::Status::OK();
-        }
-
-        auto result = m_prefetch.get();
-        if( !result.ok() )
-        {
-            m_eof = true;
-            return result.status();
-        }
-
-        *batch = result.MoveValueUnsafe();
-
-        if( *batch == nullptr )
-        {
-            m_eof = true;
-        }
-        else
-        {
-            m_prefetch = std::async( std::launch::async, [this] { return readOne(); } );
-        }
-
-        return ::arrow::Status::OK();
-    }
-
-private:
-    ::arrow::Result<std::shared_ptr<::arrow::RecordBatch>> readOne()
-    {
-        std::shared_ptr<::arrow::RecordBatch> batch;
-        auto status = m_inner -> ReadNext( &batch );
-        if( !status.ok() )
-            return status;
-        return batch;
-    }
-
-    std::shared_ptr<::arrow::RecordBatchReader>                              m_inner;
-    std::shared_ptr<::parquet::arrow::FileReader>                            m_fileReader;
-    std::future<::arrow::Result<std::shared_ptr<::arrow::RecordBatch>>>      m_prefetch;
-    bool                                                                     m_eof;
+    ColumnSourceMap m_columnSources;
 };
 
 // Native C++ parquet reader for regular and split-column parquet files.
+// Produces ColumnSource objects backed by Arrow's async batch generator:
+//   - Schema derived from file metadata via SchemaManifest (no I/O)
+//   - readNext wraps the generator's Future-based iteration
+//   - rows_to_readahead=1 pipelines decode of the next row group with engine processing
+//   - pre_buffer=true (set in makeFileReader) pipelines I/O on Arrow's I/O pool
+//
+// Lifecycle safety:
+//   - Destroying a ColumnSource while in-flight futures exist is safe: Arrow's generator
+//     state is ref-counted (shared_ptr<MergedGenerator::State>), and pending pool
+//     callbacks will complete independently then release their references.
+//   - FileReader lifetime is managed by shared_ptr chains in both the generator's
+//     internal captures and m_fileReaders/m_prevFileReaders.
 class NativeParquetStreamSource : public csp::adapters::parquet::RecordBatchStreamSource
 {
 public:
@@ -306,7 +261,7 @@ public:
 
     bool nextStream() override
     {
-        m_columnReaders.clear();
+        m_columnSources.clear();
         // Release previous stream's FileReaders
         m_prevFileReaders = std::move( m_fileReaders );
         m_fileReaders.clear();
@@ -336,9 +291,9 @@ public:
         return false;
     }
 
-    const ColumnReaderMap & columnReaders() const override
+    const ColumnSourceMap & columnSources() const override
     {
-        return m_columnReaders;
+        return m_columnSources;
     }
 
 private:
@@ -357,7 +312,8 @@ private:
     }
 
     // Open a single parquet file, projecting only needed columns.
-    bool openSingleFile( const std::string & path )    {
+    bool openSingleFile( const std::string & path )
+    {
         auto fileReader = makeFileReader( path );
         if( !fileReader )
             return false;
@@ -398,17 +354,20 @@ private:
             }
         }
 
-        auto reader = getRecordBatchReader( fileReader, colIndices );
-        if( !reader )
+        auto source = createBatchSource( fileReader, colIndices );
+        if( !source )
             return false;
 
-        m_columnReaders[ reader -> schema() -> field( 0 ) -> name() ] = reader;
+        // Use the first field name as the dict key (for single-file mode, the
+        // manager iterates all fields from the schema anyway).
+        m_columnSources[ source -> schema -> field( 0 ) -> name() ] = source;
         m_fileReaders.push_back( std::move( fileReader ) );
         return true;
     }
 
     // Open a split-column directory: each .parquet file is one column.
-    bool openSplitDirectory( const std::string & dirPath )    {
+    bool openSplitDirectory( const std::string & dirPath )
+    {
         // Collect column files, sorted
         std::map<std::string, std::string> colFiles;
         for( auto & entry : std::filesystem::directory_iterator( dirPath ) )
@@ -430,15 +389,15 @@ private:
             if( !fileReader )
                 continue;
 
-            auto reader = getRecordBatchReader( fileReader, {} );
-            if( !reader )
+            auto source = createBatchSource( fileReader, {} );
+            if( !source )
                 continue;
 
-            m_columnReaders[colName] = reader;
+            m_columnSources[colName] = source;
             m_fileReaders.push_back( std::move( fileReader ) );
         }
 
-        return !m_columnReaders.empty();
+        return !m_columnSources.empty();
     }
 
     static std::shared_ptr<::parquet::arrow::FileReader> makeFileReader( const std::string & path )
@@ -462,7 +421,42 @@ private:
         return fileReader;
     }
 
-    static std::shared_ptr<::arrow::RecordBatchReader> getRecordBatchReader(
+    // Compute the projected Arrow schema from parquet file metadata alone (no I/O).
+    // Uses SchemaManifest to map leaf column indices → Arrow field indices.
+    static std::shared_ptr<::arrow::Schema> getProjectedSchema(
+        const std::shared_ptr<::parquet::arrow::FileReader> & fileReader,
+        const std::vector<int> & resolvedCols )
+    {
+        auto metadata = fileReader -> parquet_reader() -> metadata();
+
+        ::parquet::ArrowReaderProperties arrowProps;
+        arrowProps.set_use_threads( true );
+        arrowProps.set_pre_buffer( true );
+
+        ::parquet::arrow::SchemaManifest manifest;
+        auto status = ::parquet::arrow::SchemaManifest::Make(
+            metadata -> schema(), metadata -> key_value_metadata(), arrowProps, &manifest );
+        if( !status.ok() )
+            CSP_THROW( csp::ValueError, "SchemaManifest::Make failed: " << status.ToString() );
+
+        auto fieldIndicesResult = manifest.GetFieldIndices( resolvedCols );
+        if( !fieldIndicesResult.ok() )
+            CSP_THROW( csp::ValueError, "GetFieldIndices failed: " << fieldIndicesResult.status().ToString() );
+
+        ::arrow::FieldVector fields;
+        for( int idx : fieldIndicesResult.ValueUnsafe() )
+            fields.push_back( manifest.schema_fields[idx].field );
+
+        return ::arrow::schema( std::move( fields ), manifest.schema_metadata );
+    }
+
+    // Create a ColumnSource backed by Arrow's async record-batch generator.
+    //   - Schema from metadata (getProjectedSchema)
+    //   - readNext wraps the generator: calls operator() → blocks on Future → returns batch
+    //   - rows_to_readahead=1: pipelines decode of next row group with engine processing
+    //   - pre_buffer=true (set in makeFileReader): I/O on Arrow I/O pool (ARROW_IO_THREADS)
+    //   - Decode uses CPU pool (OMP_NUM_THREADS) via non-blocking OptionalParallelForAsync
+    static std::shared_ptr<ColumnSource> createBatchSource(
         const std::shared_ptr<::parquet::arrow::FileReader> & fileReader,
         const std::vector<int> & colIndices )
     {
@@ -470,18 +464,60 @@ private:
         std::vector<int> rowGroups( numRG );
         std::iota( rowGroups.begin(), rowGroups.end(), 0 );
 
-        ::arrow::Result<std::unique_ptr<::arrow::RecordBatchReader>> result;
-        if( colIndices.empty() )
-            result = fileReader -> GetRecordBatchReader( rowGroups );
-        else
-            result = fileReader -> GetRecordBatchReader( rowGroups, colIndices );
+        // GetRecordBatchGenerator requires an explicit column list — an empty vector means
+        // "no columns" (unlike the sync overload which defaults to all).
+        std::vector<int> resolvedCols = colIndices;
+        if( resolvedCols.empty() )
+        {
+            int numLeafCols = fileReader -> parquet_reader() -> metadata() -> num_columns();
+            resolvedCols.resize( numLeafCols );
+            std::iota( resolvedCols.begin(), resolvedCols.end(), 0 );
+        }
 
-        if( !result.ok() )
-            CSP_THROW( csp::ValueError, "GetRecordBatchReader failed: " << result.status().ToString() );
+        // Get projected schema from metadata (no I/O, no temporary reader).
+        auto schema = getProjectedSchema( fileReader, resolvedCols );
 
-        // Wrap in prefetching reader; it co-owns the FileReader to keep it alive
-        auto inner = std::shared_ptr<::arrow::RecordBatchReader>( std::move( result ).ValueUnsafe() );
-        return std::make_shared<PrefetchingRecordBatchReader>( std::move( inner ), fileReader );
+        // Create the async generator.
+        auto genResult = fileReader -> GetRecordBatchGenerator(
+            fileReader, rowGroups, resolvedCols,
+            ::arrow::internal::GetCpuThreadPool(), /*rows_to_readahead=*/1 );
+
+        if( !genResult.ok() )
+            CSP_THROW( csp::ValueError, "GetRecordBatchGenerator failed: " << genResult.status().ToString() );
+
+        // Wrap generator in a readNext function.  The shared state (generator + fileReader)
+        // is captured by value in the lambda — ref-counted, safe to copy.
+        using Generator = std::function<::arrow::Future<std::shared_ptr<::arrow::RecordBatch>>()>;
+        auto generator = std::make_shared<Generator>( std::move( genResult ).MoveValueUnsafe() );
+        auto eof       = std::make_shared<bool>( false );
+
+        auto source = std::make_shared<ColumnSource>();
+        source -> schema = std::move( schema );
+        source -> readNext = [generator, eof, fileReader]( std::shared_ptr<::arrow::RecordBatch> * batch ) -> ::arrow::Status
+        {
+            if( *eof )
+            {
+                *batch = nullptr;
+                return ::arrow::Status::OK();
+            }
+
+            auto future = ( *generator )();
+            auto result = future.MoveResult();
+
+            if( !result.ok() )
+            {
+                *eof = true;
+                return result.status();
+            }
+
+            *batch = result.MoveValueUnsafe();
+            if( *batch == nullptr )
+                *eof = true;
+
+            return ::arrow::Status::OK();
+        };
+
+        return source;
     }
 
     csp::python::PyObjectPtr                                      m_filenameGen;
@@ -490,7 +526,7 @@ private:
     std::set<std::string>                                         m_neededColumns;
     std::vector<std::string>                                      m_filenames;
     size_t                                                        m_fileIdx = 0;
-    ColumnReaderMap                                                m_columnReaders;
+    ColumnSourceMap                                                m_columnSources;
     std::vector<std::shared_ptr<::parquet::arrow::FileReader>>    m_fileReaders;
     std::vector<std::shared_ptr<::parquet::arrow::FileReader>>    m_prevFileReaders;
 };

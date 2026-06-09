@@ -76,7 +76,7 @@ void RecordBatchRowProcessor::dispatchRow( const utils::Symbol * symbol )
 }
 
 void RecordBatchRowProcessor::bindSources(
-    const std::vector<::arrow::RecordBatchReader *> & sources,
+    const std::vector<ReadNextFn> & sources,
     const std::vector<std::vector<ColumnMapping>> & mappings )
 {
     m_sources.clear();
@@ -87,7 +87,7 @@ void RecordBatchRowProcessor::bindSources(
     for( size_t srcIdx = 0; srcIdx < sources.size(); ++srcIdx )
     {
         SourceEntry entry;
-        entry.source = sources[srcIdx];
+        entry.readNext = sources[srcIdx];
 
         auto & colMappings = mappings[srcIdx];
         for( size_t j = 0; j < colMappings.size(); ++j )
@@ -112,7 +112,7 @@ bool RecordBatchRowProcessor::fetchNextBatch( SourceEntry & entry )
 {
     while( entry.currentRow >= entry.numRows )
     {
-        auto status = entry.source -> ReadNext( &entry.currentBatch );
+        auto status = entry.readNext( &entry.currentBatch );
         CSP_TRUE_OR_THROW_RUNTIME( status.ok(),
             "fetchNextBatch: failed to read next batch: " << status.ToString() );
 

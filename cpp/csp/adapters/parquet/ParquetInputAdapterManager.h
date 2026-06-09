@@ -127,7 +127,7 @@ private:
     const utils::Symbol * getCurSymbol();
 
 
-    static std::shared_ptr<::arrow::Schema> buildLogicalSchema( const ColumnReaderMap & readers );
+    static std::shared_ptr<::arrow::Schema> buildLogicalSchema( const ColumnSourceMap & sources );
     bool bindSourcesFromReaders();
 
 
@@ -168,7 +168,7 @@ private:
     std::shared_ptr<::arrow::Schema>                 m_curSchema;
     std::set<std::string>                            m_neededColumns;
     bool                                             m_hasData = false;
-    std::vector<std::shared_ptr<::arrow::RecordBatchReader>>    m_mainRBSources;
+    std::vector<std::shared_ptr<ColumnSource>>                   m_mainBatchSources;
     CspType::Type                                    m_symbolType;
     utils::Symbol                                    m_curSymbol;
     std::vector<std::unique_ptr<StructSubscription>> m_structSubscriptions;

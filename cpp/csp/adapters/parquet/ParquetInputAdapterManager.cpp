@@ -393,23 +393,23 @@ void ParquetInputAdapterManager::setupDictBaskets()
 }
 
 std::shared_ptr<::arrow::Schema> ParquetInputAdapterManager::buildLogicalSchema(
-    const ColumnReaderMap & readers )
+    const ColumnSourceMap & sources )
 {
     std::vector<std::shared_ptr<::arrow::Field>> fields;
-    for( auto & [colName, reader] : readers )
+    for( auto & [colName, source] : sources )
     {
-        auto readerSchema = reader -> schema();
-        for( int i = 0; i < readerSchema -> num_fields(); ++i )
-            fields.push_back( readerSchema -> field( i ) );
+        auto & schema = source -> schema;
+        for( int i = 0; i < schema -> num_fields(); ++i )
+            fields.push_back( schema -> field( i ) );
     }
     return ::arrow::schema( fields );
 }
 
 bool ParquetInputAdapterManager::bindSourcesFromReaders()
 {
-    // Build into a local vector to keep old readers alive (m_mainRBSources) until
-    // bindSources installs new raw pointers in the processor.
-    std::vector<std::shared_ptr<::arrow::RecordBatchReader>> newRBSources;
+    // Build into a local vector to keep old sources alive until
+    // bindSources installs new ReadNextFns in the processor.
+    std::vector<std::shared_ptr<ColumnSource>> newBatchSources;
 
     // Build a lookup from basket name → DictBasketReaderRecord
     std::unordered_map<std::string, DictBasketReaderRecord *> basketByName;
@@ -417,25 +417,25 @@ bool ParquetInputAdapterManager::bindSourcesFromReaders()
         basketByName[ record.m_basketName ] = &record;
 
     // Collect sources and mappings for main processor
-    std::vector<::arrow::RecordBatchReader *> mainSources;
+    std::vector<arrow::RecordBatchRowProcessor::ReadNextFn> mainSources;
     std::vector<std::vector<arrow::RecordBatchRowProcessor::ColumnMapping>> mainMappings;
 
     // Per-basket: collect sources and mappings
-    std::unordered_map<std::string, std::vector<::arrow::RecordBatchReader *>> basketSources;
+    std::unordered_map<std::string, std::vector<arrow::RecordBatchRowProcessor::ReadNextFn>> basketSources;
     std::unordered_map<std::string, std::vector<std::vector<arrow::RecordBatchRowProcessor::ColumnMapping>>> basketMappings;
 
-    auto & readers = m_streamSource -> columnReaders();
-    for( auto & [dictKey, reader] : readers )
+    auto & sources = m_streamSource -> columnSources();
+    for( auto & [dictKey, source] : sources )
     {
-        auto readerSchema = reader -> schema();
+        auto & sourceSchema = source -> schema;
 
         // Separate columns into main vs basket
         std::vector<arrow::RecordBatchRowProcessor::ColumnMapping> mainCols;
         std::unordered_map<std::string, std::vector<arrow::RecordBatchRowProcessor::ColumnMapping>> basketCols;
 
-        for( int i = 0; i < readerSchema -> num_fields(); ++i )
+        for( int i = 0; i < sourceSchema -> num_fields(); ++i )
         {
-            auto colName = readerSchema -> field( i ) -> name();
+            auto colName = sourceSchema -> field( i ) -> name();
 
             auto basketIt = m_columnToBasketName.find( colName );
             if( basketIt == m_columnToBasketName.end() )
@@ -455,17 +455,17 @@ bool ParquetInputAdapterManager::bindSourcesFromReaders()
 
         if( !mainCols.empty() )
         {
-            mainSources.push_back( reader.get() );
+            mainSources.push_back( source -> readNext );
             mainMappings.push_back( std::move( mainCols ) );
         }
 
         for( auto & [bname, cols] : basketCols )
         {
-            basketSources[ bname ].push_back( reader.get() );
+            basketSources[ bname ].push_back( source -> readNext );
             basketMappings[ bname ].push_back( std::move( cols ) );
         }
 
-        newRBSources.push_back( reader );
+        newBatchSources.push_back( source );
     }
 
     // Bind main processor
@@ -473,9 +473,9 @@ bool ParquetInputAdapterManager::bindSourcesFromReaders()
         return false;
     m_processor -> bindSources( mainSources, mainMappings );
 
-    // Now that new raw pointers are installed, replace the owning vector.
-    // Old readers (if any) are released here, after the processor no longer references them.
-    m_mainRBSources = std::move( newRBSources );
+    // Now that new ReadNextFns are installed, replace the owning vector.
+    // Old sources (if any) are released here, after the processor no longer references them.
+    m_mainBatchSources = std::move( newBatchSources );
 
     // Bind basket processors
     for( auto & record : m_dictBasketReaders )
@@ -499,7 +499,7 @@ bool ParquetInputAdapterManager::advanceToNextStream()
 {
     while( m_streamSource -> nextStream() )
     {
-        auto newSchema = buildLogicalSchema( m_streamSource -> columnReaders() );
+        auto newSchema = buildLogicalSchema( m_streamSource -> columnSources() );
         bool schemaChanged = m_curSchema && !m_curSchema -> Equals( *newSchema );
         m_curSchema = newSchema;
 
@@ -666,7 +666,7 @@ void ParquetInputAdapterManager::start( DateTime starttime, DateTime endtime )
     if( !m_streamSource -> nextStream() )
         return;  // no data
 
-    m_curSchema = buildLogicalSchema( m_streamSource -> columnReaders() );
+    m_curSchema = buildLogicalSchema( m_streamSource -> columnSources() );
     m_hasData = true;
 
     setupProcessor( *m_processor, m_curSchema, m_neededColumns, m_simInputAdapters, true );
@@ -705,7 +705,7 @@ void ParquetInputAdapterManager::stop()
     m_cachedTimeDispatcher = nullptr;
     m_cachedSymbolDispatcher = nullptr;
     m_curSchema.reset();
-    m_mainRBSources.clear();
+    m_mainBatchSources.clear();
     m_dictBasketReaders.clear();
     m_structSubscriptions.clear();
     m_hasData = false;

@@ -5,6 +5,8 @@
 
 #include <csp/adapters/arrow/ColumnDispatcher.h>
 #include <arrow/record_batch.h>
+#include <arrow/status.h>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <set>
@@ -18,6 +20,9 @@ namespace csp::adapters::arrow
 class RecordBatchRowProcessor
 {
 public:
+    // Function signature for reading the next batch from a source.
+    using ReadNextFn = std::function<::arrow::Status( std::shared_ptr<::arrow::RecordBatch> * )>;
+
     struct ColumnMapping
     {
         std::string name;
@@ -45,9 +50,10 @@ public:
     // Dispatch current values to all subscribers.
     void dispatchRow( const utils::Symbol * symbol );
 
-    // Bind sources. mappings[i] = list of {columnName, colIndex} for sources[i].
+    // Bind batch sources.  Each source is a readNext function (wrapping an async generator
+    // or sync reader).  mappings[i] = list of {columnName, colIndex} for sources[i].
     void bindSources(
-        const std::vector<::arrow::RecordBatchReader *> & sources,
+        const std::vector<ReadNextFn> & sources,
         const std::vector<std::vector<ColumnMapping>> & mappings );
 
     // Skip one row across all sources. Returns false if EOF.
@@ -59,12 +65,12 @@ public:
 private:
     struct SourceEntry
     {
-        ::arrow::RecordBatchReader *                  source = nullptr;
-        std::shared_ptr<::arrow::RecordBatch>        currentBatch;
-        int64_t                                      numRows    = 0;
-        int64_t                                      currentRow = 0;
-        std::vector<int>                             colIndices;
-        std::vector<ColumnDispatcher *>              dispatchers;
+        ReadNextFn                                       readNext;
+        std::shared_ptr<::arrow::RecordBatch>            currentBatch;
+        int64_t                                          numRows    = 0;
+        int64_t                                          currentRow = 0;
+        std::vector<int>                                 colIndices;
+        std::vector<ColumnDispatcher *>                  dispatchers;
     };
 
     std::vector<std::unique_ptr<ColumnDispatcher>>      m_dispatchers;

@@ -3,6 +3,8 @@
 #include <csp/adapters/parquet/ParquetOutputAdapterManager.h>
 #include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
+#include <csp/adapters/parquet/ParquetWriter.h>
+#include <csp/adapters/parquet/RecordBatchSink.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
@@ -582,137 +584,6 @@ create_parquet_input_adapter( csp::AdapterManager *manager, PyEngine *pyengine, 
     }
 }
 
-template< typename CspCType >
-class NumpyArrayWriterImpl : public TypedDialectGenericListWriterInterface<CspCType>
-{
-public:
-    NumpyArrayWriterImpl( PyArray_Descr *expectedArrayDesc )
-            : m_expectedArrayDesc( expectedArrayDesc )
-    {
-    }
-
-    void writeItems( const csp::DialectGenericType &listObject ) override
-    {
-        PyObject *object = csp::python::toPythonBorrowed( listObject );
-        if( !PyArray_Check( object ) )
-            CSP_THROW( csp::TypeError, "While writing to parquet expected numpy array type, got " << Py_TYPE( object ) -> tp_name );
-
-        PyArrayObject *arrayObject = ( PyArrayObject * ) ( object );
-        char npy_type = PyArray_DESCR( arrayObject ) -> type;
-        if( PyArray_DESCR( arrayObject ) -> kind != m_expectedArrayDesc -> kind )
-            CSP_THROW( csp::TypeError,
-                       "Expected array of type " << csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) m_expectedArrayDesc ) )
-                                                 << " got "
-                                                 << csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
-
-        auto ndim = PyArray_NDIM( arrayObject );
-        CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
-        switch( npy_type )
-        {
-            case NPY_BYTELTR:      writeValues<char>( arrayObject );            break;
-            case NPY_UBYTELTR:     writeValues<unsigned char>( arrayObject );   break;
-            case NPY_SHORTLTR:     writeValues<short>( arrayObject );           break;
-            case NPY_USHORTLTR:    writeValues<unsigned short>( arrayObject );  break;
-            case NPY_INTLTR:       writeValues<int>( arrayObject );             break;
-            case NPY_UINTLTR:      writeValues<unsigned int>( arrayObject );    break;
-            case NPY_LONGLTR:      writeValues<long>( arrayObject );            break;
-            case NPY_ULONGLTR:     writeValues<unsigned long>( arrayObject );   break;
-            case NPY_LONGLONGLTR:  writeValues<long long>( arrayObject );       break;
-            case NPY_ULONGLONGLTR: writeValues<unsigned long long>( arrayObject ); break;
-            case NPY_FLOATLTR:  writeValues<float>( arrayObject );  break;
-            case NPY_DOUBLELTR: writeValues<double>( arrayObject ); break;
-            default:
-                writeValues<CspCType>( arrayObject );
-        }
-    }
-private:
-    template<typename NumpyCType>
-    void writeValues( PyArrayObject * arrayObject )
-    {
-        auto arraySize = PyArray_Size( ( PyObject * ) arrayObject );
-        if( PyArray_ISCARRAY_RO(arrayObject) )
-        {
-            NumpyCType* data = reinterpret_cast<NumpyCType*>( PyArray_DATA( arrayObject ) );
-            for (decltype(arraySize) i = 0; i < arraySize; ++i)
-                this->writeValue(static_cast<CspCType>(data[i]));
-        }
-        else
-        {
-            for (decltype(arraySize) i = 0; i < arraySize; ++i)
-                this->writeValue(static_cast<CspCType>(*reinterpret_cast<NumpyCType*>(PyArray_GETPTR1(arrayObject, i))));
-        }
-    }
-
-    PyArray_Descr *m_expectedArrayDesc;
-};
-
-class NumpyUnicodeArrayWriter : public TypedDialectGenericListWriterInterface<std::string>
-{
-public:
-    void writeItems( const csp::DialectGenericType &listObject ) override
-    {
-        PyObject *object = csp::python::toPythonBorrowed( listObject );
-        if( !PyArray_Check( object ) )
-            CSP_THROW( csp::TypeError, "While writing to parquet expected numpy array type, got " << Py_TYPE( object ) -> tp_name );
-
-        PyArrayObject *arrayObject = ( PyArrayObject * ) ( object );
-        if( PyArray_DESCR( arrayObject ) -> type_num != NPY_UNICODE )
-            CSP_THROW( csp::TypeError, "Expected unicode array, got " <<
-                       csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
-
-        auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( arrayObject ) );
-        auto ndim        = PyArray_NDIM( arrayObject );
-        CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
-        std::wstring_convert<std::codecvt_utf8<char32_t>,char32_t> converter;
-
-        auto arraySize = PyArray_Size( object );
-        if( PyArray_ISCARRAY_RO( arrayObject ) )
-        {
-            auto data = reinterpret_cast<char *>(PyArray_DATA( arrayObject ));
-            for( decltype( arraySize ) i = 0; i < arraySize; ++i )
-            {
-                std::string value = converter.to_bytes( reinterpret_cast<char32_t*>(data + elementSize * i),
-                                                        reinterpret_cast<char32_t*>(data + elementSize * ( i + 1 )) );
-                this -> writeValue( value );
-            }
-        }
-        else
-        {
-            for( decltype( arraySize ) i = 0; i < arraySize; ++i )
-            {
-                char        *elementPtr = reinterpret_cast<char *>(PyArray_GETPTR1( arrayObject, i ));
-                std::string value       = converter.to_bytes( reinterpret_cast<char32_t*>(elementPtr),
-                                                              reinterpret_cast<char32_t*>(elementPtr + elementSize ) );
-                this -> writeValue( value );
-            }
-        }
-    }
-};
-
-static inline DialectGenericListWriterInterface::Ptr create_numpy_array_writer_impl( const csp::CspTypePtr &type )
-{
-    try
-    {
-        return csp::PartialSwitchCspType<csp::CspType::Type::DOUBLE, csp::CspType::Type::INT64,
-                csp::CspType::Type::BOOL, csp::CspType::Type::STRING>::invoke(
-                type.get(),
-                []( auto tag ) -> DialectGenericListWriterInterface::Ptr
-                {
-                    using CValueType = typename decltype( tag )::type;
-                    auto numpy_dtype = PyArray_DescrFromType( csp::python::NPY_TYPE<CValueType>::value );
-                    if constexpr (std::is_same_v<CValueType,std::string>)
-                        return std::make_shared<NumpyUnicodeArrayWriter>();
-                    else
-                        return std::make_shared<NumpyArrayWriterImpl<CValueType>>(numpy_dtype);
-                }
-        );
-    }
-    catch( csp::TypeError &e )
-    {
-        CSP_THROW( csp::TypeError, "Unsupported array value type when writing to parquet:" << type -> type().asString() );
-    }
-}
-
 static OutputAdapter *create_parquet_output_adapter( csp::AdapterManager *manager, PyEngine *pyengine, PyObject *args )
 {
     PyObject *pyProperties;
@@ -732,7 +603,7 @@ static OutputAdapter *create_parquet_output_adapter( csp::AdapterManager *manage
     if( propertiesDict.get( "is_array", false ) )
     {
         auto &&valueType = pyTypeAsCspType( toPythonBorrowed( propertiesDict.get<DialectGenericType>( "array_value_type" ) ) );
-        return parquetManager -> getListOutputAdapter( valueType, propertiesDict, create_numpy_array_writer_impl( valueType ) );
+        return parquetManager -> getListOutputAdapter( valueType, propertiesDict );
     }
     else
     {
@@ -828,21 +699,125 @@ static PyObject *create_parquet_input_adapter_manager_native( PyObject *args )
     CSP_RETURN_NULL;
 }
 
+// --- Helpers for exporting Arrow data to Python via C Data Interface ---
+
+static void releaseArrowSchemaCapsule( PyObject * capsule )
+{
+    auto * schema = reinterpret_cast<ArrowSchema*>( PyCapsule_GetPointer( capsule, "arrow_schema" ) );
+    if( schema && schema -> release )
+        schema -> release( schema );
+    free( schema );
+}
+
+static void releaseArrowArrayCapsule( PyObject * capsule )
+{
+    auto * array = reinterpret_cast<ArrowArray*>( PyCapsule_GetPointer( capsule, "arrow_array" ) );
+    if( array && array -> release )
+        array -> release( array );
+    free( array );
+}
+
+// Export an Arrow Schema as a single capsule
+static PyObjectPtr exportSchema( const std::shared_ptr<::arrow::Schema> & schema )
+{
+    auto * c_schema = static_cast<ArrowSchema*>( malloc( sizeof( ArrowSchema ) ) );
+    auto st = ::arrow::ExportSchema( *schema, c_schema );
+    if( !st.ok() )
+    {
+        free( c_schema );
+        CSP_THROW( ValueError, "Failed to export Schema: " << st.ToString() );
+    }
+    return PyObjectPtr::own( PyCapsule_New( c_schema, "arrow_schema", releaseArrowSchemaCapsule ) );
+}
+
+// Build a RecordBatchSink that delegates to a Python object with
+// on_start(schema_capsule), on_batch(schema_capsule, array_capsule), on_file_change(path), on_stop() methods.
+static RecordBatchSink createSinkFromPython( PyObjectPtr pySink )
+{
+    RecordBatchSink sink;
+
+    sink.onStart = [pySink]( const std::shared_ptr<::arrow::Schema> & schema )
+    {
+        auto capsule = exportSchema( schema );
+        auto rv = PyObjectPtr::own( PyObject_CallMethod( pySink.get(), "on_start", "O", capsule.get() ) );
+        if( !rv.get() )
+            CSP_THROW( PythonPassthrough, "" );
+    };
+
+    sink.onBatch = [pySink]( const std::shared_ptr<::arrow::RecordBatch> & rb )
+    {
+        auto * c_schema = static_cast<ArrowSchema*>( malloc( sizeof( ArrowSchema ) ) );
+        auto * c_array  = static_cast<ArrowArray*>( malloc( sizeof( ArrowArray ) ) );
+        auto st = ::arrow::ExportRecordBatch( *rb, c_array, c_schema );
+        if( !st.ok() )
+        {
+            free( c_array );
+            free( c_schema );
+            CSP_THROW( ValueError, "Failed to export RecordBatch: " << st.ToString() );
+        }
+        auto pySchemaCapsule = PyObjectPtr::own( PyCapsule_New( c_schema, "arrow_schema", releaseArrowSchemaCapsule ) );
+        auto pyArrayCapsule  = PyObjectPtr::own( PyCapsule_New( c_array, "arrow_array", releaseArrowArrayCapsule ) );
+        auto rv = PyObjectPtr::own( PyObject_CallMethod( pySink.get(), "on_batch", "OO",
+                                                          pySchemaCapsule.get(), pyArrayCapsule.get() ) );
+        if( !rv.get() )
+            CSP_THROW( PythonPassthrough, "" );
+    };
+
+    sink.onFileChange = [pySink]( const std::string & path )
+    {
+        auto pyPath = PyObjectPtr::own( PyUnicode_FromStringAndSize( path.c_str(), path.size() ) );
+        auto rv = PyObjectPtr::own( PyObject_CallMethod( pySink.get(), "on_file_change", "O", pyPath.get() ) );
+        if( !rv.get() )
+            CSP_THROW( PythonPassthrough, "" );
+    };
+
+    sink.onStop = [pySink]()
+    {
+        auto rv = PyObjectPtr::own( PyObject_CallMethod( pySink.get(), "on_stop", nullptr ) );
+        if( !rv.get() )
+            CSP_THROW( PythonPassthrough, "" );
+    };
+
+    return sink;
+}
+
 csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, const Dictionary &properties )
 {
-    ParquetOutputAdapterManager::FileVisitorCallback fileVisitor;
-    DialectGenericType pyFilenameVisitorDG;
-    if( properties.tryGet( "file_visitor", pyFilenameVisitorDG ) )
+    // Extract Python sink object from properties
+    RecordBatchSink mainSink;
+    RecordBatchSink indexSink;
+    DialectGenericType pySinkDG, pyIndexSinkDG;
+    if( properties.tryGet( "rb_sink", pySinkDG ) )
     {
-        PyObjectPtr pyFilenameVisitor = PyObjectPtr::own( toPython( pyFilenameVisitorDG ) );
-        fileVisitor = [pyFilenameVisitor]( const std::string & filename )
-            {
-                PyObjectPtr rv =  PyObjectPtr::own( PyObject_CallFunction( pyFilenameVisitor.get(), "O", PyObjectPtr::own( toPython( filename ) ).get() ) );
-                if( !rv.get() )
-                    CSP_THROW( PythonPassthrough, "" );
-            };
+        auto pySink = PyObjectPtr::own( toPython( pySinkDG ) );
+        mainSink = createSinkFromPython( std::move( pySink ) );
     }
-    return engine -> engine() -> createOwnedObject<ParquetOutputAdapterManager>( properties, fileVisitor );
+    if( properties.tryGet( "rb_index_sink", pyIndexSinkDG ) )
+    {
+        auto pyIndexSink = PyObjectPtr::own( toPython( pyIndexSinkDG ) );
+        indexSink = createSinkFromPython( std::move( pyIndexSink ) );
+    }
+
+    auto * mgr = engine -> engine() -> createOwnedObject<ParquetOutputAdapterManager>( properties );
+    mgr -> setSink( std::move( mainSink ) );
+    mgr -> setIndexSink( std::move( indexSink ) );
+
+    // Sink factory for dict basket writers: calls Python to create new sinks on demand
+    DialectGenericType pySinkFactoryDG;
+    if( properties.tryGet( "rb_sink_factory", pySinkFactoryDG ) )
+    {
+        auto pySinkFactory = PyObjectPtr::own( toPython( pySinkFactoryDG ) );
+        mgr -> setSinkFactory( [pySinkFactory]( const std::string & name ) -> RecordBatchSink
+        {
+            auto pyName = PyObjectPtr::own( PyUnicode_FromStringAndSize( name.c_str(), name.size() ) );
+            auto pySink = PyObjectPtr::own( PyObject_CallFunctionObjArgs( pySinkFactory.get(), pyName.get(), nullptr ) );
+            if( !pySink.get() )
+                CSP_THROW( PythonPassthrough, "" );
+            return createSinkFromPython( std::move( pySink ) );
+        } );
+    }
+
+    return mgr;
 }
 
 

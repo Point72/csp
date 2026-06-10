@@ -224,6 +224,39 @@ class ParquetWriter:
         if self._parquet_output_adapter_manager:
             return self._parquet_output_adapter_manager
 
+        from csp.adapters._parquet_rb_writer import create_sink, create_sink_factory
+
+        # Create main sink for the primary writer
+        file_name = self._properties.get("file_name", "")
+        compression = self._properties.get("compression", "snappy")
+        allow_overwrite = self._properties.get("allow_overwrite", False)
+        write_arrow_binary = self._properties.get("write_arrow_binary", False)
+        split_columns = self._properties.get("split_columns_to_files", False)
+        file_visitor = self._properties.get("file_visitor")
+        file_metadata = self._properties.get("file_metadata")
+        column_metadata = self._properties.get("column_metadata")
+
+        sink = create_sink(
+            file_name=file_name,
+            compression=compression,
+            allow_overwrite=allow_overwrite,
+            write_arrow_binary=write_arrow_binary,
+            split_columns_to_files=split_columns,
+            file_visitor=file_visitor,
+            file_metadata=file_metadata,
+            column_metadata=column_metadata,
+        )
+        self._properties["rb_sink"] = sink
+
+        # Sink factory for dict basket writers
+        sink_factory = create_sink_factory(
+            compression=compression,
+            allow_overwrite=allow_overwrite,
+            write_arrow_binary=write_arrow_binary,
+            file_visitor=file_visitor,
+        )
+        self._properties["rb_sink_factory"] = sink_factory
+
         self._parquet_output_adapter_manager = _parquetadapterimpl._parquet_output_adapter_manager(
             engine, self._properties
         )

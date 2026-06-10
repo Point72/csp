@@ -5,7 +5,8 @@
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/OutputAdapter.h>
 #include <string>
-#include <csp/adapters/parquet/DialectGenericListWriterInterface.h>
+
+namespace csp::adapters::parquet { class ArrowBackedArrayBuilder; }
 
 namespace arrow
 {
@@ -54,21 +55,25 @@ public:
 
     std::shared_ptr<ArrowSingleColumnArrayBuilder> getColumnArrayBuilder( unsigned index ) override{ return m_columnArrayBuilder; };
 
-    template< typename T, typename ColumnBuilderType >
-    void writeValue( const T &value )
-    {
-        static_cast<ColumnBuilderType *>(this -> m_columnArrayBuilder.get()) -> setValue( value );
-    }
-
     void writeValueFromTs( const TimeSeriesProvider *input ) override final
     {
         ( *m_valueHandler )( input );
     }
 
+    // Write a value directly to the underlying scratch struct (used by dict basket writers)
+    template< typename T, typename Ignored = void >
+    void writeValue( const T & value );
+
 private:
-    template< typename ColumnBuilder >
-    void createColumnBuilder( const std::string &columnName );
-    void createEnumColumnBuilder( const std::string &columnName, CspEnumMeta::Ptr enumMetaPtr );
+    template< typename CspValueType >
+    void createValueHandler( Struct * scratch, const StructFieldPtr & field )
+    {
+        m_valueHandler = std::make_unique<ValueHandler>(
+            [ scratch, field ]( const TimeSeriesProvider * input )
+            {
+                field -> setValue<CspValueType>( scratch, input -> lastValueTyped<CspValueType>() );
+            } );
+    }
 
 protected:
     using ValueHandler = std::function<void( const TimeSeriesProvider * )>;
@@ -80,8 +85,7 @@ protected:
 class ListColumnParquetOutputHandler : public ParquetOutputHandler
 {
 public:
-    ListColumnParquetOutputHandler( Engine *engine, ParquetWriter &parquetWriter, CspTypePtr &elemType, const std::string &columnName,
-                                    DialectGenericListWriterInterface::Ptr& listWriterInterface  );
+    ListColumnParquetOutputHandler( Engine *engine, ParquetWriter &parquetWriter, CspTypePtr &elemType, const std::string &columnName );
 
     uint32_t getNumColumns() override{ return 1; }
 
@@ -97,11 +101,6 @@ public:
     {
         ( *m_valueHandler )( input );
     }
-
-private:
-    std::shared_ptr<::arrow::ArrayBuilder> createValueBuilder( const CspTypePtr &elemType,
-                                                             DialectGenericListWriterInterface::Ptr &listWriterInterface );
-
 
 protected :
     using ValueHandler = std::function<void( const TimeSeriesProvider * )>;
@@ -126,9 +125,8 @@ public:
 class ListColumnParquetOutputAdapter : public OutputAdapter, public ListColumnParquetOutputHandler
 {
 public:
-    ListColumnParquetOutputAdapter( Engine *engine, ParquetWriter &parquetWriter, CspTypePtr &type, std::string columnName,
-                                    DialectGenericListWriterInterface::Ptr listWriterInterface )
-            : OutputAdapter( engine ), ListColumnParquetOutputHandler( engine, parquetWriter, type, columnName, listWriterInterface )
+    ListColumnParquetOutputAdapter( Engine *engine, ParquetWriter &parquetWriter, CspTypePtr &type, std::string columnName )
+            : OutputAdapter( engine ), ListColumnParquetOutputHandler( engine, parquetWriter, type, columnName )
     {
     }
 
@@ -138,12 +136,14 @@ public:
 };
 
 
+class ArrowBackedArrayBuilder;
+
 class StructParquetOutputHandler : public ParquetOutputHandler
 {
 public:
     StructParquetOutputHandler( Engine *engine, ParquetWriter &parquetWriter, CspTypePtr &type, DictionaryPtr fieldMap );
 
-    uint32_t getNumColumns() override{ return m_valueHandlers.size(); }
+    uint32_t getNumColumns() override{ return m_columnArrayBuilders.size(); }
 
     std::shared_ptr<ArrowSingleColumnArrayBuilder> getColumnArrayBuilder( unsigned index ) override
     {
@@ -152,41 +152,9 @@ public:
 
     void writeValueFromTs( const TimeSeriesProvider *input ) override final;
 
-private:
-    using ValueHandler = std::function<void( const Struct * )>;
-    struct ColumnBuilderResultType
-    {
-        std::shared_ptr<ArrowSingleColumnArrayBuilder> m_columnBuilder;
-        ValueHandler                                   m_valueHandler;
-    };
-
-
-    ColumnBuilderResultType createColumnBuilder( const StructMeta *structMeta,
-                                                 const std::string &columnName,
-                                                 const std::string &structFieldName,
-                                                 const std::string *path );
-
-    template< typename ColumnBuilder >
-    ColumnBuilderResultType createColumnBuilder( const StructField *field,
-                                                 const std::string &columnName,
-                                                 const std::string *path );
-
-    ColumnBuilderResultType createEnumColumnBuilder( const StructField *field,
-                                                     const std::string &columnName,
-                                                     const std::string *path );
-
-    ColumnBuilderResultType createStructColumnBuilder( const StructField *structField,
-                                                       const std::string &columnName,
-                                                       const std::string *path );
-
-    inline std::string resolveFullColumnName( const std::string *path, const std::string &columnName )
-    {
-        return path == nullptr ? columnName : *path + "." + columnName;
-    }
-
 protected:
-    std::vector<ValueHandler>                                   m_valueHandlers;
-    std::vector<std::shared_ptr<ArrowSingleColumnArrayBuilder>> m_columnArrayBuilders;
+    std::vector<ArrowBackedArrayBuilder *>                          m_arrowBuilders;
+    std::vector<std::shared_ptr<ArrowSingleColumnArrayBuilder>>     m_columnArrayBuilders;
 };
 
 class StructParquetOutputAdapter final : public OutputAdapter, public StructParquetOutputHandler

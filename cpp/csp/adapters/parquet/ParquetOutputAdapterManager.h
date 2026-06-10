@@ -1,7 +1,6 @@
 #ifndef _IN_CSP_ADAPTERS_PARQUET_ParquetOutputAdapterManager_H
 #define _IN_CSP_ADAPTERS_PARQUET_ParquetOutputAdapterManager_H
 
-#include <csp/adapters/parquet/ParquetReader.h>
 #include <csp/adapters/utils/StructAdapterInfo.h>
 #include <csp/core/Generator.h>
 #include <csp/engine/AdapterManager.h>

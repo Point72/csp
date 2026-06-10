@@ -7,6 +7,7 @@
 #include <arrow/array.h>
 #include <arrow/builder.h>
 #include <arrow/io/file.h>
+#include <arrow/table.h>
 #include <parquet/arrow/writer.h>
 #include <csp/core/Exception.h>
 

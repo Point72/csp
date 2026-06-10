@@ -1,13 +1,9 @@
 // Arrow type visitor: maps arrow::Type::type to the corresponding C++ value type.
-// Eliminates repeated switch statements on arrow types across the codebase.
 //
 // Usage:
 //   visitArrowValueType( typeId,
-//       [&]( auto tag ) -> ReturnType {
-//           using T = typename decltype( tag )::type;
-//           return doSomething<T>( ... );
-//       },
-//       [&]() -> ReturnType { /* unsupported type fallback */ } );
+//       [&]( auto tag ) { using T = typename decltype(tag)::type; ... },
+//       [&]() { /* unsupported */ } );
 
 #ifndef _IN_CSP_ADAPTERS_ARROW_ArrowTypeVisitor_H
 #define _IN_CSP_ADAPTERS_ARROW_ArrowTypeVisitor_H
@@ -24,14 +20,12 @@ namespace csp::adapters::arrow
 template<typename T>
 struct TypeTag { using type = T; };
 
-// Invokes fn( TypeTag<CppType>{} ) for the C++ value type corresponding to
-// the given arrow type.  Calls onDefault() for unrecognised arrow types.
+// Invokes fn(TypeTag<CppType>{}) for the C++ type corresponding to the arrow type.
 template<typename Fn, typename DefaultFn>
 decltype(auto) visitArrowValueType( ::arrow::Type::type typeId, Fn && fn, DefaultFn && onDefault )
 {
     switch( typeId )
     {
-        // --- Numeric ---
         case ::arrow::Type::BOOL:   return fn( TypeTag<bool>{} );
         case ::arrow::Type::INT8:   return fn( TypeTag<int8_t>{} );
         case ::arrow::Type::INT16:  return fn( TypeTag<int16_t>{} );
@@ -45,7 +39,6 @@ decltype(auto) visitArrowValueType( ::arrow::Type::type typeId, Fn && fn, Defaul
         case ::arrow::Type::FLOAT:
         case ::arrow::Type::DOUBLE: return fn( TypeTag<double>{} );
 
-        // --- String / Binary ---
         case ::arrow::Type::STRING:
         case ::arrow::Type::LARGE_STRING:
         case ::arrow::Type::BINARY:
@@ -54,7 +47,6 @@ decltype(auto) visitArrowValueType( ::arrow::Type::type typeId, Fn && fn, Defaul
         case ::arrow::Type::DICTIONARY:
             return fn( TypeTag<std::string>{} );
 
-        // --- Temporal ---
         case ::arrow::Type::TIMESTAMP: return fn( TypeTag<DateTime>{} );
         case ::arrow::Type::DURATION:  return fn( TypeTag<TimeDelta>{} );
         case ::arrow::Type::DATE32:
@@ -62,7 +54,6 @@ decltype(auto) visitArrowValueType( ::arrow::Type::type typeId, Fn && fn, Defaul
         case ::arrow::Type::TIME32:
         case ::arrow::Type::TIME64:    return fn( TypeTag<Time>{} );
 
-        // --- List / Struct ---
         case ::arrow::Type::LIST:
         case ::arrow::Type::LARGE_LIST:
             return fn( TypeTag<DialectGenericType>{} );
@@ -74,7 +65,7 @@ decltype(auto) visitArrowValueType( ::arrow::Type::type typeId, Fn && fn, Defaul
     }
 }
 
-// Overload that throws TypeError for unrecognised arrow types.
+// Overload that throws TypeError for unrecognised types.
 template<typename Fn>
 decltype(auto) visitArrowValueType( ::arrow::Type::type typeId, Fn && fn )
 {
@@ -87,4 +78,4 @@ decltype(auto) visitArrowValueType( ::arrow::Type::type typeId, Fn && fn )
 
 } // namespace csp::adapters::arrow
 
-#endif
+#endif // _IN_CSP_ADAPTERS_ARROW_ArrowTypeVisitor_H

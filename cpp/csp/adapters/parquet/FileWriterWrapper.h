@@ -40,7 +40,7 @@ protected:
 
 
     static ::arrow::Compression::type resolveCompression( const std::string &compression );
-    static std::unique_ptr<arrow::util::Codec> resolveCompressionCodec( const std::string &compression );
+    static std::unique_ptr<::arrow::util::Codec> resolveCompressionCodec( const std::string &compression );
 
 private:
     std::shared_ptr<::arrow::Schema>                                   m_schema;

@@ -3,7 +3,7 @@
 
 #include <csp/adapters/parquet/ArrowSingleColumnArrayBuilder.h>
 
-// Forward declare to avoid namespace conflicts (see ArrowBackedColumnAdapter.h)
+// Forward declare FieldWriter (defined in csp/adapters/arrow/ArrowFieldWriter.h) to keep this header light.
 namespace csp::adapters::arrow { class FieldWriter; }
 
 namespace csp::adapters::parquet

@@ -53,7 +53,7 @@ public:
 
     std::uint32_t getChunkSize() const{ return m_adapterMgr.getBatchSize(); }
 
-    virtual void scheduleEndCycleEvent()
+    void scheduleEndCycleEvent()
     {
         m_adapterMgr.scheduleEndCycle();
     }

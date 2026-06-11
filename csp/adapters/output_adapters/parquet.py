@@ -248,12 +248,11 @@ class ParquetWriter:
         )
         self._properties["rb_sink"] = sink
 
-        # Sink factory for dict basket writers
+        # Sink factory for dict basket writers (no file_visitor — only main sink visits)
         sink_factory = create_sink_factory(
             compression=compression,
             allow_overwrite=allow_overwrite,
             write_arrow_binary=write_arrow_binary,
-            file_visitor=file_visitor,
         )
         self._properties["rb_sink_factory"] = sink_factory
 

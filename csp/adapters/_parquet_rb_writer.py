@@ -103,16 +103,21 @@ def _arrow_ipc_writer_factory(compression, allow_overwrite):
     return factory
 
 
-def _split_columns_writer_factory(compression, allow_overwrite, write_arrow_binary):
+def _split_columns_writer_factory(compression, allow_overwrite, write_arrow_binary, file_metadata=None):
     compression = compression or "none"
     ext = ".arrow" if write_arrow_binary else ".parquet"
 
     def factory(dir_name, schema):
         if dir_name:
             os.makedirs(dir_name, exist_ok=True)
+        # Carry file-level metadata from the parent schema (or explicit param) to each per-column file
+        meta = schema.metadata
+        if file_metadata:
+            existing = meta or {}
+            meta = {**existing, **{k.encode(): v.encode() for k, v in file_metadata.items()}}
         writers = {}
         for field in schema:
-            col_schema = pa.schema([field])
+            col_schema = pa.schema([field], metadata=meta)
             file_path = os.path.join(dir_name, field.name + ext)
             if not allow_overwrite and os.path.exists(file_path):
                 raise FileExistsError(f"File already exists: {file_path}")
@@ -177,7 +182,7 @@ def create_sink(file_name, compression, allow_overwrite, write_arrow_binary,
                 file_metadata=None, column_metadata=None):
     """Factory function to create the appropriate sink based on config."""
     if split_columns_to_files:
-        wf = _split_columns_writer_factory(compression, allow_overwrite, write_arrow_binary)
+        wf = _split_columns_writer_factory(compression, allow_overwrite, write_arrow_binary, file_metadata)
     elif write_arrow_binary:
         wf = _arrow_ipc_writer_factory(compression, allow_overwrite)
     else:

@@ -611,30 +611,6 @@ static OutputAdapter *create_parquet_output_adapter( csp::AdapterManager *manage
     }
 }
 
-static OutputAdapter *create_parquet_dict_basket_output_adapter( csp::AdapterManager *manager, PyEngine *pyengine, PyObject *args )
-{
-    PyObject *pyProperties;
-    PyObject *pyType;
-    auto     *parquetManager = dynamic_cast<ParquetOutputAdapterManager *>( manager );
-    if( !parquetManager )
-        CSP_THROW( TypeError, "Expected ParquetOutputAdapterManager" );
-    if( !PyArg_ParseTuple( args, "O!O!",
-                           &PyTuple_Type, &pyType,
-                           &PyDict_Type, &pyProperties ) )
-        CSP_THROW( PythonPassthrough, "" );
-    PyObject *keyType;
-    PyObject *valueType;
-    if( !PyArg_ParseTuple( pyType, "O!O!",
-                           &PyType_Type, &keyType,
-                           &PyType_Type, &valueType ) )
-        CSP_THROW( PythonPassthrough, "Invalid basket key/value tuple" );
-
-    auto cspKeyType   = pyTypeAsCspType( keyType );
-    auto cspValueType = pyTypeAsCspType( valueType );
-
-    CSP_THROW( NotImplemented, "Output basket is not implement yet" );
-}
-
 static OutputAdapter *parquet_output_filename_adapter( csp::AdapterManager *manager, PyEngine *pyengine, PyObject *args )
 {
     auto *parquetManager = dynamic_cast<ParquetOutputAdapterManager *>( manager );
@@ -829,8 +805,6 @@ REGISTER_ADAPTER_MANAGER( _parquet_output_adapter_manager, create_parquet_output
 REGISTER_INPUT_ADAPTER( _parquet_input_adapter, create_parquet_input_adapter );
 
 REGISTER_OUTPUT_ADAPTER( _parquet_output_adapter, create_parquet_output_adapter );
-
-REGISTER_OUTPUT_ADAPTER( _parquet_dict_basket_output_adapter, create_parquet_dict_basket_output_adapter );
 
 REGISTER_OUTPUT_ADAPTER( _parquet_output_filename_adapter, parquet_output_filename_adapter );
 static PyModuleDef _parquetadapterimpl_module = {

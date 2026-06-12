@@ -4,6 +4,7 @@
 #include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <csp/adapters/parquet/ParquetWriter.h>
+#include <csp/adapters/parquet/RecordBatchFileSink.h>
 #include <csp/adapters/parquet/RecordBatchSink.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <csp/python/Conversions.h>
@@ -675,123 +676,44 @@ static PyObject *create_parquet_input_adapter_manager_native( PyObject *args )
     CSP_RETURN_NULL;
 }
 
-// --- Helpers for exporting Arrow data to Python via C Data Interface ---
-
-static void releaseArrowSchemaCapsule( PyObject * capsule )
-{
-    auto * schema = reinterpret_cast<ArrowSchema*>( PyCapsule_GetPointer( capsule, "arrow_schema" ) );
-    if( schema && schema -> release )
-        schema -> release( schema );
-    free( schema );
-}
-
-static void releaseArrowArrayCapsule( PyObject * capsule )
-{
-    auto * array = reinterpret_cast<ArrowArray*>( PyCapsule_GetPointer( capsule, "arrow_array" ) );
-    if( array && array -> release )
-        array -> release( array );
-    free( array );
-}
-
-// Export an Arrow Schema as a single capsule
-static PyObjectPtr exportSchema( const std::shared_ptr<::arrow::Schema> & schema )
-{
-    auto * c_schema = static_cast<ArrowSchema*>( malloc( sizeof( ArrowSchema ) ) );
-    auto st = ::arrow::ExportSchema( *schema, c_schema );
-    if( !st.ok() )
-    {
-        free( c_schema );
-        CSP_THROW( ValueError, "Failed to export Schema: " << st.ToString() );
-    }
-    return PyObjectPtr::own( PyCapsule_New( c_schema, "arrow_schema", releaseArrowSchemaCapsule ) );
-}
-
-// Build a RecordBatchSink that delegates to a Python object with
-// on_start(schema_capsule), on_batch(schema_capsule, array_capsule), on_file_change(path), on_stop() methods.
-static RecordBatchSink createSinkFromPython( PyObjectPtr pySink )
-{
-    RecordBatchSink sink;
-
-    sink.onStart = [pySink]( const std::shared_ptr<::arrow::Schema> & schema )
-    {
-        auto capsule = exportSchema( schema );
-        auto rv = PyObjectPtr::own( PyObject_CallMethod( pySink.get(), "on_start", "O", capsule.get() ) );
-        if( !rv.get() )
-            CSP_THROW( PythonPassthrough, "" );
-    };
-
-    sink.onBatch = [pySink]( const std::shared_ptr<::arrow::RecordBatch> & rb )
-    {
-        auto * c_schema = static_cast<ArrowSchema*>( malloc( sizeof( ArrowSchema ) ) );
-        auto * c_array  = static_cast<ArrowArray*>( malloc( sizeof( ArrowArray ) ) );
-        auto st = ::arrow::ExportRecordBatch( *rb, c_array, c_schema );
-        if( !st.ok() )
-        {
-            free( c_array );
-            free( c_schema );
-            CSP_THROW( ValueError, "Failed to export RecordBatch: " << st.ToString() );
-        }
-        auto pySchemaCapsule = PyObjectPtr::own( PyCapsule_New( c_schema, "arrow_schema", releaseArrowSchemaCapsule ) );
-        auto pyArrayCapsule  = PyObjectPtr::own( PyCapsule_New( c_array, "arrow_array", releaseArrowArrayCapsule ) );
-        auto rv = PyObjectPtr::own( PyObject_CallMethod( pySink.get(), "on_batch", "OO",
-                                                          pySchemaCapsule.get(), pyArrayCapsule.get() ) );
-        if( !rv.get() )
-            CSP_THROW( PythonPassthrough, "" );
-    };
-
-    sink.onFileChange = [pySink]( const std::string & path )
-    {
-        auto pyPath = PyObjectPtr::own( PyUnicode_FromStringAndSize( path.c_str(), path.size() ) );
-        auto rv = PyObjectPtr::own( PyObject_CallMethod( pySink.get(), "on_file_change", "O", pyPath.get() ) );
-        if( !rv.get() )
-            CSP_THROW( PythonPassthrough, "" );
-    };
-
-    sink.onStop = [pySink]()
-    {
-        auto rv = PyObjectPtr::own( PyObject_CallMethod( pySink.get(), "on_stop", nullptr ) );
-        if( !rv.get() )
-            CSP_THROW( PythonPassthrough, "" );
-    };
-
-    return sink;
-}
+// --- Output adapter manager: writes RecordBatches to files entirely in C++ ---
 
 csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, const Dictionary &properties )
 {
-    // Extract Python sink object from properties
-    RecordBatchSink mainSink;
-    RecordBatchSink indexSink;
-    DialectGenericType pySinkDG, pyIndexSinkDG;
-    if( properties.tryGet( "rb_sink", pySinkDG ) )
+    // Output file I/O is done entirely in C++ via makeFileSink (no per-batch Python hop).
+    bool        writeArrowBinary = properties.get<bool>( "write_arrow_binary" );
+    bool        splitColumns     = properties.get<bool>( "split_columns_to_files" );
+    bool        allowOverwrite   = properties.get<bool>( "allow_overwrite" );
+    std::string compression      = properties.get<std::string>( "compression" );
+
+    // Optional Python file_visitor: wrapped as a plain C++ callback, invoked (with the GIL
+    // held during the run) after each file is closed.  Only the main sink visits files.
+    std::function<void( const std::string & )> fileVisitor;
+    DialectGenericType visitorDG;
+    if( properties.tryGet( "file_visitor", visitorDG ) )
     {
-        auto pySink = PyObjectPtr::own( toPython( pySinkDG ) );
-        mainSink = createSinkFromPython( std::move( pySink ) );
-    }
-    if( properties.tryGet( "rb_index_sink", pyIndexSinkDG ) )
-    {
-        auto pyIndexSink = PyObjectPtr::own( toPython( pyIndexSinkDG ) );
-        indexSink = createSinkFromPython( std::move( pyIndexSink ) );
+        auto pyVisitor = PyObjectPtr::own( toPython( visitorDG ) );
+        if( pyVisitor.get() && pyVisitor.get() != Py_None )
+        {
+            fileVisitor = [pyVisitor]( const std::string & path )
+            {
+                auto pyPath = PyObjectPtr::own( PyUnicode_FromStringAndSize( path.c_str(), path.size() ) );
+                auto rv = PyObjectPtr::own( PyObject_CallFunctionObjArgs( pyVisitor.get(), pyPath.get(), nullptr ) );
+                if( !rv.get() )
+                    CSP_THROW( PythonPassthrough, "" );
+            };
+        }
     }
 
     auto * mgr = engine -> engine() -> createOwnedObject<ParquetOutputAdapterManager>( properties );
-    mgr -> setSink( std::move( mainSink ) );
-    mgr -> setIndexSink( std::move( indexSink ) );
+    mgr -> setSink( makeFileSink( writeArrowBinary, splitColumns, compression, allowOverwrite, fileVisitor ) );
 
-    // Sink factory for dict basket writers: calls Python to create new sinks on demand
-    DialectGenericType pySinkFactoryDG;
-    if( properties.tryGet( "rb_sink_factory", pySinkFactoryDG ) )
+    // Dict-basket writers always write split-column files (one per value/symbol/index column),
+    // without a file visitor.
+    mgr -> setSinkFactory( [writeArrowBinary, compression, allowOverwrite]( const std::string & ) -> RecordBatchSink
     {
-        auto pySinkFactory = PyObjectPtr::own( toPython( pySinkFactoryDG ) );
-        mgr -> setSinkFactory( [pySinkFactory]( const std::string & name ) -> RecordBatchSink
-        {
-            auto pyName = PyObjectPtr::own( PyUnicode_FromStringAndSize( name.c_str(), name.size() ) );
-            auto pySink = PyObjectPtr::own( PyObject_CallFunctionObjArgs( pySinkFactory.get(), pyName.get(), nullptr ) );
-            if( !pySink.get() )
-                CSP_THROW( PythonPassthrough, "" );
-            return createSinkFromPython( std::move( pySink ) );
-        } );
-    }
+        return makeFileSink( writeArrowBinary, /*splitColumns=*/true, compression, allowOverwrite, {} );
+    } );
 
     return mgr;
 }

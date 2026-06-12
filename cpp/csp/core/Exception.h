@@ -75,6 +75,7 @@ CSP_DECLARE_EXCEPTION( IOError,            RuntimeException )
 CSP_DECLARE_EXCEPTION( OSError,            RuntimeException )
 CSP_DECLARE_EXCEPTION( OutOfMemoryError,   RuntimeException )
 CSP_DECLARE_EXCEPTION( FileNotFoundError,  IOError )
+CSP_DECLARE_EXCEPTION( FileExistsError,    OSError )
 
 template<typename T>
 [[noreturn]] NO_INLINE void throw_exc(T&& e);

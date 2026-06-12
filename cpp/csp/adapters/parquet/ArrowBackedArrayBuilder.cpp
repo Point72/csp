@@ -95,11 +95,6 @@ std::shared_ptr<::arrow::DataType> ArrowBackedArrayBuilder::getDataType()
     return m_writer -> dataTypes()[0];
 }
 
-std::shared_ptr<::arrow::ArrayBuilder> ArrowBackedArrayBuilder::getBuilder()
-{
-    return m_writer -> builder();
-}
-
 int64_t ArrowBackedArrayBuilder::length() const
 {
     return m_writer -> builder() -> length();

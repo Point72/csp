@@ -25,7 +25,6 @@ public:
     virtual ~ArrowSingleColumnArrayBuilder() {}
 
     virtual std::shared_ptr<::arrow::DataType> getDataType() = 0;
-    virtual std::shared_ptr<::arrow::ArrayBuilder> getBuilder() = 0;
 
     virtual int64_t length() const = 0;
 
@@ -62,11 +61,6 @@ public:
     virtual std::shared_ptr<::arrow::DataType> getDataType() override
     {
         return m_builderPtr -> type();
-    }
-
-    virtual std::shared_ptr<::arrow::ArrayBuilder> getBuilder() override
-    {
-        return m_builderPtr;
     }
 
     virtual int64_t length() const override

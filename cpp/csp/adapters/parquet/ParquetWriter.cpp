@@ -110,11 +110,6 @@ ListColumnParquetOutputAdapter *ParquetWriter::getListOutputAdapter(
     return res;
 }
 
-PushInputAdapter *ParquetWriter::getStatusAdapter()
-{
-    return nullptr;
-}
-
 void ParquetWriter::start()
 {
     std::vector<std::shared_ptr<::arrow::Field>> arrowFields;

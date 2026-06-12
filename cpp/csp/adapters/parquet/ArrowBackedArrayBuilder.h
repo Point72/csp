@@ -39,7 +39,6 @@ public:
 
     // --- ArrowSingleColumnArrayBuilder interface ---
     std::shared_ptr<::arrow::DataType> getDataType() override;
-    std::shared_ptr<::arrow::ArrayBuilder> getBuilder() override;
     int64_t length() const override;
     void handleRowFinished() override;
     std::shared_ptr<::arrow::Array> buildArray() override;

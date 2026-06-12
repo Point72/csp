@@ -44,8 +44,6 @@ public:
     StructParquetOutputHandler *getStructOutputHandler( CspTypePtr &type, csp::DictionaryPtr fieldMap );
     ListColumnParquetOutputHandler *getListOutputHandler( CspTypePtr &elemType, const std::string &columnName );
 
-    PushInputAdapter *getStatusAdapter();
-
     virtual void start();
     virtual void stop();
 

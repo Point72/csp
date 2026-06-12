@@ -53,7 +53,6 @@ public:
     void scheduleEndCycle();
 
     void setSink( RecordBatchSink sink );
-    void setIndexSink( RecordBatchSink sink ) { m_indexSink = std::move( sink ); }
     void setSinkFactory( SinkFactory factory ) { m_sinkFactory = std::move( factory ); }
 
 private:
@@ -67,7 +66,6 @@ private:
     std::unordered_map<std::string, int>                        m_dictBasketWriterIndexByName;
     std::vector<std::unique_ptr<ParquetDictBasketOutputWriter>> m_dictBasketWriters;
     ParquetOutputFilenameAdapter                                *m_outputFilenameAdapter;
-    RecordBatchSink                                             m_indexSink;
     SinkFactory                                                 m_sinkFactory;
 };
 

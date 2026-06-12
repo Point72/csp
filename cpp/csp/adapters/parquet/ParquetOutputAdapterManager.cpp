@@ -27,22 +27,20 @@ void ParquetOutputAdapterManager::start( DateTime starttime, DateTime endtime )
     m_parquetWriter -> start();
     for( auto &&writer:m_dictBasketWriters )
     {
-        // Only overwrite per-basket index sink if a shared one was explicitly set
-        if( m_indexSink.onBatch )
-            writer -> setIndexSink( m_indexSink );
         writer -> start();
     }
 }
 
 void ParquetOutputAdapterManager::stop()
 {
+    // Stop all writers (flush + close their files) before destroying any of them, so a basket
+    // writer can never observe a destroyed sibling during teardown.
     m_parquetWriter -> stop();
-    m_parquetWriter = nullptr;
-
     for( auto &&writer:m_dictBasketWriters )
     {
         writer -> stop();
     }
+    m_parquetWriter = nullptr;
     m_dictBasketWriters.clear();
 }
 

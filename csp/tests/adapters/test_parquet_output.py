@@ -23,6 +23,18 @@ from csp.adapters.parquet import ParquetReader, ParquetWriter
 START = datetime(2022, 1, 1, tzinfo=pytz.utc)
 
 
+def _read_ipc(path):
+    """Read an Arrow IPC stream fully into memory, leaving no open file handle.
+
+    ``pyarrow.memory_map`` keeps an OS handle open until GC, which blocks
+    ``tempfile.TemporaryDirectory`` cleanup on Windows ("file in use by another
+    process"). Reading the bytes up front and parsing from an in-memory buffer
+    avoids holding the file open.
+    """
+    with open(path, "rb") as fh:
+        return pyarrow.ipc.open_stream(pyarrow.py_buffer(fh.read()))
+
+
 class TestOutputScalarTypes(unittest.TestCase):
     """Test writing all scalar types to parquet and reading them back."""
 
@@ -410,7 +422,7 @@ class TestOutputArrowIPC(unittest.TestCase):
                 writer.publish("y", csp.curve(float, [(timedelta(seconds=i + 1), i * 1.5) for i in range(5)]))
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=10))
-            reader = pyarrow.ipc.open_stream(pyarrow.memory_map(fname))
+            reader = _read_ipc(fname)
             table = reader.read_all()
             self.assertEqual(table.column("x").to_pylist(), [0, 10, 20, 30, 40])
             self.assertEqual(table.column("y").to_pylist(), [0.0, 1.5, 3.0, 4.5, 6.0])
@@ -426,7 +438,7 @@ class TestOutputArrowIPC(unittest.TestCase):
                 writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 42)]))
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=5))
-            reader = pyarrow.ipc.open_stream(pyarrow.memory_map(fname))
+            reader = _read_ipc(fname)
             table = reader.read_all()
             self.assertEqual(table.column("x").to_pylist(), [42])
 
@@ -772,9 +784,8 @@ class TestOutputCompression(unittest.TestCase):
                 writer.publish("x", csp.curve(int, [(timedelta(seconds=i + 1), i) for i in range(n_rows)]))
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=n_rows + 5))
-            pf = pyarrow.parquet.ParquetFile(fname)
-            # Check actual codec in row group metadata
-            actual_codec = pf.metadata.row_group(0).column(0).compression
+            # Read footer eagerly (no lingering file handle: Windows can't delete an open file)
+            actual_codec = pyarrow.parquet.read_metadata(fname).row_group(0).column(0).compression
             self.assertEqual(actual_codec, expected_codec)
             # Verify data integrity
             df = pandas.read_parquet(fname)
@@ -804,7 +815,7 @@ class TestOutputCompression(unittest.TestCase):
                 writer.publish("x", csp.curve(int, [(timedelta(seconds=i + 1), i) for i in range(10)]))
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=15))
-            codec = pyarrow.parquet.ParquetFile(fname).metadata.row_group(0).column(0).compression
+            codec = pyarrow.parquet.read_metadata(fname).row_group(0).column(0).compression
             self.assertEqual(codec, "ZSTD")
 
     def test_invalid_compression_raises_clear_error(self):
@@ -839,9 +850,8 @@ class TestOutputBatchSize(unittest.TestCase):
                 writer.publish("x", csp.curve(int, [(timedelta(seconds=i + 1), i) for i in range(n_rows)]))
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=n_rows + 5))
-            pf = pyarrow.parquet.ParquetFile(fname)
             expected_row_groups = math.ceil(n_rows / batch_size)
-            self.assertEqual(pf.metadata.num_row_groups, expected_row_groups)
+            self.assertEqual(pyarrow.parquet.read_metadata(fname).num_row_groups, expected_row_groups)
             # Verify data integrity
             df = pandas.read_parquet(fname)
             self.assertEqual(df["x"].tolist(), list(range(n_rows)))
@@ -881,8 +891,7 @@ class TestOutputMetadata(unittest.TestCase):
                 writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 1)]))
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=5))
-            pf = pyarrow.parquet.ParquetFile(fname)
-            metadata = pf.schema_arrow.metadata
+            metadata = pyarrow.parquet.read_schema(fname).metadata
             self.assertEqual(metadata[b"created_by"], b"test")
             self.assertEqual(metadata[b"version"], b"1.0")
 
@@ -901,8 +910,7 @@ class TestOutputMetadata(unittest.TestCase):
                 writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 1)]))
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=5))
-            pf = pyarrow.parquet.ParquetFile(fname)
-            x_field = pf.schema_arrow.field("x")
+            x_field = pyarrow.parquet.read_schema(fname).field("x")
             self.assertEqual(x_field.metadata[b"units"], b"meters")
             self.assertEqual(x_field.metadata[b"source"], b"sensor_1")
 
@@ -931,17 +939,17 @@ class TestOutputMetadata(unittest.TestCase):
             self.assertTrue(os.path.isfile(x_file))
             self.assertTrue(os.path.isfile(ts_file))
 
-            pf_x = pyarrow.parquet.ParquetFile(x_file)
-            pf_ts = pyarrow.parquet.ParquetFile(ts_file)
+            schema_x = pyarrow.parquet.read_schema(x_file)
+            schema_ts = pyarrow.parquet.read_schema(ts_file)
 
             # File-level metadata on both files
-            self.assertEqual(pf_x.schema_arrow.metadata[b"author"], b"test_suite")
-            self.assertEqual(pf_x.schema_arrow.metadata[b"version"], b"2.0")
-            self.assertEqual(pf_ts.schema_arrow.metadata[b"author"], b"test_suite")
-            self.assertEqual(pf_ts.schema_arrow.metadata[b"version"], b"2.0")
+            self.assertEqual(schema_x.metadata[b"author"], b"test_suite")
+            self.assertEqual(schema_x.metadata[b"version"], b"2.0")
+            self.assertEqual(schema_ts.metadata[b"author"], b"test_suite")
+            self.assertEqual(schema_ts.metadata[b"version"], b"2.0")
 
             # Column-level metadata preserved on x
-            x_field = pf_x.schema_arrow.field("x")
+            x_field = schema_x.field("x")
             self.assertEqual(x_field.metadata[b"units"], b"kg")
 
     def test_file_metadata_in_split_ipc_mode(self):
@@ -965,7 +973,7 @@ class TestOutputMetadata(unittest.TestCase):
 
             val_file = os.path.join(outdir, "val.arrow")
             self.assertTrue(os.path.isfile(val_file))
-            reader = pyarrow.ipc.open_stream(pyarrow.memory_map(val_file))
+            reader = _read_ipc(val_file)
             self.assertEqual(reader.schema.metadata[b"source"], b"ipc_test")
 
 
@@ -1276,12 +1284,14 @@ class TestOutputEdgeCases(unittest.TestCase):
             self.assertEqual(df0["value"].tolist(), list(range(10)))
             self.assertEqual(df1["value"].tolist(), list(range(10, 20)))
             # Verify batch_size=4 → correct row group counts
-            pf0 = pyarrow.parquet.ParquetFile(os.path.join(d, "p0.parquet"))
-            pf1 = pyarrow.parquet.ParquetFile(os.path.join(d, "p1.parquet"))
             import math
 
-            self.assertEqual(pf0.metadata.num_row_groups, math.ceil(10 / 4))  # 3
-            self.assertEqual(pf1.metadata.num_row_groups, math.ceil(10 / 4))  # 3
+            self.assertEqual(
+                pyarrow.parquet.read_metadata(os.path.join(d, "p0.parquet")).num_row_groups, math.ceil(10 / 4)
+            )  # 3
+            self.assertEqual(
+                pyarrow.parquet.read_metadata(os.path.join(d, "p1.parquet")).num_row_groups, math.ceil(10 / 4)
+            )  # 3
 
     def test_file_visitor_exact_contract(self):
         """file_visitor called once per closed file, in order, including final at stop()."""
@@ -1335,7 +1345,7 @@ class TestOutputEdgeCases(unittest.TestCase):
                 writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 1)]))
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=5))
-            reader = pyarrow.ipc.open_stream(pyarrow.memory_map(fname))
+            reader = _read_ipc(fname)
             schema = reader.schema
             self.assertEqual(schema.metadata[b"author"], b"test")
             x_field = schema.field("x")

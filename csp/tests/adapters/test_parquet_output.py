@@ -20,7 +20,6 @@ import csp
 from csp.adapters.output_adapters.parquet import ParquetOutputConfig
 from csp.adapters.parquet import ParquetReader, ParquetWriter
 
-
 START = datetime(2022, 1, 1, tzinfo=pytz.utc)
 
 
@@ -276,14 +275,19 @@ class TestOutputFileRotation(unittest.TestCase):
 
     def test_basic_rotation(self):
         with tempfile.TemporaryDirectory() as d:
+
             @csp.graph
             def g():
                 data = csp.curve(int, [(timedelta(seconds=i + 1), i) for i in range(10)])
-                rotate = csp.curve(str, [
-                    (timedelta(seconds=5), os.path.join(d, "part1.parquet")),
-                ])
+                rotate = csp.curve(
+                    str,
+                    [
+                        (timedelta(seconds=5), os.path.join(d, "part1.parquet")),
+                    ],
+                )
                 writer = ParquetWriter(
-                    os.path.join(d, "part0.parquet"), "csp_timestamp",
+                    os.path.join(d, "part0.parquet"),
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     filename_provider=rotate,
                 )
@@ -297,15 +301,20 @@ class TestOutputFileRotation(unittest.TestCase):
 
     def test_multiple_rotations(self):
         with tempfile.TemporaryDirectory() as d:
+
             @csp.graph
             def g():
                 data = csp.curve(int, [(timedelta(seconds=i + 1), i) for i in range(9)])
-                rotate = csp.curve(str, [
-                    (timedelta(seconds=4), os.path.join(d, "p1.parquet")),
-                    (timedelta(seconds=7), os.path.join(d, "p2.parquet")),
-                ])
+                rotate = csp.curve(
+                    str,
+                    [
+                        (timedelta(seconds=4), os.path.join(d, "p1.parquet")),
+                        (timedelta(seconds=7), os.path.join(d, "p2.parquet")),
+                    ],
+                )
                 writer = ParquetWriter(
-                    os.path.join(d, "p0.parquet"), "csp_timestamp",
+                    os.path.join(d, "p0.parquet"),
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     filename_provider=rotate,
                 )
@@ -322,12 +331,14 @@ class TestOutputFileRotation(unittest.TestCase):
     def test_file_visitor_called(self):
         visited = []
         with tempfile.TemporaryDirectory() as d:
+
             @csp.graph
             def g():
                 data = csp.curve(int, [(timedelta(seconds=1), 1), (timedelta(seconds=3), 2)])
                 rotate = csp.curve(str, [(timedelta(seconds=2), os.path.join(d, "p1.parquet"))])
                 writer = ParquetWriter(
-                    os.path.join(d, "p0.parquet"), "csp_timestamp",
+                    os.path.join(d, "p0.parquet"),
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     filename_provider=rotate,
                     file_visitor=lambda f: visited.append(f),
@@ -340,15 +351,40 @@ class TestOutputFileRotation(unittest.TestCase):
             self.assertTrue(visited[0].endswith("p0.parquet"))
             self.assertTrue(visited[1].endswith("p1.parquet"))
 
+    def test_file_visitor_exception_surfaces_without_double_close(self):
+        """If file_visitor raises, that error surfaces cleanly (no double-close crash on teardown)."""
+        with tempfile.TemporaryDirectory() as d:
+
+            def boom(_f):
+                raise ValueError("visitor boom")
+
+            @csp.graph
+            def g():
+                data = csp.curve(int, [(timedelta(seconds=1), 1), (timedelta(seconds=3), 2)])
+                rotate = csp.curve(str, [(timedelta(seconds=2), os.path.join(d, "p1.parquet"))])
+                writer = ParquetWriter(
+                    os.path.join(d, "p0.parquet"),
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    filename_provider=rotate,
+                    file_visitor=boom,
+                )
+                writer.publish("value", data)
+
+            with self.assertRaisesRegex(Exception, "visitor boom"):
+                csp.run(g, starttime=START, endtime=timedelta(seconds=5))
+
     def test_rotation_no_initial_file(self):
         """filename_provider only, no initial file_name."""
         with tempfile.TemporaryDirectory() as d:
+
             @csp.graph
             def g():
                 data = csp.curve(int, [(timedelta(seconds=2), 1), (timedelta(seconds=3), 2)])
                 rotate = csp.curve(str, [(timedelta(seconds=1), os.path.join(d, "output.parquet"))])
                 writer = ParquetWriter(
-                    None, "csp_timestamp",
+                    None,
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     filename_provider=rotate,
                 )
@@ -426,7 +462,8 @@ class TestOutputSplitColumns(unittest.TestCase):
             @csp.graph
             def g():
                 writer = ParquetWriter(
-                    outdir, "csp_timestamp",
+                    outdir,
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     split_columns_to_files=True,
                 )
@@ -453,7 +490,8 @@ class TestOutputSplitColumns(unittest.TestCase):
             @csp.graph
             def g_write():
                 writer = ParquetWriter(
-                    outdir, "csp_timestamp",
+                    outdir,
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     split_columns_to_files=True,
                 )
@@ -479,14 +517,20 @@ class TestOutputSplitColumns(unittest.TestCase):
             @csp.graph
             def g_write():
                 writer = ParquetWriter(
-                    outdir, "csp_timestamp",
+                    outdir,
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     split_columns_to_files=True,
                 )
-                writer.publish_struct(csp.curve(S, [
-                    (timedelta(seconds=1), S(a=1, b=1.1)),
-                    (timedelta(seconds=2), S(a=2, b=2.2)),
-                ]))
+                writer.publish_struct(
+                    csp.curve(
+                        S,
+                        [
+                            (timedelta(seconds=1), S(a=1, b=1.1)),
+                            (timedelta(seconds=2), S(a=2, b=2.2)),
+                        ],
+                    )
+                )
 
             @csp.graph
             def g_read():
@@ -518,8 +562,27 @@ class TestOutputSplitColumns(unittest.TestCase):
 class TestOutputDictBasket(unittest.TestCase):
     """Test dict basket output."""
 
+    def test_single_file_dict_basket_raises_clear_error(self):
+        """Publishing a dict basket on a single-file (non-split) writer fails fast with a clear error."""
+        with tempfile.TemporaryDirectory() as d:
+
+            @csp.graph
+            def g():
+                writer = ParquetWriter(
+                    os.path.join(d, "out.parquet"),
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    # split_columns_to_files defaults to False
+                )
+                basket = {"AAPL": csp.curve(float, [(timedelta(seconds=1), 1.0)])}
+                writer.publish_dict_basket("price", basket, str, float)
+
+            with self.assertRaisesRegex(ValueError, "split_columns_to_files"):
+                csp.run(g, starttime=START, endtime=timedelta(seconds=3))
+
     def test_basic_dict_basket(self):
         with tempfile.TemporaryDirectory() as d:
+
             @csp.graph
             def g_write():
                 writer = ParquetWriter(
@@ -557,6 +620,7 @@ class TestOutputDictBasket(unittest.TestCase):
         symbols = [f"SYM{i}" for i in range(n_symbols)]
 
         with tempfile.TemporaryDirectory() as d:
+
             @csp.graph
             def g_write():
                 writer = ParquetWriter(
@@ -565,10 +629,7 @@ class TestOutputDictBasket(unittest.TestCase):
                     config=ParquetOutputConfig(allow_overwrite=True),
                     split_columns_to_files=True,
                 )
-                basket = {
-                    sym: csp.curve(float, [(timedelta(seconds=1), float(i))])
-                    for i, sym in enumerate(symbols)
-                }
+                basket = {sym: csp.curve(float, [(timedelta(seconds=1), float(i))]) for i, sym in enumerate(symbols)}
                 writer.publish_dict_basket("val", basket, str, float)
 
             @csp.graph
@@ -600,10 +661,13 @@ class TestOutputNumpyArrays(unittest.TestCase):
             @csp.graph
             def g_write():
                 writer = ParquetWriter(fname, "csp_timestamp", config=ParquetOutputConfig(allow_overwrite=True))
-                writer.publish("arr", csp.curve(
-                    csp.typing.Numpy1DArray[float],
-                    [(timedelta(seconds=i + 1), a) for i, a in enumerate(arrays)],
-                ))
+                writer.publish(
+                    "arr",
+                    csp.curve(
+                        csp.typing.Numpy1DArray[float],
+                        [(timedelta(seconds=i + 1), a) for i, a in enumerate(arrays)],
+                    ),
+                )
 
             @csp.graph
             def g_read():
@@ -624,10 +688,13 @@ class TestOutputNumpyArrays(unittest.TestCase):
             @csp.graph
             def g_write():
                 writer = ParquetWriter(fname, "csp_timestamp", config=ParquetOutputConfig(allow_overwrite=True))
-                writer.publish("arr", csp.curve(
-                    csp.typing.Numpy1DArray[int],
-                    [(timedelta(seconds=i + 1), a) for i, a in enumerate(arrays)],
-                ))
+                writer.publish(
+                    "arr",
+                    csp.curve(
+                        csp.typing.Numpy1DArray[int],
+                        [(timedelta(seconds=i + 1), a) for i, a in enumerate(arrays)],
+                    ),
+                )
 
             @csp.graph
             def g_read():
@@ -725,6 +792,35 @@ class TestOutputCompression(unittest.TestCase):
     def test_none(self):
         self._write_and_check_codec("", "UNCOMPRESSED")
 
+    def test_compression_name_case_insensitive(self):
+        """Upper/mixed-case compression names resolve via Arrow (case-insensitive)."""
+        with tempfile.TemporaryDirectory() as d:
+            fname = os.path.join(d, "out.parquet")
+
+            @csp.graph
+            def g():
+                config = ParquetOutputConfig(allow_overwrite=True, compression="ZSTD")
+                writer = ParquetWriter(fname, "csp_timestamp", config=config)
+                writer.publish("x", csp.curve(int, [(timedelta(seconds=i + 1), i) for i in range(10)]))
+
+            csp.run(g, starttime=START, endtime=timedelta(seconds=15))
+            codec = pyarrow.parquet.ParquetFile(fname).metadata.row_group(0).column(0).compression
+            self.assertEqual(codec, "ZSTD")
+
+    def test_invalid_compression_raises_clear_error(self):
+        """An unknown compression name fails with a clear error (not a cryptic one)."""
+        with tempfile.TemporaryDirectory() as d:
+            fname = os.path.join(d, "out.parquet")
+
+            @csp.graph
+            def g():
+                config = ParquetOutputConfig(allow_overwrite=True, compression="not_a_codec")
+                writer = ParquetWriter(fname, "csp_timestamp", config=config)
+                writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 1)]))
+
+            with self.assertRaisesRegex(Exception, "compression"):
+                csp.run(g, starttime=START, endtime=timedelta(seconds=3))
+
 
 class TestOutputBatchSize(unittest.TestCase):
     """Test batch_size controls row group flushing."""
@@ -732,6 +828,7 @@ class TestOutputBatchSize(unittest.TestCase):
     def _write_and_check_row_groups(self, batch_size, n_rows):
         """Write and verify row group count matches batch_size."""
         import math
+
         with tempfile.TemporaryDirectory() as d:
             fname = os.path.join(d, "out.parquet")
 
@@ -776,7 +873,8 @@ class TestOutputMetadata(unittest.TestCase):
             @csp.graph
             def g():
                 writer = ParquetWriter(
-                    fname, "csp_timestamp",
+                    fname,
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     file_metadata={"created_by": "test", "version": "1.0"},
                 )
@@ -795,7 +893,8 @@ class TestOutputMetadata(unittest.TestCase):
             @csp.graph
             def g():
                 writer = ParquetWriter(
-                    fname, "csp_timestamp",
+                    fname,
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     column_metadata={"x": {"units": "meters", "source": "sensor_1"}},
                 )
@@ -815,7 +914,8 @@ class TestOutputMetadata(unittest.TestCase):
             @csp.graph
             def g():
                 writer = ParquetWriter(
-                    outdir, "csp_timestamp",
+                    outdir,
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     split_columns_to_files=True,
                     file_metadata={"author": "test_suite", "version": "2.0"},
@@ -853,7 +953,9 @@ class TestOutputMetadata(unittest.TestCase):
             def g():
                 config = ParquetOutputConfig(allow_overwrite=True, write_arrow_binary=True, compression="")
                 writer = ParquetWriter(
-                    outdir, "csp_timestamp", config=config,
+                    outdir,
+                    "csp_timestamp",
+                    config=config,
                     split_columns_to_files=True,
                     file_metadata={"source": "ipc_test"},
                 )
@@ -906,6 +1008,53 @@ class TestOutputAllowOverwrite(unittest.TestCase):
 class TestOutputEdgeCases(unittest.TestCase):
     """Edge cases and special scenarios."""
 
+    def test_bare_relative_filename_no_directory(self):
+        """Writing to a bare relative filename (no directory component) must work.
+
+        Regression: the C++ sink called mkdir(dirname(path)); dirname("out.parquet")
+        is "" and mkdir("") fails with 'Invalid argument'.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            cwd = os.getcwd()
+            os.chdir(d)
+            try:
+
+                @csp.graph
+                def g():
+                    writer = ParquetWriter(
+                        "out.parquet", "csp_timestamp", config=ParquetOutputConfig(allow_overwrite=True)
+                    )
+                    writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 7)]))
+
+                csp.run(g, starttime=START, endtime=timedelta(seconds=3))
+                df = pandas.read_parquet(os.path.join(d, "out.parquet"))
+                self.assertEqual(df["x"].tolist(), [7])
+            finally:
+                os.chdir(cwd)
+
+    def test_bare_relative_directory_split_columns(self):
+        """split_columns_to_files with a bare relative directory name must work."""
+        with tempfile.TemporaryDirectory() as d:
+            cwd = os.getcwd()
+            os.chdir(d)
+            try:
+
+                @csp.graph
+                def g():
+                    writer = ParquetWriter(
+                        "split_out",
+                        "csp_timestamp",
+                        config=ParquetOutputConfig(allow_overwrite=True),
+                        split_columns_to_files=True,
+                    )
+                    writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 7)]))
+
+                csp.run(g, starttime=START, endtime=timedelta(seconds=3))
+                df = pandas.read_parquet(os.path.join(d, "split_out", "x.parquet"))
+                self.assertEqual(df["x"].tolist(), [7])
+            finally:
+                os.chdir(cwd)
+
     def test_multiple_ticks_same_timestamp(self):
         """Multiple values at the same engine time produce multiple rows."""
         with tempfile.TemporaryDirectory() as d:
@@ -915,7 +1064,12 @@ class TestOutputEdgeCases(unittest.TestCase):
             def g():
                 writer = ParquetWriter(fname, "csp_timestamp", config=ParquetOutputConfig(allow_overwrite=True))
                 # csp.curve with same timedelta produces ticks at same engine time
-                writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 10), (timedelta(seconds=1), 20), (timedelta(seconds=1), 30)]))
+                writer.publish(
+                    "x",
+                    csp.curve(
+                        int, [(timedelta(seconds=1), 10), (timedelta(seconds=1), 20), (timedelta(seconds=1), 30)]
+                    ),
+                )
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=5))
             df = pandas.read_parquet(fname)
@@ -1016,7 +1170,10 @@ class TestOutputEdgeCases(unittest.TestCase):
             e: MyEnum
 
         v = FullStruct(
-            i=42, f=3.14, b=True, s="hello",
+            i=42,
+            f=3.14,
+            b=True,
+            s="hello",
             dt=datetime(2022, 6, 15, 12, 0, tzinfo=pytz.utc),
             td=timedelta(seconds=123),
             d=date(2022, 6, 15),
@@ -1045,17 +1202,24 @@ class TestOutputEdgeCases(unittest.TestCase):
     def test_float_nan_round_trip(self):
         """NaN values round-trip correctly."""
         import math
+
         with tempfile.TemporaryDirectory() as d:
             fname = os.path.join(d, "out.parquet")
 
             @csp.graph
             def g():
                 writer = ParquetWriter(fname, "csp_timestamp", config=ParquetOutputConfig(allow_overwrite=True))
-                writer.publish("x", csp.curve(float, [
-                    (timedelta(seconds=1), 1.0),
-                    (timedelta(seconds=2), float("nan")),
-                    (timedelta(seconds=3), 3.0),
-                ]))
+                writer.publish(
+                    "x",
+                    csp.curve(
+                        float,
+                        [
+                            (timedelta(seconds=1), 1.0),
+                            (timedelta(seconds=2), float("nan")),
+                            (timedelta(seconds=3), 3.0),
+                        ],
+                    ),
+                )
 
             csp.run(g, starttime=START, endtime=timedelta(seconds=5))
             df = pandas.read_parquet(fname)
@@ -1065,6 +1229,7 @@ class TestOutputEdgeCases(unittest.TestCase):
 
     def test_struct_with_unset_fields_produces_nulls(self):
         """Struct fields that are never set produce null cells."""
+
         class Partial(csp.Struct):
             a: int
             b: float
@@ -1089,6 +1254,7 @@ class TestOutputEdgeCases(unittest.TestCase):
     def test_multi_batch_with_rotation(self):
         """Rows spanning multiple batches + file rotation land in correct files."""
         with tempfile.TemporaryDirectory() as d:
+
             @csp.graph
             def g():
                 # 20 rows, batch_size=4, rotate at row 10
@@ -1096,8 +1262,10 @@ class TestOutputEdgeCases(unittest.TestCase):
                 rotate = csp.curve(str, [(timedelta(seconds=11), os.path.join(d, "p1.parquet"))])
                 config = ParquetOutputConfig(allow_overwrite=True, batch_size=4)
                 writer = ParquetWriter(
-                    os.path.join(d, "p0.parquet"), "csp_timestamp",
-                    config=config, filename_provider=rotate,
+                    os.path.join(d, "p0.parquet"),
+                    "csp_timestamp",
+                    config=config,
+                    filename_provider=rotate,
                 )
                 writer.publish("value", data)
 
@@ -1111,6 +1279,7 @@ class TestOutputEdgeCases(unittest.TestCase):
             pf0 = pyarrow.parquet.ParquetFile(os.path.join(d, "p0.parquet"))
             pf1 = pyarrow.parquet.ParquetFile(os.path.join(d, "p1.parquet"))
             import math
+
             self.assertEqual(pf0.metadata.num_row_groups, math.ceil(10 / 4))  # 3
             self.assertEqual(pf1.metadata.num_row_groups, math.ceil(10 / 4))  # 3
 
@@ -1118,15 +1287,20 @@ class TestOutputEdgeCases(unittest.TestCase):
         """file_visitor called once per closed file, in order, including final at stop()."""
         visited = []
         with tempfile.TemporaryDirectory() as d:
+
             @csp.graph
             def g():
                 data = csp.curve(int, [(timedelta(seconds=i + 1), i) for i in range(9)])
-                rotate = csp.curve(str, [
-                    (timedelta(seconds=4), os.path.join(d, "p1.parquet")),
-                    (timedelta(seconds=7), os.path.join(d, "p2.parquet")),
-                ])
+                rotate = csp.curve(
+                    str,
+                    [
+                        (timedelta(seconds=4), os.path.join(d, "p1.parquet")),
+                        (timedelta(seconds=7), os.path.join(d, "p2.parquet")),
+                    ],
+                )
                 writer = ParquetWriter(
-                    os.path.join(d, "p0.parquet"), "csp_timestamp",
+                    os.path.join(d, "p0.parquet"),
+                    "csp_timestamp",
                     config=ParquetOutputConfig(allow_overwrite=True),
                     filename_provider=rotate,
                     file_visitor=lambda f: visited.append(f),
@@ -1152,7 +1326,9 @@ class TestOutputEdgeCases(unittest.TestCase):
             def g():
                 config = ParquetOutputConfig(allow_overwrite=True, write_arrow_binary=True, compression="")
                 writer = ParquetWriter(
-                    fname, "csp_timestamp", config=config,
+                    fname,
+                    "csp_timestamp",
+                    config=config,
                     file_metadata={"author": "test"},
                     column_metadata={"x": {"units": "kg"}},
                 )
@@ -1164,80 +1340,6 @@ class TestOutputEdgeCases(unittest.TestCase):
             self.assertEqual(schema.metadata[b"author"], b"test")
             x_field = schema.field("x")
             self.assertEqual(x_field.metadata[b"units"], b"kg")
-
-
-class TestOutputSinkDirect(unittest.TestCase):
-    """Direct unit tests for the Python RecordBatchSink without the csp engine."""
-
-    def test_sink_parquet_lifecycle(self):
-        """Test on_start → on_file_change → on_batch → on_stop lifecycle."""
-        from csp.adapters._parquet_rb_writer import RecordBatchSink, _parquet_writer_factory
-
-        with tempfile.TemporaryDirectory() as d:
-            fname = os.path.join(d, "test.parquet")
-            wf = _parquet_writer_factory("snappy", allow_overwrite=True)
-            sink = RecordBatchSink(wf)
-
-            schema = pyarrow.schema([pyarrow.field("x", pyarrow.int64())])
-            # Simulate C++ calling the sink
-            sink.on_start(schema.__arrow_c_schema__())
-            sink.on_file_change(fname)
-            # Write a batch
-            rb = pyarrow.record_batch([pyarrow.array([1, 2, 3])], schema=schema)
-            schema_capsule, array_capsule = rb.__arrow_c_array__()
-            sink.on_batch(schema_capsule, array_capsule)
-            sink.on_stop()
-
-            # Verify file was written
-            df = pandas.read_parquet(fname)
-            self.assertEqual(df["x"].tolist(), [1, 2, 3])
-
-    def test_sink_ipc_lifecycle(self):
-        """Test IPC sink lifecycle."""
-        from csp.adapters._parquet_rb_writer import RecordBatchSink, _arrow_ipc_writer_factory
-
-        with tempfile.TemporaryDirectory() as d:
-            fname = os.path.join(d, "test.arrow")
-            wf = _arrow_ipc_writer_factory("", allow_overwrite=True)
-            sink = RecordBatchSink(wf)
-
-            schema = pyarrow.schema([pyarrow.field("val", pyarrow.float64())])
-            sink.on_start(schema.__arrow_c_schema__())
-            sink.on_file_change(fname)
-            rb = pyarrow.record_batch([pyarrow.array([1.1, 2.2])], schema=schema)
-            schema_capsule, array_capsule = rb.__arrow_c_array__()
-            sink.on_batch(schema_capsule, array_capsule)
-            sink.on_stop()
-
-            reader = pyarrow.ipc.open_stream(pyarrow.memory_map(fname))
-            table = reader.read_all()
-            self.assertEqual(table.column("val").to_pylist(), [1.1, 2.2])
-
-    def test_sink_file_visitor_called_on_rotation(self):
-        """file_visitor called when rotating and on stop."""
-        from csp.adapters._parquet_rb_writer import RecordBatchSink, _parquet_writer_factory
-
-        visited = []
-        with tempfile.TemporaryDirectory() as d:
-            wf = _parquet_writer_factory("snappy", allow_overwrite=True)
-            sink = RecordBatchSink(wf, file_visitor=lambda f: visited.append(f))
-
-            schema = pyarrow.schema([pyarrow.field("x", pyarrow.int64())])
-            sink.on_start(schema.__arrow_c_schema__())
-
-            f1 = os.path.join(d, "f1.parquet")
-            f2 = os.path.join(d, "f2.parquet")
-            sink.on_file_change(f1)
-            rb = pyarrow.record_batch([pyarrow.array([1])], schema=schema)
-            s, a = rb.__arrow_c_array__()
-            sink.on_batch(s, a)
-            sink.on_file_change(f2)  # closes f1, visits f1
-            rb2 = pyarrow.record_batch([pyarrow.array([2])], schema=schema)
-            s2, a2 = rb2.__arrow_c_array__()
-            sink.on_batch(s2, a2)
-            sink.on_stop()  # closes f2, visits f2
-
-            self.assertEqual(visited, [f1, f2])
 
 
 if __name__ == "__main__":

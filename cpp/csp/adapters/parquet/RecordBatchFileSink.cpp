@@ -11,6 +11,9 @@
 #include <arrow/util/config.h>
 #include <parquet/arrow/writer.h>
 
+#include <algorithm>
+#include <cctype>
+#include <exception>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -35,19 +38,20 @@ using FileWriterFactory =
 
 ::arrow::Compression::type resolveCompression( const std::string & name )
 {
-    static const std::unordered_map<std::string, ::arrow::Compression::type> mapping{
-        { "",          ::arrow::Compression::UNCOMPRESSED },
-        { "none",      ::arrow::Compression::UNCOMPRESSED },
-        { "snappy",    ::arrow::Compression::SNAPPY },
-        { "gzip",      ::arrow::Compression::GZIP },
-        { "brotli",    ::arrow::Compression::BROTLI },
-        { "zstd",      ::arrow::Compression::ZSTD },
-        { "lz4",       ::arrow::Compression::LZ4 },
-        { "lz4_frame", ::arrow::Compression::LZ4_FRAME },
-    };
-    auto it = mapping.find( name );
-    CSP_TRUE_OR_THROW_RUNTIME( it != mapping.end(), "Unable to resolve compression: " << name );
-    return it -> second;
+    // csp treats "" / "none" as no compression; Arrow expects lower-case codec names.
+    std::string lower( name );
+    std::transform( lower.begin(), lower.end(), lower.begin(),
+                    []( unsigned char c ) { return static_cast<char>( std::tolower( c ) ); } );
+    if( lower.empty() || lower == "none" )
+        return ::arrow::Compression::UNCOMPRESSED;
+
+    // Arrow is the source of truth for which compression names exist...
+    auto compressionType = ::arrow::util::Codec::GetCompressionType( lower );
+    CSP_TRUE_OR_THROW_RUNTIME( compressionType.ok(), "Unsupported compression '" << name << "'" );
+    // ...and whether this Arrow build was actually compiled with support for it.
+    CSP_TRUE_OR_THROW_RUNTIME( ::arrow::util::Codec::IsAvailable( compressionType.ValueUnsafe() ),
+        "Compression '" << name << "' is not available in this Arrow build" );
+    return compressionType.ValueUnsafe();
 }
 
 // Enforce overwrite policy, create parent dirs, and open the output stream.
@@ -55,7 +59,11 @@ std::shared_ptr<::arrow::io::OutputStream> openOutputStream( const std::string &
 {
     if( !allowOverwrite && utils::fileExists( path ) )
         CSP_THROW( FileExistsError, "Trying to overwrite existing file " << path << " while allow_overwrite is false" );
-    utils::mkdir( utils::dirname( path ) );
+    // Only create the parent directory when the path has one; a bare relative
+    // filename (e.g. "out.parquet") has an empty dirname, and mkdir("") fails.
+    auto parentDir = utils::dirname( path );
+    if( !parentDir.empty() )
+        utils::mkdir( parentDir );
 
     auto result = ::arrow::io::FileOutputStream::Open( path );
     STATUS_OK_OR_THROW_RUNTIME( result.status(), "Failed to open output stream " << path );
@@ -94,8 +102,10 @@ FileWriter makeParquetFileWriter( const std::string & path, const std::shared_pt
         },
         [writer, stream]()
         {
-            STATUS_OK_OR_THROW_RUNTIME( writer -> Close(), "Failed to close parquet writer" );
-            STATUS_OK_OR_THROW_RUNTIME( stream -> Close(), "Failed to close parquet output stream" );
+            auto writerStatus = writer -> Close();
+            auto streamStatus = stream -> Close();   // always close the stream, even if the footer flush failed
+            STATUS_OK_OR_THROW_RUNTIME( writerStatus, "Failed to close parquet writer" );
+            STATUS_OK_OR_THROW_RUNTIME( streamStatus, "Failed to close parquet output stream" );
         } };
 }
 
@@ -124,8 +134,10 @@ FileWriter makeIpcFileWriter( const std::string & path, const std::shared_ptr<::
         },
         [writer, stream]()
         {
-            STATUS_OK_OR_THROW_RUNTIME( writer -> Close(), "Failed to close arrow IPC writer" );
-            STATUS_OK_OR_THROW_RUNTIME( stream -> Close(), "Failed to close arrow output stream" );
+            auto writerStatus = writer -> Close();
+            auto streamStatus = stream -> Close();   // always close the stream, even if the writer close failed
+            STATUS_OK_OR_THROW_RUNTIME( writerStatus, "Failed to close arrow IPC writer" );
+            STATUS_OK_OR_THROW_RUNTIME( streamStatus, "Failed to close arrow output stream" );
         } };
 }
 
@@ -134,7 +146,8 @@ FileWriter makeIpcFileWriter( const std::string & path, const std::shared_ptr<::
 FileWriter makeSplitWriter( const std::string & dir, const std::shared_ptr<::arrow::Schema> & schema,
                             const FileWriterFactory & perColumn, const std::string & extension )
 {
-    utils::mkdir( dir );
+    if( !dir.empty() )
+        utils::mkdir( dir );
 
     auto subWriters = std::make_shared<std::vector<FileWriter>>();
     auto colSchemas = std::make_shared<std::vector<std::shared_ptr<::arrow::Schema>>>();
@@ -159,8 +172,14 @@ FileWriter makeSplitWriter( const std::string & dir, const std::shared_ptr<::arr
         },
         [subWriters]()
         {
+            std::exception_ptr firstError;
             for( auto & w : *subWriters )
-                w.close();
+            {
+                try { w.close(); }
+                catch( ... ) { if( !firstError ) firstError = std::current_exception(); }
+            }
+            if( firstError )
+                std::rethrow_exception( firstError );
         } };
 }
 
@@ -197,10 +216,13 @@ RecordBatchSink makeFileSink( bool writeArrowBinary, bool splitColumns,
     {
         if( current -> has_value() )
         {
-            ( *current ) -> close();
+            // Detach + reset BEFORE invoking the (user-supplied) visitor, so that a throwing
+            // visitor cannot cause a later onStop()->closeCurrent() to close this writer twice.
+            FileWriter w = std::move( current -> value() );
+            current -> reset();
+            w.close();
             if( fileVisitor )
                 fileVisitor( *currentPath );
-            current -> reset();
         }
     };
 

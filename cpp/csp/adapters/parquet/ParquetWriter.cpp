@@ -118,8 +118,15 @@ PushInputAdapter *ParquetWriter::getStatusAdapter()
 void ParquetWriter::start()
 {
     std::vector<std::shared_ptr<::arrow::Field>> arrowFields;
-    if( !m_writeTimestampColumn.has_value() && !m_adapterMgr.getTimestampColumnName().empty() )
+    // Honor an explicitly-set writeTimestampColumn; otherwise auto-detect from whether
+    // a timestamp column name was configured.
+    bool wantTimestamp = m_writeTimestampColumn.has_value()
+                             ? m_writeTimestampColumn.value()
+                             : !m_adapterMgr.getTimestampColumnName().empty();
+    if( wantTimestamp )
     {
+        CSP_TRUE_OR_THROW_RUNTIME( !m_adapterMgr.getTimestampColumnName().empty(),
+            "writeTimestampColumn is true but no timestamp_column_name was provided" );
         m_writeTimestampColumn = true;
         auto tsBuilder = createArrowBackedArrayBuilder(
             m_adapterMgr.getTimestampColumnName(), getChunkSize(), CspType::DATETIME() );

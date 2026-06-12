@@ -114,8 +114,7 @@ void ArrowBackedArrayBuilder::handleRowFinished()
         m_writer -> writeNext( m_scratch.get() );
 
         // Clear the isSet bit so next cycle starts with null
-        uint8_t * mask = reinterpret_cast<uint8_t *>( m_scratch.get() ) + m_field -> maskOffset();
-        *mask &= ~m_field -> maskBitMask();
+        m_field -> clearIsSet( m_scratch.get() );
     }
     else
     {

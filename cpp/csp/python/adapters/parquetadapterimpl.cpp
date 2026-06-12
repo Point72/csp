@@ -686,8 +686,9 @@ csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, co
     bool        allowOverwrite   = properties.get<bool>( "allow_overwrite" );
     std::string compression      = properties.get<std::string>( "compression" );
 
-    // Optional Python file_visitor: wrapped as a plain C++ callback, invoked (with the GIL
-    // held during the run) after each file is closed.  Only the main sink visits files.
+    // Optional Python file_visitor: wrapped as a plain C++ callback, invoked synchronously (with the
+    // GIL held during the run) after each file is closed, so a slow visitor blocks the engine.  Only
+    // the main sink visits files.
     std::function<void( const std::string & )> fileVisitor;
     DialectGenericType visitorDG;
     if( properties.tryGet( "file_visitor", visitorDG ) )

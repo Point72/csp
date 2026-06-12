@@ -238,7 +238,13 @@ std::shared_ptr<::arrow::RecordBatch> ParquetWriter::buildRecordBatch()
     std::vector<std::shared_ptr<::arrow::Array>> columns;
     columns.reserve( m_columnBuilders.size() );
     for( auto && builder : m_columnBuilders )
-        columns.push_back( builder -> buildArray() );
+    {
+        auto column = builder -> buildArray();
+        // Every column must contain exactly the rows accumulated this chunk; a mismatch would build a
+        // corrupt RecordBatch (debug-only guard, compiled out in release).
+        CSP_ASSERT( column -> length() == static_cast<std::int64_t>( m_curChunkSize ) );
+        columns.push_back( std::move( column ) );
+    }
     return ::arrow::RecordBatch::Make( m_schema, m_curChunkSize, std::move( columns ) );
 }
 

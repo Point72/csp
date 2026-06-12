@@ -1,10 +1,8 @@
 #ifndef _IN_CSP_ADAPTERS_PARQUET_ParquetDictBasketOutputHandler_H
 #define _IN_CSP_ADAPTERS_PARQUET_ParquetDictBasketOutputHandler_H
 
-#include <csp/adapters/parquet/FileWriterWrapperContainer.h>
 #include <csp/adapters/parquet/ParquetWriter.h>
 #include <csp/engine/CspType.h>
-#include <parquet/arrow/writer.h>
 #include <string>
 
 namespace csp::adapters::parquet
@@ -17,6 +15,8 @@ public:
     ParquetDictBasketOutputWriter( ParquetOutputAdapterManager *outputAdapterManager, const std::string &columnName );
     void start() override;
     void stop() override;
+
+    void setIndexSink( RecordBatchSink sink ) { m_indexSink = std::move( sink ); }
 
     virtual void writeValue( const std::string &valueKey, const TimeSeriesProvider *ts );
 
@@ -31,7 +31,8 @@ private:
     SingleColumnParquetOutputHandler                    *m_cycleIndexOutputAdapter;
     std::uint16_t                                       m_nextCycleIndex;
     std::vector<std::unique_ptr<ParquetOutputHandler>>  m_allHandlers;
-    std::unique_ptr<MultipleFileWriterWrapperContainer> m_indexFileWriterContainer;
+    RecordBatchSink                                     m_indexSink;
+    std::shared_ptr<::arrow::Schema>                    m_indexSchema;
 };
 
 class ParquetScalarDictBasketOutputWriter final : public ParquetDictBasketOutputWriter

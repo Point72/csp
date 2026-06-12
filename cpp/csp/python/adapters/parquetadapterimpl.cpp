@@ -3,6 +3,9 @@
 #include <csp/adapters/parquet/ParquetOutputAdapterManager.h>
 #include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
+#include <csp/adapters/parquet/ParquetWriter.h>
+#include <csp/adapters/parquet/RecordBatchFileSink.h>
+#include <csp/adapters/parquet/RecordBatchSink.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
@@ -582,137 +585,6 @@ create_parquet_input_adapter( csp::AdapterManager *manager, PyEngine *pyengine, 
     }
 }
 
-template< typename CspCType >
-class NumpyArrayWriterImpl : public TypedDialectGenericListWriterInterface<CspCType>
-{
-public:
-    NumpyArrayWriterImpl( PyArray_Descr *expectedArrayDesc )
-            : m_expectedArrayDesc( expectedArrayDesc )
-    {
-    }
-
-    void writeItems( const csp::DialectGenericType &listObject ) override
-    {
-        PyObject *object = csp::python::toPythonBorrowed( listObject );
-        if( !PyArray_Check( object ) )
-            CSP_THROW( csp::TypeError, "While writing to parquet expected numpy array type, got " << Py_TYPE( object ) -> tp_name );
-
-        PyArrayObject *arrayObject = ( PyArrayObject * ) ( object );
-        char npy_type = PyArray_DESCR( arrayObject ) -> type;
-        if( PyArray_DESCR( arrayObject ) -> kind != m_expectedArrayDesc -> kind )
-            CSP_THROW( csp::TypeError,
-                       "Expected array of type " << csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) m_expectedArrayDesc ) )
-                                                 << " got "
-                                                 << csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
-
-        auto ndim = PyArray_NDIM( arrayObject );
-        CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
-        switch( npy_type )
-        {
-            case NPY_BYTELTR:      writeValues<char>( arrayObject );            break;
-            case NPY_UBYTELTR:     writeValues<unsigned char>( arrayObject );   break;
-            case NPY_SHORTLTR:     writeValues<short>( arrayObject );           break;
-            case NPY_USHORTLTR:    writeValues<unsigned short>( arrayObject );  break;
-            case NPY_INTLTR:       writeValues<int>( arrayObject );             break;
-            case NPY_UINTLTR:      writeValues<unsigned int>( arrayObject );    break;
-            case NPY_LONGLTR:      writeValues<long>( arrayObject );            break;
-            case NPY_ULONGLTR:     writeValues<unsigned long>( arrayObject );   break;
-            case NPY_LONGLONGLTR:  writeValues<long long>( arrayObject );       break;
-            case NPY_ULONGLONGLTR: writeValues<unsigned long long>( arrayObject ); break;
-            case NPY_FLOATLTR:  writeValues<float>( arrayObject );  break;
-            case NPY_DOUBLELTR: writeValues<double>( arrayObject ); break;
-            default:
-                writeValues<CspCType>( arrayObject );
-        }
-    }
-private:
-    template<typename NumpyCType>
-    void writeValues( PyArrayObject * arrayObject )
-    {
-        auto arraySize = PyArray_Size( ( PyObject * ) arrayObject );
-        if( PyArray_ISCARRAY_RO(arrayObject) )
-        {
-            NumpyCType* data = reinterpret_cast<NumpyCType*>( PyArray_DATA( arrayObject ) );
-            for (decltype(arraySize) i = 0; i < arraySize; ++i)
-                this->writeValue(static_cast<CspCType>(data[i]));
-        }
-        else
-        {
-            for (decltype(arraySize) i = 0; i < arraySize; ++i)
-                this->writeValue(static_cast<CspCType>(*reinterpret_cast<NumpyCType*>(PyArray_GETPTR1(arrayObject, i))));
-        }
-    }
-
-    PyArray_Descr *m_expectedArrayDesc;
-};
-
-class NumpyUnicodeArrayWriter : public TypedDialectGenericListWriterInterface<std::string>
-{
-public:
-    void writeItems( const csp::DialectGenericType &listObject ) override
-    {
-        PyObject *object = csp::python::toPythonBorrowed( listObject );
-        if( !PyArray_Check( object ) )
-            CSP_THROW( csp::TypeError, "While writing to parquet expected numpy array type, got " << Py_TYPE( object ) -> tp_name );
-
-        PyArrayObject *arrayObject = ( PyArrayObject * ) ( object );
-        if( PyArray_DESCR( arrayObject ) -> type_num != NPY_UNICODE )
-            CSP_THROW( csp::TypeError, "Expected unicode array, got " <<
-                       csp::python::PyObjectPtr::own( PyObject_Repr( ( PyObject * ) PyArray_DESCR( arrayObject ) ) ) );
-
-        auto elementSize = PyDataType_ELSIZE( PyArray_DESCR( arrayObject ) );
-        auto ndim        = PyArray_NDIM( arrayObject );
-        CSP_TRUE_OR_THROW_RUNTIME( ndim == 1, "While writing to parquet expected numpy array with 1 dimension" << " got " << ndim );
-        std::wstring_convert<std::codecvt_utf8<char32_t>,char32_t> converter;
-
-        auto arraySize = PyArray_Size( object );
-        if( PyArray_ISCARRAY_RO( arrayObject ) )
-        {
-            auto data = reinterpret_cast<char *>(PyArray_DATA( arrayObject ));
-            for( decltype( arraySize ) i = 0; i < arraySize; ++i )
-            {
-                std::string value = converter.to_bytes( reinterpret_cast<char32_t*>(data + elementSize * i),
-                                                        reinterpret_cast<char32_t*>(data + elementSize * ( i + 1 )) );
-                this -> writeValue( value );
-            }
-        }
-        else
-        {
-            for( decltype( arraySize ) i = 0; i < arraySize; ++i )
-            {
-                char        *elementPtr = reinterpret_cast<char *>(PyArray_GETPTR1( arrayObject, i ));
-                std::string value       = converter.to_bytes( reinterpret_cast<char32_t*>(elementPtr),
-                                                              reinterpret_cast<char32_t*>(elementPtr + elementSize ) );
-                this -> writeValue( value );
-            }
-        }
-    }
-};
-
-static inline DialectGenericListWriterInterface::Ptr create_numpy_array_writer_impl( const csp::CspTypePtr &type )
-{
-    try
-    {
-        return csp::PartialSwitchCspType<csp::CspType::Type::DOUBLE, csp::CspType::Type::INT64,
-                csp::CspType::Type::BOOL, csp::CspType::Type::STRING>::invoke(
-                type.get(),
-                []( auto tag ) -> DialectGenericListWriterInterface::Ptr
-                {
-                    using CValueType = typename decltype( tag )::type;
-                    auto numpy_dtype = PyArray_DescrFromType( csp::python::NPY_TYPE<CValueType>::value );
-                    if constexpr (std::is_same_v<CValueType,std::string>)
-                        return std::make_shared<NumpyUnicodeArrayWriter>();
-                    else
-                        return std::make_shared<NumpyArrayWriterImpl<CValueType>>(numpy_dtype);
-                }
-        );
-    }
-    catch( csp::TypeError &e )
-    {
-        CSP_THROW( csp::TypeError, "Unsupported array value type when writing to parquet:" << type -> type().asString() );
-    }
-}
-
 static OutputAdapter *create_parquet_output_adapter( csp::AdapterManager *manager, PyEngine *pyengine, PyObject *args )
 {
     PyObject *pyProperties;
@@ -732,36 +604,12 @@ static OutputAdapter *create_parquet_output_adapter( csp::AdapterManager *manage
     if( propertiesDict.get( "is_array", false ) )
     {
         auto &&valueType = pyTypeAsCspType( toPythonBorrowed( propertiesDict.get<DialectGenericType>( "array_value_type" ) ) );
-        return parquetManager -> getListOutputAdapter( valueType, propertiesDict, create_numpy_array_writer_impl( valueType ) );
+        return parquetManager -> getListOutputAdapter( valueType, propertiesDict );
     }
     else
     {
         return parquetManager -> getOutputAdapter( cspType, propertiesDict );
     }
-}
-
-static OutputAdapter *create_parquet_dict_basket_output_adapter( csp::AdapterManager *manager, PyEngine *pyengine, PyObject *args )
-{
-    PyObject *pyProperties;
-    PyObject *pyType;
-    auto     *parquetManager = dynamic_cast<ParquetOutputAdapterManager *>( manager );
-    if( !parquetManager )
-        CSP_THROW( TypeError, "Expected ParquetOutputAdapterManager" );
-    if( !PyArg_ParseTuple( args, "O!O!",
-                           &PyTuple_Type, &pyType,
-                           &PyDict_Type, &pyProperties ) )
-        CSP_THROW( PythonPassthrough, "" );
-    PyObject *keyType;
-    PyObject *valueType;
-    if( !PyArg_ParseTuple( pyType, "O!O!",
-                           &PyType_Type, &keyType,
-                           &PyType_Type, &valueType ) )
-        CSP_THROW( PythonPassthrough, "Invalid basket key/value tuple" );
-
-    auto cspKeyType   = pyTypeAsCspType( keyType );
-    auto cspValueType = pyTypeAsCspType( valueType );
-
-    CSP_THROW( NotImplemented, "Output basket is not implement yet" );
 }
 
 static OutputAdapter *parquet_output_filename_adapter( csp::AdapterManager *manager, PyEngine *pyengine, PyObject *args )
@@ -828,21 +676,47 @@ static PyObject *create_parquet_input_adapter_manager_native( PyObject *args )
     CSP_RETURN_NULL;
 }
 
+// --- Output adapter manager: writes RecordBatches to files entirely in C++ ---
+
 csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, const Dictionary &properties )
 {
-    ParquetOutputAdapterManager::FileVisitorCallback fileVisitor;
-    DialectGenericType pyFilenameVisitorDG;
-    if( properties.tryGet( "file_visitor", pyFilenameVisitorDG ) )
+    // Output file I/O is done entirely in C++ via makeFileSink (no per-batch Python hop).
+    bool        writeArrowBinary = properties.get<bool>( "write_arrow_binary" );
+    bool        splitColumns     = properties.get<bool>( "split_columns_to_files" );
+    bool        allowOverwrite   = properties.get<bool>( "allow_overwrite" );
+    std::string compression      = properties.get<std::string>( "compression" );
+
+    // Optional Python file_visitor: wrapped as a plain C++ callback, invoked synchronously (with the
+    // GIL held during the run) after each file is closed, so a slow visitor blocks the engine.  Only
+    // the main sink visits files.
+    std::function<void( const std::string & )> fileVisitor;
+    DialectGenericType visitorDG;
+    if( properties.tryGet( "file_visitor", visitorDG ) )
     {
-        PyObjectPtr pyFilenameVisitor = PyObjectPtr::own( toPython( pyFilenameVisitorDG ) );
-        fileVisitor = [pyFilenameVisitor]( const std::string & filename )
+        auto pyVisitor = PyObjectPtr::own( toPython( visitorDG ) );
+        if( pyVisitor.get() && pyVisitor.get() != Py_None )
+        {
+            fileVisitor = [pyVisitor]( const std::string & path )
             {
-                PyObjectPtr rv =  PyObjectPtr::own( PyObject_CallFunction( pyFilenameVisitor.get(), "O", PyObjectPtr::own( toPython( filename ) ).get() ) );
+                auto pyPath = PyObjectPtr::own( PyUnicode_FromStringAndSize( path.c_str(), path.size() ) );
+                auto rv = PyObjectPtr::own( PyObject_CallFunctionObjArgs( pyVisitor.get(), pyPath.get(), nullptr ) );
                 if( !rv.get() )
                     CSP_THROW( PythonPassthrough, "" );
             };
+        }
     }
-    return engine -> engine() -> createOwnedObject<ParquetOutputAdapterManager>( properties, fileVisitor );
+
+    auto * mgr = engine -> engine() -> createOwnedObject<ParquetOutputAdapterManager>( properties );
+    mgr -> setSink( makeFileSink( writeArrowBinary, splitColumns, compression, allowOverwrite, fileVisitor ) );
+
+    // Dict-basket writers always write split-column files (one per value/symbol/index column),
+    // without a file visitor.
+    mgr -> setSinkFactory( [writeArrowBinary, compression, allowOverwrite]( const std::string & ) -> RecordBatchSink
+    {
+        return makeFileSink( writeArrowBinary, /*splitColumns=*/true, compression, allowOverwrite, {} );
+    } );
+
+    return mgr;
 }
 
 
@@ -854,8 +728,6 @@ REGISTER_ADAPTER_MANAGER( _parquet_output_adapter_manager, create_parquet_output
 REGISTER_INPUT_ADAPTER( _parquet_input_adapter, create_parquet_input_adapter );
 
 REGISTER_OUTPUT_ADAPTER( _parquet_output_adapter, create_parquet_output_adapter );
-
-REGISTER_OUTPUT_ADAPTER( _parquet_dict_basket_output_adapter, create_parquet_dict_basket_output_adapter );
 
 REGISTER_OUTPUT_ADAPTER( _parquet_output_filename_adapter, parquet_output_filename_adapter );
 static PyModuleDef _parquetadapterimpl_module = {

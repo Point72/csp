@@ -1,6 +1,6 @@
 #include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetOutputAdapter.h>
-#include <parquet/arrow/writer.h>
+#include <arrow/record_batch.h>
 
 namespace csp::adapters::parquet
 {
@@ -17,28 +17,27 @@ ParquetDictBasketOutputWriter::ParquetDictBasketOutputWriter(
 void ParquetDictBasketOutputWriter::start()
 {
     ParquetWriter::start();
-    m_indexFileWriterContainer = std::make_unique<MultipleFileWriterWrapperContainer>(
-            arrow::schema( { arrow::field( m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getColumnName(),
-                                           m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getDataType() ) } ),
-            m_adapterMgr.isWriteArrowBinary() );
-    if( !m_adapterMgr.getFileName().empty() )
-    {
-        m_indexFileWriterContainer -> open( m_adapterMgr.getFileName(),
-                                            m_adapterMgr.getCompression(), m_adapterMgr.isAllowOverwrite() );
-
-    }
+    m_indexSchema = ::arrow::schema( { ::arrow::field(
+        m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getColumnName(),
+        m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getDataType() ) } );
+    if( m_indexSink.onStart )
+        m_indexSink.onStart( m_indexSchema );
+    auto & fileName = m_adapterMgr.getFileName();
+    if( !fileName.empty() && m_indexSink.onFileChange )
+        m_indexSink.onFileChange( fileName );
 }
 
 void ParquetDictBasketOutputWriter::stop()
 {
-    auto &&indexColumnArrayBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
-    if( indexColumnArrayBuilder -> length() > 0 )
+    auto && indexBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
+    if( indexBuilder -> length() > 0 && m_indexSink.onBatch )
     {
-        CSP_TRUE_OR_THROW_RUNTIME(isFileOpen(), "On stop ParquetDictBasketOutputWriter has data to write but no open file");
-        m_indexFileWriterContainer -> writeData( { indexColumnArrayBuilder } );
+        auto arr = indexBuilder -> buildArray();
+        auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
+        m_indexSink.onBatch( rb );
     }
-    m_indexFileWriterContainer -> close();
-    m_indexFileWriterContainer = nullptr;
+    if( m_indexSink.onStop )
+        m_indexSink.onStop();
 
     ParquetWriter::stop();
 }
@@ -46,7 +45,7 @@ void ParquetDictBasketOutputWriter::stop()
 void ParquetDictBasketOutputWriter::writeValue( const std::string &valueKey, const TimeSeriesProvider *ts )
 {
     m_adapterMgr.scheduleEndCycle();
-    m_symbolOutputAdapter -> writeValue<std::string, StringArrayBuilder>( valueKey );
+    m_symbolOutputAdapter -> writeValue<std::string>( valueKey );
     ParquetWriter::onEndCycle();
     ++m_nextCycleIndex;
 }
@@ -56,12 +55,14 @@ void ParquetDictBasketOutputWriter::onEndCycle()
 {
     if(isFileOpen())
     {
-        m_cycleIndexOutputAdapter -> writeValue<std::uint16_t, UInt16ArrayBuilder>( m_nextCycleIndex );
-        auto &&indexColumnArrayBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
-        indexColumnArrayBuilder -> handleRowFinished();
-        if( indexColumnArrayBuilder -> length() >= getChunkSize() )
+        m_cycleIndexOutputAdapter -> writeValue<std::uint16_t>( m_nextCycleIndex );
+        auto && indexBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
+        indexBuilder -> handleRowFinished();
+        if( indexBuilder -> length() >= getChunkSize() && m_indexSink.onBatch )
         {
-            m_indexFileWriterContainer -> writeData( { indexColumnArrayBuilder } );
+            auto arr = indexBuilder -> buildArray();
+            auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
+            m_indexSink.onBatch( rb );
         }
         m_nextCycleIndex = 0;
     }
@@ -74,21 +75,16 @@ void ParquetDictBasketOutputWriter::onEndCycle()
 void ParquetDictBasketOutputWriter::onFileNameChange( const std::string &fileName )
 {
     ParquetWriter::onFileNameChange( fileName );
-    if( m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> length() > 0 )
+    // Flush any pending index data
+    auto && indexBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
+    if( indexBuilder -> length() > 0 && m_indexSink.onBatch )
     {
-        CSP_TRUE_OR_THROW_RUNTIME( m_indexFileWriterContainer -> isOpen(), "Trying to write basket index data to closed file" );
-        m_indexFileWriterContainer -> writeData( { m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) } );
+        auto arr = indexBuilder -> buildArray();
+        auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
+        m_indexSink.onBatch( rb );
     }
-    if (m_indexFileWriterContainer->isOpen())
-    {
-        m_indexFileWriterContainer->close();
-    }
-    if(!fileName.empty())
-    {
-        m_indexFileWriterContainer
-                -> open( fileName, m_adapterMgr.getCompression(), m_adapterMgr.isAllowOverwrite() );
-    }
-
+    if( m_indexSink.onFileChange )
+        m_indexSink.onFileChange( fileName );
 }
 
 SingleColumnParquetOutputHandler *ParquetDictBasketOutputWriter::createScalarOutputHandler( CspTypePtr type, const std::string &name )

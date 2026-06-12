@@ -1,10 +1,6 @@
 set(PARQUET_HEADER_FILES
-        ArrowIPCFileWriterWrapper.h
+        ArrowBackedArrayBuilder.h
         ArrowSingleColumnArrayBuilder.h
-        DialectGenericListWriterInterface.h
-        FileWriterWrapper.h
-        ParquetFileWriterWrapper.h
-        FileWriterWrapperContainer.h
         ParquetDictBasketOutputWriter.h
         ParquetInputAdapterManager.h
         ParquetOutputAdapter.h
@@ -12,20 +8,20 @@ set(PARQUET_HEADER_FILES
         ParquetOutputFilenameAdapter.h
         ParquetStatusUtils.h
         ParquetWriter.h
+        RecordBatchFileSink.h
+        RecordBatchSink.h
         RecordBatchStreamSource.h
 )
 
 set(PARQUET_SOURCE_FILES
-        ArrowIPCFileWriterWrapper.cpp
-        FileWriterWrapper.cpp
-        ParquetFileWriterWrapper.cpp
-        FileWriterWrapperContainer.cpp
+        ArrowBackedArrayBuilder.cpp
         ParquetDictBasketOutputWriter.cpp
         ParquetInputAdapterManager.cpp
         ParquetOutputAdapter.cpp
         ParquetOutputAdapterManager.cpp
         ParquetOutputFilenameAdapter.cpp
         ParquetWriter.cpp
+        RecordBatchFileSink.cpp
         ${PARQUET_HEADER_FILES}
         )
 

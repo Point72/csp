@@ -77,6 +77,16 @@ public:
         (*m) |= m_noneMaskBitMask;
     }
 
+    //Marks this field "not set" without releasing/cleaning its current value.  The same capability is
+    //already reachable through the public maskOffset()/maskBitMask() accessors; this just encapsulates the
+    //bit poke.  Used by callers that reuse a struct as a per-row scratch buffer (e.g. the parquet
+    //ArrowBackedArrayBuilder appends the scratch value, then clears the bit so the next row defaults to null).
+    void clearIsSet( Struct * s ) const
+    {
+        uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
+        (*m) &= ~m_maskBitMask;
+    }
+
     //copy methods need not deal with mask set/unset, only copy values
     virtual void copyFrom( const Struct * src, Struct * dest ) const = 0;
 
@@ -119,12 +129,6 @@ protected:
     void * valuePtr( Struct * s ) const
     {
         return reinterpret_cast<uint8_t *>( s ) + m_offset;
-    }
-
-    void clearIsSet( Struct * s ) const
-    {
-        uint8_t * m = reinterpret_cast<uint8_t *>( s ) + m_maskOffset;
-        (*m) &= ~m_maskBitMask;
     }
 
     void clearIsNone( Struct * s ) const

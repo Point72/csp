@@ -73,7 +73,10 @@ class ParquetWriter:
         file_name must be a folder into which the data will be written.
         :param file_metadata: optional str:str dict that will get written as file-level metadata
         :param column_metadata: optional dict of column : { str:str} that will get written as column-level metadata
-        :param file_visitor: optional callable that will be called, after a file is written, with the file name.
+        :param file_visitor: optional callable invoked with the file path after each file is closed (on rotation
+        and at shutdown). It runs synchronously on the engine thread with the GIL held, so a slow visitor (e.g.
+        uploading to remote storage) blocks the engine for its duration -- offload heavy work to a background
+        queue/thread if that matters. An exception raised by the visitor propagates out of csp.run.
         """
         super().__init__()
         config = ParquetOutputConfig() if config is None else config.copy()
@@ -199,6 +202,11 @@ class ParquetWriter:
         return self._parquet_dict_basket_writer_node_def
 
     def publish_dict_basket(self, column_name, value, key_type, value_type):
+        if not self._split_columns_to_files:
+            raise ValueError(
+                f"Cannot publish dict basket '{column_name}': dict baskets require "
+                "split_columns_to_files=True (single-file parquet output is not supported for baskets)"
+            )
         if key_type is not str:
             raise NotImplementedError("Writing of baskets with non str key type is not supported")
         if self._filename_provider is not None:

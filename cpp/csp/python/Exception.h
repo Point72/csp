@@ -73,6 +73,7 @@ inline bool& capture_cpp_exception_trace_flag()
     CSP_CATCH_HELPER( ::csp::OverflowError,     PyExc_OverflowError,     RETURN_STMT )     \
     CSP_CATCH_HELPER( ::csp::DivideByZero,      PyExc_ZeroDivisionError, RETURN_STMT )     \
     CSP_CATCH_HELPER( ::csp::RecursionError,    PyExc_RecursionError,    RETURN_STMT )     \
+    CSP_CATCH_HELPER( ::csp::FileExistsError,   PyExc_FileExistsError,   RETURN_STMT )     \
     CSP_CATCH_HELPER( ::csp::OSError,           PyExc_OSError,           RETURN_STMT )     \
     CSP_CATCH_HELPER( ::csp::OutOfMemoryError,  PyExc_MemoryError,       RETURN_STMT )     \
     CSP_CATCH_HELPER( ::csp::FileNotFoundError, PyExc_FileNotFoundError, RETURN_STMT )     \

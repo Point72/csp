@@ -1,7 +1,6 @@
 set(PARQUET_HEADER_FILES
         ArrowBackedArrayBuilder.h
         ArrowSingleColumnArrayBuilder.h
-        FileNameGeneratorReplicator.h
         ParquetDictBasketOutputWriter.h
         ParquetInputAdapterManager.h
         ParquetOutputAdapter.h
@@ -12,7 +11,6 @@ set(PARQUET_HEADER_FILES
         RecordBatchFileSink.h
         RecordBatchSink.h
         RecordBatchStreamSource.h
-        RecordBatchWithFlag.h
 )
 
 set(PARQUET_SOURCE_FILES

@@ -8,7 +8,6 @@
 #include <arrow/table.h>
 #include <arrow/type.h>
 #include <arrow/util/compression.h>
-#include <arrow/util/config.h>
 #include <parquet/arrow/writer.h>
 
 #include <algorithm>
@@ -77,11 +76,10 @@ FileWriter makeParquetFileWriter( const std::string & path, const std::shared_pt
 
     ::parquet::WriterProperties::Builder props;
     props.compression( resolveCompression( compression ) );
-#if ARROW_VERSION_MAJOR >= 20
+    // csp builds against libparquet >= 16.0.0, where PARQUET_2_6 (the modern default, available since
+    // Arrow 6.0) is always present, so there is no need to gate on the Arrow version or fall back to
+    // the deprecated PARQUET_2_0.
     props.version( ::parquet::ParquetVersion::PARQUET_2_6 );
-#else
-    props.version( ::parquet::ParquetVersion::PARQUET_2_0 );
-#endif
     ::parquet::ArrowWriterProperties::Builder arrowProps;
     arrowProps.store_schema(); // preserve arrow (file/column) schema metadata in the parquet file
 
@@ -128,9 +126,13 @@ FileWriter makeIpcFileWriter( const std::string & path, const std::shared_ptr<::
     std::shared_ptr<::arrow::ipc::RecordBatchWriter> writer = result.MoveValueUnsafe();
 
     return FileWriter{
-        [writer]( const std::shared_ptr<::arrow::RecordBatch> & rb )
+        [writer, compression]( const std::shared_ptr<::arrow::RecordBatch> & rb )
         {
-            STATUS_OK_OR_THROW_RUNTIME( writer -> WriteRecordBatch( *rb ), "Failed to write arrow record batch" );
+            // Arrow validates which codecs IPC allows here and appends its own reason (e.g. "Only
+            // LZ4_FRAME and ZSTD compression allowed for IPC"); surface which codec was requested
+            // rather than a bare "failed to write". The allowed set is Arrow's to define, not ours.
+            STATUS_OK_OR_THROW_RUNTIME( writer -> WriteRecordBatch( *rb ),
+                "Failed to write Arrow IPC record batch with compression '" << compression << "'" );
         },
         [writer, stream]()
         {
@@ -154,11 +156,26 @@ FileWriter makeSplitWriter( const std::string & dir, const std::shared_ptr<::arr
     subWriters -> reserve( schema -> num_fields() );
     colSchemas -> reserve( schema -> num_fields() );
 
-    for( int i = 0; i < schema -> num_fields(); ++i )
+    try
     {
-        auto colSchema = ::arrow::schema( { schema -> field( i ) }, schema -> metadata() );
-        colSchemas -> push_back( colSchema );
-        subWriters -> push_back( perColumn( dir + "/" + schema -> field( i ) -> name() + extension, colSchema ) );
+        for( int i = 0; i < schema -> num_fields(); ++i )
+        {
+            auto colSchema = ::arrow::schema( { schema -> field( i ) }, schema -> metadata() );
+            colSchemas -> push_back( colSchema );
+            subWriters -> push_back( perColumn( dir + "/" + schema -> field( i ) -> name() + extension, colSchema ) );
+        }
+    }
+    catch( ... )
+    {
+        // A later column failed to open (e.g. allow_overwrite=false and that file already exists).
+        // Close the sub-writers already opened so we don't leak file descriptors or leave half-open
+        // files behind, then rethrow the original error.
+        for( auto & w : *subWriters )
+        {
+            try { w.close(); }
+            catch( ... ) {}
+        }
+        throw;
     }
 
     return FileWriter{
@@ -230,8 +247,12 @@ RecordBatchSink makeFileSink( bool writeArrowBinary, bool splitColumns,
     sink.onStart      = [schemaHolder]( const std::shared_ptr<::arrow::Schema> & schema ) { *schemaHolder = schema; };
     sink.onBatch      = [current]( const std::shared_ptr<::arrow::RecordBatch> & rb )
     {
-        if( current -> has_value() )
-            ( *current ) -> writeBatch( rb );
+        // A batch must only ever arrive while a file is open (the writer guards this via isFileOpen()
+        // before flushing). If the writer and sink ever desync, fail loudly instead of silently
+        // dropping the batch's rows.
+        CSP_TRUE_OR_THROW_RUNTIME( current -> has_value(),
+            "RecordBatchFileSink received a record batch with no open output file" );
+        ( *current ) -> writeBatch( rb );
     };
     sink.onFileChange = [factory, schemaHolder, current, currentPath, closeCurrent]( const std::string & path )
     {

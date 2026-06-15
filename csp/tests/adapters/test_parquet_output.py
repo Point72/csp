@@ -406,6 +406,64 @@ class TestOutputFileRotation(unittest.TestCase):
             df = pandas.read_parquet(os.path.join(d, "output.parquet"))
             self.assertEqual(df["value"].tolist(), [1, 2])
 
+    def test_file_visitor_split_mode_visits_directory(self):
+        """In split-column mode the file_visitor is invoked once, with the output *directory* path
+        (not each per-column file). Pins this contract so a future change is visible.
+        """
+        visited = []
+        with tempfile.TemporaryDirectory() as d:
+            outdir = os.path.join(d, "sp")
+
+            @csp.graph
+            def g():
+                writer = ParquetWriter(
+                    outdir,
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                    file_visitor=lambda f: visited.append(f),
+                )
+                writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 1)]))
+
+            csp.run(g, starttime=START, endtime=timedelta(seconds=3))
+            self.assertEqual(len(visited), 1)
+            self.assertEqual(os.path.normpath(visited[0]), os.path.normpath(outdir))
+
+    def test_rotate_to_empty_then_resume(self):
+        """A filename_provider may tick "" to pause output (close the current file, open none) and later
+        resume with a new path. A value that ticks while paused is retained and emitted on the first row
+        after the file reopens.
+
+        Scenario: A ticks 100 (file f0 open), then 999 while paused; B ticks 5 when f1 reopens; A does
+        not tick at reopen, so its first f1 row carries the paused-window value 999.
+        """
+        with tempfile.TemporaryDirectory() as d:
+
+            @csp.graph
+            def g():
+                a = csp.curve(int, [(timedelta(seconds=1), 100), (timedelta(seconds=3), 999)])
+                b = csp.curve(int, [(timedelta(seconds=4), 5)])
+                rotate = csp.curve(
+                    str,
+                    [(timedelta(seconds=2), ""), (timedelta(seconds=4), os.path.join(d, "f1.parquet"))],
+                )
+                writer = ParquetWriter(
+                    os.path.join(d, "f0.parquet"),
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    filename_provider=rotate,
+                )
+                writer.publish("A", a)
+                writer.publish("B", b)
+
+            csp.run(g, starttime=START, endtime=timedelta(seconds=6))
+
+            df0 = pandas.read_parquet(os.path.join(d, "f0.parquet"))
+            df1 = pandas.read_parquet(os.path.join(d, "f1.parquet"))
+            self.assertEqual(df0["A"].tolist(), [100])
+            self.assertEqual(df1["A"].tolist(), [999])
+            self.assertEqual(df1["B"].tolist(), [5])
+
 
 class TestOutputArrowIPC(unittest.TestCase):
     """Test Arrow IPC (binary arrow) output format."""
@@ -660,6 +718,164 @@ class TestOutputDictBasket(unittest.TestCase):
             for i, sym in enumerate(symbols):
                 self.assertEqual([v[1] for v in res[sym]], [float(i)])
 
+    def test_dict_basket_with_rotation(self):
+        """A dict basket whose filename_provider rotates mid-run lands data in the correct directory
+        and keeps the value/symbol/index files aligned across the rotation.
+        """
+        with tempfile.TemporaryDirectory() as d:
+
+            @csp.graph
+            def g():
+                rotate = csp.curve(str, [(timedelta(seconds=3), os.path.join(d, "b1"))])
+                writer = ParquetWriter(
+                    os.path.join(d, "b0"),
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                    filename_provider=rotate,
+                )
+                basket = {
+                    "AAPL": csp.curve(
+                        float,
+                        [(timedelta(seconds=1), 1.0), (timedelta(seconds=2), 2.0), (timedelta(seconds=4), 4.0)],
+                    )
+                }
+                writer.publish_dict_basket("price", basket, str, float)
+
+            csp.run(g, starttime=START, endtime=timedelta(seconds=6))
+
+            # Pre-rotation values in b0, post-rotation value in b1 -- both directories complete.
+            for sub in ("b0", "b1"):
+                for fname in ("price.parquet", "price__csp_symbol.parquet", "price__csp_value_count.parquet"):
+                    self.assertTrue(os.path.isfile(os.path.join(d, sub, fname)), f"{sub}/{fname} missing")
+            self.assertEqual(pandas.read_parquet(os.path.join(d, "b0", "price.parquet"))["price"].tolist(), [1.0, 2.0])
+            self.assertEqual(pandas.read_parquet(os.path.join(d, "b1", "price.parquet"))["price"].tolist(), [4.0])
+            # Symbol column stays aligned with the value column in each directory.
+            self.assertEqual(
+                pandas.read_parquet(os.path.join(d, "b0", "price__csp_symbol.parquet"))["price__csp_symbol"].tolist(),
+                ["AAPL", "AAPL"],
+            )
+
+    def test_dict_basket_with_rotation_round_trips(self):
+        """The rotated basket files read back correctly via ParquetReader for each segment."""
+        with tempfile.TemporaryDirectory() as d:
+
+            @csp.graph
+            def g_write():
+                rotate = csp.curve(str, [(timedelta(seconds=3), os.path.join(d, "b1"))])
+                writer = ParquetWriter(
+                    os.path.join(d, "b0"),
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                    filename_provider=rotate,
+                )
+                basket = {
+                    "AAPL": csp.curve(float, [(timedelta(seconds=1), 1.0), (timedelta(seconds=4), 4.0)]),
+                }
+                writer.publish_dict_basket("price", basket, str, float)
+
+            def read_segment(sub):
+                @csp.graph
+                def g_read():
+                    reader = ParquetReader(
+                        os.path.join(d, sub), time_column="csp_timestamp", split_columns_to_files=True
+                    )
+                    csp.add_graph_output("AAPL", reader.subscribe_dict_basket(float, "price", ["AAPL"])["AAPL"])
+
+                return csp.run(g_read, starttime=START, endtime=START + timedelta(seconds=6))
+
+            csp.run(g_write, starttime=START, endtime=timedelta(seconds=6))
+            self.assertEqual([v[1] for v in read_segment("b0")["AAPL"]], [1.0])
+            self.assertEqual([v[1] for v in read_segment("b1")["AAPL"]], [4.0])
+
+    def test_dict_basket_file_metadata(self):
+        """file_metadata is written to every dict-basket file (value, symbol, index) as well as the
+        main timestamp file, matching single-vs-split metadata behavior for regular columns.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            bdir = os.path.join(d, "basket")
+
+            @csp.graph
+            def g():
+                writer = ParquetWriter(
+                    bdir,
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                    file_metadata={"author": "meta_test"},
+                )
+                basket = {"AAPL": csp.curve(float, [(timedelta(seconds=1), 150.0)])}
+                writer.publish_dict_basket("price", basket, str, float)
+
+            csp.run(g, starttime=START, endtime=timedelta(seconds=3))
+            for fname in (
+                "price.parquet",
+                "price__csp_symbol.parquet",
+                "price__csp_value_count.parquet",
+                "csp_timestamp.parquet",
+            ):
+                meta = pyarrow.parquet.read_schema(os.path.join(bdir, fname)).metadata
+                self.assertIsNotNone(meta, f"{fname} is missing file_metadata")
+                self.assertEqual(meta[b"author"], b"meta_test", f"{fname} has wrong file_metadata")
+
+    def test_dict_basket_column_metadata(self):
+        """column_metadata keyed to a dict-basket column attaches to that basket's value file field."""
+        with tempfile.TemporaryDirectory() as d:
+            bdir = os.path.join(d, "basket")
+
+            @csp.graph
+            def g():
+                writer = ParquetWriter(
+                    bdir,
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                    column_metadata={"price": {"units": "usd"}},
+                )
+                basket = {"AAPL": csp.curve(float, [(timedelta(seconds=1), 150.0)])}
+                writer.publish_dict_basket("price", basket, str, float)
+
+            csp.run(g, starttime=START, endtime=timedelta(seconds=3))
+            field = pyarrow.parquet.read_schema(os.path.join(bdir, "price.parquet")).field("price")
+            self.assertIsNotNone(field.metadata)
+            self.assertEqual(field.metadata[b"units"], b"usd")
+
+    def test_all_writers_flushed_when_file_visitor_raises(self):
+        """A throwing file_visitor must not prevent any sibling writer from being flushed and closed.
+        With a regular column and a dict basket, after the visitor error surfaces, every file -- the
+        regular column and the basket value/symbol/index files -- is still present and complete.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            outdir = os.path.join(d, "out")
+
+            def boom(_f):
+                raise ValueError("visitor boom")
+
+            @csp.graph
+            def g():
+                writer = ParquetWriter(
+                    outdir,
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                    file_visitor=boom,
+                )
+                writer.publish("reg", csp.curve(int, [(timedelta(seconds=1), 7), (timedelta(seconds=2), 8)]))
+                basket = {"AAPL": csp.curve(float, [(timedelta(seconds=1), 1.5), (timedelta(seconds=2), 2.5)])}
+                writer.publish_dict_basket("price", basket, str, float)
+
+            with self.assertRaisesRegex(Exception, "visitor boom"):
+                csp.run(g, starttime=START, endtime=timedelta(seconds=4))
+
+            self.assertEqual(pyarrow.parquet.read_table(os.path.join(outdir, "reg.parquet")).num_rows, 2)
+            self.assertEqual(
+                pyarrow.parquet.read_table(os.path.join(outdir, "price.parquet")).column("price").to_pylist(),
+                [1.5, 2.5],
+            )
+            for fname in ("price__csp_symbol.parquet", "price__csp_value_count.parquet"):
+                self.assertEqual(pyarrow.parquet.read_table(os.path.join(outdir, fname)).num_rows, 2)
+
 
 class TestOutputNumpyArrays(unittest.TestCase):
     """Test numpy array column output."""
@@ -832,6 +1048,25 @@ class TestOutputCompression(unittest.TestCase):
             with self.assertRaisesRegex(Exception, "compression"):
                 csp.run(g, starttime=START, endtime=timedelta(seconds=3))
 
+    def test_invalid_ipc_compression_raises_clear_error(self):
+        """A codec Arrow IPC does not support (e.g. snappy) fails with a message naming the codec.
+
+        Arrow only allows uncompressed/lz4/zstd for Arrow IPC streams and supplies its own
+        "Only LZ4_FRAME and ZSTD ..." reason; the writer surfaces which codec was requested. This
+        restriction is specific to write_arrow_binary=True -- parquet output accepts snappy.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            fname = os.path.join(d, "out.arrow")
+
+            @csp.graph
+            def g():
+                config = ParquetOutputConfig(allow_overwrite=True, write_arrow_binary=True, compression="snappy")
+                writer = ParquetWriter(fname, "csp_timestamp", config=config)
+                writer.publish("x", csp.curve(int, [(timedelta(seconds=1), 1)]))
+
+            with self.assertRaisesRegex(Exception, "snappy"):
+                csp.run(g, starttime=START, endtime=timedelta(seconds=3))
+
 
 class TestOutputBatchSize(unittest.TestCase):
     """Test batch_size controls row group flushing."""
@@ -975,6 +1210,58 @@ class TestOutputMetadata(unittest.TestCase):
             self.assertTrue(os.path.isfile(val_file))
             reader = _read_ipc(val_file)
             self.assertEqual(reader.schema.metadata[b"source"], b"ipc_test")
+
+    def test_split_and_single_metadata_equivalent(self):
+        """The PR's headline claim: file- and column-level metadata (and field types) are identical
+        between single-file and split-column modes. Writes the same data both ways and compares the
+        per-column schema field plus file metadata directly.
+        """
+        file_md = {"author": "me", "version": "2.0"}
+        col_md = {"x": {"units": "kg", "source": "sensor"}}
+        curve = [(timedelta(seconds=1), 1), (timedelta(seconds=2), 2)]
+
+        with tempfile.TemporaryDirectory() as d:
+            single = os.path.join(d, "single.parquet")
+            outdir = os.path.join(d, "split")
+
+            @csp.graph
+            def g_single():
+                w = ParquetWriter(
+                    single,
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    file_metadata=file_md,
+                    column_metadata=col_md,
+                )
+                w.publish("x", csp.curve(int, curve))
+
+            @csp.graph
+            def g_split():
+                w = ParquetWriter(
+                    outdir,
+                    "csp_timestamp",
+                    config=ParquetOutputConfig(allow_overwrite=True),
+                    split_columns_to_files=True,
+                    file_metadata=file_md,
+                    column_metadata=col_md,
+                )
+                w.publish("x", csp.curve(int, curve))
+
+            csp.run(g_single, starttime=START, endtime=timedelta(seconds=4))
+            csp.run(g_split, starttime=START, endtime=timedelta(seconds=4))
+
+            single_schema = pyarrow.parquet.read_schema(single)
+            split_x_schema = pyarrow.parquet.read_schema(os.path.join(outdir, "x.parquet"))
+
+            # File-level metadata identical.
+            self.assertEqual(single_schema.metadata, split_x_schema.metadata)
+            # Column 'x' field -- name, type, and column-level metadata -- identical.
+            self.assertEqual(single_schema.field("x"), split_x_schema.field("x"))
+            # Every per-column file in split mode carries the same file-level metadata.
+            for fname in ("x.parquet", "csp_timestamp.parquet"):
+                self.assertEqual(
+                    pyarrow.parquet.read_schema(os.path.join(outdir, fname)).metadata, single_schema.metadata
+                )
 
 
 class TestOutputAllowOverwrite(unittest.TestCase):

@@ -4,6 +4,7 @@
 #include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetWriter.h>
 #include <csp/engine/Dictionary.h>
+#include <exception>
 
 namespace csp::adapters::parquet
 {
@@ -33,15 +34,26 @@ void ParquetOutputAdapterManager::start( DateTime starttime, DateTime endtime )
 
 void ParquetOutputAdapterManager::stop()
 {
-    // Stop all writers (flush + close their files) before destroying any of them, so a basket
-    // writer can never observe a destroyed sibling during teardown.
-    m_parquetWriter -> stop();
+    // Stop every writer (flush + close its files) before destroying any of them, so a basket writer
+    // can never observe a destroyed sibling during teardown. A failure stopping one writer must not
+    // skip the others (that would leave their files without footers / leak fds): attempt them all and
+    // rethrow the first error.
+    std::exception_ptr firstError;
+    auto stopWriter = [&firstError]( auto *writer )
+    {
+        try { writer -> stop(); }
+        catch( ... ) { if( !firstError ) firstError = std::current_exception(); }
+    };
+    if( m_parquetWriter )
+        stopWriter( m_parquetWriter.get() );
     for( auto &&writer:m_dictBasketWriters )
     {
-        writer -> stop();
+        stopWriter( writer.get() );
     }
     m_parquetWriter = nullptr;
     m_dictBasketWriters.clear();
+    if( firstError )
+        std::rethrow_exception( firstError );
 }
 
 DateTime ParquetOutputAdapterManager::processNextSimTimeSlice( DateTime time )
@@ -86,6 +98,10 @@ ParquetOutputAdapterManager::createDictOutputBasketWriter( const char *columnNam
 
     // Provide data sink via factory if available
     auto * writer = m_dictBasketWriters.back().get();
+    // Share the main writer's file_metadata, and claim any column_metadata the user attached to this
+    // basket's columns, so the basket files carry that metadata and the main writer does not later
+    // reject those keys as unmapped columns.
+    writer -> adoptMetadataFrom( *m_parquetWriter );
     if( m_sinkFactory )
     {
         writer -> setSink( m_sinkFactory( columnName ) );

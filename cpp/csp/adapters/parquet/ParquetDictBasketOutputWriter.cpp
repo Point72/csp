@@ -1,6 +1,7 @@
 #include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetOutputAdapter.h>
 #include <arrow/record_batch.h>
+#include <exception>
 
 namespace csp::adapters::parquet
 {
@@ -19,7 +20,7 @@ void ParquetDictBasketOutputWriter::start()
     ParquetWriter::start();
     m_indexSchema = ::arrow::schema( { ::arrow::field(
         m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getColumnName(),
-        m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getDataType() ) } );
+        m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getDataType() ) }, getFileMetaData() );
     if( m_indexSink.onStart )
         m_indexSink.onStart( m_indexSchema );
     auto & fileName = m_adapterMgr.getFileName();
@@ -29,17 +30,31 @@ void ParquetDictBasketOutputWriter::start()
 
 void ParquetDictBasketOutputWriter::stop()
 {
+    // Exception-safe teardown: a failure writing/closing the index sink must not skip the value+symbol
+    // writer's stop() (which flushes the final batch and writes its footer) -- otherwise an index-side
+    // I/O error would leave the main basket data file unreadable. Attempt every step, rethrow first.
+    std::exception_ptr firstError;
+    auto guard = [&firstError]( auto && fn )
+    {
+        try { fn(); }
+        catch( ... ) { if( !firstError ) firstError = std::current_exception(); }
+    };
+
     auto && indexBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
     if( indexBuilder -> length() > 0 && m_indexSink.onBatch )
-    {
-        auto arr = indexBuilder -> buildArray();
-        auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
-        m_indexSink.onBatch( rb );
-    }
+        guard( [&]
+        {
+            auto arr = indexBuilder -> buildArray();
+            auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
+            m_indexSink.onBatch( rb );
+        } );
     if( m_indexSink.onStop )
-        m_indexSink.onStop();
+        guard( [&] { m_indexSink.onStop(); } );
 
-    ParquetWriter::stop();
+    guard( [&] { ParquetWriter::stop(); } );
+
+    if( firstError )
+        std::rethrow_exception( firstError );
 }
 
 void ParquetDictBasketOutputWriter::writeValue( const std::string &valueKey, const TimeSeriesProvider *ts )
@@ -74,17 +89,32 @@ void ParquetDictBasketOutputWriter::onEndCycle()
 
 void ParquetDictBasketOutputWriter::onFileNameChange( const std::string &fileName )
 {
-    ParquetWriter::onFileNameChange( fileName );
+    // Rotate the main (value+symbol) writer, then flush pending index data and rotate the index file.
+    // Each step is guarded so a failure in one cannot leave the index file un-rotated and
+    // desynchronised from the main file; the first error is rethrown after all steps are attempted.
+    std::exception_ptr firstError;
+    auto guard = [&firstError]( auto && fn )
+    {
+        try { fn(); }
+        catch( ... ) { if( !firstError ) firstError = std::current_exception(); }
+    };
+
+    guard( [&] { ParquetWriter::onFileNameChange( fileName ); } );
+
     // Flush any pending index data
     auto && indexBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
     if( indexBuilder -> length() > 0 && m_indexSink.onBatch )
-    {
-        auto arr = indexBuilder -> buildArray();
-        auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
-        m_indexSink.onBatch( rb );
-    }
+        guard( [&]
+        {
+            auto arr = indexBuilder -> buildArray();
+            auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
+            m_indexSink.onBatch( rb );
+        } );
     if( m_indexSink.onFileChange )
-        m_indexSink.onFileChange( fileName );
+        guard( [&] { m_indexSink.onFileChange( fileName ); } );
+
+    if( firstError )
+        std::rethrow_exception( firstError );
 }
 
 SingleColumnParquetOutputHandler *ParquetDictBasketOutputWriter::createScalarOutputHandler( CspTypePtr type, const std::string &name )

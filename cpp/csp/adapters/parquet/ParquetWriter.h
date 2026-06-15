@@ -36,6 +36,12 @@ public:
 
     void setSink( RecordBatchSink sink ) { m_sink = std::move( sink ); }
 
+    // Dict-basket writers adopt the main writer's file-level metadata and any column metadata that
+    // targets their own columns, so basket files carry the same metadata and the main writer does not
+    // reject those keys as "unmapped".
+    const std::shared_ptr<::arrow::KeyValueMetadata> & getFileMetaData() const { return m_fileMetaData; }
+    void adoptMetadataFrom( ParquetWriter & source );
+
     SingleColumnParquetOutputAdapter *getScalarOutputAdapter( CspTypePtr &type, const std::string &columnName );
     StructParquetOutputAdapter *getStructOutputAdapter( CspTypePtr &type, csp::DictionaryPtr fieldMap );
     ListColumnParquetOutputAdapter *getListOutputAdapter( CspTypePtr &elemType, const std::string &columnName );

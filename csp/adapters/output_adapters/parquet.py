@@ -77,6 +77,8 @@ class ParquetWriter:
         and at shutdown). It runs synchronously on the engine thread with the GIL held, so a slow visitor (e.g.
         uploading to remote storage) blocks the engine for its duration -- offload heavy work to a background
         queue/thread if that matters. An exception raised by the visitor propagates out of csp.run.
+        Note: file_visitor is NOT invoked for dict-basket files (the value/symbol/index files written by
+        publish_dict_basket); it only covers the main writer's files (and any regular published columns).
         """
         super().__init__()
         config = ParquetOutputConfig() if config is None else config.copy()

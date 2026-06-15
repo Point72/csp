@@ -5,6 +5,7 @@
 #include <arrow/array.h>
 #include <arrow/builder.h>
 #include <arrow/util/key_value_metadata.h>
+#include <exception>
 
 namespace csp::adapters::parquet
 {
@@ -175,15 +176,51 @@ void ParquetWriter::start()
 
 void ParquetWriter::stop()
 {
+    // Exception-safe teardown: a failure flushing the final batch must not skip onStop() (which
+    // writes the file footer/closes the stream), and a failure in onStop() must not be masked.
+    // Attempt both and rethrow the first error.
+    std::exception_ptr firstError;
     if( m_curChunkSize > 0 )
-        flushBatch();
+    {
+        try { flushBatch(); }
+        catch( ... ) { firstError = std::current_exception(); }
+    }
     if( m_sink.onStop )
-        m_sink.onStop();
+    {
+        try { m_sink.onStop(); }
+        catch( ... ) { if( !firstError ) firstError = std::current_exception(); }
+    }
     m_fileOpen = false;
+    if( firstError )
+        std::rethrow_exception( firstError );
+}
+
+void ParquetWriter::adoptMetadataFrom( ParquetWriter & source )
+{
+    // Used by dict-basket writers: take the main writer's file-level metadata, and move any column
+    // metadata the user attached to one of THIS writer's columns out of the source writer (so the
+    // basket files carry it and the main writer no longer rejects those keys as "unmapped").
+    if( !m_fileMetaData )
+        m_fileMetaData = source.m_fileMetaData;
+    for( auto && columnName : m_publishedColumnNames )
+    {
+        auto it = source.m_columnMetaData.find( columnName );
+        if( it != source.m_columnMetaData.end() )
+        {
+            m_columnMetaData[ columnName ] = it -> second;
+            source.m_columnMetaData.erase( it );
+        }
+    }
 }
 
 void ParquetWriter::onEndCycle()
 {
+    // NOTE: when no file is open -- e.g. a filename_provider ticked "" to "pause" output -- this body is
+    // skipped, so handleRowFinished() does NOT run and each scratch column's isSet bit is never cleared
+    // for that cycle. If a column ticks *while paused* and then does NOT tick on the cycle the file
+    // reopens, the stale paused-window value is emitted instead of null (the dropped tick "leaks" into
+    // the first row after resume). This matches the previous writer's behaviour. If dropping ticks while
+    // paused should instead null them out, clear each builder's scratch/isSet here in the else path.
     if( isFileOpen() ) [[likely]]
     {
         DateTime now;
@@ -236,8 +273,11 @@ std::shared_ptr<::arrow::RecordBatch> ParquetWriter::buildRecordBatch()
     {
         auto column = builder -> buildArray();
         // Every column must contain exactly the rows accumulated this chunk; a mismatch would build a
-        // corrupt RecordBatch (debug-only guard, compiled out in release).
-        CSP_ASSERT( column -> length() == static_cast<std::int64_t>( m_curChunkSize ) );
+        // corrupt RecordBatch. Enforced at runtime (not just in debug) so a future column-builder bug
+        // can never silently produce a malformed parquet/arrow file.
+        CSP_TRUE_OR_THROW_RUNTIME( column -> length() == static_cast<std::int64_t>( m_curChunkSize ),
+            "ParquetWriter column '" << builder -> getColumnName() << "' produced " << column -> length()
+            << " rows but the current chunk has " << m_curChunkSize );
         columns.push_back( std::move( column ) );
     }
     return ::arrow::RecordBatch::Make( m_schema, m_curChunkSize, std::move( columns ) );

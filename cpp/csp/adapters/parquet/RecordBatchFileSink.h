@@ -22,7 +22,8 @@ RecordBatchSink makeFileSink( bool writeArrowBinary,
                               bool splitColumns,
                               const std::string & compression,
                               bool allowOverwrite,
-                              std::function<void( const std::string & )> fileVisitor = {} );
+                              std::function<void( const std::string & )> fileVisitor = {},
+                              bool useDictionary = true );
 
 } // namespace csp::adapters::parquet
 

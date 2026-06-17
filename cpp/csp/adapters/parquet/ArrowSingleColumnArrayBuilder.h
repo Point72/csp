@@ -37,6 +37,10 @@ public:
     // Release the array from the currently built values
     virtual std::shared_ptr<::arrow::Array> buildArray() = 0;
 
+    // Pre-reserve builder capacity for numRows rows. Default no-op; fixed-width builders override to
+    // reserve their Arrow builder so the per-row append path avoids repeated reallocation.
+    virtual void reserve( int64_t /*numRows*/ ) {}
+
 private:
     const std::string   m_columnName;
     const std::uint32_t m_chunkSize;

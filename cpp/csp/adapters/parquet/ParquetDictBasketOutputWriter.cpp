@@ -151,12 +151,15 @@ ParquetStructDictBasketOutputWriter::ParquetStructDictBasketOutputWriter( Parque
         : ParquetDictBasketOutputWriter( outputAdapterManager, columnName )
 {
 
-    // We don't support fieldMap for now, only default field map
+    // We don't support fieldMap for now, only default field map.
+    // Iterate fieldNames() (declaration order), NOT fields() (sorted by memory layout): csp writes
+    // struct columns -- both top-level and nested -- in declaration order, so the on-disk column order
+    // matches the struct definition and stays stable regardless of internal field packing.
     auto structMetaPtr = std::static_pointer_cast<const CspStructType>( cspTypePtr ) -> meta().get();
     DictionaryPtr dict = std::make_shared<Dictionary>();
-    for(auto&& field:structMetaPtr->fields())
+    for( auto && fieldName : structMetaPtr -> fieldNames() )
     {
-        dict->insert(field->fieldname(), columnName + "." + field->fieldname());
+        dict->insert( fieldName, columnName + "." + fieldName );
     }
     m_valueOutputAdapter = getStructOutputHandler( cspTypePtr, dict );
 }

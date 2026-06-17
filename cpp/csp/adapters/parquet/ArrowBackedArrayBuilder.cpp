@@ -88,6 +88,13 @@ void ArrowBackedArrayBuilder::init( const std::string & columnName, const Struct
 {
     auto created = csp::adapters::arrow::createFieldWriter( columnName, field );
     m_writer = std::move( created.writer );
+    // Reserve the first chunk up front so the per-row append path doesn't reallocate as rows accumulate.
+    m_writer -> reserve( getChunkSize() );
+}
+
+void ArrowBackedArrayBuilder::reserve( int64_t numRows )
+{
+    m_writer -> reserve( numRows );
 }
 
 std::shared_ptr<::arrow::DataType> ArrowBackedArrayBuilder::getDataType()
@@ -132,6 +139,9 @@ std::shared_ptr<::arrow::Array> ArrowBackedArrayBuilder::buildArray()
     auto arrays = m_writer -> finish();
     CSP_TRUE_OR_THROW_RUNTIME( arrays.size() == 1,
         "ArrowBackedArrayBuilder expected 1 array from FieldWriter, got " << arrays.size() );
+    // finish() resets the underlying builder's capacity; re-reserve for the next chunk so the per-row
+    // append path stays allocation-free (and keeps UnsafeAppend within reserved capacity).
+    m_writer -> reserve( getChunkSize() );
     return arrays[0];
 }
 

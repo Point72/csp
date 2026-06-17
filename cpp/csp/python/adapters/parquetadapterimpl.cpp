@@ -685,6 +685,7 @@ csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, co
     bool        splitColumns     = properties.get<bool>( "split_columns_to_files" );
     bool        allowOverwrite   = properties.get<bool>( "allow_overwrite" );
     std::string compression      = properties.get<std::string>( "compression" );
+    bool        useDictionary    = properties.get( "write_dictionary", true );
 
     // Optional Python file_visitor: wrapped as a plain C++ callback, invoked synchronously (with the
     // GIL held during the run) after each file is closed, so a slow visitor blocks the engine.  Only
@@ -707,13 +708,13 @@ csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, co
     }
 
     auto * mgr = engine -> engine() -> createOwnedObject<ParquetOutputAdapterManager>( properties );
-    mgr -> setSink( makeFileSink( writeArrowBinary, splitColumns, compression, allowOverwrite, fileVisitor ) );
+    mgr -> setSink( makeFileSink( writeArrowBinary, splitColumns, compression, allowOverwrite, fileVisitor, useDictionary ) );
 
     // Dict-basket writers always write split-column files (one per value/symbol/index column),
     // without a file visitor.
-    mgr -> setSinkFactory( [writeArrowBinary, compression, allowOverwrite]( const std::string & ) -> RecordBatchSink
+    mgr -> setSinkFactory( [writeArrowBinary, compression, allowOverwrite, useDictionary]( const std::string & ) -> RecordBatchSink
     {
-        return makeFileSink( writeArrowBinary, /*splitColumns=*/true, compression, allowOverwrite, {} );
+        return makeFileSink( writeArrowBinary, /*splitColumns=*/true, compression, allowOverwrite, {}, useDictionary );
     } );
 
     return mgr;

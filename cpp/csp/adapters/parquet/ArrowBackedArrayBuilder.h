@@ -42,6 +42,7 @@ public:
     int64_t length() const override;
     void handleRowFinished() override;
     std::shared_ptr<::arrow::Array> buildArray() override;
+    void reserve( int64_t numRows ) override;
 
     // --- Scratch mode API ---
     // Get the scratch struct for value setting

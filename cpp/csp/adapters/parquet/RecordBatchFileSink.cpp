@@ -20,6 +20,7 @@
 
 namespace csp::adapters::parquet
 {
+
 namespace
 {
 
@@ -70,7 +71,7 @@ std::shared_ptr<::arrow::io::OutputStream> openOutputStream( const std::string &
 }
 
 FileWriter makeParquetFileWriter( const std::string & path, const std::shared_ptr<::arrow::Schema> & schema,
-                                  const std::string & compression, bool allowOverwrite )
+                                  const std::string & compression, bool allowOverwrite, bool useDictionary )
 {
     auto stream = openOutputStream( path, allowOverwrite );
 
@@ -80,6 +81,11 @@ FileWriter makeParquetFileWriter( const std::string & path, const std::shared_pt
     // Arrow 6.0) is always present, so there is no need to gate on the Arrow version or fall back to
     // the deprecated PARQUET_2_0.
     props.version( ::parquet::ParquetVersion::PARQUET_2_6 );
+    // Dictionary encoding is on by default. For high-cardinality numeric columns it is a large write-time
+    // cost (hash table build) and can even grow files; allow it to be turned off (trading file size for
+    // write throughput). Low-cardinality columns still benefit from leaving it on (the default).
+    if( !useDictionary )
+        props.disable_dictionary();
     ::parquet::ArrowWriterProperties::Builder arrowProps;
     arrowProps.store_schema(); // preserve arrow (file/column) schema metadata in the parquet file
 
@@ -204,16 +210,17 @@ FileWriter makeSplitWriter( const std::string & dir, const std::shared_ptr<::arr
 
 RecordBatchSink makeFileSink( bool writeArrowBinary, bool splitColumns,
                               const std::string & compression, bool allowOverwrite,
-                              std::function<void( const std::string & )> fileVisitor )
+                              std::function<void( const std::string & )> fileVisitor,
+                              bool useDictionary )
 {
     const std::string extension = writeArrowBinary ? ".arrow" : ".parquet";
 
     // Per-file factory: format choice is the only difference.
     FileWriterFactory perFile =
-        [writeArrowBinary, compression, allowOverwrite]( const std::string & path, const std::shared_ptr<::arrow::Schema> & schema )
+        [writeArrowBinary, compression, allowOverwrite, useDictionary]( const std::string & path, const std::shared_ptr<::arrow::Schema> & schema )
         {
             return writeArrowBinary ? makeIpcFileWriter( path, schema, compression, allowOverwrite )
-                                    : makeParquetFileWriter( path, schema, compression, allowOverwrite );
+                                    : makeParquetFileWriter( path, schema, compression, allowOverwrite, useDictionary );
         };
 
     // Layout choice: single file vs. one file per column.

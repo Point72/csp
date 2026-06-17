@@ -345,7 +345,11 @@ CreatedFieldWriter createFieldWriter(
             std::vector<std::shared_ptr<::arrow::ArrayBuilder>> childBuilders;
             std::vector<std::unique_ptr<FieldWriter>> childWriters;
 
-            // Use fieldNames() for stable insertion order (fields() is sorted for memory layout)
+            // Ordering convention: csp writes struct child columns in declaration order, using
+            // fieldNames() rather than fields() (which is sorted by struct memory layout). This keeps
+            // nested-struct child order consistent with top-level column order and stable against
+            // internal field packing. The reader matches children by name, so either order round-trips,
+            // but declaration order is the on-disk contract.
             for( auto & subFieldName : nestedMeta -> fieldNames() )
             {
                 auto subField = nestedMeta -> field( subFieldName );

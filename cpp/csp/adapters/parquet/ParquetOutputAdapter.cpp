@@ -100,7 +100,8 @@ StructParquetOutputHandler::StructParquetOutputHandler( Engine *engine, ParquetW
             CSP_THROW( ValueError, "Struct field '" << structFieldName << "' not found" );
 
         if( structField -> type() -> type() == CspType::Type::DIALECT_GENERIC )
-            continue;
+            CSP_THROW( TypeError, "Writing of column " << structField -> fieldname()
+                << " of type DIALECT_GENERIC is not supported" );
 
         auto builder = createArrowBackedArrayBuilderForField( columnName, getChunkSize(), structField );
         m_arrowBuilders.push_back( builder.get() );

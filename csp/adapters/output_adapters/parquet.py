@@ -30,6 +30,8 @@ class ParquetOutputConfig(Struct):
     batch_size: int = 2**15
     compression: str
     write_arrow_binary: bool = False  # If true will write output as binary arrow data rather than parquet
+    write_dictionary: bool = True  # If false, disables parquet dictionary encoding (faster writes for
+    # high-cardinality numeric columns, at the cost of larger files; low-cardinality data benefits from True)
 
     def resolve_compression(self):
         if not hasattr(self, "compression"):
@@ -107,6 +109,7 @@ class ParquetWriter:
             "batch_size": config.batch_size,
             "compression": config.compression,
             "write_arrow_binary": config.write_arrow_binary,
+            "write_dictionary": config.write_dictionary,
             "split_columns_to_files": split_columns_to_files,
             "file_metadata": file_metadata,
             "column_metadata": column_metadata,

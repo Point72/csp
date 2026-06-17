@@ -281,6 +281,73 @@ class TestOutputStruct(unittest.TestCase):
             self.assertEqual(df["f7"].iloc[0], "eight")
             self.assertEqual(df["f8"].iloc[0], True)
 
+    def test_struct_with_generic_field_raises(self):
+        """Publishing a struct with a DIALECT_GENERIC (object) field raises rather than silently
+        dropping the column.
+        """
+
+        class WithObj(csp.Struct):
+            x: int
+            obj: object
+
+        with tempfile.TemporaryDirectory() as d:
+            fname = os.path.join(d, "out.parquet")
+
+            @csp.graph
+            def g():
+                writer = ParquetWriter(fname, "csp_timestamp", config=ParquetOutputConfig(allow_overwrite=True))
+                writer.publish_struct(csp.const(WithObj(x=1, obj={"a": 1})))
+
+            with self.assertRaisesRegex(Exception, "DIALECT_GENERIC"):
+                csp.run(g, starttime=START, endtime=timedelta(seconds=2))
+
+    def test_nested_struct_child_field_order_is_declaration_order(self):
+        """Nested-struct child columns are written in declaration order (not struct memory-layout
+        order), consistent with top-level column order. Pins the on-disk schema shape: a_flag (a 1-byte
+        bool declared first) must come first, which memory-layout packing -- which front-loads the
+        8-byte fields -- would never produce.
+        """
+
+        class Inner(csp.Struct):
+            a_flag: bool
+            z_price: float
+            m_count: int
+
+        class Outer(csp.Struct):
+            o_flag: bool
+            o_price: float
+            inner: Inner
+
+        with tempfile.TemporaryDirectory() as d:
+            fname = os.path.join(d, "out.parquet")
+            v = Outer(o_flag=True, o_price=1.5, inner=Inner(a_flag=False, z_price=2.5, m_count=3))
+
+            @csp.graph
+            def g_write():
+                writer = ParquetWriter(fname, "csp_timestamp", config=ParquetOutputConfig(allow_overwrite=True))
+                writer.publish_struct(csp.const(v))
+
+            csp.run(g_write, starttime=START, endtime=timedelta(seconds=2))
+
+            schema = pyarrow.parquet.read_schema(fname)
+            # Top-level columns in declaration order (after the timestamp column).
+            self.assertEqual(schema.names, ["csp_timestamp", "o_flag", "o_price", "inner"])
+            # Nested struct child fields in declaration order.
+            inner_type = schema.field("inner").type
+            self.assertEqual(
+                [inner_type.field(i).name for i in range(inner_type.num_fields)],
+                ["a_flag", "z_price", "m_count"],
+            )
+
+            # And it round-trips back to the original struct.
+            @csp.graph
+            def g_read():
+                reader = ParquetReader(fname, time_column="csp_timestamp")
+                csp.add_graph_output("data", reader.subscribe_all(Outer))
+
+            res = csp.run(g_read, starttime=START, endtime=START + timedelta(seconds=2))
+            self.assertEqual(res["data"][0][1], v)
+
 
 class TestOutputFileRotation(unittest.TestCase):
     """Test file rotation via filename_provider."""
@@ -1067,6 +1134,45 @@ class TestOutputCompression(unittest.TestCase):
             with self.assertRaisesRegex(Exception, "snappy"):
                 csp.run(g, starttime=START, endtime=timedelta(seconds=3))
 
+    def test_write_dictionary_disabled(self):
+        """write_dictionary=False disables parquet dictionary encoding; data still round-trips and the
+        column uses a non-dictionary encoding (default write_dictionary=True keeps dictionary on).
+        """
+        values = [float(i) for i in range(2000)]
+        with tempfile.TemporaryDirectory() as d:
+            on = os.path.join(d, "dict_on.parquet")
+            off = os.path.join(d, "dict_off.parquet")
+
+            def write(fname, use_dict):
+                @csp.graph
+                def g():
+                    config = ParquetOutputConfig(allow_overwrite=True, write_dictionary=use_dict)
+                    writer = ParquetWriter(fname, "csp_timestamp", config=config)
+                    writer.publish("x", csp.curve(float, [(timedelta(seconds=i + 1), v) for i, v in enumerate(values)]))
+
+                csp.run(g, starttime=START, endtime=timedelta(seconds=len(values) + 2))
+
+            write(on, True)
+            write(off, False)
+
+            # Both round-trip identically.
+            self.assertEqual(pandas.read_parquet(off)["x"].tolist(), values)
+            self.assertEqual(pandas.read_parquet(on)["x"].tolist(), values)
+
+            # The 'x' column encodings differ: dictionary on (default) uses PLAIN_DICTIONARY/RLE_DICTIONARY;
+            # with write_dictionary=False it must not.
+            def x_encodings(fname):
+                md = pyarrow.parquet.ParquetFile(fname).metadata
+                return set(md.row_group(0).column(1).encodings)
+
+            off_enc = x_encodings(off)
+            self.assertFalse(
+                any("DICTIONARY" in e for e in off_enc), f"dict-off file unexpectedly dictionary-encoded: {off_enc}"
+            )
+            self.assertTrue(
+                any("DICTIONARY" in e for e in x_encodings(on)), "dict-on (default) should use dictionary encoding"
+            )
+
 
 class TestOutputBatchSize(unittest.TestCase):
     """Test batch_size controls row group flushing."""
@@ -1212,10 +1318,7 @@ class TestOutputMetadata(unittest.TestCase):
             self.assertEqual(reader.schema.metadata[b"source"], b"ipc_test")
 
     def test_split_and_single_metadata_equivalent(self):
-        """The PR's headline claim: file- and column-level metadata (and field types) are identical
-        between single-file and split-column modes. Writes the same data both ways and compares the
-        per-column schema field plus file metadata directly.
-        """
+        """Metadata and field types are identical between single-file and split-column modes."""
         file_md = {"author": "me", "version": "2.0"}
         col_md = {"x": {"units": "kg", "source": "sensor"}}
         curve = [(timedelta(seconds=1), 1), (timedelta(seconds=2), 2)]
@@ -1304,11 +1407,7 @@ class TestOutputEdgeCases(unittest.TestCase):
     """Edge cases and special scenarios."""
 
     def test_bare_relative_filename_no_directory(self):
-        """Writing to a bare relative filename (no directory component) must work.
-
-        Regression: the C++ sink called mkdir(dirname(path)); dirname("out.parquet")
-        is "" and mkdir("") fails with 'Invalid argument'.
-        """
+        """Writing to a bare relative filename with no directory component succeeds."""
         with tempfile.TemporaryDirectory() as d:
             cwd = os.getcwd()
             os.chdir(d)

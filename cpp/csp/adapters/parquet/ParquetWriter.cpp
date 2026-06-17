@@ -215,12 +215,9 @@ void ParquetWriter::adoptMetadataFrom( ParquetWriter & source )
 
 void ParquetWriter::onEndCycle()
 {
-    // NOTE: when no file is open -- e.g. a filename_provider ticked "" to "pause" output -- this body is
-    // skipped, so handleRowFinished() does NOT run and each scratch column's isSet bit is never cleared
-    // for that cycle. If a column ticks *while paused* and then does NOT tick on the cycle the file
-    // reopens, the stale paused-window value is emitted instead of null (the dropped tick "leaks" into
-    // the first row after resume). This matches the previous writer's behaviour. If dropping ticks while
-    // paused should instead null them out, clear each builder's scratch/isSet here in the else path.
+    // When no file is open -- e.g. a filename_provider ticked "" to "pause" output -- this body is
+    // skipped, so handleRowFinished() does not run for that cycle. As a result, a value that ticked
+    // while paused is emitted on the first row after the file reopens, rather than being nulled.
     if( isFileOpen() ) [[likely]]
     {
         DateTime now;

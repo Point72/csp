@@ -1207,6 +1207,7 @@ class TestBaselib(unittest.TestCase):
         x_int = csp.const(1)
         x_bool = csp.const(True)
         x_float = csp.const(123.456)
+        x_object = csp.const.using(T=object)(1)
 
         x_b = csp.const.using(T=Base)(D(a=1, b=2.1))
 
@@ -1228,9 +1229,21 @@ class TestBaselib(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "Unable to csp.static_cast edge of type int to bool"):
             csp.run(csp.static_cast(x_int, bool), starttime=utc_now(), endtime=timedelta())
 
+        with self.assertRaisesRegex(TypeError, "Unable to csp.static_cast edge of type object to int"):
+            csp.run(csp.static_cast(x_object, int), starttime=utc_now(), endtime=timedelta())
+
         # Runtime type check
         with self.assertRaisesRegex(TypeError, 'expected output type on .* to be of type "int" got type "float"'):
             csp.run(csp.dynamic_cast(x_float, int), starttime=utc_now(), endtime=timedelta())
+
+        class S(csp.Struct):
+            a: int
+
+        with self.assertRaisesRegex(TypeError, "Struct csp.Struct has no field named a"):
+            # Was a crash before, dont crash on struct_field access when upcast from csp.Struct which has no metadata
+            csp.run(
+                csp.static_cast(csp.const.using(T=csp.Struct)(S(a=1)), S).a, starttime=utc_now(), endtime=timedelta()
+            )
 
 
 if __name__ == "__main__":

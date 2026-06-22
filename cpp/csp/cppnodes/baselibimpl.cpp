@@ -628,6 +628,9 @@ DECLARE_CPPNODE( struct_field )
     START()
     {
         auto * structType = static_cast<const CspStructType *>( x.type() );
+        //Special check for null meta ( csp.Struct type ) which can end up here from a csp.static_cast
+        if( !structType -> meta() )
+             CSP_THROW( TypeError, "Struct csp.Struct has no field named " << field.value() );
         m_fieldAccess = structType -> meta() -> field( field );
         if( !m_fieldAccess )
             CSP_THROW( TypeError, "Struct " << structType -> meta() -> name() << " has no field named " << field.value() );

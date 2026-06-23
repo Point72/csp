@@ -8,7 +8,6 @@ set(PARQUET_HEADER_FILES
         ParquetOutputFilenameAdapter.h
         ParquetStatusUtils.h
         ParquetWriter.h
-        RecordBatchFileSink.h
         RecordBatchSink.h
         RecordBatchStreamSource.h
 )
@@ -21,7 +20,7 @@ set(PARQUET_SOURCE_FILES
         ParquetOutputAdapterManager.cpp
         ParquetOutputFilenameAdapter.cpp
         ParquetWriter.cpp
-        RecordBatchFileSink.cpp
+        RecordBatchSink.cpp
         ${PARQUET_HEADER_FILES}
         )
 

@@ -6,6 +6,7 @@
 #include <csp/engine/Dictionary.h>
 #include <csp/engine/Engine.h>
 #include <arrow/record_batch.h>
+#include <memory>
 #include <string>
 #include <optional>
 #include <unordered_map>
@@ -34,7 +35,7 @@ public:
 
     ~ParquetWriter();
 
-    void setSink( RecordBatchSink sink ) { m_sink = std::move( sink ); }
+    void setSink( RecordBatchSink sink ) { m_sink.emplace( std::move( sink ) ); }
 
     // Dict-basket writers adopt the main writer's file-level metadata and any column metadata that
     // targets their own columns, so basket files carry the same metadata and the main writer does not
@@ -84,7 +85,7 @@ private:
     Adapters             m_adapters;
     PublishedColumnNames m_publishedColumnNames;
 
-    RecordBatchSink                                             m_sink;
+    std::optional<RecordBatchSink>                              m_sink;
     bool                                                        m_fileOpen = false;
 
     std::shared_ptr<::arrow::Schema>                            m_schema;

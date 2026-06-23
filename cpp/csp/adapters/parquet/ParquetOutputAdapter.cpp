@@ -17,17 +17,15 @@ uint32_t ParquetOutputHandler::getChunkSize() const
 
 SingleColumnParquetOutputHandler::SingleColumnParquetOutputHandler( Engine *engine, ParquetWriter &parquetWriter, CspTypePtr &type,
                                                                     std::string columnName )
-        : ParquetOutputHandler( parquetWriter, type )
+        : ParquetOutputHandler( parquetWriter )
 {
     bool isBytes = false;
-    CspTypePtr effectiveType = type;
-
     if( type -> type() == CspType::TypeTraits::STRING )
     {
         isBytes = static_cast<const CspStringType &>( *type ).isBytes();
     }
 
-    auto arrowBuilder = createArrowBackedArrayBuilder( columnName, getChunkSize(), effectiveType, isBytes );
+    auto arrowBuilder = createArrowBackedArrayBuilder( columnName, getChunkSize(), type, isBytes );
     auto * scratch    = arrowBuilder -> scratch();
     auto   field      = arrowBuilder -> scratchField();
     m_columnArrayBuilder = arrowBuilder;
@@ -40,7 +38,7 @@ SingleColumnParquetOutputHandler::SingleColumnParquetOutputHandler( Engine *engi
         },
         [&]()
         {
-            CSP_THROW( TypeError, "Writing of " << m_type -> type().asString() << " to parquet is not supported" );
+            CSP_THROW( TypeError, "Writing of " << type -> type().asString() << " to parquet is not supported" );
         } );
 }
 
@@ -64,7 +62,7 @@ template void SingleColumnParquetOutputHandler::writeValue<std::uint16_t, void>(
 
 ListColumnParquetOutputHandler::ListColumnParquetOutputHandler( Engine *engine, ParquetWriter &parquetWriter, CspTypePtr &elemType,
                                                                 const std::string &columnName )
-        : ParquetOutputHandler( parquetWriter, CspType::DIALECT_GENERIC() )
+        : ParquetOutputHandler( parquetWriter )
 {
     auto [ valueBuilder, writeItemsFn ] = csp::adapters::arrow::createListFieldWriter( elemType );
     m_columnArrayBuilder = std::make_shared<ListColumnArrayBuilder>(
@@ -86,7 +84,7 @@ void ListColumnParquetOutputAdapter::executeImpl()
 
 StructParquetOutputHandler::StructParquetOutputHandler( Engine *engine, ParquetWriter &parquetWriter, CspTypePtr &type,
                                                         DictionaryPtr fieldMap )
-        : ParquetOutputHandler( parquetWriter, type )
+        : ParquetOutputHandler( parquetWriter )
 {
     auto structMetaPtr = std::static_pointer_cast<const CspStructType>( type ) -> meta().get();
 

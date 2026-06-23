@@ -1,4 +1,4 @@
-#include <csp/adapters/parquet/RecordBatchFileSink.h>
+#include <csp/adapters/parquet/RecordBatchSink.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <csp/core/FileUtils.h>
 
@@ -14,8 +14,7 @@
 #include <cctype>
 #include <exception>
 #include <memory>
-#include <optional>
-#include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace csp::adapters::parquet
@@ -23,18 +22,6 @@ namespace csp::adapters::parquet
 
 namespace
 {
-
-// A single open output file: write one batch, then close. Type-erased over format
-// so the rest of the machinery never branches on parquet-vs-ipc-vs-split.
-struct FileWriter
-{
-    std::function<void( const std::shared_ptr<::arrow::RecordBatch> & )> writeBatch;
-    std::function<void()>                                                close;
-};
-
-// (path, schema) -> open FileWriter.  The factory IS the format/layout choice.
-using FileWriterFactory =
-    std::function<FileWriter( const std::string &, const std::shared_ptr<::arrow::Schema> & )>;
 
 ::arrow::Compression::type resolveCompression( const std::string & name )
 {
@@ -70,8 +57,11 @@ std::shared_ptr<::arrow::io::OutputStream> openOutputStream( const std::string &
     return result.MoveValueUnsafe();
 }
 
-FileWriter makeParquetFileWriter( const std::string & path, const std::shared_ptr<::arrow::Schema> & schema,
-                                  const std::string & compression, bool allowOverwrite, bool useDictionary )
+} // namespace
+
+RecordBatchSink::FileWriter RecordBatchSink::makeParquetFileWriter(
+    const std::string & path, const std::shared_ptr<::arrow::Schema> & schema,
+    const std::string & compression, bool allowOverwrite, bool useDictionary )
 {
     auto stream = openOutputStream( path, allowOverwrite );
 
@@ -113,8 +103,9 @@ FileWriter makeParquetFileWriter( const std::string & path, const std::shared_pt
         } };
 }
 
-FileWriter makeIpcFileWriter( const std::string & path, const std::shared_ptr<::arrow::Schema> & schema,
-                              const std::string & compression, bool allowOverwrite )
+RecordBatchSink::FileWriter RecordBatchSink::makeIpcFileWriter(
+    const std::string & path, const std::shared_ptr<::arrow::Schema> & schema,
+    const std::string & compression, bool allowOverwrite )
 {
     auto stream = openOutputStream( path, allowOverwrite );
 
@@ -149,10 +140,12 @@ FileWriter makeIpcFileWriter( const std::string & path, const std::shared_ptr<::
         } };
 }
 
-// A split-columns writer is itself a FileWriter that fans out to one sub-writer per
-// column.  Each column file carries the parent file-level metadata.
-FileWriter makeSplitWriter( const std::string & dir, const std::shared_ptr<::arrow::Schema> & schema,
-                            const FileWriterFactory & perColumn, const std::string & extension )
+// A split-columns writer is itself a FileWriter that fans out to one sub-writer per column.
+// Each column file carries the parent file-level metadata.
+RecordBatchSink::FileWriter RecordBatchSink::makeSplitWriter(
+    const std::string & dir, const std::shared_ptr<::arrow::Schema> & schema,
+    bool writeArrowBinary, const std::string & compression, bool allowOverwrite,
+    bool useDictionary, const std::string & extension )
 {
     if( !dir.empty() )
         utils::mkdir( dir );
@@ -168,7 +161,10 @@ FileWriter makeSplitWriter( const std::string & dir, const std::shared_ptr<::arr
         {
             auto colSchema = ::arrow::schema( { schema -> field( i ) }, schema -> metadata() );
             colSchemas -> push_back( colSchema );
-            subWriters -> push_back( perColumn( dir + "/" + schema -> field( i ) -> name() + extension, colSchema ) );
+            auto colPath = dir + "/" + schema -> field( i ) -> name() + extension;
+            subWriters -> push_back( writeArrowBinary
+                ? makeIpcFileWriter( colPath, colSchema, compression, allowOverwrite )
+                : makeParquetFileWriter( colPath, colSchema, compression, allowOverwrite, useDictionary ) );
         }
     }
     catch( ... )
@@ -206,72 +202,72 @@ FileWriter makeSplitWriter( const std::string & dir, const std::shared_ptr<::arr
         } };
 }
 
-} // namespace
-
-RecordBatchSink makeFileSink( bool writeArrowBinary, bool splitColumns,
-                              const std::string & compression, bool allowOverwrite,
-                              std::function<void( const std::string & )> fileVisitor,
-                              bool useDictionary )
+RecordBatchSink::RecordBatchSink( bool writeArrowBinary, bool splitColumns,
+                                  std::string compression, bool allowOverwrite,
+                                  std::function<void( const std::string & )> fileVisitor,
+                                  bool useDictionary )
+    : m_writeArrowBinary( writeArrowBinary )
+    , m_splitColumns( splitColumns )
+    , m_compression( std::move( compression ) )
+    , m_allowOverwrite( allowOverwrite )
+    , m_fileVisitor( std::move( fileVisitor ) )
+    , m_useDictionary( useDictionary )
+    , m_extension( writeArrowBinary ? ".arrow" : ".parquet" )
 {
-    const std::string extension = writeArrowBinary ? ".arrow" : ".parquet";
+}
 
-    // Per-file factory: format choice is the only difference.
-    FileWriterFactory perFile =
-        [writeArrowBinary, compression, allowOverwrite, useDictionary]( const std::string & path, const std::shared_ptr<::arrow::Schema> & schema )
-        {
-            return writeArrowBinary ? makeIpcFileWriter( path, schema, compression, allowOverwrite )
-                                    : makeParquetFileWriter( path, schema, compression, allowOverwrite, useDictionary );
-        };
 
-    // Layout choice: single file vs. one file per column.
-    FileWriterFactory factory = perFile;
-    if( splitColumns )
-        factory = [perFile, extension]( const std::string & dir, const std::shared_ptr<::arrow::Schema> & schema )
-        {
-            return makeSplitWriter( dir, schema, perFile, extension );
-        };
+RecordBatchSink::FileWriter RecordBatchSink::openWriter( const std::string & path )
+{
+    if( m_splitColumns )
+        return makeSplitWriter( path, m_schema, m_writeArrowBinary, m_compression, m_allowOverwrite,
+                                m_useDictionary, m_extension );
+    return m_writeArrowBinary ? makeIpcFileWriter( path, m_schema, m_compression, m_allowOverwrite )
+                              : makeParquetFileWriter( path, m_schema, m_compression, m_allowOverwrite, m_useDictionary );
+}
 
-    // State shared across the sink callbacks.
-    auto schemaHolder = std::make_shared<std::shared_ptr<::arrow::Schema>>();
-    auto current      = std::make_shared<std::optional<FileWriter>>();
-    auto currentPath  = std::make_shared<std::string>();
-
-    auto closeCurrent = [current, currentPath, fileVisitor]()
+void RecordBatchSink::closeCurrent()
+{
+    if( m_current.has_value() )
     {
-        if( current -> has_value() )
-        {
-            // Detach + reset BEFORE invoking the (user-supplied) visitor, so that a throwing
-            // visitor cannot cause a later onStop()->closeCurrent() to close this writer twice.
-            FileWriter w = std::move( current -> value() );
-            current -> reset();
-            w.close();
-            if( fileVisitor )
-                fileVisitor( *currentPath );
-        }
-    };
+        // Detach + reset BEFORE invoking the (user-supplied) visitor, so that a throwing visitor
+        // cannot cause a later onStop()->closeCurrent() to close this writer twice.
+        FileWriter w = std::move( *m_current );
+        m_current.reset();
+        w.close();
+        if( m_fileVisitor )
+            m_fileVisitor( m_currentPath );
+    }
+}
 
-    RecordBatchSink sink;
-    sink.onStart      = [schemaHolder]( const std::shared_ptr<::arrow::Schema> & schema ) { *schemaHolder = schema; };
-    sink.onBatch      = [current]( const std::shared_ptr<::arrow::RecordBatch> & rb )
-    {
-        // A batch must only ever arrive while a file is open (the writer guards this via isFileOpen()
-        // before flushing). If the writer and sink ever desync, fail loudly instead of silently
-        // dropping the batch's rows.
-        CSP_TRUE_OR_THROW_RUNTIME( current -> has_value(),
-            "RecordBatchFileSink received a record batch with no open output file" );
-        ( *current ) -> writeBatch( rb );
-    };
-    sink.onFileChange = [factory, schemaHolder, current, currentPath, closeCurrent]( const std::string & path )
-    {
-        closeCurrent();
-        if( !path.empty() )
-        {
-            *current     = factory( path, *schemaHolder );
-            *currentPath = path;
-        }
-    };
-    sink.onStop = closeCurrent;
-    return sink;
+void RecordBatchSink::onStart( const std::shared_ptr<::arrow::Schema> & schema )
+{
+    m_schema = schema;
+}
+
+void RecordBatchSink::onBatch( const std::shared_ptr<::arrow::RecordBatch> & rb )
+{
+    // A batch must only ever arrive while a file is open (the writer guards this via isFileOpen()
+    // before flushing). If the writer and sink ever desync, fail loudly instead of silently
+    // dropping the batch's rows.
+    CSP_TRUE_OR_THROW_RUNTIME( m_current.has_value(),
+        "RecordBatchSink received a record batch with no open output file" );
+    m_current -> writeBatch( rb );
+}
+
+bool RecordBatchSink::onFileChange( const std::string & path )
+{
+    closeCurrent();
+    if( path.empty() )
+        return false;
+    m_current     = openWriter( path );
+    m_currentPath = path;
+    return true;
+}
+
+void RecordBatchSink::onStop()
+{
+    closeCurrent();
 }
 
 } // namespace csp::adapters::parquet

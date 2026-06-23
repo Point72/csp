@@ -166,12 +166,18 @@ void ParquetWriter::start()
         CSP_THROW( ValueError, "parquet column metadata has unmapped column: '" << m_columnMetaData.begin() -> first << "'" );
 
     m_schema = ::arrow::schema( arrowFields, m_fileMetaData );
-    if( m_sink.onStart )
-        m_sink.onStart( m_schema );
-    auto & fileName = m_adapterMgr.getFileName();
-    m_fileOpen = !fileName.empty();
-    if( m_fileOpen && m_sink.onFileChange )
-        m_sink.onFileChange( fileName );
+    // Hand the schema to the sink, then open the first file (if any). m_fileOpen reflects whether a
+    // file is actually open after onFileChange -- an empty filename (no file / paused) leaves it false.
+    const std::string & fileName = m_adapterMgr.getFileName();
+    if( m_sink )
+    {
+        m_sink -> onStart( m_schema );
+        m_fileOpen = m_sink -> onFileChange( fileName );
+    }
+    else
+    {
+        m_fileOpen = !fileName.empty();
+    }
 }
 
 void ParquetWriter::stop()
@@ -185,9 +191,9 @@ void ParquetWriter::stop()
         try { flushBatch(); }
         catch( ... ) { firstError = std::current_exception(); }
     }
-    if( m_sink.onStop )
+    if( m_sink )
     {
-        try { m_sink.onStop(); }
+        try { m_sink -> onStop(); }
         catch( ... ) { if( !firstError ) firstError = std::current_exception(); }
     }
     m_fileOpen = false;
@@ -240,9 +246,10 @@ void ParquetWriter::onEndCycle()
 void ParquetWriter::onFileNameChange( const std::string &fileName )
 {
     flushBatch();
-    if( m_sink.onFileChange )
-        m_sink.onFileChange( fileName );
-    m_fileOpen = !fileName.empty();
+    if( m_sink )
+        m_fileOpen = m_sink -> onFileChange( fileName );
+    else
+        m_fileOpen = !fileName.empty();
 }
 
 SingleColumnParquetOutputHandler *ParquetWriter::createScalarOutputHandler( CspTypePtr type, const std::string &name )
@@ -286,8 +293,8 @@ void ParquetWriter::flushBatch()
     {
         if( !isFileOpen() ) [[unlikely]]
             CSP_THROW( csp::RuntimeException, "Trying to write to parquet/arrow file, when no file name was provided" );
-        if( m_sink.onBatch )
-            m_sink.onBatch( buildRecordBatch() );
+        if( m_sink )
+            m_sink -> onBatch( buildRecordBatch() );
         m_curChunkSize = 0;
     }
 }

@@ -6,6 +6,8 @@
 #include <csp/core/Generator.h>
 #include <csp/engine/AdapterManager.h>
 #include <csp/engine/Dictionary.h>
+#include <functional>
+#include <memory>
 #include <string>
 #include <unordered_map>
 

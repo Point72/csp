@@ -21,11 +21,11 @@ void ParquetDictBasketOutputWriter::start()
     m_indexSchema = ::arrow::schema( { ::arrow::field(
         m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getColumnName(),
         m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 ) -> getDataType() ) }, getFileMetaData() );
-    if( m_indexSink.onStart )
-        m_indexSink.onStart( m_indexSchema );
+    if( m_indexSink )
+        m_indexSink -> onStart( m_indexSchema );
     auto & fileName = m_adapterMgr.getFileName();
-    if( !fileName.empty() && m_indexSink.onFileChange )
-        m_indexSink.onFileChange( fileName );
+    if( !fileName.empty() && m_indexSink )
+        m_indexSink -> onFileChange( fileName );
 }
 
 void ParquetDictBasketOutputWriter::stop()
@@ -40,16 +40,9 @@ void ParquetDictBasketOutputWriter::stop()
         catch( ... ) { if( !firstError ) firstError = std::current_exception(); }
     };
 
-    auto && indexBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
-    if( indexBuilder -> length() > 0 && m_indexSink.onBatch )
-        guard( [&]
-        {
-            auto arr = indexBuilder -> buildArray();
-            auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
-            m_indexSink.onBatch( rb );
-        } );
-    if( m_indexSink.onStop )
-        guard( [&] { m_indexSink.onStop(); } );
+    guard( [&] { flushIndexBatch(); } );
+    if( m_indexSink )
+        guard( [&] { m_indexSink -> onStop(); } );
 
     guard( [&] { ParquetWriter::stop(); } );
 
@@ -73,12 +66,8 @@ void ParquetDictBasketOutputWriter::onEndCycle()
         m_cycleIndexOutputAdapter -> writeValue<std::uint16_t>( m_nextCycleIndex );
         auto && indexBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
         indexBuilder -> handleRowFinished();
-        if( indexBuilder -> length() >= getChunkSize() && m_indexSink.onBatch )
-        {
-            auto arr = indexBuilder -> buildArray();
-            auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
-            m_indexSink.onBatch( rb );
-        }
+        if( indexBuilder -> length() >= getChunkSize() )
+            flushIndexBatch();
         m_nextCycleIndex = 0;
     }
     else
@@ -101,20 +90,24 @@ void ParquetDictBasketOutputWriter::onFileNameChange( const std::string &fileNam
 
     guard( [&] { ParquetWriter::onFileNameChange( fileName ); } );
 
-    // Flush any pending index data
-    auto && indexBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
-    if( indexBuilder -> length() > 0 && m_indexSink.onBatch )
-        guard( [&]
-        {
-            auto arr = indexBuilder -> buildArray();
-            auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
-            m_indexSink.onBatch( rb );
-        } );
-    if( m_indexSink.onFileChange )
-        guard( [&] { m_indexSink.onFileChange( fileName ); } );
+    // Flush any pending index data, then rotate the index file.
+    guard( [&] { flushIndexBatch(); } );
+    if( m_indexSink )
+        guard( [&] { m_indexSink -> onFileChange( fileName ); } );
 
     if( firstError )
         std::rethrow_exception( firstError );
+}
+
+void ParquetDictBasketOutputWriter::flushIndexBatch()
+{
+    auto && indexBuilder = m_cycleIndexOutputAdapter -> getColumnArrayBuilder( 0 );
+    if( indexBuilder -> length() > 0 && m_indexSink )
+    {
+        auto arr = indexBuilder -> buildArray();
+        auto rb  = ::arrow::RecordBatch::Make( m_indexSchema, arr -> length(), { arr } );
+        m_indexSink -> onBatch( rb );
+    }
 }
 
 SingleColumnParquetOutputHandler *ParquetDictBasketOutputWriter::createScalarOutputHandler( CspTypePtr type, const std::string &name )

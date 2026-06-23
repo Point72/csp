@@ -4,7 +4,6 @@
 #include <csp/adapters/parquet/ParquetDictBasketOutputWriter.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <csp/adapters/parquet/ParquetWriter.h>
-#include <csp/adapters/parquet/RecordBatchFileSink.h>
 #include <csp/adapters/parquet/RecordBatchSink.h>
 #include <csp/engine/PushInputAdapter.h>
 #include <csp/python/Conversions.h>
@@ -680,7 +679,7 @@ static PyObject *create_parquet_input_adapter_manager_native( PyObject *args )
 
 csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, const Dictionary &properties )
 {
-    // Output file I/O is done entirely in C++ via makeFileSink (no per-batch Python hop).
+    // Output file I/O is done entirely in C++ via RecordBatchSink (no per-batch Python hop).
     bool        writeArrowBinary = properties.get<bool>( "write_arrow_binary" );
     bool        splitColumns     = properties.get<bool>( "split_columns_to_files" );
     bool        allowOverwrite   = properties.get<bool>( "allow_overwrite" );
@@ -708,13 +707,14 @@ csp::AdapterManager *create_parquet_output_adapter_manager( PyEngine *engine, co
     }
 
     auto * mgr = engine -> engine() -> createOwnedObject<ParquetOutputAdapterManager>( properties );
-    mgr -> setSink( makeFileSink( writeArrowBinary, splitColumns, compression, allowOverwrite, fileVisitor, useDictionary ) );
+    mgr -> setSink( RecordBatchSink( writeArrowBinary, splitColumns, compression, allowOverwrite, fileVisitor, useDictionary ) );
 
     // Dict-basket writers always write split-column files (one per value/symbol/index column),
     // without a file visitor.
     mgr -> setSinkFactory( [writeArrowBinary, compression, allowOverwrite, useDictionary]( const std::string & ) -> RecordBatchSink
     {
-        return makeFileSink( writeArrowBinary, /*splitColumns=*/true, compression, allowOverwrite, {}, useDictionary );
+        return RecordBatchSink( writeArrowBinary, /*splitColumns=*/true, compression, allowOverwrite,
+                                std::function<void( const std::string & )>{}, useDictionary );
     } );
 
     return mgr;

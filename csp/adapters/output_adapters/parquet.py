@@ -1,9 +1,7 @@
 import os
-from importlib.metadata import PackageNotFoundError, version as get_package_version
 from typing import Callable, Dict, Optional, TypeVar
 
 import numpy
-from packaging import version
 
 import csp
 from csp.impl.struct import Struct
@@ -39,19 +37,7 @@ class ParquetOutputConfig(Struct):
         return self
 
 
-def _get_default_parquet_version():
-    try:
-        if version.parse(get_package_version("pyarrow")) >= version.parse("6.0.1"):
-            return "2.6"
-    except PackageNotFoundError:
-        # Don't need to do anything in particular
-        ...
-    return "2.0"
-
-
 class ParquetWriter:
-    PARQUET_VERSION = _get_default_parquet_version()
-
     def __init__(
         self,
         file_name: Optional[str],

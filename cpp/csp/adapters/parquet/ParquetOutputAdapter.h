@@ -27,8 +27,8 @@ class ParquetWriter;
 class ParquetOutputHandler
 {
 public:
-    ParquetOutputHandler( ParquetWriter &parquetWriter, CspTypePtr &type )
-            : m_type( type ), m_parquetWriter( parquetWriter )
+    ParquetOutputHandler( ParquetWriter &parquetWriter )
+            : m_parquetWriter( parquetWriter )
     {
     }
 
@@ -41,7 +41,6 @@ public:
     virtual void writeValueFromTs( const TimeSeriesProvider *input ) = 0;
 
 protected:
-    CspTypePtr    &m_type;
     ParquetWriter &m_parquetWriter;
 };
 

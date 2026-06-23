@@ -16,7 +16,7 @@ public:
     void start() override;
     void stop() override;
 
-    void setIndexSink( RecordBatchSink sink ) { m_indexSink = std::move( sink ); }
+    void setIndexSink( RecordBatchSink sink ) { m_indexSink.emplace( std::move( sink ) ); }
 
     virtual void writeValue( const std::string &valueKey, const TimeSeriesProvider *ts );
 
@@ -27,11 +27,15 @@ protected:
     StructParquetOutputHandler *createStructOutputHandler( CspTypePtr type, const DictionaryPtr &fieldMap ) override;
 
 private:
+    // Build a RecordBatch from any pending index rows and hand it to the index sink. Shared by
+    // onEndCycle (chunk full), onFileNameChange (rotation), and stop (final flush).
+    void flushIndexBatch();
+
     SingleColumnParquetOutputHandler                    *m_symbolOutputAdapter;
     SingleColumnParquetOutputHandler                    *m_cycleIndexOutputAdapter;
     std::uint16_t                                       m_nextCycleIndex;
     std::vector<std::unique_ptr<ParquetOutputHandler>>  m_allHandlers;
-    RecordBatchSink                                     m_indexSink;
+    std::optional<RecordBatchSink>                      m_indexSink;
     std::shared_ptr<::arrow::Schema>                    m_indexSchema;
 };
 

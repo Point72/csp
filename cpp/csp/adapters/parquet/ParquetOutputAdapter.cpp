@@ -19,22 +19,21 @@ SingleColumnParquetOutputHandler::SingleColumnParquetOutputHandler( Engine *engi
                                                                     std::string columnName )
         : ParquetOutputHandler( parquetWriter )
 {
-    bool isBytes = false;
-    if( type -> type() == CspType::TypeTraits::STRING )
-    {
-        isBytes = static_cast<const CspStringType &>( *type ).isBytes();
-    }
-
-    auto arrowBuilder = createArrowBackedArrayBuilder( columnName, getChunkSize(), type, isBytes );
-    auto * scratch    = arrowBuilder -> scratch();
-    auto   field      = arrowBuilder -> scratchField();
-    m_columnArrayBuilder = arrowBuilder;
+    bool isBytes = ( type -> type() == CspType::TypeTraits::STRING )
+                   && static_cast<const CspStringType &>( *type ).isBytes();
 
     csp::adapters::arrow::visitCspValueType( type -> type(),
         [&]( auto tag )
         {
             using T = typename decltype( tag )::type;
-            createValueHandler<T>( scratch, field );
+            auto builder = std::make_shared<ScalarColumnArrayBuilder<T>>( columnName, getChunkSize(), isBytes );
+            m_columnArrayBuilder = builder;
+            // On tick, set this row's value directly on the typed builder -- no scratch struct.
+            m_valueHandler = std::make_unique<ValueHandler>(
+                [ builder ]( const TimeSeriesProvider * input )
+                {
+                    builder -> setValue( input -> lastValueTyped<T>() );
+                } );
         },
         [&]()
         {
@@ -52,8 +51,7 @@ void SingleColumnParquetOutputAdapter::executeImpl()
 template< typename T, typename Ignored >
 void SingleColumnParquetOutputHandler::writeValue( const T & value )
 {
-    auto * builder = static_cast<ArrowBackedArrayBuilder *>( m_columnArrayBuilder.get() );
-    builder -> scratchField() -> setValue<T>( builder -> scratch(), value );
+    static_cast<ScalarColumnArrayBuilder<T> *>( m_columnArrayBuilder.get() ) -> setValue( value );
 }
 
 // Explicit instantiations for types used by ParquetDictBasketOutputWriter

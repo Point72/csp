@@ -17,6 +17,7 @@ namespace csp::adapters::parquet
 {
 class ArrowBackedArrayBuilder;
 class ArrowSingleColumnArrayBuilder;
+template<typename CspT> class ScalarColumnArrayBuilder;
 
 class ParquetOutputHandler;
 class SingleColumnParquetOutputHandler;
@@ -80,7 +81,7 @@ protected:
 
     ParquetOutputAdapterManager &m_adapterMgr;
     Engine                      *m_engine;
-    ArrowBackedArrayBuilder     *m_timestampBuilder = nullptr;
+    ScalarColumnArrayBuilder<DateTime> *m_timestampBuilder = nullptr;
 private:
     Adapters             m_adapters;
     PublishedColumnNames m_publishedColumnNames;

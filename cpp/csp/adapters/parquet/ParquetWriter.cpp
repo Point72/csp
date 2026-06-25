@@ -124,8 +124,8 @@ void ParquetWriter::start()
         CSP_TRUE_OR_THROW_RUNTIME( !m_adapterMgr.getTimestampColumnName().empty(),
             "writeTimestampColumn is true but no timestamp_column_name was provided" );
         m_writeTimestampColumn = true;
-        auto tsBuilder = createArrowBackedArrayBuilder(
-            m_adapterMgr.getTimestampColumnName(), getChunkSize(), CspType::DATETIME() );
+        auto tsBuilder = std::make_shared<ScalarColumnArrayBuilder<DateTime>>(
+            m_adapterMgr.getTimestampColumnName(), getChunkSize() );
         m_timestampBuilder = tsBuilder.get();
         m_columnBuilders.push_back( std::move( tsBuilder ) );
         std::shared_ptr<::arrow::KeyValueMetadata> colMetaData;
@@ -230,7 +230,7 @@ void ParquetWriter::onEndCycle()
         if( m_writeTimestampColumn.value() )
         {
             now = m_adapterMgr.rootEngine() -> now();
-            m_timestampBuilder -> scratchField() -> setValue<DateTime>( m_timestampBuilder -> scratch(), now );
+            m_timestampBuilder -> setValue( now );
         }
         for( auto &&columnBuilder:m_columnBuilders )
         {

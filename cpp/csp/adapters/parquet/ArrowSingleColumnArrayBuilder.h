@@ -2,11 +2,13 @@
 #define _IN_CSP_ADAPTERS_PARQUET_ArrowSingleColumnArrayBuilder_H
 
 #include <csp/adapters/arrow/ArrowFieldWriter.h>
+#include <csp/adapters/arrow/ArrowScalarWriter.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <csp/core/Exception.h>
 #include <csp/core/Time.h>
 #include <csp/engine/Struct.h>
 #include <arrow/builder.h>
+#include <optional>
 #include <string>
 
 namespace csp::adapters::parquet
@@ -105,6 +107,56 @@ private:
     std::shared_ptr<::arrow::ListBuilder>                 m_builderPtr;
     csp::adapters::arrow::ListItemsWriter                 m_writeItemsFn;
     std::optional<DialectGenericType>                      m_value;
+};
+
+
+// Scalar single-column builder: appends the per-row value (or null) directly via the shared
+// ArrowScalarColumnWriter<CspT> kernel -- no scratch struct. Mirrors ListColumnArrayBuilder's
+// pending-value model: setValue() marks this row's value, handleRowFinished() appends value-or-null.
+template<typename CspT>
+class ScalarColumnArrayBuilder : public ArrowSingleColumnArrayBuilder
+{
+public:
+    ScalarColumnArrayBuilder( std::string columnName, std::uint32_t chunkSize, bool isBytes = false )
+            : ArrowSingleColumnArrayBuilder( std::move( columnName ), chunkSize ),
+              m_writer( isBytes )
+    {
+        m_writer.reserve( chunkSize );
+    }
+
+    std::shared_ptr<::arrow::DataType> getDataType() override { return m_writer.dataType(); }
+
+    int64_t length() const override { return m_writer.builder() -> length(); }
+
+    void handleRowFinished() override
+    {
+        if( m_value.has_value() )
+        {
+            m_writer.append( m_value.value() );
+            m_value.reset();
+        }
+        else
+        {
+            m_writer.appendNull();
+        }
+    }
+
+    std::shared_ptr<::arrow::Array> buildArray() override
+    {
+        auto array = m_writer.finish();
+        // finish() resets builder capacity; re-reserve so the per-row append path stays allocation-free.
+        m_writer.reserve( getChunkSize() );
+        return array;
+    }
+
+    void reserve( int64_t numRows ) override { m_writer.reserve( numRows ); }
+
+    // Mark this row's value (used by the output adapter on tick and by dict-basket writeValue).
+    void setValue( const CspT & value ) { m_value = value; }
+
+private:
+    csp::adapters::arrow::ArrowScalarColumnWriter<CspT> m_writer;
+    std::optional<CspT>                                 m_value;
 };
 
 

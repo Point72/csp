@@ -59,20 +59,9 @@ public:
         ( *m_valueHandler )( input );
     }
 
-    // Write a value directly to the underlying scratch struct (used by dict basket writers)
+    // Write a value directly to the underlying column builder (used by dict basket writers)
     template< typename T, typename Ignored = void >
     void writeValue( const T & value );
-
-private:
-    template< typename CspValueType >
-    void createValueHandler( Struct * scratch, const StructFieldPtr & field )
-    {
-        m_valueHandler = std::make_unique<ValueHandler>(
-            [ scratch, field ]( const TimeSeriesProvider * input )
-            {
-                field -> setValue<CspValueType>( scratch, input -> lastValueTyped<CspValueType>() );
-            } );
-    }
 
 protected:
     using ValueHandler = std::function<void( const TimeSeriesProvider * )>;

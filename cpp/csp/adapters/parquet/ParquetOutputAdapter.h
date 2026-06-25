@@ -8,18 +8,6 @@
 
 namespace csp::adapters::parquet { class ArrowBackedArrayBuilder; }
 
-namespace arrow
-{
-    class ArrayBuilder;
-}
-
-namespace csp
-{
-class Struct;
-
-class StructField;
-}
-
 namespace csp::adapters::parquet
 {
 class ParquetWriter;
@@ -79,12 +67,6 @@ public:
 
     std::shared_ptr<ArrowSingleColumnArrayBuilder> getColumnArrayBuilder( unsigned index ) override{ return m_columnArrayBuilder; };
 
-    template< typename T, typename ColumnBuilderType >
-    void writeValue( const T &value )
-    {
-        static_cast<ColumnBuilderType *>(this -> m_columnArrayBuilder.get()) -> setValue( value );
-    }
-
     void writeValueFromTs( const TimeSeriesProvider *input ) override final
     {
         ( *m_valueHandler )( input );
@@ -123,8 +105,6 @@ public:
     void executeImpl() override;
 };
 
-
-class ArrowBackedArrayBuilder;
 
 class StructParquetOutputHandler : public ParquetOutputHandler
 {

@@ -1,5 +1,5 @@
 #include <csp/adapters/parquet/ParquetWriter.h>
-#include <csp/adapters/parquet/ArrowBackedArrayBuilder.h>
+#include <csp/adapters/parquet/ArrowSingleColumnArrayBuilder.h>
 #include <csp/adapters/parquet/ParquetOutputAdapter.h>
 #include <csp/adapters/parquet/ParquetStatusUtils.h>
 #include <arrow/array.h>

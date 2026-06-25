@@ -15,7 +15,6 @@ namespace arrow{ class KeyValueMetadata; class Schema; }
 
 namespace csp::adapters::parquet
 {
-class ArrowBackedArrayBuilder;
 class ArrowSingleColumnArrayBuilder;
 template<typename CspT> class ScalarColumnArrayBuilder;
 

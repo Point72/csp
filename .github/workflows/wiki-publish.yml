@@ -21,9 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Upload Documentation to Wiki
-        uses: Andrew-Chen-Wang/github-wiki-action@v5
+        uses: Andrew-Chen-Wang/github-wiki-action@4e78882ff52f8751488e506e49b221145506ee34  # v5.0.5
         with:
           path: docs/wiki

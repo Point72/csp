@@ -205,11 +205,13 @@ class TestParquet(unittest.TestCase):
                 csp.run(graph, starttime=start_time)
                 df = pandas.read_parquet(filename)
                 expected_columns = {}
-                # pandas 3.0+: need to explicitly force ns unit and UTC tz, no longer the default
+                # Build the expected index explicitly rather than via pandas.date_range(...),
+                # which segfaults under pandas 3.0.4 + numpy<2.5 (tslibs offset ABI mismatch).
+                # This yields the same datetime64[ns, UTC] values.
                 if timestamp_column_name:
-                    expected_columns[timestamp_column_name] = pandas.date_range(
-                        start=start_time + timedelta(seconds=1), periods=10, unit="ns", freq="1s", tz="UTC"
-                    )
+                    expected_columns[timestamp_column_name] = pandas.DatetimeIndex(
+                        [start_time + timedelta(seconds=i) for i in range(1, 11)]
+                    ).as_unit("ns")
                 expected_columns.update(
                     {
                         "x": list(range(1, 11)),
@@ -242,10 +244,12 @@ class TestParquet(unittest.TestCase):
 
             expected_df = pandas.DataFrame.from_dict(
                 {
-                    # pandas 3.0+: need to explicitly force ns unit and UTC tz, no longer the default
-                    "timestamp": pandas.date_range(
-                        start=start_time + timedelta(seconds=1), periods=10, unit="ns", freq="1s", tz="UTC"
-                    ),
+                    # Build the expected index explicitly rather than via pandas.date_range(...),
+                    # which segfaults under pandas 3.0.4 + numpy<2.5 (tslibs offset ABI mismatch).
+                    # This yields the same datetime64[ns, UTC] values.
+                    "timestamp": pandas.DatetimeIndex(
+                        [start_time + timedelta(seconds=i) for i in range(1, 11)]
+                    ).as_unit("ns"),
                     "x": list(range(1, 11)),
                     "y": list(map(float, range(0, 100, 10))),
                 }

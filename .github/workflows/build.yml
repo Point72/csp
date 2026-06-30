@@ -211,29 +211,40 @@ jobs:
             # Things to exclude if not a full matrix run #
             ##############################################
             - is-full-run: false
+              os: ubuntu-24.04
+              cibuildwheel: "cp310"
+
+            - is-full-run: false
+              os: ubuntu-24.04
+              cibuildwheel: "cp312"
+
+            - is-full-run: false
+              os: ubuntu-24.04
+              cibuildwheel: "cp313"
+
+            - is-full-run: false
               os: windows-2022
               cibuildwheel: "cp310"
 
             - is-full-run: false
               os: windows-2022
-              cibuildwheel: "cp311"
+              cibuildwheel: "cp312"
 
             - is-full-run: false
               os: windows-2022
-              cibuildwheel: "cp312"
+              cibuildwheel: "cp313"
 
-            # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
               cibuildwheel: "cp310"
 
             - is-full-run: false
               os: macos-14
-              cibuildwheel: "cp311"
+              cibuildwheel: "cp312"
 
             - is-full-run: false
               os: macos-14
-              cibuildwheel: "cp312"
+              cibuildwheel: "cp313"
 
       runs-on: ${{ matrix.os }}
 
@@ -417,32 +428,41 @@ jobs:
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
-        
-            # Avoid extra resources for windows build
+            - is-full-run: false
+              os: ubuntu-24.04
+              python-version: "3.10"
+
+            - is-full-run: false
+              os: ubuntu-24.04
+              python-version: "3.12"
+
+            - is-full-run: false
+              os: ubuntu-24.04
+              python-version: "3.13"
+
             - is-full-run: false
               os: windows-2022
               python-version: "3.10"
 
             - is-full-run: false
               os: windows-2022
-              python-version: "3.11"
+              python-version: "3.12"
 
             - is-full-run: false
               os: windows-2022
-              python-version: "3.12"
+              python-version: "3.13"
 
-            # avoid unnecessary use of mac resources
             - is-full-run: false
               os: macos-14
               python-version: "3.10"
 
             - is-full-run: false
               os: macos-14
-              python-version: "3.11"
+              python-version: "3.12"
 
             - is-full-run: false
               os: macos-14
-              python-version: "3.12"
+              python-version: "3.13"
 
       runs-on: ${{ matrix.os }}
 
@@ -514,6 +534,106 @@ jobs:
         # Common
         - name: Python Test Steps
           run: make test
+
+    ####################################################################################################################
+    #..................................................................................................................#
+    #..|########|..|########|..../####\....|########|.............../####\...|########\..|########\....................#
+    #..|########|..|##|......../##/..\##\..|########|............./##/.\##\..|##|../##/..|##|../##/....................#
+    #.....|##|.....|##|.........\##\..........|##|...............|##|........|##|./##/...|##|./##/.....................#
+    #.....|##|.....|########|.....\##\........|##|...............|##|........|##||##/....|##||##/......................#
+    #.....|##|.....|##|.............\##\......|##|...............|##|........|##|........|##|..........................#
+    #.....|##|.....|##|........\##\../##/.....|##|................\##\./##/..|##|........|##|..........................#
+    #.....|##|.....|########|...\####/........|##|.................\####/....|##|........|##|..........................#
+    #..................................................................................................................#
+    #...|########|...\##\..../##/...../#####\......./|\........./|\....|########\..|##|........|########|..../####\....#
+    #...|##|..........\##\../##/...../##/.\##\...../#|#\......./#|#\...|##|../##/..|##|........|##|......../##/..\##\..#
+    #...|##|...........\##\/##/...../##/...\##\...|##|\#\...../#/|##|..|##|./##/...|##|........|##|.........\##\.......#
+    #...|########|......|####|...../###########\..|##|.\#\.../#/.|##|..|##||##/....|##|........|########|.....\##\.....#
+    #...|##|.........../##/\##\....|##|.....|##|..|##|..\#\./#/..|##|..|##|........|##|........|##|.............\##\...#
+    #...|##|........../##/..\##\...|##|.....|##|..|##|...\#|#/...|##|..|##|........|########|..|##|........\##\./##/...#
+    #...|########|.../##/....\##\..|##|.....|##|..|##|....\|/....|##|..|##|........|########|..|########|...\####/.....#
+    #.........................................................................................................#
+    ##############################################################
+    # Build / test C++ examples (05_cpp)                         #
+    ##############################################################
+    test_cpp_examples:
+      needs:
+        - initialize
+        - build
+
+      strategy:
+        matrix:
+          os:
+            - ubuntu-24.04
+            - macos-14
+          example:
+            - 1_cpp_node
+            - 2_cpp_node_with_struct
+            - 3_cpp_adapter
+            - 4_c_api_adapter
+            - 5_c_api_adapter_rust
+          python-version:
+            - 3.11
+
+      runs-on: ${{ matrix.os }}
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v6
+          with:
+              submodules: recursive
+
+        - name: Set up Python ${{ matrix.python-version }}
+          uses: ./.github/actions/setup-python
+          with:
+            version: '${{ matrix.python-version }}'
+            cibuildwheel: false
+
+        - name: Set up Caches
+          uses: ./.github/actions/setup-caches
+
+        - name: Install python dependencies
+          run: make requirements
+
+        - name: Download wheel
+          uses: actions/download-artifact@v7
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
+
+        ########
+        # Linux
+        - name: Install wheel (Linux)
+          run: |
+            python -m pip install -U *manylinux*.whl
+          if: ${{ runner.os == 'Linux' }}
+
+        - name: Install build tools (Linux)
+          run: sudo apt-get install -y cmake build-essential
+          if: ${{ runner.os == 'Linux' }}
+
+        ########
+        # MacOS
+        - name: Install wheel (OSX arm)
+          run: |
+            python -m pip install -U *arm64*.whl
+          if: ${{ runner.os == 'macOS' && runner.arch == 'ARM64' }}
+
+        - name: Install wheel (OSX x86)
+          run: |
+            python -m pip install -U *x86*.whl
+          if: ${{ runner.os == 'macOS' && runner.arch == 'X64' }}
+
+        ##########
+        # Steps for Rust depend C API Rust Example (5_c_api_adapter_rust)
+        - name: Setup Rust
+          uses: ./.github/actions/setup-rust
+          if: ${{ matrix.example == '5_c_api_adapter_rust' }}
+
+        - name: Build example ${{ matrix.example }} and run tests
+          run: |
+            cd examples/05_cpp/${{ matrix.example }}
+            hatch-build --hooks-only -t wheel
+            python -m pytest -vvv .
 
     ################################################################
     #..............................................................#
@@ -624,15 +744,11 @@ jobs:
           os:
             - ubuntu-24.04
           python-version:
-            - "3.10"
+            - "3.11"
           package:
             - sqlalchemy<2
             - perspective-python<3
-            # - pandas<3
-            # uncomment the pandas pin once we move off Python 3.10 to ensure we maintain pandas 2.x compatibility
-            # pandas 3.0 does not support 3.10 so we currently get free coverage, but won't after 3.10 goes EOL
-            # Min supported version of pandas 2.2
-            - numpy==1.22.4
+            - pandas<3
 
       runs-on: ${{ matrix.os }}
 
@@ -731,6 +847,7 @@ jobs:
         - test
         - test_sdist
         - test_dependencies
+        - test_cpp_examples
 
       if: startsWith(github.ref, 'refs/tags/v')
       runs-on: ubuntu-24.04

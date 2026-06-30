@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling", "hatch-cpp", "csp"]
+build-backend = "hatchling.build"
+
+[project]
+name = "csp-example-c-api-adapter"
+authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
+description = "csp example of C++ adapter"
+readme = "README.md"
+version = "0.0.1"
+requires-python = ">=3.9"
+dependencies = ["csp"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["exampleadapter"]
+
+[tool.hatch.build.hooks.hatch-cpp]
+cmake = { root = "." }

@@ -1,7 +1,7 @@
 #include <csp/engine/CppNode.h>
 #include <csp/python/PyCppNode.h>
 
-REGISTER_CPPNODE( csp::cppnodes, _sync_list );
+REGISTER_CPPNODE( csp::cppnodes, _sync_list_internal );
 REGISTER_CPPNODE( csp::cppnodes, _sample_list );
 
 static PyModuleDef _cspbasketlibimpl_module = {

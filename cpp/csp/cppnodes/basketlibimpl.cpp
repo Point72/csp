@@ -4,11 +4,14 @@
 namespace csp::cppnodes
 {
 
-DECLARE_CPPNODE( _sync_list )
+DECLARE_CPPNODE( _sync_list_internal )
 {
     TS_LISTBASKET_INPUT( Generic, x );
+    TS_INPUT( Generic, trigger );
+
     SCALAR_INPUT( TimeDelta, threshold );
     SCALAR_INPUT( bool, output_incomplete );
+    SCALAR_INPUT( bool, use_trigger );
 
     ALARM( bool, a_end );
 
@@ -18,7 +21,7 @@ DECLARE_CPPNODE( _sync_list )
 
     TS_LISTBASKET_OUTPUT( Generic );
 
-    INIT_CPPNODE( _sync_list ) { }
+    INIT_CPPNODE( _sync_list_internal ) { }
 
     START()
     {
@@ -27,13 +30,14 @@ DECLARE_CPPNODE( _sync_list )
 
     INVOKE()
     {
-        if( x.tickedinputs() )
+        if( s_alarm_handle.expired() )
         {
-            if( s_alarm_handle.expired() )
-            {
+            if( !use_trigger || trigger.ticked() )
                 s_alarm_handle = csp.schedule_alarm( a_end, threshold, true );
-            }
+        }
 
+        if( s_alarm_handle.active() && x.tickedinputs() )
+        {
             for( auto it = x.tickedinputs(); it; ++it )
             {
                 if( s_current_ticked[ it.elemId() ] == false )
@@ -70,7 +74,7 @@ DECLARE_CPPNODE( _sync_list )
     }
 };
 
-EXPORT_CPPNODE( _sync_list );
+EXPORT_CPPNODE( _sync_list_internal );
 
 /*
 @csp.node(cppimpl=_cspbasketlibimpl._sample_list)

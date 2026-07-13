@@ -28,11 +28,19 @@ class TestBasket(unittest.TestCase):
             random_floats_async = random_gen(trigger2)
 
             # test _basket_synchronize_list
-            synced_py = basketlib.sync_list.python(
-                x=[random_floats1, random_floats_async], threshold=self.sync_threshold, output_incomplete=True
+            synced_py = basketlib.sync_list_internal.python(
+                x=[random_floats1, random_floats_async],
+                trigger=csp.null_ts(bool),
+                threshold=self.sync_threshold,
+                output_incomplete=True,
+                use_trigger=False,
             )
-            synced_cpp = basketlib.sync_list(
-                x=[random_floats1, random_floats_async], threshold=self.sync_threshold, output_incomplete=True
+            synced_cpp = basketlib.sync_list_internal(
+                x=[random_floats1, random_floats_async],
+                trigger=csp.null_ts(bool),
+                threshold=self.sync_threshold,
+                output_incomplete=True,
+                use_trigger=False,
             )
 
             synced_auto_list = basketlib.sync(
@@ -131,6 +139,61 @@ class TestBasket(unittest.TestCase):
         self.assertEqual(results["synced_complete_0"], [(datetime(2022, 6, 17, 9, 50), 3.0)])
         self.assertEqual(results["synced_complete_1"], [(datetime(2022, 6, 17, 9, 50), 6.0)])
         self.assertEqual(results["synced_complete_2"], [(datetime(2022, 6, 17, 9, 50), 9.0)])
+
+    def test_sync_basket_with_trigger(self):
+        st = datetime(2020, 1, 1)
+
+        @csp.graph
+        def graph():
+            trigger = csp.curve(
+                typ=str,
+                data=[
+                    (st + timedelta(seconds=10), "trigger-1"),  # regular case
+                    (st + timedelta(seconds=30), "trigger-2"),  # exact same tick as a, includes it
+                    (st + timedelta(seconds=31), "trigger-ignored"),  # in an active period, ignored
+                    (st + timedelta(seconds=50), "trigger-3"),  # only a will get a tick here
+                ],
+            )
+            a = csp.curve(
+                typ=float,
+                data=[
+                    (st + timedelta(seconds=1), 1.0),
+                    (st + timedelta(seconds=12), 2.0),
+                    (st + timedelta(seconds=30), 3.0),
+                    (st + timedelta(seconds=52), 4.0),
+                ],
+            )
+            b = csp.curve(
+                typ=float,
+                data=[
+                    (st + timedelta(seconds=2), 5.0),
+                    (st + timedelta(seconds=14), 6.0),
+                    (st + timedelta(seconds=32), 7.0),
+                    (st + timedelta(seconds=56), 8.0),
+                ],
+            )
+
+            synced_list = basketlib.sync_list(x=[a, b], threshold=timedelta(seconds=5), trigger=trigger)
+            synced_dict = basketlib.sync_dict(x={"a": a, "b": b}, threshold=timedelta(seconds=5), trigger=trigger)
+
+            csp.add_graph_output("list_a", synced_list[0])
+            csp.add_graph_output("list_b", synced_list[1])
+            csp.add_graph_output("dict_a", synced_dict["a"])
+            csp.add_graph_output("dict_b", synced_dict["b"])
+
+        result = csp.run(graph, starttime=st, endtime=st + timedelta(minutes=1))
+
+        expected_a = [
+            (st + timedelta(seconds=14), 2.0),
+            (st + timedelta(seconds=32), 3.0),
+            (st + timedelta(seconds=55), 4.0),
+        ]
+        expected_b = [(st + timedelta(seconds=14), 6.0), (st + timedelta(seconds=32), 7.0)]
+        print(result["list_a"])
+        self.assertEqual(result["list_a"], expected_a)
+        self.assertEqual(result["list_b"], expected_b)
+        self.assertEqual(result["dict_a"], expected_a)
+        self.assertEqual(result["dict_b"], expected_b)
 
     def test_sample_dict_basket(self):
         @csp.graph

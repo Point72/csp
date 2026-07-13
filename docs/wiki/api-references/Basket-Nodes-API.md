@@ -13,25 +13,27 @@ These functions are found in the `csp.basketlib` module and can be called using 
 ## `sync_list`
 
 ```python
-sync_list(x: List[ts["T"]], threshold: timedelta, output_incomplete: bool = True) → csp.OutputBasket(
+sync_list(x: List[ts["T"]], threshold: timedelta, output_incomplete: bool = True, trigger: ts["K"] = None) → csp.OutputBasket(
     List[ts["T"]], shape_of="x"
 )
 ```
 
 Synchronizes a list basket of time series within some threshold.
 
-When any element of `x` first ticks, we wait up to `threshold` time for other elements to tick. Once all elements of the list basket tick at least once *or* the threshold elapses and `output_incomplete=True`, we return a list basket with the most recent value of each time series (between the interval's first tick and now) and reset the synchronization interval.
+If `trigger` is specified, then it will control when we begin the synchronization intervals. If it is not specified, any element of `x` will trigger the start of a synchronization interval.
+Once an interval is triggered, we wait up to `threshold` time for all elements of the basket `x` to tick. Once all elements of the list basket tick at least once *or* the threshold elapses and `output_incomplete=True`, we return a list basket with the most recent value of each time series (between the interval's first tick and now) and reset the synchronization interval.
 
 Args:
 
 - **`x`**: a list basket of time series to synchronize.
 - **`threshold`**: the time to wait for all elements of the basket to tick before propagating the values.
 - **`output_incomplete`**: if True, return an incomplete output basket if the threshold elapses before all values tick. Else, do not output in this situation.
+- **`trigger`**: an optional time-series which will trigger a synchronization period. If trigger is used, the first tick of `x` will not trigger a synchronization period.
 
 ## `sync_dict`
 
 ```python
-sync_dict(x: Dict["K", ts["T"]], threshold: timedelta, output_incomplete: bool = True) → csp.OutputBasket(
+sync_dict(x: Dict["K", ts["T"]], threshold: timedelta, output_incomplete: bool = True, trigger: ts["K"] = None) → csp.OutputBasket(
     Dict["K", ts["T"]], shape_of="x"
 )
 ```
@@ -43,11 +45,12 @@ Args:
 - **`x`**: a dict basket of time series to synchronize.
 - **`threshold`**: the time to wait for all elements of the basket to tick before propagating the values.
 - **`output_incomplete`**: if True, return an incomplete output basket if the threshold elapses before all values tick. Else, do not output in this situation.
+- **`trigger`**: an optional time-series which will trigger a synchronization period. If trigger is used, the first tick of `x` will not trigger a synchronization period.
 
 ## `sync`
 
 ```python
-sync(x, threshold: timedelta, output_incomplete: bool = True)
+sync(x, threshold: timedelta, output_incomplete: bool = True, trigger: ts["K"] = None)
 ```
 
 Helper function which calls `sync_list` if x is a list basket and `sync_dict` if x is a dict basket. If x is not a valid basket, it will raise an exception.

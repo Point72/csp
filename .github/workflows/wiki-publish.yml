@@ -24,6 +24,6 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Upload Documentation to Wiki
-        uses: Andrew-Chen-Wang/github-wiki-action@64efa0a9436db17670a2259e0ac249d6f08bb352  # v5.0.4
+        uses: Andrew-Chen-Wang/github-wiki-action@1bbb4280446f9630e8e21a18012cbacf3b0f992e  # v5.0.6
         with:
           path: docs/wiki

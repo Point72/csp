@@ -1,9 +1,9 @@
 import ast
 
-from numba_type_utils.utils.ast import AST
-from numba_type_utils.method_factory import MethodBase
-from numba_type_utils.variable_factory import VoidPtrSource
-from numba_type_utils.source_registry import CfuncParam, SourceCategory, SourceInitFilter
+from numba_cfunc_compiler.utils.ast import AST
+from numba_cfunc_compiler.method_factory import MethodBase
+from numba_cfunc_compiler.variable_factory import VoidPtrSource
+from numba_cfunc_compiler.source_registry import CfuncParam, SourceCategory, SourceInitFilter
 
 __all__ = [
     "INPUTS_ARRAY_NAME",
@@ -144,7 +144,7 @@ class SignalCategory(SourceCategory):
         )
 
     def create_variables(self, info, factory):
-        from numba_type_utils.type_factory import TypeFactory
+        from numba_cfunc_compiler.type_factory import TypeFactory
         from csp.impl.wiring.csp_numba.signal_set_support import SignalSetSource
 
         input_idx = 0

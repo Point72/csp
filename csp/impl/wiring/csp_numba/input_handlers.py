@@ -13,8 +13,8 @@ from typing import Any, Optional, get_args, get_origin
 from csp.impl.wiring.edge import Edge
 from csp.impl.types.tstype import TsType
 
-from numba_type_utils.function_analyzer import InputTypeHandler
-from numba_type_utils.models import ParameterInfo
+from numba_cfunc_compiler.function_analyzer import InputTypeHandler
+from numba_cfunc_compiler.models import ParameterInfo
 
 
 def _extract_ts_inner_type(ann: Any) -> Optional[type]:
@@ -130,7 +130,7 @@ class DictBasketInputHandler(InputTypeHandler):
 
 
 def register():
-    from numba_type_utils.function_analyzer import FunctionAnalyzer
+    from numba_cfunc_compiler.function_analyzer import FunctionAnalyzer
 
     FunctionAnalyzer.register_input_handler(TsInputHandler())
     FunctionAnalyzer.register_input_handler(ListBasketInputHandler())

@@ -22,12 +22,12 @@ from csp.impl.wiring.csp_numba.signal_set_support import (
     register_ast_handlers as register_signal_set_ast_handlers,
 )
 
-from numba_type_utils.compilation_context import CompilationContext
-from numba_type_utils.numba_core import create_compiled_func
-from numba_type_utils.numba_config import State, set_output
-from numba_type_utils.defaults import register_types as register_default_types
-from numba_type_utils.source_registry import SourceRegistry
-from numba_type_utils.defaults.source_categories import (
+from numba_cfunc_compiler.compilation_context import CompilationContext
+from numba_cfunc_compiler.numba_core import create_compiled_func
+from numba_cfunc_compiler.numba_config import State, set_output
+from numba_cfunc_compiler.defaults import register_types as register_default_types
+from numba_cfunc_compiler.source_registry import SourceRegistry
+from numba_cfunc_compiler.defaults.source_categories import (
     ConstantCategory,
     OutputCategory,
     StateCategory,

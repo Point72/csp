@@ -5,10 +5,10 @@ from typing import Any, Optional
 
 from csp.impl.enum import Enum as CspEnum
 
-from numba_type_utils.type_factory import TypeFactory
-from numba_type_utils.models import VariableType, ParameterInfo, StateVariableInfo
-from numba_type_utils.numba_type_inference import NumbaTypeInference
-from numba_type_utils.utils.ast import AST
+from numba_cfunc_compiler.type_factory import TypeFactory
+from numba_cfunc_compiler.models import VariableType, ParameterInfo, StateVariableInfo
+from numba_cfunc_compiler.numba_type_inference import NumbaTypeInference
+from numba_cfunc_compiler.utils.ast import AST
 
 
 def _resolve_csp_enum_member(node: ast.AST, globalns: dict) -> Optional[CspEnum]:

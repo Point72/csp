@@ -8,13 +8,13 @@ from numba.extending import intrinsic
 
 from csp.impl.struct import Struct as CspStruct
 
-from numba_type_utils.type_factory import TypeFactory
-from numba_type_utils.models import StateVariableInfo
-from numba_type_utils.defaults.struct_support import StructType, StructFieldInfo
-from numba_type_utils.numba_config import NumbaTypeRegistry
-from numba_type_utils.numba_type_inference import NumbaTypeInference
-from numba_type_utils.defaults.struct_support import struct_attribute_transformer, struct_attr_handler
-from numba_type_utils.utils.ast import AST
+from numba_cfunc_compiler.type_factory import TypeFactory
+from numba_cfunc_compiler.models import StateVariableInfo
+from numba_cfunc_compiler.defaults.struct_support import StructType, StructFieldInfo
+from numba_cfunc_compiler.numba_config import NumbaTypeRegistry
+from numba_cfunc_compiler.numba_type_inference import NumbaTypeInference
+from numba_cfunc_compiler.defaults.struct_support import struct_attribute_transformer, struct_attr_handler
+from numba_cfunc_compiler.utils.ast import AST
 
 
 def _is_csp_struct_subclass(value: Any) -> bool:

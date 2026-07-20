@@ -23,7 +23,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "deprecated",
-    "numba_type_utils",
+    "numba_cfunc_compiler",
     "numpy>=1",
     "packaging",
     "pandas",

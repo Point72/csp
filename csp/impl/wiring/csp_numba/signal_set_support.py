@@ -1,10 +1,10 @@
 import ast
 from typing import Optional
 
-from numba_type_utils.utils.ast import AST
-from numba_type_utils.method_factory import MethodBase
-from numba_type_utils.variable_factory import VariableSource
-from numba_type_utils.models import UnknownType, UnknownNumbaType
+from numba_cfunc_compiler.utils.ast import AST
+from numba_cfunc_compiler.method_factory import MethodBase
+from numba_cfunc_compiler.variable_factory import VariableSource
+from numba_cfunc_compiler.models import UnknownType, UnknownNumbaType
 
 from csp.impl.wiring.csp_numba.signal_support import (
     INPUTS_ARRAY_NAME,
@@ -401,7 +401,7 @@ def handle_signal_set_iteration(converter, node: ast.For) -> Optional[ast.AST]:
 
 
 def register_ast_handlers():
-    from numba_type_utils.ast_handlers import ASTHandlerRegistry, HandlerPhase
+    from numba_cfunc_compiler.ast_handlers import ASTHandlerRegistry, HandlerPhase
 
     ASTHandlerRegistry.register("Call", handle_len_signal_set, HandlerPhase.PRE, priority=0)
     ASTHandlerRegistry.register("Subscript", handle_signal_set_subscript, HandlerPhase.PRE, priority=0)

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import csp
 from csp import ts
 from csp.impl.wiring.csp_numba import numba_node
-from numba_type_utils.numba_config import NumbaList, NumbaDict, create_new_list, create_new_dict
+from numba_cfunc_compiler.numba_config import NumbaList, NumbaDict, create_new_list, create_new_dict
 
 
 class TestBasicTypes(unittest.TestCase):

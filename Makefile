@@ -1,4 +1,4 @@
-EXTRA_ARGS := --csp-no-vcpkg
+EXTRA_ARGS := 
 
 #########
 # BUILD #

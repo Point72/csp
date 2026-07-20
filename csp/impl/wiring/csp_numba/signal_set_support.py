@@ -1,10 +1,10 @@
 import ast
 from typing import Optional
 
-from numba_cfunc_compiler.utils.ast import AST
 from numba_cfunc_compiler.method_factory import MethodBase
+from numba_cfunc_compiler.models import UnknownNumbaType, UnknownType
+from numba_cfunc_compiler.utils.ast import AST
 from numba_cfunc_compiler.variable_factory import VariableSource
-from numba_cfunc_compiler.models import UnknownType, UnknownNumbaType
 
 from csp.impl.wiring.csp_numba.signal_support import (
     INPUTS_ARRAY_NAME,

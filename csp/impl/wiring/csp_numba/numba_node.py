@@ -3,36 +3,34 @@ import functools
 import inspect
 from typing import Callable, List, Optional, Tuple
 
-from csp.impl.__cspimpl import _cspimpl
-from csp.impl.wiring.edge import Edge
-from csp.impl.types.tstype import ts
-from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
+from numba_cfunc_compiler.compilation_context import CompilationContext
+from numba_cfunc_compiler.defaults import register_types as register_default_types
+from numba_cfunc_compiler.defaults.source_categories import (
+    ConstantCategory,
+    LifecycleCategory,
+    OutputCategory,
+    StateCategory,
+)
+from numba_cfunc_compiler.numba_core import create_compiled_func
+from numba_cfunc_compiler.source_registry import SourceRegistry
 
+from csp.impl.__cspimpl import _cspimpl
+from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
+from csp.impl.types.tstype import ts
 from csp.impl.wiring.csp_numba.csp_node_transformer import CspNodeTransformer
+from csp.impl.wiring.csp_numba.enum_support import register as register_enum_support
 from csp.impl.wiring.csp_numba.input_handlers import register as register_input_handlers
 from csp.impl.wiring.csp_numba.output_handlers import register as register_output_handlers
-from csp.impl.wiring.csp_numba.enum_support import register as register_enum_support
+from csp.impl.wiring.csp_numba.signal_set_support import (
+    register_ast_handlers as register_signal_set_ast_handlers,
+)
+from csp.impl.wiring.csp_numba.signal_support import SignalCategory
 from csp.impl.wiring.csp_numba.struct_support import (
     register as register_struct_support,
     struct_enum_store,
     struct_enum_value,
 )
-from csp.impl.wiring.csp_numba.signal_support import SignalCategory
-from csp.impl.wiring.csp_numba.signal_set_support import (
-    register_ast_handlers as register_signal_set_ast_handlers,
-)
-
-from numba_cfunc_compiler.compilation_context import CompilationContext
-from numba_cfunc_compiler.numba_core import create_compiled_func
-from numba_cfunc_compiler.numba_config import State, set_output
-from numba_cfunc_compiler.defaults import register_types as register_default_types
-from numba_cfunc_compiler.source_registry import SourceRegistry
-from numba_cfunc_compiler.defaults.source_categories import (
-    ConstantCategory,
-    OutputCategory,
-    StateCategory,
-    LifecycleCategory,
-)
+from csp.impl.wiring.edge import Edge
 
 __all__ = (
     "numba_node",

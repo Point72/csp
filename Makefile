@@ -1,9 +1,9 @@
-EXTRA_ARGS :=
+EXTRA_ARGS := --csp-no-vcpkg
 
 #########
 # BUILD #
 #########
-.PHONY: requirements develop build build-debug build-conda install
+.PHONY: requirements develop build build-debug build-conda build-conda-debug install
 
 ASAN :=
 UBSAN :=
@@ -25,6 +25,9 @@ build-debug:  ## build the library ( DEBUG ) - May need a make clean when switch
 
 build-conda:  ## build the library in Conda
 	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) python setup.py build build_ext --csp-no-vcpkg --inplace
+
+build-conda-debug:  ## build the library in Conda ( DEBUG )
+	CSP_ENABLE_ASAN=$(ASAN) CSP_ENABLE_UBSAN=$(UBSAN) DEBUG=1 python setup.py build build_ext --csp-no-vcpkg --inplace
 
 install:  ## install library
 	python -m pip install .

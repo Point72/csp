@@ -1,10 +1,11 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
+from numba_cfunc_compiler.numba_config import NumbaDict, NumbaList, create_new_dict, create_new_list
+
 import csp
 from csp import ts
 from csp.impl.wiring.csp_numba import numba_node
-from numba_cfunc_compiler.numba_config import NumbaList, NumbaDict, create_new_list, create_new_dict
 
 
 class TestBasicTypes(unittest.TestCase):

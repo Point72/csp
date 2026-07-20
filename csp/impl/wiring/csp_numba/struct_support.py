@@ -5,16 +5,19 @@ from typing import Any, ClassVar, Dict, Optional
 from llvmlite import ir
 from numba import types as numba_types
 from numba.extending import intrinsic
-
-from csp.impl.struct import Struct as CspStruct
-
-from numba_cfunc_compiler.type_factory import TypeFactory
+from numba_cfunc_compiler.defaults.struct_support import (
+    StructFieldInfo,
+    StructType,
+    struct_attr_handler,
+    struct_attribute_transformer,
+)
 from numba_cfunc_compiler.models import StateVariableInfo
-from numba_cfunc_compiler.defaults.struct_support import StructType, StructFieldInfo
 from numba_cfunc_compiler.numba_config import NumbaTypeRegistry
 from numba_cfunc_compiler.numba_type_inference import NumbaTypeInference
-from numba_cfunc_compiler.defaults.struct_support import struct_attribute_transformer, struct_attr_handler
+from numba_cfunc_compiler.type_factory import TypeFactory
 from numba_cfunc_compiler.utils.ast import AST
+
+from csp.impl.struct import Struct as CspStruct
 
 
 def _is_csp_struct_subclass(value: Any) -> bool:
@@ -204,6 +207,7 @@ def register():
     import ctypes
 
     import llvmlite.binding as llvm
+
     from csp.impl.__cspimpl import _cspimpl
 
     TypeFactory.register(CspStructType)

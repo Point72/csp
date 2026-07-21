@@ -21,7 +21,7 @@
 namespace csp::python
 {
 
-extern "C" CSPTYPESIMPL_EXPORT int64_t csp_numba_struct_enum_field_value( const void * struct_ptr, int64_t field_offset )
+extern "C" CSPIMPL_EXPORT int64_t csp_numba_struct_enum_field_value( const void * struct_ptr, int64_t field_offset )
 {
     // Struct metadata only gives us a byte offset here. Enum fields are native
     // CspEnum objects in memory, so numba reads must go through value().
@@ -30,7 +30,7 @@ extern "C" CSPTYPESIMPL_EXPORT int64_t csp_numba_struct_enum_field_value( const 
     return enumField -> value();
 }
 
-extern "C" CSPTYPESIMPL_EXPORT void csp_numba_struct_enum_field_set( void * struct_ptr, int64_t field_offset, int64_t value )
+extern "C" CSPIMPL_EXPORT void csp_numba_struct_enum_field_set( void * struct_ptr, int64_t field_offset, int64_t value )
 {
     // Rebuild the field from its existing enum meta rather than treating the
     // destination as a raw int64 slot.

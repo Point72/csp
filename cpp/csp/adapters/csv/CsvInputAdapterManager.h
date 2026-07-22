@@ -40,6 +40,8 @@ public:
                                           const Dictionary &properties,
                                           PushMode pushMode);
 
+    ManagedSimInputAdapter * getInputAdapter( CspTypePtr & type, const Dictionary & properties, PushMode pushMode );
+
 private:
   void setupProcessor(const std::vector<std::string> &schema,
                       const std::set<std::string> &neededColumns,

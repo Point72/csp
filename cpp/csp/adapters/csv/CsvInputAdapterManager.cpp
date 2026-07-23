@@ -40,11 +40,12 @@ DateTime parseFixed_YmdHMS(std::string_view date) {
 }
 
 
-CsvInputAdapterManager::CsvInputAdapterManager( csp::Engine *engine, const Dictionary &properties, std::string filename ) :
-        AdapterManager( engine ),
-        m_filename(filename)
+CsvInputAdapterManager::CsvInputAdapterManager( csp::Engine *engine, const Dictionary &properties ) :
+        AdapterManager( engine )
 {
+    m_filename         = properties.get<std::string>( "filename", "" ); 
     CSP_TRUE_OR_THROW_RUNTIME( !m_filename.empty(), "Filename must be provided" );
+
     auto tz = properties.get<std::string>( "tz", "UTC" );
     CSP_TRUE_OR_THROW_RUNTIME( tz == "UTC",
                                "Only UTC default timezone is supported, got:" << tz );

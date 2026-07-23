@@ -30,7 +30,7 @@ class CsvInputAdapterManager final : public csp::AdapterManager
 {
 public:
 
-    CsvInputAdapterManager( csp::Engine *engine, const Dictionary &properties, std::string filename );
+    CsvInputAdapterManager( csp::Engine *engine, const Dictionary &properties );
 
     ~CsvInputAdapterManager();
 

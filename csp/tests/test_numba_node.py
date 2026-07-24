@@ -541,6 +541,54 @@ class TestContainerTypes(unittest.TestCase):
 
 
 class TestFeatures(unittest.TestCase):
+    def test_rejects_mismatched_signal_type(self):
+        @numba_node
+        def typed_signal(x: ts[int]) -> ts[int]:
+            return 1
+
+        @csp.graph
+        def g():
+            csp.add_graph_output("result", typed_signal(csp.const(1.25)))
+
+        with self.assertRaisesRegex(TypeError, r"expected ts\[int\], got ts\[float\]"):
+            csp.build_graph(g)
+
+    def test_allows_int_to_float_signal_upcast(self):
+        @numba_node
+        def typed_signal(x: ts[float]) -> ts[float]:
+            return x + 0.5
+
+        @csp.graph
+        def g():
+            csp.add_graph_output("result", typed_signal(csp.const(1)))
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual([v for _, v in results["result"]], [1.5])
+
+    def test_rejects_mismatched_basket_element_type(self):
+        @numba_node
+        def typed_basket(xs: list[ts[int]]) -> ts[int]:
+            return 1
+
+        @csp.graph
+        def g():
+            csp.add_graph_output("result", typed_basket([csp.const(1), csp.const(2.5)]))
+
+        with self.assertRaisesRegex(TypeError, r"expected ts\[int\], got ts\[float\]"):
+            csp.build_graph(g)
+
+    def test_rejects_mismatched_dict_basket_key_type(self):
+        @numba_node
+        def typed_basket(xs: dict[int, ts[int]]) -> ts[int]:
+            return 1
+
+        @csp.graph
+        def g():
+            csp.add_graph_output("result", typed_basket({"bad": csp.const(1)}))
+
+        with self.assertRaisesRegex(TypeError, r"key 'bad' must be int, got str"):
+            csp.build_graph(g)
+
     def test_lifecycle_start(self):
         @numba_node
         def with_start(x: ts[int]) -> ts[int]:
@@ -795,6 +843,23 @@ class TestFeatures(unittest.TestCase):
         results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=10))
         self.assertEqual([v for _, v in results["tick_count"]], [1, 2])
         self.assertEqual([v for _, v in results["all_valid"]], [0, 1])
+
+    def test_nested_iteration_over_same_basket(self):
+        @numba_node
+        def cross_product(xs: list[ts[int]]) -> ts[int]:
+            total = 0
+            for i in xs.keys():
+                for j in xs.keys():
+                    total = total + xs[i] * xs[j]
+            return total
+
+        @csp.graph
+        def g():
+            result = cross_product([csp.const(2), csp.const(3)])
+            csp.add_graph_output("result", result)
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual([v for _, v in results["result"]], [25])
 
     def test_multiple_outputs(self):
         @numba_node

@@ -1148,7 +1148,11 @@ class TestEngine(unittest.TestCase):
         build_graph(graph, csp.const(1.1))
         build_graph(graph, csp.const("s"))
         if USE_PYDANTIC:
-            msg = "cannot validate ts\\[typing.List\\[float\\]\\] as ts\\[typing.Union\\[.*\\]\\]"
+            major, minor, *rest = sys.version_info
+            if major >= 3 and minor >= 14:
+                msg = "cannot validate ts\\[typing.List\\[float\\]\\] as ts\\[int | float | str\\]"
+            else:
+                msg = "cannot validate ts\\[typing.List\\[float\\]\\] as ts\\[typing.Union\\[.*\\]\\]"
         else:
             msg = "In function graph: Expected ts\\[typing.Union\\[.*\\]\\] for argument 'x', got ts\\[typing.List\\[float\\]\\]"
         with self.assertRaisesRegex(TypeError, msg):

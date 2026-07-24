@@ -204,6 +204,7 @@ jobs:
             - "cp311"
             - "cp312"
             - "cp313"
+            - "cp314"
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -322,6 +323,13 @@ jobs:
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp313' }}
 
+        - name: Upload Wheel
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.14
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp314' }}
+
     ################################################################
     #..............................................................#
     #..|########\..|##|..|##|..|########|..|##|........|#######\...#
@@ -411,6 +419,7 @@ jobs:
             - 3.11
             - 3.12
             - 3.13
+            - 3.14
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:

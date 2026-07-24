@@ -188,6 +188,22 @@ class TestDynamic(unittest.TestCase):
             self.assertEqual(len(res[f"{key}_tsadj"]), ts_ticks)
             self.assertTrue(all(x[1].val * 2 == y[1] for x, y in zip(res[f"{key}_ts"], res[f"{key}_tsadj"])))
 
+    def test_snap_builtin_generic_scalar(self):
+        # csp.snap of a container-typed edge into a scalar arg written with the PEP 585 builtin form
+        # (list[str] rather than typing.List[str]) must still type-check.
+        @csp.graph
+        def dyn_graph(key: str, snapped: list[str]):
+            csp.add_graph_output(f"{key}_snapped", csp.const(snapped))
+
+        def g():
+            keys = csp.curve(List[str], [(timedelta(seconds=1), ["A", "B"])])
+            basket = gen_basket(keys, csp.null_ts(List[str]))
+            csp.dynamic(basket, dyn_graph, csp.snapkey(), csp.snap(keys))
+
+        res = csp.run(g, starttime=datetime(2021, 6, 22), endtime=timedelta(seconds=3))
+        self.assertIn("A", res["A_snapped"][0][1])
+        self.assertIn("B", res["B_snapped"][0][1])
+
     def test_shared_input(self):
         """ensure an externally wired input is shared / not recreated per sub-graph"""
         instances = []

@@ -3,11 +3,33 @@
 
 #include <csp/core/Time.h>
 #include <csp/engine/Node.h>
+#include <csp/python/Common.h>
 #include <csp/python/PyObjectPtr.h>
 #include <Python.h>
 
+#if !IS_PRE_PYTHON_3_11
+#if !IS_PRE_PYTHON_3_13
+#    define Py_BUILD_CORE 1
+#endif
+#include <internal/pycore_code.h>
+#include <internal/pycore_frame.h>
+#if !IS_PRE_PYTHON_3_14
+#include <internal/pycore_genobject.h>
+#include <internal/pycore_stackref.h>
+#endif
+#if !IS_PRE_PYTHON_3_13
+#    undef Py_BUILD_CORE
+#endif
+#endif
+
 namespace csp::python
 {
+
+#if !IS_PRE_PYTHON_3_14
+using FrameLocalVar = _PyStackRef;
+#else
+using FrameLocalVar = PyObject *;
+#endif
 
 class PyEngine;
 
@@ -35,8 +57,8 @@ private:
     void init( PyObjectPtr inputs, PyObjectPtr outputs );
     void call_gen();
 
-    PyObjectPtr  m_gen;
-    PyObject *** m_localVars; //array of PyObject ** objects
+    PyObjectPtr      m_gen;
+    FrameLocalVar ** m_localVars;
 
     //array that contains the count of each passive input when we last converted it to Python
     //the indexing corresponds to the input index as seen by the node

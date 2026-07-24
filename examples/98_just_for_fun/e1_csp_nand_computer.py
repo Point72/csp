@@ -104,11 +104,12 @@ def my_graph(bits: int = 16):
     csp.print("x+y_bits", basket_to_bitstring(add))
 
 
-def main():
-    # Show graph with 4-bit ints to limit size
-    csp.showgraph.show_graph(my_graph, 4)
+def main(show_graph: bool = False):
+    if show_graph:
+        # Show graph with 4-bit ints to limit size
+        csp.showgraph.show_graph(my_graph, 4)
     csp.run(my_graph, starttime=datetime(2022, 6, 24))
 
 
 if __name__ == "__main__":
-    main()
+    main(show_graph=True)

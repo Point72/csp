@@ -332,7 +332,7 @@ def handle_signal_set_iteration(converter, node: ast.For) -> Optional[ast.AST]:
     else:
         filter_array = None
 
-    iter_var = f"_iter_{signal_set_name}"
+    iter_var = f"_iter_{signal_set_name}_{converter.variable_factory.create_temporary_variable_name()}"
     range_call = ast.Call(
         func=ast.Name(id="range", ctx=ast.Load()),
         args=[ast.Constant(value=signal_set.length)],

@@ -75,7 +75,8 @@ PyNumbaNode::~PyNumbaNode()
     
     for( size_t i = 0; i < m_stateCount; ++i )
     {
-        if( m_stateArgs[ i ] != nullptr )
+        if( m_stateArgs[ i ] != nullptr &&
+            m_containerStateIndices.find( i ) == m_containerStateIndices.end() )
             delete[] static_cast<char *>( m_stateArgs[ i ] );
     }
     delete[] m_stateArgs;
@@ -168,6 +169,7 @@ void PyNumbaNode::initStateArrays( PyObjectPtr stateVariables, PyObjectPtr nrtSt
             {
                 size_t idxVal = static_cast<size_t>( PyLong_AsLongLong( idx ) );
                 nrtSet.insert( idxVal );
+                m_containerStateIndices.insert( idxVal );
             }
         }
     }

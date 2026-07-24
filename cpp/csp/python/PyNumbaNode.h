@@ -6,6 +6,7 @@
 #include <csp/python/PyObjectPtr.h>
 #include <Python.h>
 #include <cstdint>
+#include <unordered_set>
 
 namespace csp::python
 {
@@ -103,6 +104,7 @@ private:
     // State arrays
     void ** m_stateArgs = nullptr;
     size_t m_stateCount = 0;
+    std::unordered_set<size_t> m_containerStateIndices;
 
     // Keep Python objects alive
     PyObjectPtr m_dataReference;

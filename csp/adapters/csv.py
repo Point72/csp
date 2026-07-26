@@ -45,7 +45,14 @@ class CsvAdapterManager:
         )
 
     def _create(self, engine, memo):
+<<<<<<< HEAD
         return _csvadapterimpl._csv_adapter_manager(engine, self._properties)
+=======
+        return _csvadapterimpl._csv_adapter_manager(
+            engine,
+            self._properties
+        )
+>>>>>>> e329ef2 (Update python side and add tests)
 
 
 _csv_input_adapter_def = input_adapter_def(

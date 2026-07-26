@@ -105,8 +105,8 @@ ManagedSimInputAdapter * CsvInputAdapterManager::getInputAdapter(
     Subscriber sub;
     sub.m_adapter = adapter;
 
-    // Stash the field_map so the subscriber can convert its row at dispatch time (Stage 4).
-    // Shape mirrors parquet: string -> single-column; DictionaryPtr -> struct field map;
+    // Stash the field_map so the subscriber can convert its row at dispatch time.
+    // string -> single-column; DictionaryPtr -> struct field map;
     // absent/None -> whole-row dict.
     if( properties.exists( "field_map" ) )
     {
@@ -239,9 +239,41 @@ void CsvInputAdapterManager::bindSubscriberDispatchers()
 
     auto bind = [&]( Subscriber & sub )
     {
-        // Whole-row dict: needs Python to build a PyDict
-        if( std::holds_alternative<std::monostate>( sub.m_fieldMap ) )
+        // Whole-row dict: Build a struct
+        if(std::holds_alternative<std::monostate>(sub.m_fieldMap))
+        {
+            auto *structType =
+                static_cast<const CspStructType *>(sub.m_adapter->dataType());
+
+            auto meta = structType->meta();
+
+            StructSubscription subscription;
+            subscription.m_adapter = sub.m_adapter;
+            subscription.m_structMeta = meta;
+
+
+            for(size_t i = 0; i < m_columnNames.size(); i++)
+            {
+                auto field = meta->field(m_columnNames[i]);
+
+                if(!field)
+                    continue;
+
+                subscription.m_fieldSetters.push_back(
+                    [i, field](StructPtr &s,
+                            const std::vector<std::string_view> &cols)
+                    {
+                        field->setValue<std::string>(
+                            s.get(),
+                            std::string(cols[i])
+                        );
+                    }
+                );
+            }
+
+            sub.m_structSubscription = std::move(subscription);
             return;
+        }
 
         // Single-column subscription — extract the named column and push it.
         if( std::holds_alternative<std::string>( sub.m_fieldMap ) )
@@ -263,7 +295,7 @@ void CsvInputAdapterManager::bindSubscriberDispatchers()
                     adapter -> pushTick<std::string>( std::string( cols[ idx ] ) );
                 };
             }
-            // else: leave m_dispatch null; Stage 5 will bind richer conversions.
+            // else: leave m_dispatch null;
             return;
         }
 
@@ -332,8 +364,13 @@ DateTime CsvInputAdapterManager::processNextSimTimeSlice( DateTime time )
     do
     {
         // Subscribe-all subscribers see every row.
-        for( auto & sub : m_subscribers )
-            if( sub.m_dispatch ) sub.m_dispatch( cols );
+        for( auto & sub : m_subscribers ) {
+            if(sub.m_structSubscription)
+                sub.m_structSubscription->dispatchValue(cols);
+
+            else if(sub.m_dispatch)
+                sub.m_dispatch(cols);
+        }
 
         // Symbol-filtered subscribers only see rows where their symbol matches.
         if( m_symbolColumn.has_value() )
@@ -341,8 +378,13 @@ DateTime CsvInputAdapterManager::processNextSimTimeSlice( DateTime time )
             std::string sym( cols[ *m_symbolColumn ] );
             auto it = m_subscribersBySymbol.find( sym );
             if( it != m_subscribersBySymbol.end() )
-                for( auto & sub : it -> second )
-                    if( sub.m_dispatch ) sub.m_dispatch( cols );
+                for( auto & sub : it -> second ) {
+                    if(sub.m_structSubscription)
+                        sub.m_structSubscription->dispatchValue(cols);
+                    
+                    else if(sub.m_dispatch)
+                        sub.m_dispatch(cols);
+                }
         }
 
         if( !std::getline( m_file, m_row ) )

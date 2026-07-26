@@ -51,21 +51,32 @@ private:
 
     bool readNextRow();
 
-    // Option A: each subscriber owns its own field_map / target type,
-    // so per-subscriber row conversion (Stage 4) can dispatch without
-    // needing the manager to know Python.
-    //   - monostate  -> return whole row as dict
-    //   - string     -> single-column adapter (value from that column)
-    //   - DictionaryPtr -> struct field map (csv column name -> struct field)
-    //
-    // m_dispatch is bound after the schema is known (bindSubscriberDispatchers).
-    // The manager just calls it per row — the callback owns the conversion.
-    // A null m_dispatch means "conversion not supported yet in this stage" and
-    // the manager silently skips it.
+    struct StructSubscription
+    {
+        using FieldSetter = std::function<void(StructPtr &, const std::vector<std::string_view> &)>;
+
+        ManagedSimInputAdapter *m_adapter;
+        std::shared_ptr<const StructMeta> m_structMeta;
+
+        std::vector<FieldSetter> m_fieldSetters;
+
+        void dispatchValue(const std::vector<std::string_view> &cols)
+        {
+            StructPtr value = m_structMeta->create();
+
+            for(auto &setter : m_fieldSetters)
+                setter(value, cols);
+
+            m_adapter->pushTick(value);
+        }
+    };
+
     struct Subscriber {
         ManagedSimInputAdapter *                                          m_adapter;
         std::variant<std::monostate, std::string, DictionaryPtr>          m_fieldMap;
+
         std::function<void(const std::vector<std::string_view> &)>        m_dispatch;
+        std::optional<StructSubscription>                                 m_structSubscription;
     };
 
     // Walk registered subscribers and bind each one's m_dispatch based on its

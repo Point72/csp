@@ -14,8 +14,15 @@
 #include <internal/pycore_code.h>
 #include <internal/pycore_frame.h>
 #if !IS_PRE_PYTHON_3_14
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4576)
+#endif
 #include <internal/pycore_genobject.h>
 #include <internal/pycore_stackref.h>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #endif
 #if !IS_PRE_PYTHON_3_13
 #    undef Py_BUILD_CORE

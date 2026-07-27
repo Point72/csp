@@ -39,5 +39,5 @@ runs:
 
     - name: Install cibuildwheel and twine
       shell: bash
-      run: pip install cibuildwheel==4.1.0 twine
+      run: pip install cibuildwheel==3.2.1 twine
       if: ${{ inputs.cibuildwheel == 'true' }}

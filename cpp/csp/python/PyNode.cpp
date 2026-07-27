@@ -18,6 +18,7 @@
 namespace csp::python
 {
 
+#if !IS_PRE_PYTHON_3_11
 static inline PyObject * FrameLocal_GetObj( FrameLocalVar * slot )
 {
 #if IS_PRE_PYTHON_3_14
@@ -26,6 +27,7 @@ static inline PyObject * FrameLocal_GetObj( FrameLocalVar * slot )
     return PyStackRef_AsPyObjectBorrow( *slot );
 #endif
 }
+#endif
 
 static const std::string NODEREF_VAR="node_p";
 static const std::string INPUT_VAR_VAR="input_var";

@@ -78,6 +78,6 @@ runs:
         path: |
           C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_cache
           C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_download_cache
-        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg/versions/baseline.json') }}
-        restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
+        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg/versions/baseline.json') }}-${{ github.run_id }}
+        restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg/versions/baseline.json') }}-
       if: ${{ runner.os == 'Windows' && inputs.vcpkg == 'true'}}

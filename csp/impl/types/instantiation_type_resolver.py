@@ -403,14 +403,14 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
                 if self._is_scalar_value_matching_spec(t, arg):
                     return True
         if isinstance(arg, SnapType):
-            return arg.ts_type.typ == ContainerTypeNormalizer.normalize_type(inp_def_type)
+            return arg.ts_type.typ == inp_def_type
         if isinstance(arg, SnapKeyType):
-            return arg.key_tstype.typ == ContainerTypeNormalizer.normalize_type(inp_def_type)
+            return arg.key_tstype.typ == inp_def_type
         return False
 
     def _rec_validate_container_and_resolve_tvars(self, sub_arg, sub_type_def):
         if isinstance(sub_arg, SnapType):
-            return sub_arg.ts_type.typ == ContainerTypeNormalizer.normalize_type(sub_type_def)
+            return sub_arg.ts_type.typ == sub_type_def
         if sub_type_def is typing.Any:
             return True
         elif isinstance(sub_type_def, typing.TypeVar):

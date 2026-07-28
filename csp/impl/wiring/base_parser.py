@@ -400,6 +400,12 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
             else:
                 typ = self._eval_expr(arg.annotation)
             arg_kind, basket_kind = self._resolve_input_type_kind(typ)
+            if arg_kind == ArgKind.SCALAR:
+                # Store the scalar note in canonical form once, at parse time, so downstream type
+                # comparisons (e.g. csp.snap) see list[X] and typing.List[X] as the same type without
+                # re-normalizing on every wiring. Deliberately narrower than normalize_type: numpy
+                # arrays, {K: V}/[T] shorthands, and bare aliases are intentionally left untouched.
+                typ = ContainerTypeNormalizer.canonicalize_builtin_generics(typ)
 
             inputs.append(InputDef(arg.arg, typ, arg_kind, basket_kind, tsidx, arg_idx))
 

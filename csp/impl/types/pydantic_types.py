@@ -7,7 +7,6 @@ from pydantic import GetCoreSchemaHandler, ValidationInfo, ValidatorFunctionWrap
 from pydantic_core import CoreSchema, core_schema
 
 from csp.impl.types.common_definitions import OutputBasket, OutputBasketContainer
-from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
 from csp.impl.types.tstype import SnapKeyType, SnapType, isTsDynamicBasket
 from csp.impl.types.typing_utils import TsTypeValidator
 
@@ -109,9 +108,6 @@ class DynamicBasketPydantic(Generic[_K, _T]):
 
 def make_snap_validator(inp_def_type):
     """Create a validator function to handle SnapType."""
-    # Normalize so a snapped edge type matches regardless of PEP 585 builtin vs typing spelling
-    # (e.g. list[int] vs typing.List[int]); the edge's own tstype.typ is already normalized.
-    inp_def_type = ContainerTypeNormalizer.normalize_type(inp_def_type)
 
     def snap_validator(v: Any, handler: ValidatorFunctionWrapHandler, info: ValidationInfo) -> Any:
         if isinstance(v, SnapType):

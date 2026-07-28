@@ -26,7 +26,7 @@ class ContainerTypeNormalizer:
     }
 
     @classmethod
-    def _canonicalize_builtin_generics(cls, typ):
+    def canonicalize_builtin_generics(cls, typ):
         """Recursively canonicalize PEP 585 builtin generics to their ``typing`` equivalents so that,
         e.g., ``list[int]`` and ``typing.List[int]`` (and every nesting combination) normalize to a single
         representation that compares and hashes equal.
@@ -90,11 +90,11 @@ class ContainerTypeNormalizer:
         # do not mint a fresh TypeVar on every call, which would defeat equality/caching).
         if isinstance(arg, str):
             return typing.ForwardRef(arg)
-        return cls._canonicalize_builtin_generics(arg)
+        return cls.canonicalize_builtin_generics(arg)
 
     @classmethod
     def _convert_containers_to_typing_generic_meta(cls, typ, is_within_container):
-        typ = cls._canonicalize_builtin_generics(typ)
+        typ = cls.canonicalize_builtin_generics(typ)
         if CspTypingUtils.is_generic_container(typ):
             return typ
         elif isinstance(typ, dict):

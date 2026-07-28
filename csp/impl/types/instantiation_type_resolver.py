@@ -410,7 +410,7 @@ class _InstanceTypeResolverBase(metaclass=ABCMeta):
 
     def _rec_validate_container_and_resolve_tvars(self, sub_arg, sub_type_def):
         if isinstance(sub_arg, SnapType):
-            return sub_arg.ts_type.typ == sub_type_def
+            return sub_arg.ts_type.typ == ContainerTypeNormalizer.normalize_type(sub_type_def)
         if sub_type_def is typing.Any:
             return True
         elif isinstance(sub_type_def, typing.TypeVar):

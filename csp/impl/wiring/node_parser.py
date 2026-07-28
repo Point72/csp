@@ -14,6 +14,19 @@ from csp.impl.wiring.ast_utils import ASTUtils
 from csp.impl.wiring.base_parser import BaseParser, CspParseError, _pythonic_depr_warning
 
 
+def _csp_output_kwargs(outputs_by_name, values):
+    try:
+        items = values.items()
+    except AttributeError:
+        raise TypeError(f"csp.output(**{values!r}) requires a dict-like value") from None
+    for k, v in items:
+        try:
+            proxy = outputs_by_name[k]
+        except KeyError:
+            raise KeyError(f"unrecognized output '{k}'") from None
+        proxy + v
+
+
 class _SingleProxyFuncArgResolver(object):
     class INVALID_VALUE:
         pass
@@ -73,6 +86,7 @@ class NodeParser(BaseParser):
     _CSP_ENGINE_START_TIME_FUNC = "_engine_start_time"
     _CSP_ENGINE_END_TIME_FUNC = "_engine_end_time"
     _CSP_ENGINE_STATS_FUNC = "_csp_engine_stats"
+    _CSP_OUTPUT_KWARGS_FUNC = "_csp_output_kwargs"
 
     _CSP_STOP_ENGINE_FUNC = "_csp_stop_engine"
     _CSP_IN_REALTIME_FUNC = "_csp_in_realtime"
@@ -83,6 +97,7 @@ class NodeParser(BaseParser):
         _CSP_STOP_ENGINE_FUNC: _cspimpl._csp_stop_engine,
         _CSP_ENGINE_STATS_FUNC: _cspimpl._csp_engine_stats,
         _CSP_IN_REALTIME_FUNC: _cspimpl._csp_in_realtime,
+        _CSP_OUTPUT_KWARGS_FUNC: _csp_output_kwargs,
     }
 
     _SPECIAL_BLOCKS_METH = {"alarms", "state", "start", "stop", "outputs"}
@@ -402,6 +417,10 @@ class NodeParser(BaseParser):
                 node.lineno,
             )
         nodes = []
+        for node_arg in node.args:
+            if isinstance(node_arg, ast.Starred):
+                raise CspParseError(f"{func_name} does not support * unpacking", node.lineno)
+
         if len(node.args) == 1:
             if len(self._signature._outputs) > 1 and self._signature.output(0).name is not None:
                 raise CspParseError(
@@ -464,6 +483,20 @@ class NodeParser(BaseParser):
                 self._returned_outputs.add(node.args[0].id)
 
         for arg in node.keywords:
+            if arg.arg is None:
+                # A **expr unpack, resolved at runtime, can't statically verify
+                # which outputs it covers, so assume it may cover all of them.
+                self._returned_outputs.update(o.name for o in self._signature._outputs if o.name is not None)
+                nodes.append(
+                    ast.Call(
+                        func=ast.Name(id=self._CSP_OUTPUT_KWARGS_FUNC, ctx=ast.Load()),
+                        args=[self._build_outputs_by_name_dict(node), arg.value],
+                        keywords=[],
+                        lineno=node.lineno,
+                        end_lineno=node.end_lineno,
+                    )
+                )
+                continue
             if self._signature.output(arg.arg, True) is None:
                 raise CspParseError(f"unrecognized output '{arg.arg}'", node.lineno)
             output = self._signature.output(arg.arg)
@@ -504,6 +537,21 @@ class NodeParser(BaseParser):
                 ]
 
         return res
+
+    def _build_outputs_by_name_dict(self, node):
+        keys = []
+        values = []
+        for output in self._signature._outputs:
+            if output.name is None:
+                continue
+            keys.append(ast.Constant(value=output.name))
+            values.append(self._ts_outproxy_expr(output.name))
+        return ast.Dict(
+            keys=keys,
+            values=values,
+            lineno=node.lineno,
+            end_lineno=node.end_lineno,
+        )
 
     def _parse_output(self, node):
         return self._parse_output_or_return(node=node, is_return=False)

@@ -101,7 +101,7 @@ test = [
     "pytest-cov",
     "pytest-sugar",
     "httpx>=0.20,<1",
-    "perspective-python",
+    "perspective-python<5", # Note pin was put in place due to broken / missing anywidget dep in persepctive-python >=5
     "polars",
     "psutil",
     "requests",

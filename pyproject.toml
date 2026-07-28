@@ -81,7 +81,7 @@ develop = [
     # adapters
     "httpx>=0.20,<1",  # kafka
     "perspective-python>=2",  # perspective
-    "ipywidgets",  # perspective
+    "anywidget",  # perspective
     "polars",  # parquet
     "psutil",  # test_engine/test_history
     "sqlalchemy",  # db
@@ -101,7 +101,7 @@ test = [
     "pytest-cov",
     "pytest-sugar",
     "httpx>=0.20,<1",
-    "perspective-python<5", # Note pin was put in place due to broken / missing anywidget dep in persepctive-python >=5
+    "perspective-python",
     "polars",
     "psutil",
     "requests",

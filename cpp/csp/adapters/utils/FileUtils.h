@@ -19,7 +19,7 @@ inline bool fileExists( const std::string & fileOrDir )
     return std::filesystem::exists(fileOrDir);
 }
 
-inline void mkdir( const std::string & path,  mode_t mode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH )
+inline void mkdir( const std::string & path,  mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH )
 {
     size_t pos = 0;
     do

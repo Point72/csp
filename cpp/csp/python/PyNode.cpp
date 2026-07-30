@@ -144,9 +144,6 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
             continue;
         }
 
-        //decref tuple at this point its no longer needed and will be replaced
-        Py_DECREF( obj );
-
         PyObject * newvalue = nullptr;
         if( vartype == NODEREF_VAR )
             newvalue = toPython( reinterpret_cast<uint64_t>( static_cast<csp::Node*>(this) ) );
@@ -220,6 +217,9 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
         }
         else
             CSP_THROW( ValueError, "Unexpected var type " << vartype );
+
+        //decref tuple at this point its no longer needed and will be replaced
+        Py_DECREF( obj );
 
 #if IS_PRE_PYTHON_3_14
         *var = newvalue;

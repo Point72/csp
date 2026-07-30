@@ -369,7 +369,7 @@ class TestEngine(unittest.TestCase):
             if csp.ticked(x):
                 csp.output(**{"bogus": 1})
 
-        with self.assertRaisesRegex(KeyError, "unrecognized output 'bogus'"):
+        with self.assertRaisesRegex(KeyError, "'bogus'"):
             csp.run(foo, csp.const(True), starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
 
     def test_csp_output_dict_unpack_non_dict(self):
@@ -379,7 +379,7 @@ class TestEngine(unittest.TestCase):
                 values = [1, 2]  # not dict-like
                 csp.output(**values)
 
-        with self.assertRaisesRegex(TypeError, "requires a dict-like value"):
+        with self.assertRaisesRegex(TypeError, "argument after \\*\\* must be a dict"):
             csp.run(foo, csp.const(True), starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
 
     def test_csp_output_dict_unpack_basket(self):

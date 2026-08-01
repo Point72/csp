@@ -85,6 +85,44 @@ decltype(auto) visitArrowValueType( ::arrow::Type::type typeId, Fn && fn )
         } );
 }
 
+// Maps CspType::Type → C++ value type via TypeTag.
+// Calls fn(TypeTag<CppType>{}) for the matching type.
+template<typename Fn, typename DefaultFn>
+decltype(auto) visitCspValueType( CspType::Type cspType, Fn && fn, DefaultFn && onDefault )
+{
+    switch( cspType )
+    {
+        case CspType::Type::BOOL:      return fn( TypeTag<bool>{} );
+        case CspType::Type::INT8:      return fn( TypeTag<int8_t>{} );
+        case CspType::Type::UINT8:     return fn( TypeTag<uint8_t>{} );
+        case CspType::Type::INT16:     return fn( TypeTag<int16_t>{} );
+        case CspType::Type::UINT16:    return fn( TypeTag<uint16_t>{} );
+        case CspType::Type::INT32:     return fn( TypeTag<int32_t>{} );
+        case CspType::Type::UINT32:    return fn( TypeTag<uint32_t>{} );
+        case CspType::Type::INT64:     return fn( TypeTag<int64_t>{} );
+        case CspType::Type::UINT64:    return fn( TypeTag<uint64_t>{} );
+        case CspType::Type::DOUBLE:    return fn( TypeTag<double>{} );
+        case CspType::Type::DATETIME:  return fn( TypeTag<DateTime>{} );
+        case CspType::Type::TIMEDELTA: return fn( TypeTag<TimeDelta>{} );
+        case CspType::Type::DATE:      return fn( TypeTag<Date>{} );
+        case CspType::Type::TIME:      return fn( TypeTag<Time>{} );
+        case CspType::Type::STRING:    return fn( TypeTag<std::string>{} );
+        case CspType::Type::ENUM:      return fn( TypeTag<CspEnum>{} );
+        default:                       return onDefault();
+    }
+}
+
+// Convenience overload that throws on unhandled types.
+template<typename Fn>
+decltype(auto) visitCspValueType( CspType::Type cspType, Fn && fn )
+{
+    return visitCspValueType( cspType, std::forward<Fn>( fn ),
+        [cspType]() -> decltype( fn( TypeTag<bool>{} ) )
+        {
+            CSP_THROW( TypeError, "Unhandled CspType in visitor: " << cspType );
+        } );
+}
+
 } // namespace csp::adapters::arrow
 
 #endif

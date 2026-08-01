@@ -11,6 +11,7 @@ inputs:
       - '3.11'
       - '3.12'
       - '3.13'
+      - '3.14'
     default: '3.11'
   cibuildwheel:
     type: boolean
@@ -21,7 +22,7 @@ runs:
   using: 'composite'
   steps:
     - name: Setup pip cache
-      uses: actions/cache@v4
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
@@ -29,7 +30,7 @@ runs:
               pip-${{ runner.os }}
 
     - name: Set up Python ${{ inputs.version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
       with:
           python-version: ${{ inputs.version }}
           # TODO consider re-adding this and/or removing the pip cache
@@ -38,5 +39,5 @@ runs:
 
     - name: Install cibuildwheel and twine
       shell: bash
-      run: pip install cibuildwheel==3.2 twine
+      run: pip install cibuildwheel==3.2.1 twine
       if: ${{ inputs.cibuildwheel == 'true' }}

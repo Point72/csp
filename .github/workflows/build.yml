@@ -72,7 +72,7 @@ jobs:
         FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN || steps.setupschedule.outputs.FULL_RUN }}
       steps:
         - name: Checkout
-          uses: actions/checkout@v6
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
           with:
             # for pull_request so we can do HEAD^2
             fetch-depth: 2
@@ -159,7 +159,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v6
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
           with:
             submodules: recursive
 
@@ -204,6 +204,7 @@ jobs:
             - "cp311"
             - "cp312"
             - "cp313"
+            - "cp314"
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -239,7 +240,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v6
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
           with:
             submodules: recursive
             fetch-depth: 0
@@ -295,32 +296,39 @@ jobs:
           run: make dist-check
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v7
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.10
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp310' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v7
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.11
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp311' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v7
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.12
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp312' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@v7
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.13
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp313' }}
+
+        - name: Upload Wheel
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.14
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp314' }}
 
     ################################################################
     #..............................................................#
@@ -358,7 +366,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v6
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
           with:
             submodules: recursive
 
@@ -377,7 +385,7 @@ jobs:
           run: make dist-check
 
         - name: Upload SDist
-          uses: actions/upload-artifact@v7
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
           with:
               name: csp-sdist
               path: dist/*.tar.gz
@@ -411,13 +419,14 @@ jobs:
             - 3.11
             - 3.12
             - 3.13
+            - 3.14
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
             ##############################################
             # Things to exclude if not a full matrix run #
             ##############################################
-        
+
             # Avoid extra resources for windows build
             - is-full-run: false
               os: windows-2022
@@ -448,7 +457,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v6
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
           with:
               submodules: recursive
 
@@ -462,7 +471,7 @@ jobs:
           run: make requirements
 
         - name: Download wheel
-          uses: actions/download-artifact@v8
+          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -554,7 +563,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v6
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
           with:
             submodules: recursive
 
@@ -573,7 +582,7 @@ jobs:
         - name: Install requirements
           run: sudo make dependencies-debian
 
-        - uses: actions/download-artifact@v8
+        - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
           with:
             name: csp-sdist
             path: dist/
@@ -638,7 +647,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@v6
+          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
           with:
               submodules: recursive
               fetch-depth: 0
@@ -657,7 +666,7 @@ jobs:
           run: sudo apt-get install graphviz
 
         - name: Download wheel
-          uses: actions/download-artifact@v8
+          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -737,7 +746,7 @@ jobs:
 
       steps:
         - name: Download wheels and sdist
-          uses: actions/download-artifact@v8
+          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
           with:
             name:
             merge-multiple: true
@@ -747,7 +756,7 @@ jobs:
           run: ls -R ./dist
 
         - name: Publish to github releases
-          uses: softprops/action-gh-release@v2
+          uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
           with:
             draft: true
             generate_release_notes: true

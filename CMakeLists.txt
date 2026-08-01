@@ -2,7 +2,7 @@
 # Project Configuration #
 #########################
 cmake_minimum_required(VERSION 3.20.0)
-project(csp VERSION "0.15.0")
+project(csp VERSION "0.18.0")
 set(CMAKE_CXX_STANDARD 20)
 
 ###################################################################################################################################################
@@ -74,6 +74,12 @@ option(CSP_ENABLE_UBSAN "Build with undefined behavior sanitizer" OFF)
 option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" ON)
 option(CSP_BUILD_ARROW_ADAPTER "Build arrow adapter" ON)
 option(CSP_BUILD_PARQUET_ADAPTER "Build parquet adapter" ON)
+
+# Parquet adapter depends on arrow adapter
+if(CSP_BUILD_PARQUET_ADAPTER AND NOT CSP_BUILD_ARROW_ADAPTER)
+    message(STATUS "Enabling arrow adapter (required by parquet adapter)")
+    set(CSP_BUILD_ARROW_ADAPTER ON CACHE BOOL "Build arrow adapter" FORCE)
+endif()
 option(CSP_BUILD_WS_CLIENT_ADAPTER "Build ws client adapter" ON)
 
 # Normalize build type for downstream comparisons

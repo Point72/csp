@@ -2,17 +2,17 @@
 * @robambalu @AdamGlustein @svatasoiu @alexddobkin
 
 # Packaging code
-conda @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
-CMakeLists.txt @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
-Makefile @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
-MANIFEST.in @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
-pyproject.toml @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
-setup.py @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
-vcpkg.json @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
+conda @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @arhamchopra
+CMakeLists.txt @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @arhamchopra
+Makefile @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @arhamchopra
+MANIFEST.in @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @arhamchopra
+pyproject.toml @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @arhamchopra
+setup.py @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @arhamchopra
+vcpkg.json @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @arhamchopra
 
 # CI/CD
-.github @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
-ci @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine
+.github @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @arhamchopra
+ci @robambalu @AdamGlustein @svatasoiu @alexddobkin @ptomecek @timkpaine @arhamchopra
 
 # Administrative
 .github/CODEOWNERS @robambalu

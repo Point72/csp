@@ -6,7 +6,7 @@
 #define STATUS_OK_OR_THROW_RUNTIME( EXPR, MESSAGE )                                                         \
     do                                                                                                      \
     {                                                                                                       \
-        arrow::Status st = EXPR;                                                                            \
+        ::arrow::Status st = EXPR;                                                                            \
         CSP_TRUE_OR_THROW_RUNTIME( st.ok(), MESSAGE << ':' << st.ToString());                               \
     } while( 0 )
 

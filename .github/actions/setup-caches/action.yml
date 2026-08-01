@@ -12,7 +12,7 @@ runs:
   steps:
     # Setup CCache
     - name: Setup ccache
-      uses: hendrikmuhs/ccache-action@v1.2.12
+      uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
       with:
         key: ccache-${{ runner.os }}-${{ runner.arch }}
         append-timestamp: false  # avoid excess caching
@@ -35,7 +35,7 @@ runs:
       if: ${{ runner.os == 'Linux' && inputs.vcpkg == 'true' }}
 
     - name: Setup vcpkg cache (Linux)
-      uses: actions/cache@v4
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: |
           /home/runner/vcpkg_cache
@@ -54,7 +54,7 @@ runs:
       if: ${{ runner.os == 'macOS' && inputs.vcpkg == 'true' }}
 
     - name: Setup vcpkg cache (macOS)
-      uses: actions/cache@v4
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: |
           /Users/runner/vcpkg_cache
@@ -73,11 +73,11 @@ runs:
       if: ${{ runner.os == 'Windows' && inputs.vcpkg == 'true'}}
 
     - name: Setup vcpkg cache (Windows)
-      uses: actions/cache@v4
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: |
           C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_cache
           C:\\Users\\runneradmin\\AppData\\Local\\vcpkg_download_cache
-        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg/versions/baseline.json') }}
-        restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
+        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg/versions/baseline.json') }}-${{ github.run_id }}
+        restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg/versions/baseline.json') }}-
       if: ${{ runner.os == 'Windows' && inputs.vcpkg == 'true'}}

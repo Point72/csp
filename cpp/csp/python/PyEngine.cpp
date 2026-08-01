@@ -31,6 +31,8 @@ void PythonEngine::dialectLockGIL() noexcept
 {
     PyEval_RestoreThread( m_pyThreadState );
     m_pyThreadState = nullptr;
+    if( PyErr_CheckSignals() == -1 && PyErr_Occurred() )
+        shutdown();
 }
 
 //The engine python wrapper object
@@ -114,7 +116,7 @@ static PyObject * PyEngine_run( PyEngine * self, PyObject * args )
     CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
     self -> rootEngine() -> run( start, end );
 
-    return self -> collectOutputs();
+    return PyErr_Occurred() ? nullptr : self -> collectOutputs();
     CSP_RETURN_NONE;
 }
 

@@ -1,9 +1,7 @@
 import os
-from importlib.metadata import PackageNotFoundError, version as get_package_version
 from typing import Callable, Dict, Optional, TypeVar
 
 import numpy
-from packaging import version
 
 import csp
 from csp.impl.struct import Struct
@@ -30,6 +28,8 @@ class ParquetOutputConfig(Struct):
     batch_size: int = 2**15
     compression: str
     write_arrow_binary: bool = False  # If true will write output as binary arrow data rather than parquet
+    write_dictionary: bool = True  # If false, disables parquet dictionary encoding (faster writes for
+    # high-cardinality numeric columns, at the cost of larger files; low-cardinality data benefits from True)
 
     def resolve_compression(self):
         if not hasattr(self, "compression"):
@@ -37,19 +37,7 @@ class ParquetOutputConfig(Struct):
         return self
 
 
-def _get_default_parquet_version():
-    try:
-        if version.parse(get_package_version("pyarrow")) >= version.parse("6.0.1"):
-            return "2.6"
-    except PackageNotFoundError:
-        # Don't need to do anything in particular
-        ...
-    return "2.0"
-
-
 class ParquetWriter:
-    PARQUET_VERSION = _get_default_parquet_version()
-
     def __init__(
         self,
         file_name: Optional[str],
@@ -73,7 +61,12 @@ class ParquetWriter:
         file_name must be a folder into which the data will be written.
         :param file_metadata: optional str:str dict that will get written as file-level metadata
         :param column_metadata: optional dict of column : { str:str} that will get written as column-level metadata
-        :param file_visitor: optional callable that will be called, after a file is written, with the file name.
+        :param file_visitor: optional callable invoked with the file path after each file is closed (on rotation
+        and at shutdown). It runs synchronously on the engine thread with the GIL held, so a slow visitor (e.g.
+        uploading to remote storage) blocks the engine for its duration -- offload heavy work to a background
+        queue/thread if that matters. An exception raised by the visitor propagates out of csp.run.
+        Note: file_visitor is NOT invoked for dict-basket files (the value/symbol/index files written by
+        publish_dict_basket); it only covers the main writer's files (and any regular published columns).
         """
         super().__init__()
         config = ParquetOutputConfig() if config is None else config.copy()
@@ -102,6 +95,7 @@ class ParquetWriter:
             "batch_size": config.batch_size,
             "compression": config.compression,
             "write_arrow_binary": config.write_arrow_binary,
+            "write_dictionary": config.write_dictionary,
             "split_columns_to_files": split_columns_to_files,
             "file_metadata": file_metadata,
             "column_metadata": column_metadata,
@@ -199,6 +193,11 @@ class ParquetWriter:
         return self._parquet_dict_basket_writer_node_def
 
     def publish_dict_basket(self, column_name, value, key_type, value_type):
+        if not self._split_columns_to_files:
+            raise ValueError(
+                f"Cannot publish dict basket '{column_name}': dict baskets require "
+                "split_columns_to_files=True (single-file parquet output is not supported for baskets)"
+            )
         if key_type is not str:
             raise NotImplementedError("Writing of baskets with non str key type is not supported")
         if self._filename_provider is not None:

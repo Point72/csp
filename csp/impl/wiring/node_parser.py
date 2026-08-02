@@ -110,6 +110,8 @@ class NodeParser(BaseParser):
         self._func_globals_modified.update(self._LOCAL_METHODS)
         self._gen = None
 
+        self._uses_outmap = False
+
         # To catch returning from within a for or while loop, which wouldnt work as it seems
         self._inner_loop_count = 0
         self._returned_outputs = set()
@@ -402,6 +404,12 @@ class NodeParser(BaseParser):
                 node.lineno,
             )
         nodes = []
+        stmts = []
+
+        for node_arg in node.args:
+            if isinstance(node_arg, ast.Starred):
+                raise CspParseError(f"{func_name} does not support * unpacking", node.lineno)
+
         if len(node.args) == 1:
             if len(self._signature._outputs) > 1 and self._signature.output(0).name is not None:
                 raise CspParseError(
@@ -464,6 +472,82 @@ class NodeParser(BaseParser):
                 self._returned_outputs.add(node.args[0].id)
 
         for arg in node.keywords:
+            if arg.arg is None:
+                # A **expr unpack, resolved at runtime, can't statically verify
+                # which outputs it covers, so assume it may cover all of them.
+                self._uses_outmap = True
+                self._returned_outputs.update(
+                    o.name for o in self._signature._outputs if o.name is not None
+                )
+                # We'll be generating raw statements to build the dict only once per node.
+                stmts.append(
+                    # #csp_vals = <expr>
+                    ast.Assign(
+                        targets=[ast.Name(id="#csp_vals", ctx=ast.Store())],
+                        value=arg.value,
+                    )
+                )
+                stmts.append(
+                    # if not isinstance(#csp_vals, dict): raise TypeError(...)
+                    ast.If(
+                        test=ast.UnaryOp(
+                            op=ast.Not(),
+                            operand=ast.Call(
+                                func=ast.Name(id="isinstance", ctx=ast.Load()),
+                                args=[
+                                    ast.Name(id="#csp_vals", ctx=ast.Load()),
+                                    ast.Name(id="dict", ctx=ast.Load()),
+                                ],
+                                keywords=[],
+                            ),
+                        ),
+                        body=[
+                            ast.Raise(
+                                exc=ast.Call(
+                                    func=ast.Name(id="TypeError", ctx=ast.Load()),
+                                    args=[ast.Constant(f"{func_name} argument after ** must be a dict")],
+                                    keywords=[],
+                                ),
+                                cause=None,
+                            )
+                        ],
+                        orelse=[],
+                    )
+                )
+                stmts.append(
+                    ast.For(
+                        # for #csp_k, #csp_v in #csp_vals.items():
+                        target=ast.Tuple(
+                            elts=[
+                                ast.Name(id="#csp_k", ctx=ast.Store()), 
+                                ast.Name(id="#csp_v", ctx=ast.Store())
+                            ],
+                            ctx=ast.Store(),
+                        ),
+                        iter=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id="#csp_vals", ctx=ast.Load()), 
+                                attr="items", 
+                                ctx=ast.Load()
+                            ),
+                            args=[],
+                            keywords=[],
+                        ),
+                        # loop body
+                        body=[ast.Expr(
+                            ast.BinOp(
+                                left=ast.Subscript(
+                                value=ast.Name(id="#csp_outmap", ctx=ast.Load()),
+                                slice=ast.Name(id="#csp_k", ctx=ast.Load()),
+                                ctx=ast.Load(),
+                            ),
+                            op=ast.Add(),
+                            right=ast.Name(id="#csp_v", ctx=ast.Load()),
+                        )
+                    )],
+                    orelse=[],
+                ))
+                continue
             if self._signature.output(arg.arg, True) is None:
                 raise CspParseError(f"unrecognized output '{arg.arg}'", node.lineno)
             output = self._signature.output(arg.arg)
@@ -484,26 +568,35 @@ class NodeParser(BaseParser):
                 nodes.append(ast.BinOp(left=self._ts_outproxy_expr(arg.arg), op=ast.Add(), right=arg.value))
             self._returned_outputs.add(arg.arg)
 
-        if len(nodes) == 0:
+        result = []
+        if len(nodes) == 0 and len(stmts) == 0:
             if not is_return:
                 raise CspParseError("Empty output is not allowed", node.lineno)
             res = ast.Pass(lineno=node.lineno, end_lineno=node.end_lineno)
         else:
-            res = (
-                ast.BoolOp(op=ast.Or(), values=nodes, lineno=node.lineno, end_lineno=node.end_lineno)
-                if len(nodes) > 1
-                else nodes[0]
-            )
+            if nodes:
+                res = (
+                    ast.BoolOp(op=ast.Or(), values=nodes, lineno=node.lineno, end_lineno=node.end_lineno)
+                    if len(nodes) > 1
+                    else nodes[0]
+                )
+                result.append(ast.Expr(res, lineno=node.lineno, end_lineno=node.end_lineno))
+            result.extend(stmts)
         if is_return:
-            if isinstance(res, ast.Pass):
-                return [res, ast.Continue(lineno=node.lineno, end_lineno=node.end_lineno)]
-            else:
-                return [
-                    ast.Expr(res, lineno=node.lineno, end_lineno=node.end_lineno),
-                    ast.Continue(lineno=node.lineno, end_lineno=node.end_lineno),
-                ]
-
+            return result + [ast.Continue(lineno=node.lineno, end_lineno=node.end_lineno)]
+        if stmts:
+            return result
         return res
+
+    def _build_outputs_by_name_dict(self):
+        keys = []
+        values = []
+        for output in self._signature._outputs:
+            if output.name is None:
+                continue
+            keys.append(ast.Constant(value=output.name))
+            values.append(self._ts_outproxy_expr(output.name))
+        return ast.Dict(keys=keys, values=values)
 
     def _parse_output(self, node):
         return self._parse_output_or_return(node=node, is_return=False)
@@ -854,7 +947,12 @@ class NodeParser(BaseParser):
         # Yield before start block so we can setup stack frame before executing
         # However, this initial yield shouldn't be within the try-finally block, since if a node does not start, it's stop() logic should not be invoked
         # This avoids an issue where one node raises an exception upon start(), and then other nodes execute their stop() without having ever started
-        start_and_body = [ast.Expr(value=ast.Yield(value=None))] + del_vars + start_and_body
+        outmap_assign = (
+            [ast.Assign(targets=[ast.Name(id="#csp_outmap", ctx=ast.Store())], value=self._build_outputs_by_name_dict())]
+            if self._uses_outmap
+            else []
+        )
+        start_and_body = [ast.Expr(value=ast.Yield(value=None))] + del_vars + outmap_assign + start_and_body
         newbody = init_block + start_and_body
 
         newfuncdef = ast.FunctionDef(

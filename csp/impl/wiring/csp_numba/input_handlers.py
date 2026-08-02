@@ -1,0 +1,165 @@
+"""
+CSP timeseries input handlers for numba_node.
+
+Provides:
+- TsInputHandler for ts[type] parameters
+- ListBasketInputHandler for [ts[type]] list basket parameters
+- DictBasketInputHandler for {key: ts[type]} dict basket parameters
+"""
+
+import inspect
+from dataclasses import dataclass
+from typing import Any, Optional, get_args, get_origin
+
+from numba_cfunc_compiler.function_analyzer import InputTypeHandler
+from numba_cfunc_compiler.models import ParameterInfo
+
+from csp.impl.types.tstype import TsType
+from csp.impl.wiring.edge import Edge
+
+
+def _extract_ts_inner_type(ann: Any) -> Optional[type]:
+    if get_origin(ann) is not TsType:
+        return None
+    args = get_args(ann)
+    return args[0] if args else getattr(ann, "typ", None)
+
+
+def _parse_list_basket_annotation(ann: Any) -> tuple[bool, Optional[type]]:
+    # Legacy syntax: [ts[T]]
+    if isinstance(ann, list):
+        if len(ann) != 1:
+            return True, None
+        return True, _extract_ts_inner_type(ann[0])
+
+    # Modern syntax: list[ts[T]] / typing.List[ts[T]]
+    if get_origin(ann) is list:
+        args = get_args(ann)
+        if len(args) != 1:
+            return True, None
+        return True, _extract_ts_inner_type(args[0])
+
+    return False, None
+
+
+@dataclass(frozen=True)
+class _DictBasketExpectedType:
+    key_type: type
+    element_type: type
+
+
+def _parse_dict_basket_annotation(ann: Any) -> tuple[bool, Optional[type], Optional[type]]:
+    key_type = None
+    value_ann = None
+
+    # Legacy syntax: {str: ts[T]} / {int: ts[T]}
+    if isinstance(ann, dict):
+        if len(ann) != 1:
+            return True, None, None
+        key_type, value_ann = next(iter(ann.items()))
+    # Modern syntax: dict[str, ts[T]] / typing.Dict[str, ts[T]]
+    elif get_origin(ann) is dict:
+        args = get_args(ann)
+        if len(args) != 2:
+            return True, None, None
+        key_type, value_ann = args
+    else:
+        return False, None, None
+
+    if key_type not in (str, int):
+        return False, None, None
+
+    return True, key_type, _extract_ts_inner_type(value_ann)
+
+
+def _validate_edge_type(param_name: str, edge: Edge, expected_type: type) -> Edge:
+    actual_type = edge.tstype.typ
+    if actual_type is not expected_type and not (expected_type is float and actual_type is int):
+        raise TypeError(
+            f"Argument '{param_name}' expected ts[{expected_type.__name__}], got ts[{actual_type.__name__}]"
+        )
+    return edge
+
+
+class TsInputHandler(InputTypeHandler):
+    """Handles ts[type] input annotations."""
+
+    def try_parse(self, param: inspect.Parameter, ann: Any) -> Optional[ParameterInfo]:
+        inner_type = _extract_ts_inner_type(ann)
+        if inner_type is None:
+            return None
+
+        return ParameterInfo(expected_type=inner_type, category="signal")
+
+    def validate_value(self, param_name: str, value: Any, expected_type: Any) -> Any:
+        if not isinstance(value, Edge):
+            raise TypeError(f"Argument '{param_name}' must be an Edge, got {type(value).__name__}")
+        return _validate_edge_type(param_name, value, expected_type)
+
+
+class ListBasketInputHandler(InputTypeHandler):
+    """Handles [ts[type]] and list[ts[type]] basket input annotations."""
+
+    def try_parse(self, param: inspect.Parameter, ann: Any) -> Optional[ParameterInfo]:
+        matched, inner_type = _parse_list_basket_annotation(ann)
+        if not matched:
+            return None
+        if inner_type is None:
+            raise TypeError(f"List basket '{param.name}' element ts[type] is missing type argument")
+
+        return ParameterInfo(expected_type=inner_type, category="signal_set")
+
+    def validate_value(self, param_name: str, value: Any, expected_type: Any) -> Any:
+        if not isinstance(value, (list, tuple)):
+            raise TypeError(f"Argument '{param_name}' must be a list, got {type(value).__name__}")
+        if not value:
+            raise ValueError(f"List basket '{param_name}' must not be empty")
+
+        result = {}
+        for i, edge in enumerate(value):
+            if not isinstance(edge, Edge):
+                raise TypeError(f"List basket '{param_name}[{i}]' must be an Edge, got {type(edge).__name__}")
+            result[i] = _validate_edge_type(f"{param_name}[{i}]", edge, expected_type)
+        return result
+
+
+class DictBasketInputHandler(InputTypeHandler):
+    """Handles {key_type: ts[type]} and dict[key_type, ts[type]] basket annotations."""
+
+    def try_parse(self, param: inspect.Parameter, ann: Any) -> Optional[ParameterInfo]:
+        matched, key_type, inner_type = _parse_dict_basket_annotation(ann)
+        if not matched:
+            return None
+        if inner_type is None:
+            raise TypeError(f"Dict basket '{param.name}' element ts[type] is missing type argument")
+
+        return ParameterInfo(
+            expected_type=_DictBasketExpectedType(key_type=key_type, element_type=inner_type),
+            category="signal_set",
+        )
+
+    def validate_value(self, param_name: str, value: Any, expected_type: Any) -> Any:
+        if not isinstance(value, dict):
+            raise TypeError(f"Argument '{param_name}' must be a dict, got {type(value).__name__}")
+        if not value:
+            raise ValueError(f"Dict basket '{param_name}' must not be empty")
+
+        result = {}
+        for key, edge in value.items():
+            if not isinstance(key, expected_type.key_type):
+                raise TypeError(
+                    f"Dict basket '{param_name}' key {key!r} must be "
+                    f"{expected_type.key_type.__name__}, got {type(key).__name__}"
+                )
+            if not isinstance(edge, Edge):
+                raise TypeError(f"Dict basket '{param_name}[{key!r}]' must be an Edge, got {type(edge).__name__}")
+            result[key] = _validate_edge_type(f"{param_name}[{key!r}]", edge, expected_type.element_type)
+        return result
+
+
+def register():
+    from numba_cfunc_compiler.function_analyzer import FunctionAnalyzer
+
+    FunctionAnalyzer.register_input_handler(TsInputHandler())
+    FunctionAnalyzer.register_input_handler(ListBasketInputHandler())
+    FunctionAnalyzer.register_input_handler(DictBasketInputHandler())

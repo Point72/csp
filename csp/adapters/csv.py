@@ -46,6 +46,7 @@ class CsvAdapterManager:
 
     def _create(self, engine, memo):
 <<<<<<< HEAD
+<<<<<<< HEAD
         return _csvadapterimpl._csv_adapter_manager(engine, self._properties)
 =======
         return _csvadapterimpl._csv_adapter_manager(
@@ -53,6 +54,9 @@ class CsvAdapterManager:
             self._properties
         )
 >>>>>>> e329ef2 (Update python side and add tests)
+=======
+        return _csvadapterimpl._csv_adapter_manager(engine, self._properties)
+>>>>>>> eff75eb (Fix linter issue)
 
 
 _csv_input_adapter_def = input_adapter_def(

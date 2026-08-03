@@ -17,8 +17,8 @@ class PriceQuantity(csp.Struct):
 
 
 class TestCSVReader(unittest.TestCase):
-
     def setUp(self):
+<<<<<<< HEAD
 <<<<<<< HEAD
         self._filename = os.path.join(os.path.dirname(__file__), "csv_test_data.csv")
 =======
@@ -27,6 +27,9 @@ class TestCSVReader(unittest.TestCase):
             "csv_test_data.csv"
         )
 >>>>>>> e329ef2 (Update python side and add tests)
+=======
+        self._filename = os.path.join(os.path.dirname(__file__), "csv_test_data.csv")
+>>>>>>> eff75eb (Fix linter issue)
 
         self.reader = CsvAdapterManager(
             self._filename,
@@ -37,11 +40,14 @@ class TestCSVReader(unittest.TestCase):
 <<<<<<< HEAD
 =======
 
+<<<<<<< HEAD
 >>>>>>> e329ef2 (Update python side and add tests)
 
+=======
+>>>>>>> eff75eb (Fix linter issue)
     def test_basic(self):
-
         def graph():
+<<<<<<< HEAD
 <<<<<<< HEAD
             # Subscribe AAPL
             aapl = self.reader.subscribe(PriceQuantity, symbol="AAPL")
@@ -56,37 +62,34 @@ class TestCSVReader(unittest.TestCase):
             all_data = self.reader.subscribe(PriceQuantity)
 =======
 
+=======
+>>>>>>> eff75eb (Fix linter issue)
             # Subscribe AAPL
-            aapl = self.reader.subscribe(
-                PriceQuantity,
-                symbol="AAPL"
-            )
+            aapl = self.reader.subscribe(PriceQuantity, symbol="AAPL")
 
             # Subscribe IBM
-            ibm = self.reader.subscribe(
-                PriceQuantity,
-                symbol="IBM"
-            )
+            ibm = self.reader.subscribe(PriceQuantity, symbol="IBM")
 
             # Specific field (string only)
-            aapl_price = self.reader.subscribe(
-                str,
-                symbol="AAPL",
-                field_map="PRICE"
-            )
+            aapl_price = self.reader.subscribe(str, symbol="AAPL", field_map="PRICE")
 
             # Subscribe all symbols
+<<<<<<< HEAD
             all_data = self.reader.subscribe(
                 PriceQuantity
             )
 
 >>>>>>> e329ef2 (Update python side and add tests)
+=======
+            all_data = self.reader.subscribe(PriceQuantity)
+>>>>>>> eff75eb (Fix linter issue)
 
             csp.add_graph_output("aapl", aapl)
             csp.add_graph_output("ibm", ibm)
             csp.add_graph_output("aapl_price", aapl_price)
             csp.add_graph_output("all", all_data)
 
+<<<<<<< HEAD
 <<<<<<< HEAD
         result = csp.run(graph, starttime=datetime(2020, 3, 3, 9, 30))
 
@@ -101,21 +104,18 @@ class TestCSVReader(unittest.TestCase):
             starttime=datetime(2020, 3, 3, 9, 30)
         )
 
+=======
+        result = csp.run(graph, starttime=datetime(2020, 3, 3, 9, 30))
+>>>>>>> eff75eb (Fix linter issue)
 
         # AAPL
-        self.assertEqual(
-            len(result["aapl"]),
-            4
-        )
+        self.assertEqual(len(result["aapl"]), 4)
 
-        self.assertTrue(
-            all(
-                v[1].SYMBOL == "AAPL"
-                for v in result["aapl"]
-            )
-        )
-
+<<<<<<< HEAD
 >>>>>>> e329ef2 (Update python side and add tests)
+=======
+        self.assertTrue(all(v[1].SYMBOL == "AAPL" for v in result["aapl"]))
+>>>>>>> eff75eb (Fix linter issue)
 
         self.assertEqual(
             [v[1] for v in result["aapl"]],
@@ -187,20 +187,10 @@ class TestCSVReader(unittest.TestCase):
 =======
         )
 
-
         # IBM
-        self.assertEqual(
-            len(result["ibm"]),
-            2
-        )
+        self.assertEqual(len(result["ibm"]), 2)
 
-        self.assertTrue(
-            all(
-                v[1].SYMBOL == "IBM"
-                for v in result["ibm"]
-            )
-        )
-
+        self.assertTrue(all(v[1].SYMBOL == "IBM" for v in result["ibm"]))
 
         # Single field
         self.assertEqual(
@@ -213,50 +203,26 @@ class TestCSVReader(unittest.TestCase):
             ],
         )
 
-
         # Subscribe all
-        self.assertEqual(
-            len(result["all"]),
-            7
-        )
-
-
+        self.assertEqual(len(result["all"]), 7)
 
     def test_starttime(self):
-
-        aapl = self.reader.subscribe(
-            str,
-            symbol="AAPL",
-            field_map="PRICE"
-        )
-
+        aapl = self.reader.subscribe(str, symbol="AAPL", field_map="PRICE")
 
         # Exact hit
-        res = csp.run(
-            aapl,
-            starttime=datetime(2020, 3, 3, 9, 30, 4)
-        )[0]
+        res = csp.run(aapl, starttime=datetime(2020, 3, 3, 9, 30, 4))[0]
 
+        self.assertEqual(len(res), 2)
 
-        self.assertEqual(
-            len(res),
-            2
-        )
-
-        self.assertEqual(
-            res[0][0],
-            datetime(2020, 3, 3, 9, 30, 4)
-        )
-
+        self.assertEqual(res[0][0], datetime(2020, 3, 3, 9, 30, 4))
 
         # Missed timestamp:
         # should start from first available tick
-        res = csp.run(
-            aapl,
-            starttime=datetime(2020, 3, 3, 9, 30, 3, 2)
-        )[0]
+        res = csp.run(aapl, starttime=datetime(2020, 3, 3, 9, 30, 3, 2))[0]
 
+        self.assertEqual(len(res), 2)
 
+<<<<<<< HEAD
         self.assertEqual(
             len(res),
             2
@@ -267,6 +233,9 @@ class TestCSVReader(unittest.TestCase):
             datetime(2020, 3, 3, 9, 30, 4)
         )
 >>>>>>> e329ef2 (Update python side and add tests)
+=======
+        self.assertEqual(res[0][0], datetime(2020, 3, 3, 9, 30, 4))
+>>>>>>> eff75eb (Fix linter issue)
 
 
 if __name__ == "__main__":

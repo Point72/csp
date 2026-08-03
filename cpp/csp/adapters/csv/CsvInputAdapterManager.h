@@ -7,108 +7,107 @@
 #include <csp/engine/Struct.h>
 #include <fstream>
 #include <functional>
-#include <unordered_map>
+#include <optional>
 #include <set>
 #include <string>
-#include <optional>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
-
-namespace csp::adapters::csv
-{
-
+namespace csp::adapters::csv {
 
 // Manages all csv input adapters for a single engine run.
 //
 // Lifecycle:
-//   1. Registration:  getInputAdapter() called per subscription (before engine starts)
+//   1. Registration:  getInputAdapter() called per subscription (before engine
+//   starts)
 //   2. start():       create processors → wire adapters → read first row
 //   3. processNextSimTimeSlice():  skip/dispatch loop per engine tick
 //   4. stop():        tear down all state
-class CsvInputAdapterManager final : public csp::AdapterManager
-{
+class CsvInputAdapterManager final : public csp::AdapterManager {
 public:
+  CsvInputAdapterManager(csp::Engine *engine, const Dictionary &properties);
 
-    CsvInputAdapterManager( csp::Engine *engine, const Dictionary &properties );
+  ~CsvInputAdapterManager();
 
-    ~CsvInputAdapterManager();
+  const char *name() const override { return "CsvInputAdapterManager"; }
 
-    const char *name() const override{ return "CsvInputAdapterManager"; }
+  void start(DateTime starttime, DateTime endtime) override;
+  void stop() override;
+  DateTime processNextSimTimeSlice(DateTime time) override;
 
-    void start( DateTime starttime, DateTime endtime ) override;
-    void stop() override;
-    DateTime processNextSimTimeSlice( DateTime time ) override;
-
-    ManagedSimInputAdapter * getInputAdapter( CspTypePtr & type, const Dictionary & properties, PushMode pushMode );
+  ManagedSimInputAdapter *getInputAdapter(CspTypePtr &type,
+                                          const Dictionary &properties,
+                                          PushMode pushMode);
 
 private:
+  void setupProcessor(const std::vector<std::string> &schema,
+                      const std::set<std::string> &neededColumns,
+                      std::optional<std::string> symbolColumn,
+                      bool subscribeAllOnEmptySymbol);
 
-    void setupProcessor( const std::vector<std::string> & schema,
-                         const std::set<std::string> & neededColumns,
-                         std::optional<std::string> symbolColumn,
-                         bool subscribeAllOnEmptySymbol );
+  bool readNextRow();
 
-    bool readNextRow();
+  struct StructSubscription {
+    using FieldSetter =
+        std::function<void(StructPtr &, const std::vector<std::string_view> &)>;
 
-    struct StructSubscription
-    {
-        using FieldSetter = std::function<void(StructPtr &, const std::vector<std::string_view> &)>;
+    ManagedSimInputAdapter *m_adapter;
+    std::shared_ptr<const StructMeta> m_structMeta;
 
-        ManagedSimInputAdapter *m_adapter;
-        std::shared_ptr<const StructMeta> m_structMeta;
+    std::vector<FieldSetter> m_fieldSetters;
 
-        std::vector<FieldSetter> m_fieldSetters;
+    void dispatchValue(const std::vector<std::string_view> &cols) {
+      StructPtr value = m_structMeta->create();
 
-        void dispatchValue(const std::vector<std::string_view> &cols)
-        {
-            StructPtr value = m_structMeta->create();
+      for (auto &setter : m_fieldSetters)
+        setter(value, cols);
 
-            for(auto &setter : m_fieldSetters)
-                setter(value, cols);
+      m_adapter->pushTick(value);
+    }
+  };
 
-            m_adapter->pushTick(value);
-        }
-    };
+  struct Subscriber {
+    ManagedSimInputAdapter *m_adapter;
+    std::variant<std::monostate, std::string, DictionaryPtr> m_fieldMap;
 
-    struct Subscriber {
-        ManagedSimInputAdapter *                                          m_adapter;
-        std::variant<std::monostate, std::string, DictionaryPtr>          m_fieldMap;
+    std::function<void(const std::vector<std::string_view> &)> m_dispatch;
+    std::optional<StructSubscription> m_structSubscription;
+  };
 
-        std::function<void(const std::vector<std::string_view> &)>        m_dispatch;
-        std::optional<StructSubscription>                                 m_structSubscription;
-    };
+  // Walk registered subscribers and bind each one's m_dispatch based on its
+  // field_map + the parsed header. Must be called after m_columnNames is
+  // populated.
+  void bindSubscriberDispatchers();
 
-    // Walk registered subscribers and bind each one's m_dispatch based on its
-    // field_map + the parsed header. Must be called after m_columnNames is populated.
-    void bindSubscriberDispatchers();
+  using dateTimeParserfn = DateTime (*)(std::string_view);
 
-    using dateTimeParserfn = DateTime(*)(std::string_view);
+  // Registration-phase state (populated by getInputAdapter before start)
+  std::vector<Subscriber> m_subscribers;
+  std::unordered_map<std::string, std::vector<Subscriber>>
+      m_subscribersBySymbol;
 
-    // Registration-phase state (populated by getInputAdapter before start)
-    std::vector<Subscriber> m_subscribers;
-    std::unordered_map<std::string, std::vector<Subscriber>> m_subscribersBySymbol;
+  // Configuration (from properties dict)
+  csp::DateTime m_startTime;
+  csp::DateTime m_endTime;
+  std::string m_timeColumn;
+  std::string m_timeFormat;
+  std::string m_filename;
+  std::string m_delimiter;
+  std::string m_symbolColumnName; // configured symbol column name ("" = no
+                                  // symbol column)
+  bool m_hasHeader;
+  dateTimeParserfn dateParser;
 
-    // Configuration (from properties dict)
-    csp::DateTime                       m_startTime;
-    csp::DateTime                       m_endTime;
-    std::string                         m_timeColumn;
-    std::string                         m_timeFormat;
-    std::string                         m_filename;
-    std::string                         m_delimiter;
-    std::string                         m_symbolColumnName; // configured symbol column name ("" = no symbol column)
-    bool                                m_hasHeader;
-    dateTimeParserfn                    dateParser;
-
-    // Runtime state (initialized in start, used in processNextSimTimeSlice)
-    std::vector<std::string>                    m_columnNames; // full header, in order
-    std::optional<int>                          m_symbolColumn; // Index of symbol column
-    std::vector<int>                            m_schema; // Indices to be used
-    int                                         m_timeColumnIndex;
-    std::ifstream                               m_file;
-    std::string                                 m_row; // Current cached row
+  // Runtime state (initialized in start, used in processNextSimTimeSlice)
+  std::vector<std::string> m_columnNames; // full header, in order
+  std::optional<int> m_symbolColumn;      // Index of symbol column
+  std::vector<int> m_schema;              // Indices to be used
+  int m_timeColumnIndex;
+  std::ifstream m_file;
+  std::string m_row; // Current cached row
 };
 
-}
+} // namespace csp::adapters::csv
 
 #endif // _IN_CSP_ADAPTERS_CSV_CsvInputAdapterManager_H

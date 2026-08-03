@@ -17,12 +17,8 @@ class PriceQuantity(csp.Struct):
 
 
 class TestCSVReader(unittest.TestCase):
-
     def setUp(self):
-        self._filename = os.path.join(
-            os.path.dirname(__file__),
-            "csv_test_data.csv"
-        )
+        self._filename = os.path.join(os.path.dirname(__file__), "csv_test_data.csv")
 
         self.reader = CsvAdapterManager(
             self._filename,
@@ -31,61 +27,31 @@ class TestCSVReader(unittest.TestCase):
             delimiter="|",
         )
 
-
     def test_basic(self):
-
         def graph():
-
             # Subscribe AAPL
-            aapl = self.reader.subscribe(
-                PriceQuantity,
-                symbol="AAPL"
-            )
+            aapl = self.reader.subscribe(PriceQuantity, symbol="AAPL")
 
             # Subscribe IBM
-            ibm = self.reader.subscribe(
-                PriceQuantity,
-                symbol="IBM"
-            )
+            ibm = self.reader.subscribe(PriceQuantity, symbol="IBM")
 
             # Specific field (string only)
-            aapl_price = self.reader.subscribe(
-                str,
-                symbol="AAPL",
-                field_map="PRICE"
-            )
+            aapl_price = self.reader.subscribe(str, symbol="AAPL", field_map="PRICE")
 
             # Subscribe all symbols
-            all_data = self.reader.subscribe(
-                PriceQuantity
-            )
-
+            all_data = self.reader.subscribe(PriceQuantity)
 
             csp.add_graph_output("aapl", aapl)
             csp.add_graph_output("ibm", ibm)
             csp.add_graph_output("aapl_price", aapl_price)
             csp.add_graph_output("all", all_data)
 
-
-        result = csp.run(
-            graph,
-            starttime=datetime(2020, 3, 3, 9, 30)
-        )
-
+        result = csp.run(graph, starttime=datetime(2020, 3, 3, 9, 30))
 
         # AAPL
-        self.assertEqual(
-            len(result["aapl"]),
-            4
-        )
+        self.assertEqual(len(result["aapl"]), 4)
 
-        self.assertTrue(
-            all(
-                v[1].SYMBOL == "AAPL"
-                for v in result["aapl"]
-            )
-        )
-
+        self.assertTrue(all(v[1].SYMBOL == "AAPL" for v in result["aapl"]))
 
         self.assertEqual(
             [v[1] for v in result["aapl"]],
@@ -117,20 +83,10 @@ class TestCSVReader(unittest.TestCase):
             ],
         )
 
-
         # IBM
-        self.assertEqual(
-            len(result["ibm"]),
-            2
-        )
+        self.assertEqual(len(result["ibm"]), 2)
 
-        self.assertTrue(
-            all(
-                v[1].SYMBOL == "IBM"
-                for v in result["ibm"]
-            )
-        )
-
+        self.assertTrue(all(v[1].SYMBOL == "IBM" for v in result["ibm"]))
 
         # Single field
         self.assertEqual(
@@ -143,59 +99,26 @@ class TestCSVReader(unittest.TestCase):
             ],
         )
 
-
         # Subscribe all
-        self.assertEqual(
-            len(result["all"]),
-            7
-        )
-
-
+        self.assertEqual(len(result["all"]), 7)
 
     def test_starttime(self):
-
-        aapl = self.reader.subscribe(
-            str,
-            symbol="AAPL",
-            field_map="PRICE"
-        )
-
+        aapl = self.reader.subscribe(str, symbol="AAPL", field_map="PRICE")
 
         # Exact hit
-        res = csp.run(
-            aapl,
-            starttime=datetime(2020, 3, 3, 9, 30, 4)
-        )[0]
+        res = csp.run(aapl, starttime=datetime(2020, 3, 3, 9, 30, 4))[0]
 
+        self.assertEqual(len(res), 2)
 
-        self.assertEqual(
-            len(res),
-            2
-        )
-
-        self.assertEqual(
-            res[0][0],
-            datetime(2020, 3, 3, 9, 30, 4)
-        )
-
+        self.assertEqual(res[0][0], datetime(2020, 3, 3, 9, 30, 4))
 
         # Missed timestamp:
         # should start from first available tick
-        res = csp.run(
-            aapl,
-            starttime=datetime(2020, 3, 3, 9, 30, 3, 2)
-        )[0]
+        res = csp.run(aapl, starttime=datetime(2020, 3, 3, 9, 30, 3, 2))[0]
 
+        self.assertEqual(len(res), 2)
 
-        self.assertEqual(
-            len(res),
-            2
-        )
-
-        self.assertEqual(
-            res[0][0],
-            datetime(2020, 3, 3, 9, 30, 4)
-        )
+        self.assertEqual(res[0][0], datetime(2020, 3, 3, 9, 30, 4))
 
 
 if __name__ == "__main__":

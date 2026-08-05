@@ -13,6 +13,7 @@ Since engines can run in both simulated and realtime mode, users should **always
 - [Table of Contents](#table-of-contents)
 - [Simulation Mode](#simulation-mode)
 - [Realtime Mode](#realtime-mode)
+  - [Replay Before Going Realtime](#replay-before-going-realtime)
 - [csp.PushMode](#csppushmode)
 - [Handling Duplicate Timestamps](#handling-duplicate-timestamps)
 - [Realtime Group Event Synchronization](#realtime-group-event-synchronization)
@@ -37,6 +38,27 @@ All time based inputs such as `csp.timer` and alarms will switch to executing in
 
 As always, `csp.now()` should still be used in `csp.node` code, even when running in realtime mode.
 `csp.now()` will be the time assigned to the current engine cycle.
+
+### Replay Before Going Realtime
+
+A realtime run can replay historical data before switching to live processing. Pass `realtime=True` and set `starttime` to a time in the past. The engine processes the interval from `starttime` to wall-clock time in simulation mode, as quickly as the input adapters can supply data. When engine time catches up to wall-clock time, the same graph switches to realtime mode.
+
+```python
+from datetime import datetime, timedelta, timezone
+
+now = datetime.now(timezone.utc)
+
+csp.run(
+    my_graph,
+    starttime=now - timedelta(hours=1),
+    endtime=now + timedelta(minutes=5),
+    realtime=True,
+)
+```
+
+In this example, `my_graph` replays one hour of history and then continues in realtime for approximately five minutes. Use an absolute future `endtime` when the run must remain active after the handoff; if the end time has already passed when replay finishes, the engine cannot continue into a live interval.
+
+The graph's historical input adapters must provide data for the replay interval. Realtime adapters begin supplying external events after the engine reaches realtime. Nodes do not need separate replay and live implementations: use `csp.now()` for engine time and `csp.in_realtime()` when behavior must explicitly depend on the current phase.
 
 ## csp.PushMode
 

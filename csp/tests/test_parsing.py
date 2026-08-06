@@ -1,5 +1,6 @@
 import sys
 import unittest
+import warnings
 from datetime import datetime, timedelta
 from typing import Callable, Dict, List
 
@@ -9,6 +10,14 @@ from csp.impl.types.instantiation_type_resolver import ArgTypeMismatchError
 
 
 class TestParsing(unittest.TestCase):
+    def test_unnamed_outputs_namespace_uses_string_keys(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            outputs = Outputs(ts[int])
+
+        self.assertTrue(all(isinstance(key, str) for key in vars(outputs)))
+        self.assertEqual(outputs.__annotations__, {None: ts[int]})
+
     def test_parse_errors(self):
         # These are roughly in order of exceptions that are thrown in node_parser.py ( as of the time of this writing )
 

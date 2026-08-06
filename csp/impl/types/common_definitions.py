@@ -58,6 +58,10 @@ class Outputs:
             _make_pydantic_outputs(kwargs)
         except ImportError:
             pass
+        # Python 3.13 warns when a class namespace contains non-string keys.
+        # Keep None in __annotations__ to represent an unnamed output, but do
+        # not pass it as a class attribute to type().
+        kwargs.pop(None, None)
         return type("Outputs", (Outputs,), kwargs)
 
     def __init__(self, *args, **kwargs):

@@ -41,7 +41,8 @@ As always, `csp.now()` should still be used in `csp.node` code, even when runnin
 
 ### Replay Before Going Realtime
 
-A realtime run can replay historical data before switching to live processing. Pass `realtime=True` and set `starttime` to a time in the past. The engine processes the interval from `starttime` to wall-clock time in simulation mode, as quickly as the input adapters can supply data. When engine time catches up to wall-clock time, the same graph switches to realtime mode.
+To include a historical replay before the handoff described above, set `starttime`
+to a time in the past while using `realtime=True`:
 
 ```python
 from datetime import datetime, timedelta, timezone
@@ -56,7 +57,10 @@ csp.run(
 )
 ```
 
-In this example, `my_graph` replays one hour of history and then continues in realtime for approximately five minutes. Use an absolute future `endtime` when the run must remain active after the handoff; if the end time has already passed when replay finishes, the engine cannot continue into a live interval.
+Here, `my_graph` replays one hour of history and then runs live for approximately
+five minutes. Use an absolute future `endtime` when the run must remain active
+after the handoff; if it has already passed when replay finishes, no live interval
+remains.
 
 The graph's historical input adapters must provide data for the replay interval. Realtime adapters begin supplying external events after the engine reaches realtime. Nodes do not need separate replay and live implementations: use `csp.now()` for engine time and `csp.in_realtime()` when behavior must explicitly depend on the current phase.
 

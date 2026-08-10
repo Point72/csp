@@ -7,6 +7,12 @@
 namespace csp::python
 {
 
+CspTypeFactory::CspTypeFactory()
+{
+    PyObject *enum_mod = PyImport_ImportModule( "enum" );
+    m_intEnumPyType    = PyTypeObjectPtr::own( ( PyTypeObject * ) PyObject_GetAttrString( enum_mod, "IntEnum" ) );
+}
+
 CspTypeFactory & CspTypeFactory::instance()
 {
     static CspTypeFactory s_instance;
@@ -64,6 +70,11 @@ CspTypePtr & CspTypeFactory::typeFromPyType( PyObject * pyTypeObj )
             auto meta = ( ( PyCspEnumMeta * ) pyType ) -> enumMeta;
             rv.first -> second = std::make_shared<csp::CspEnumType>( meta );
         }
+        else if( PyType_IsSubtype( pyType, m_intEnumPyType.get() ) )
+        {
+            auto meta = createCspEnumMetaFromIntEnum( PyTypeObjectPtr::incref( pyType ) );
+            rv.first -> second = std::make_shared<csp::CspEnumType>( meta );
+        }
         else if( pyType == PyDateTimeAPI -> DateTimeType )
             rv.first -> second = csp::CspType::DATETIME();
         else if( pyType == PyDateTimeAPI -> DeltaType )
@@ -86,6 +97,32 @@ CspTypePtr & CspTypeFactory::typeFromPyType( PyObject * pyTypeObj )
 void CspTypeFactory::removeCachedType( PyTypeObject * pyType )
 {
     m_cache.erase( pyType );
+}
+
+std::shared_ptr<CspEnumMeta> CspTypeFactory::createCspEnumMetaFromIntEnum( PyTypeObjectPtr pyIntEnumType )
+{
+    CspEnumMeta::ValueDef metadef;
+    
+    PyObjectPtr iter = PyObjectPtr::check( PyObject_GetIter( ( PyObject * ) pyIntEnumType.get() ) );
+    PyObject * member;
+    while( ( member = PyIter_Next( iter.get() ) ) != NULL )
+    {
+        PyObjectPtr name = PyObjectPtr::check( PyObject_GetAttrString( member, "name" ) );
+
+        const char * namestr = PyUnicode_AsUTF8( name.get() );
+        if( !namestr )
+            CSP_THROW( PythonPassthrough, "" );
+            
+        if( !PyLong_Check( member ) )
+            CSP_THROW( TypeError, "enum key " << namestr << " expected an integer got " << PyObjectPtr::incref( member ) );
+        
+        int64_t value = fromPython<int64_t>( member );
+        metadef[ namestr ] = value;
+        
+        Py_DECREF( member );
+    }
+    
+    return std::make_shared<DialectCspEnumMeta>( pyIntEnumType, pyIntEnumType -> tp_name, metadef );
 }
 
 }

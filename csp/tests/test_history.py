@@ -161,7 +161,7 @@ class TestHistory(unittest.TestCase):
                 with self.assertRaises(TypeError):
                     csp.values_at(x, 0, 0, csp.TimeIndexPolicy.EXCLUSIVE, csp.TimeIndexPolicy.EXCLUSIVE)
 
-                with self.assertRaises(RuntimeError):
+                with self.assertRaises(TypeError):
                     csp.items_at(x, -10, 0, False, False)
 
         @csp.node
@@ -200,7 +200,7 @@ class TestHistory(unittest.TestCase):
 
                 csp.output(values_default, csp.values_at(x))
 
-                with self.assertRaises(RuntimeError):
+                with self.assertRaises(TypeError):
                     csp.times_at(x, startIndex, endIndex, "abc", False)
 
         @csp.node

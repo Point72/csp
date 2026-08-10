@@ -12,6 +12,7 @@ DialectCspEnumMeta::DialectCspEnumMeta( PyTypeObjectPtr pyType, const std::strin
     CspEnumMeta( name, def ),
     m_pyType( pyType )
 {
+    m_isPyIntEnum = PyType_IsSubtype( pyType.get(), CspTypeFactory::instance().intEnumPyType() );
 }
 
 /*

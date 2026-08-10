@@ -446,6 +446,16 @@ inline PyObject * toPython( const CspEnum & e, const CspType & type )
     auto & enumType = static_cast<const CspEnumType&>( type );
     const auto * emeta = static_cast<const DialectCspEnumMeta*>( enumType.meta().get() );
 
+    if( emeta -> isPyIntEnum() )
+    {
+        //TODO - precache IntEnums on DialectCspEnumMeta instead of PyCspEnumMeta for faster IntEnum conversion
+        PyObjectPtr val = PyObjectPtr::own( toPython( e.value() ) );
+        PyObject * obj = PyObject_CallOneArg( ( PyObject * ) emeta -> pyType().get(), val.get() );
+        if( !obj )
+            CSP_THROW( PythonPassthrough, "" );
+        return obj;
+    }
+    
     PyObject * obj = emeta -> pyMeta() -> toPyEnum( e );
     if( !obj ) [[unlikely]]
         CSP_THROW( ValueError, e.value() << " is not a valid value on csp.enum type " << emeta -> name() );
@@ -457,9 +467,14 @@ inline CspEnum fromPython( PyObject * o, const CspType & type )
 {
     assert( type.type() == CspType::Type::ENUM );
 
-    if( !PyType_IsSubtype( Py_TYPE( o ), &PyCspEnum::PyType ) ||
-        static_cast<PyCspEnum *>( o ) -> meta() != static_cast<const CspEnumType &>( type ).meta().get() )
-        CSP_THROW( TypeError, "Invalid enum type, expected enum type " << static_cast<const CspEnumType &>( type ).meta() -> name() << " got " << Py_TYPE( o ) -> tp_name );
+    auto & enumType = static_cast<const CspEnumType&>( type );
+    const auto * emeta = static_cast<const DialectCspEnumMeta*>( enumType.meta().get() );
+    
+    if( !PyObject_IsInstance( o, ( PyObject * ) emeta -> pyType().get() ) )
+        CSP_THROW( TypeError, "Invalid enum type, expected enum type " << emeta -> pyType() -> tp_name << " got " << Py_TYPE( o ) -> tp_name );
+    
+    if( emeta -> isPyIntEnum() )
+        return static_cast<const CspEnumType &>( type ).meta() -> create( PyLong_AsLong( o ) );
 
     return static_cast<PyCspEnum *>( o ) -> enum_;
 }

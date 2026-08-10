@@ -5,6 +5,7 @@ import importlib.util
 import os.path
 import sys
 import types
+from enum import IntEnum
 
 # We need to patch mock modules into sys.modules to avoid pulling in csp/__init__.py and all of its baggage, which include imports of
 # _cspimpl, which would be a circular dep
@@ -85,7 +86,7 @@ class CodeGenerator:
 
             if issubclass(v, Struct) and v is not Struct:
                 self._struct_types.append(v)
-            elif issubclass(v, Enum) and v is not Enum:
+            elif issubclass(v, Enum) and v is not Enum or issubclass(v, IntEnum) and v is not IntEnum:
                 self._enum_types.append(v)
 
     def _get_dependent_headers(self):
@@ -119,11 +120,9 @@ class CodeGenerator:
         return self._cpp_filename
 
     def generate_header_code(self):
-        include_guard = "_IN_CSP_AUTOGEN_" + self._module_name.replace(".", "_").upper()
-        out = f"""
-#ifndef {include_guard}
-#define {include_guard}
-
+        out = f"""//// Generated from {self._module_name}
+#pragma once
+        
 """
         out += self._generate_headers()
 
@@ -139,11 +138,11 @@ namespace {self._namespace}
         for struct_type in self._struct_types:
             out += self._generate_struct_class(struct_type)
 
-        out += "\n}\n#endif"
+        out += "\n}"
         return out
 
     def _generate_headers(self):
-        common_headers = ["csp/core/Exception.h", "csp/engine/Struct.h", "cstddef"]
+        common_headers = ["csp/core/Exception.h", "csp/engine/Struct.h", "csp/python/Conversions.h", "cstddef"]
 
         common_headers.extend(self._get_dependent_headers())
         return "\n".join(f"#include <{h}>" for h in common_headers)
@@ -173,7 +172,11 @@ public:
     static {enum_name} create( enum_ v )          {{ return s_meta -> create( ( int64_t ) v ); }}
     static {enum_name} create( const char * name) {{ return s_meta -> fromString( name ); }}
     static {enum_name} create( const std::string & s ) {{ return create( s.c_str() ); }}
-
+    static {enum_name} create( PyObject * e )
+    {{
+        return {enum_name}( csp::python::fromPython<CspEnum>( e, *s_cspEnumType ) );
+    }}
+    
     enum_ enum_value() const {{ return ( enum_ ) value(); }}
 
     static constexpr uint32_t num_types() {{ return {len([x for x in enum_type])}; }}
@@ -183,7 +186,7 @@ public:
     {enum_name}( const csp::CspEnum & v ) : csp::CspEnum( v ) {{ CSP_TRUE_OR_THROW( v.meta() == s_meta.get(), AssertionError, "Mismatched enum meta" ); }}
 
 private:
-
+    static std::shared_ptr<const csp::CspEnumType> s_cspEnumType;
     static std::shared_ptr<csp::CspEnumMeta> s_meta;
 }};
 """
@@ -439,14 +442,18 @@ bool {enum_name}::static_init()
         assert_or_die( enumType != nullptr, "failed to find num type {enum_name} in module {self._module_name}" );
 
         // should add some assertion here..
-        csp::python::PyCspEnumMeta * pymeta = ( csp::python::PyCspEnumMeta * ) enumType;
-        s_meta = pymeta -> enumMeta;
+        //csp::python::PyCspEnumMeta * pymeta = ( csp::python::PyCspEnumMeta * ) enumType;
+        //s_meta = pymeta -> enumMeta;
+        auto type = csp::python::CspTypeFactory::instance().typeFromPyType( enumType );
+        s_cspEnumType = std::static_pointer_cast<const CspEnumType>( type );
+        s_meta = s_cspEnumType -> meta();
     }}
 
     return true;
 }}
 
 bool static_init_{enum_name} = {enum_name}::static_init();
+std::shared_ptr<const csp::CspEnumType> {enum_name}::s_cspEnumType;
 std::shared_ptr<csp::CspEnumMeta> {enum_name}::s_meta;
 {static_decls}
 """
@@ -460,6 +467,7 @@ std::shared_ptr<csp::CspEnumMeta> {enum_name}::s_meta;
 #include <csp/python/Common.h>
 #include <csp/python/PyStruct.h>
 #include <csp/python/PyCspEnum.h>
+#include <csp/python/CspTypeFactory.h>
 #include <iostream>
 #include <stdlib.h>
 #include <Python.h>

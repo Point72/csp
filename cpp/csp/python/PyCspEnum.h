@@ -40,11 +40,13 @@ public:
 
     const PyTypeObjectPtr & pyType() const { return m_pyType; }
 
-    const PyCspEnumMeta * pyMeta() const   { return ( const PyCspEnumMeta * ) m_pyType.get(); }
+    const PyCspEnumMeta * pyMeta() const   { assert( !m_isPyIntEnum ); return ( const PyCspEnumMeta * ) m_pyType.get(); }
 
+    bool isPyIntEnum() const               { return m_isPyIntEnum; }
 private:
 
     PyTypeObjectPtr m_pyType;
+    bool            m_isPyIntEnum;
 };
 
 struct CSPTYPESIMPL_EXPORT PyCspEnum : public PyObject

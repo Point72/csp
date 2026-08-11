@@ -78,7 +78,7 @@ jobs:
         - name: Checkout
           uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-        - uses: mamba-org/setup-micromamba@ce51e99f4bb8a82ab7158c4dc59ef4634c59c4f9 # v3.1.0
+        - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3.2.1
           with:
             micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-unix.yml
@@ -90,7 +90,7 @@ jobs:
             post-cleanup: 'none'
           if: ${{ runner.os != 'Windows' }}
 
-        - uses: mamba-org/setup-micromamba@ce51e99f4bb8a82ab7158c4dc59ef4634c59c4f9 # v3.1.0
+        - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3.2.1
           with:
             micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-win.yml

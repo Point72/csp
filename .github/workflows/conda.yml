@@ -86,7 +86,8 @@ jobs:
               bash
             cache-environment: true
             cache-downloads: true
-            post-cleanup: 'all'
+            # Hosted runners are ephemeral, so removing the micromamba root buys nothing
+            post-cleanup: 'none'
           if: ${{ runner.os != 'Windows' }}
 
         - uses: mamba-org/setup-micromamba@ce51e99f4bb8a82ab7158c4dc59ef4634c59c4f9 # v3.1.0
@@ -97,7 +98,10 @@ jobs:
               cmd.exe
             cache-environment: true
             cache-downloads: true
-            post-cleanup: 'all'
+            # Hosted runners are ephemeral, so removing the micromamba root buys nothing, and on
+            # Windows it fails with EPERM when a handle is still open on python.exe.
+            # See https://github.com/mamba-org/setup-micromamba/issues/268
+            post-cleanup: 'none'
           if: ${{ runner.os == 'Windows' }}
 
         - name: Set up Caches

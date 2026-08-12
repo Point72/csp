@@ -111,7 +111,7 @@ class TVarValidationContext:
         # Do the conversion only for the relevant fields
         for field in fields_to_revalidate:
             value = getattr(model, field)
-            annotation = model.__annotations__[field]
+            annotation = type(model).__annotations__[field]
             args = get_args(annotation)
             if args and args[0] is CspTypeVarType:
                 # Skip revalidation of top-level type var types, as these have been handled via tvar resolution

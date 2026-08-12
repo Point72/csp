@@ -1,3 +1,5 @@
+import collections.abc
+import types
 import typing
 
 import numpy
@@ -24,10 +26,77 @@ class ContainerTypeNormalizer:
     }
 
     @classmethod
+    def canonicalize_builtin_generics(cls, typ):
+        """Recursively canonicalize PEP 585 builtin generics to their ``typing`` equivalents so that,
+        e.g., ``list[int]`` and ``typing.List[int]`` (and every nesting combination) normalize to a single
+        representation that compares and hashes equal.
+
+        Only the builtin container origins in ``_ORIGIN_COMPAT_MAP`` (list, set, dict, tuple) are remapped
+        to their ``typing`` form. Every other generic wrapper (FastList, csp.typing numpy arrays,
+        typing.Callable, typing.Mapping, custom generics, ...) keeps its own origin/flavor, but we still
+        recurse into its arguments so nested builtin containers get canonicalized. Unions (both
+        ``typing.Union``/``Optional`` and PEP 604 ``X | Y``) are traversed as well. When nothing actually
+        changes, the original object is returned unchanged, both to avoid needless allocations and to
+        preserve object identity for callers that rely on it.
+        """
+        if CspTypingUtils.is_union_type(typ):
+            args = typing.get_args(typ)
+            converted_args = tuple(cls._canonicalize_arg(arg) for arg in args)
+            if converted_args == args:
+                return typ
+            return typing.Union[converted_args]
+
+        if CspTypingUtils.is_generic_container(typ):
+            # __args__ (rather than get_args) keeps Callable's flattened ([params], ret) shape, which is
+            # what copy_with expects for faithful reconstruction.
+            args = typ.__args__
+            converted_args = tuple(cls._canonicalize_arg(arg) for arg in args)
+            canonical_origin = CspTypingUtils._ORIGIN_COMPAT_MAP.get(typ.__origin__)
+            if canonical_origin is not None:
+                # list/set/dict/tuple: rewrite to the typing form. A builtin (types.GenericAlias) alias
+                # must always be rebuilt (that is the whole point); an already-typing alias whose args did
+                # not change is returned as-is to preserve identity.
+                if converted_args == args and not isinstance(typ, types.GenericAlias):
+                    return typ
+                return canonical_origin[converted_args if len(converted_args) != 1 else converted_args[0]]
+            # Preserved wrapper (FastList, numpy arrays, Callable, Mapping, custom generic, ...): keep the
+            # outer origin/flavor but rebuild with canonicalized args when a child actually changed.
+            if converted_args == args:
+                return typ
+            if hasattr(typ, "copy_with"):
+                # typing._GenericAlias (typing.Callable, typing.Mapping, csp numpy arrays, ...): copy_with
+                # faithfully preserves the alias flavor, including Callable's flattened arg shape.
+                return typ.copy_with(converted_args)
+            origin = typ.__origin__
+            if origin is collections.abc.Callable:
+                # PEP 585 collections.abc.Callable[[p1, ...], ret]: __args__ is flattened, so restore the
+                # ([params], ret) subscription shape (an Ellipsis param list stays as Callable[..., ret]).
+                *params, ret = converted_args
+                if params == [Ellipsis]:
+                    return origin[..., ret]
+                return origin[list(params), ret]
+            try:
+                return origin[converted_args if len(converted_args) != 1 else converted_args[0]]
+            except TypeError:
+                # Exotic / non-subscriptable origin: leave it unchanged rather than fail normalization.
+                return typ
+
+        return typ
+
+    @classmethod
+    def _canonicalize_arg(cls, arg):
+        # A bare string argument inside a generic (e.g. ``list["T"]``) is stored raw by PEP 585 builtins but
+        # as a ForwardRef by typing generics; canonicalize to ForwardRef so both spellings match (and so we
+        # do not mint a fresh TypeVar on every call, which would defeat equality/caching).
+        if isinstance(arg, str):
+            return typing.ForwardRef(arg)
+        return cls.canonicalize_builtin_generics(arg)
+
+    @classmethod
     def _convert_containers_to_typing_generic_meta(cls, typ, is_within_container):
+        typ = cls.canonicalize_builtin_generics(typ)
         if CspTypingUtils.is_generic_container(typ):
             return typ
-            # cls._deep_convert_generic_meta_to_typing_generic_meta(typ, is_within_container)
         elif isinstance(typ, dict):
             # warn(
             #     "Using {K: V} syntax for type declaration is deprecated. Use Dict[K, V] instead.",

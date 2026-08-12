@@ -111,11 +111,11 @@ def make_snap_validator(inp_def_type):
 
     def snap_validator(v: Any, handler: ValidatorFunctionWrapHandler, info: ValidationInfo) -> Any:
         if isinstance(v, SnapType):
-            if v.ts_type.typ is inp_def_type:
+            if v.ts_type.typ == inp_def_type:
                 return v
             raise ValueError(f"Expecting {inp_def_type} for csp.snap value, but getting {v.ts_type.typ}")
         if isinstance(v, SnapKeyType):
-            if v.key_tstype.typ is inp_def_type:
+            if v.key_tstype.typ == inp_def_type:
                 return v
             raise ValueError(f"Expecting {inp_def_type} for csp.snap_key value, but getting {v.key_tstype.typ}")
         return handler(v)

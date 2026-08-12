@@ -4,7 +4,8 @@ requires = [
     "deprecated",  # Because used in csp.impl.struct, which is used in autogen
     # oldest numpy 2 we can
     "numpy>=2,<2.1; python_version < '3.13'",
-    "numpy>=2,<2.2",
+    "numpy>=2,<2.2; python_version < '3.14'",
+    "numpy>=2,<2.4; python_version < '3.15'",
     "pyarrow>=15,<24",
     "ruamel.yaml",
     "scikit-build",
@@ -18,7 +19,7 @@ name = "csp"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
 description="csp is a high performance reactive stream processing library, written in C++ and Python"
 readme = "README.md"
-version = "0.17.1"
+version = "0.18.0"
 requires-python = ">=3.10"
 
 dependencies = [
@@ -44,6 +45,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 
@@ -81,7 +83,7 @@ develop = [
     # adapters
     "httpx>=0.20,<1",  # kafka
     "perspective-python>=2",  # perspective
-    "ipywidgets",  # perspective
+    "anywidget",  # perspective
     "polars",  # parquet
     "psutil",  # test_engine/test_history
     "sqlalchemy",  # db
@@ -118,7 +120,7 @@ slack = [
 ]
 
 [tool.bumpversion]
-current_version = "0.17.1"
+current_version = "0.18.0"
 commit = false
 tag = false
 commit_args = "-s"
@@ -147,7 +149,7 @@ replace = 'project(csp VERSION "{new_version}")'
 ignore = []
 
 [tool.cibuildwheel]
-build = "cp310-* cp311-* cp312-* cp313-*"
+build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
 test-command = "echo 'TODO'"
 test-requires = [
     "pytest",

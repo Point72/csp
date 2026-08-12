@@ -15,19 +15,19 @@
 #include <limits>
 #include <frameobject.h>
 
-#if !IS_PRE_PYTHON_3_11
-#if !IS_PRE_PYTHON_3_13
-#    define Py_BUILD_CORE 1
-#endif
-#include <internal/pycore_code.h>
-#include <internal/pycore_frame.h>
-#if !IS_PRE_PYTHON_3_13
-#    undef Py_BUILD_CORE
-#endif
-#endif
-
 namespace csp::python
 {
+
+#if !IS_PRE_PYTHON_3_11
+static inline PyObject * FrameLocal_GetObj( FrameLocalVar * slot )
+{
+#if IS_PRE_PYTHON_3_14
+    return *slot;
+#else
+    return PyStackRef_AsPyObjectBorrow( *slot );
+#endif
+}
+#endif
 
 static const std::string NODEREF_VAR="node_p";
 static const std::string INPUT_VAR_VAR="input_var";
@@ -64,7 +64,7 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
     //out proxies
     //in locals ( non-basket only )
 
-    m_localVars = ( PyObject *** ) calloc( numInputs(), sizeof( PyObject ** ) );
+    m_localVars = ( FrameLocalVar ** ) calloc( numInputs(), sizeof( FrameLocalVar * ) );
 
     //printf( "Starting %s slots: %ld rank: %d\n", name(), slots, rank() );
 #if IS_PRE_PYTHON_3_11
@@ -88,41 +88,52 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
                 continue;
             var = &( ( ( PyCellObject * ) *var ) -> ob_ref );
         }
+
+        PyObject * obj = *var;
+
 //PY311+ changes
 #else
+  #if IS_PRE_PYTHON_3_14
     _PyInterpreterFrame * frame = ( _PyInterpreterFrame * ) pygen -> gi_iframe;
-#if IS_PRE_PYTHON_3_12
-    PyCodeObject * code = frame -> f_code;
-#else
+    #if IS_PRE_PYTHON_3_12
+      PyCodeObject * code = frame -> f_code;
+    #else
+      PyPtr<PyCodeObject> code = PyPtr<PyCodeObject>::own( PyGen_GetCode( ( PyGenObject * ) pygen ) );
+    #endif
+  #else
+    _PyInterpreterFrame * frame = &pygen -> gi_iframe;
     PyPtr<PyCodeObject> code = PyPtr<PyCodeObject>::own( PyGen_GetCode( ( PyGenObject * ) pygen ) );
-#endif
+  #endif
+
     int localPlusIndex = 0;
     for( int stackloc = code -> co_argcount; stackloc < code -> co_nlocalsplus; ++stackloc, ++localPlusIndex )
     {
-        PyObject **var = &frame -> localsplus[stackloc];
+        FrameLocalVar * var = &frame -> localsplus[stackloc];
+        PyObject * obj = FrameLocal_GetObj( var );
 
         auto kind = _PyLocals_GetKind(code -> co_localspluskinds, localPlusIndex );
-        bool isCell = *var && PyCell_Check(*var);
-
-        //printf( "RBA: stack: %d idx: %d var: ", stackloc, localPlusIndex );
-        //PyObject_Print( *var, stdout, 0 );
-        //printf( " isCell: %d kind: %x\n", isCell, kind );
+        bool isCell = obj && PyCell_Check( obj );
 
         if( isCell )
-            var = &( ( ( PyCellObject * ) *var ) -> ob_ref );
+        {
+#if IS_PRE_PYTHON_3_14
+            var = &( ( ( PyCellObject * ) obj ) -> ob_ref );
+            obj = *var;
+#else
+            obj = ( ( PyCellObject * ) obj ) -> ob_ref;
+#endif
+        }
         else if( kind == CO_FAST_CELL )
             continue;
 #endif
-        //null var indicates a stack slot for a local state variable ( state hasnt initialized yet )
-        //we can skip those
-        if( !*var )
+        if( !obj )
             continue;
 
-        if( !PyTuple_Check( *var ) )
-            CSP_THROW( TypeError, "expected tuple types in stack, got " << (*var) -> ob_type -> tp_name << " in node " << name() );
+        if( !PyTuple_Check( obj ) )
+            CSP_THROW( TypeError, "expected tuple types in stack, got " << obj -> ob_type -> tp_name << " in node " << name() );
 
-        std::string vartype = PyUnicode_AsUTF8( PyTuple_GET_ITEM( *var, 0 ) );
-        int index           = fromPython<int64_t>( PyTuple_GET_ITEM( *var, 1 ) );
+        std::string vartype = PyUnicode_AsUTF8( PyTuple_GET_ITEM( obj, 0 ) );
+        int index           = fromPython<int64_t>( PyTuple_GET_ITEM( obj, 1 ) );
 
         if( vartype == INPUT_VAR_VAR )
         {
@@ -132,9 +143,6 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
             //These vars will be "deleted" from the python stack after start
             continue;
         }
-
-        //decref tuple at this point its no longer needed and will be replaced
-        Py_DECREF( *var );
 
         PyObject * newvalue = nullptr;
         if( vartype == NODEREF_VAR )
@@ -210,7 +218,17 @@ void PyNode::init( PyObjectPtr inputs, PyObjectPtr outputs )
         else
             CSP_THROW( ValueError, "Unexpected var type " << vartype );
 
+        //decref tuple at this point its no longer needed and will be replaced
+        Py_DECREF( obj );
+
+#if IS_PRE_PYTHON_3_14
         *var = newvalue;
+#else
+        if( isCell )
+            ( ( PyCellObject * ) PyStackRef_AsPyObjectBorrow( *var ) ) -> ob_ref = newvalue;
+        else
+            *var = PyStackRef_FromPyObjectSteal( newvalue );
+#endif
     }
 }
 
@@ -309,10 +327,26 @@ void PyNode::executeImpl()
             {
                 //Note this is intentionally kept in a temp and decref-ed after updating m_localVars[idx] since
                 //lastValueToPython can trigger a GC Collect which can reach into generator vars ( localVars ) which would be nulled out
+#if IS_PRE_PYTHON_3_14
                 PyObject * old = *m_localVars[ idx ];
                 *m_localVars[ idx ] = lastValueToPython( ts );
                 Py_XDECREF( old );
-                
+#else
+                _PyStackRef * slot = m_localVars[ idx ];
+                if( !PyStackRef_IsNull( *slot ) && PyCell_Check( PyStackRef_AsPyObjectBorrow( *slot ) ) )
+                {
+                    PyCellObject * cell = ( PyCellObject * ) PyStackRef_AsPyObjectBorrow( *slot );
+                    PyObject * old = cell -> ob_ref;
+                    cell -> ob_ref = lastValueToPython( ts );
+                    Py_XDECREF( old );
+                }
+                else
+                {
+                    _PyStackRef old = *slot;
+                    *slot = PyStackRef_FromPyObjectSteal( lastValueToPython( ts ) );
+                    PyStackRef_XCLOSE( old );
+                }
+#endif
                 if( passiveConvert )
                     m_passiveCounts[ idx ] = count;
             }

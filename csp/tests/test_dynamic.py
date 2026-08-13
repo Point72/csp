@@ -1,17 +1,20 @@
 import itertools
+import os
 import random
 import string
 import time
 import unittest
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional, Set
 
 import numpy
 
 import csp
 from csp import ts
 from csp.utils.datetime import utc_now
+
+USE_PYDANTIC = os.environ.get("CSP_PYDANTIC", True)
 
 
 class DynData(csp.Struct):
@@ -188,7 +191,73 @@ class TestDynamic(unittest.TestCase):
             self.assertEqual(len(res[f"{key}_tsadj"]), ts_ticks)
             self.assertTrue(all(x[1].val * 2 == y[1] for x, y in zip(res[f"{key}_ts"], res[f"{key}_tsadj"])))
 
-    def test_shared_input(self):
+    def test_snap_builtin_generic_scalar(self):
+        # csp.snap of a container-typed edge into a scalar arg written with the PEP 585 builtin form
+        # (list[str] rather than typing.List[str]) must still type-check.
+        @csp.graph
+        def dyn_graph(key: str, snapped: list[str]):
+            csp.add_graph_output(f"{key}_snapped", csp.const(snapped))
+
+        def g():
+            keys = csp.curve(List[str], [(timedelta(seconds=1), ["A", "B"])])
+            basket = gen_basket(keys, csp.null_ts(List[str]))
+            csp.dynamic(basket, dyn_graph, csp.snapkey(), csp.snap(keys))
+
+        res = csp.run(g, starttime=datetime(2021, 6, 22), endtime=timedelta(seconds=3))
+        self.assertIn("A", res["A_snapped"][0][1])
+        self.assertIn("B", res["B_snapped"][0][1])
+
+    def test_snap_builtin_generic_dict_scalar(self):
+        # csp.snap of a dict-typed edge into a scalar arg written in the PEP 585 builtin form
+        # (dict[str, int] rather than typing.Dict[str, int]) must still type-check.
+        @csp.graph
+        def dyn_graph(key: str, snapped: dict[str, int]):
+            csp.add_graph_output(f"{key}_snapped", csp.const(snapped))
+
+        def g():
+            keys = csp.curve(List[str], [(timedelta(seconds=1), ["A", "B"])])
+            values = csp.curve(Dict[str, int], [(timedelta(seconds=1), {"A": 1, "B": 2})])
+            basket = gen_basket(keys, csp.null_ts(List[str]))
+            csp.dynamic(basket, dyn_graph, csp.snapkey(), csp.snap(values))
+
+        res = csp.run(g, starttime=datetime(2021, 6, 22), endtime=timedelta(seconds=3))
+        self.assertEqual(res["A_snapped"][0][1], {"A": 1, "B": 2})
+        self.assertEqual(res["B_snapped"][0][1], {"A": 1, "B": 2})
+
+    def test_snap_builtin_generic_set_scalar(self):
+        # csp.snap of a set-typed edge into a scalar arg written in the PEP 585 builtin form
+        # (set[str] rather than typing.Set[str]) must still type-check.
+        @csp.graph
+        def dyn_graph(key: str, snapped: set[str]):
+            csp.add_graph_output(f"{key}_snapped", csp.const(snapped))
+
+        def g():
+            keys = csp.curve(List[str], [(timedelta(seconds=1), ["A", "B"])])
+            values = csp.curve(Set[str], [(timedelta(seconds=1), {"X", "Y"})])
+            basket = gen_basket(keys, csp.null_ts(List[str]))
+            csp.dynamic(basket, dyn_graph, csp.snapkey(), csp.snap(values))
+
+        res = csp.run(g, starttime=datetime(2021, 6, 22), endtime=timedelta(seconds=3))
+        self.assertEqual(res["A_snapped"][0][1], {"X", "Y"})
+        self.assertEqual(res["B_snapped"][0][1], {"X", "Y"})
+
+    @unittest.skipIf(USE_PYDANTIC, "csp.snap into a union-typed scalar is only supported by the legacy type resolver")
+    def test_snap_builtin_generic_union_scalar(self):
+        # A builtin generic nested inside a union scalar annotation (Optional[list[str]]) exercises
+        # the union branch of the legacy type resolver, which must normalize list[str] to typing.List[str]
+        # for the snapped edge type to match.
+        @csp.graph
+        def dyn_graph(key: str, snapped: Optional[list[str]]):
+            csp.add_graph_output(f"{key}_snapped", csp.const(snapped))
+
+        def g():
+            keys = csp.curve(List[str], [(timedelta(seconds=1), ["A", "B"])])
+            basket = gen_basket(keys, csp.null_ts(List[str]))
+            csp.dynamic(basket, dyn_graph, csp.snapkey(), csp.snap(keys))
+
+        res = csp.run(g, starttime=datetime(2021, 6, 22), endtime=timedelta(seconds=3))
+        self.assertIn("A", res["A_snapped"][0][1])
+        self.assertIn("B", res["B_snapped"][0][1])
         """ensure an externally wired input is shared / not recreated per sub-graph"""
         instances = []
 

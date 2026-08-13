@@ -11,6 +11,7 @@ inputs:
       - '3.11'
       - '3.12'
       - '3.13'
+      - '3.14'
     default: '3.11'
   cibuildwheel:
     type: boolean
@@ -38,5 +39,5 @@ runs:
 
     - name: Install cibuildwheel and twine
       shell: bash
-      run: pip install cibuildwheel==3.2 twine
+      run: pip install cibuildwheel==3.2.1 twine
       if: ${{ inputs.cibuildwheel == 'true' }}

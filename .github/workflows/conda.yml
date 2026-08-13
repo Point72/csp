@@ -76,9 +76,9 @@ jobs:
       runs-on: ${{ matrix.os }}
       steps:
         - name: Checkout
-          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-        - uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v3.0.0
+        - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3.2.1
           with:
             micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-unix.yml
@@ -86,10 +86,11 @@ jobs:
               bash
             cache-environment: true
             cache-downloads: true
-            post-cleanup: 'all'
+            # Hosted runners are ephemeral, so removing the micromamba root buys nothing
+            post-cleanup: 'none'
           if: ${{ runner.os != 'Windows' }}
 
-        - uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v3.0.0
+        - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3.2.1
           with:
             micromamba-version: '2.3.2-0'
             environment-file: conda/dev-environment-win.yml
@@ -97,7 +98,10 @@ jobs:
               cmd.exe
             cache-environment: true
             cache-downloads: true
-            post-cleanup: 'all'
+            # Hosted runners are ephemeral, so removing the micromamba root buys nothing, and on
+            # Windows it fails with EPERM when a handle is still open on python.exe.
+            # See https://github.com/mamba-org/setup-micromamba/issues/268
+            post-cleanup: 'none'
           if: ${{ runner.os == 'Windows' }}
 
         - name: Set up Caches

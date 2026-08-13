@@ -110,24 +110,24 @@ if "DEBUG" in os.environ:
     cmake_args.append("-DCMAKE_BUILD_TYPE=Debug")
 
 if platform.system() == "Windows":
-    import distutils.msvccompiler as dm
+    generator = os.environ.get("CSP_GENERATOR")
+    if not generator:
+        try:
+            import distutils.msvccompiler as dm
 
-    # https://wiki.python.org/moin/WindowsCompilers#Microsoft_Visual_C.2B-.2B-_14.0_with_Visual_Studio_2015_.28x86.2C_x64.2C_ARM.29
-    msvc = {
-        "12": "Visual Studio 12 2013",
-        "14": "Visual Studio 14 2015",
-        "14.0": "Visual Studio 14 2015",
-        "14.1": "Visual Studio 15 2017",
-        "14.2": "Visual Studio 16 2019",
-        "14.3": "Visual Studio 17 2022",
-        "14.4": "Visual Studio 17 2022",
-    }.get(str(dm.get_build_version()), "Visual Studio 17 2022")
-    cmake_args.extend(
-        [
-            "-G",
-            os.environ.get("CSP_GENERATOR", msvc),
-        ]
-    )
+            # https://wiki.python.org/moin/WindowsCompilers#Microsoft_Visual_C.2B-.2B-_14.0_with_Visual_Studio_2015_.28x86.2C_x64.2C_ARM.29
+            generator = {
+                "12": "Visual Studio 12 2013",
+                "14": "Visual Studio 14 2015",
+                "14.0": "Visual Studio 14 2015",
+                "14.1": "Visual Studio 15 2017",
+                "14.2": "Visual Studio 16 2019",
+                "14.3": "Visual Studio 17 2022",
+                "14.4": "Visual Studio 17 2022",
+            }.get(str(dm.get_build_version()), "Visual Studio 17 2022")
+        except (ImportError, ModuleNotFoundError):
+            generator = "Visual Studio 17 2022"
+    cmake_args.extend(["-G", generator])
 
 for cmake_option, default in CMAKE_OPTIONS:
     if os.environ.get(cmake_option, default).lower() in ("1", "on"):
@@ -149,7 +149,7 @@ print(f"CMake Args: {cmake_args}")
 
 setup(
     name="csp",
-    version="0.17.1",
+    version="0.18.0",
     packages=["csp"],
     cmake_install_dir="csp",
     cmake_args=cmake_args,

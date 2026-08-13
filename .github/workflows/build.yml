@@ -72,7 +72,7 @@ jobs:
         FULL_RUN: ${{ steps.setuppush.outputs.FULL_RUN || steps.setuppr.outputs.FULL_RUN || steps.setupmanual.outputs.FULL_RUN || steps.setupschedule.outputs.FULL_RUN }}
       steps:
         - name: Checkout
-          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
           with:
             # for pull_request so we can do HEAD^2
             fetch-depth: 2
@@ -159,7 +159,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
           with:
             submodules: recursive
 
@@ -204,6 +204,7 @@ jobs:
             - "cp311"
             - "cp312"
             - "cp313"
+            - "cp314"
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -239,7 +240,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
           with:
             submodules: recursive
             fetch-depth: 0
@@ -322,6 +323,13 @@ jobs:
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp313' }}
 
+        - name: Upload Wheel
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.14
+            path: dist/*.whl
+          if: ${{ matrix.cibuildwheel == 'cp314' }}
+
     ################################################################
     #..............................................................#
     #..|########\..|##|..|##|..|########|..|##|........|#######\...#
@@ -358,7 +366,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
           with:
             submodules: recursive
 
@@ -411,6 +419,7 @@ jobs:
             - 3.11
             - 3.12
             - 3.13
+            - 3.14
           is-full-run:
             - ${{ needs.initialize.outputs.FULL_RUN == 'true' }}
           exclude:
@@ -448,7 +457,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
           with:
               submodules: recursive
 
@@ -554,7 +563,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
           with:
             submodules: recursive
 
@@ -638,7 +647,7 @@ jobs:
 
       steps:
         - name: Checkout
-          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
           with:
               submodules: recursive
               fetch-depth: 0

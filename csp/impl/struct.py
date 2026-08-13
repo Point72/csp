@@ -28,7 +28,14 @@ class StructMeta(_csptypesimpl.PyStructMeta):
                 full_metadata_typed.update(base.__full_metadata_typed__)
                 defaults.update(base.__defaults__)
 
-        annotations = dct.get("__annotations__", None)
+        # Python 3.14 support
+        annotations_func = dct.get("__annotate_func__", None)
+        if annotations_func is not None:
+            from annotationlib import Format
+
+            annotations = annotations_func(Format.VALUE)
+        else:
+            annotations = dct.get("__annotations__", None)
         optional_fields = set()
         if annotations:
             for k, v in annotations.items():

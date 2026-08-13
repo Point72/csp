@@ -56,7 +56,7 @@ inline constexpr uint8_t clz(uint64_t n) {
     return std::countl_zero(n);
   } else {
     unsigned long index = 0;
-    if (_BitScanReverse(&index, n))
+    if (_BitScanReverse64(&index, n))
       return 64 - index - 1;
     return 0;
   }
@@ -97,7 +97,7 @@ inline uint8_t ffs(uint64_t n) {
     return std::countr_zero(n);
   } else {
     unsigned long index = 0;
-    if (_BitScanForward(&index, n))
+    if (_BitScanForward64(&index, n))
       return index + 1;
     return 0;
   }

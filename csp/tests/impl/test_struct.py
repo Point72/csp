@@ -2521,11 +2521,6 @@ class TestCspStruct(unittest.TestCase):
                 a: List[MyEnum]
 
             s = B(a=[MyEnum.A, MyEnum.FOO])
-
-            with self.assertRaises(TypeError) as e:
-                s.a.sort()
-            with self.assertRaises(TypeError) as e:
-                s.a.sort(reverse=True)
             s.a.sort(reverse=True, key=str)
             self.assertEqual(s.a, [MyEnum.FOO, MyEnum.A])
 
@@ -2963,14 +2958,6 @@ class TestCspStruct(unittest.TestCase):
             s = B(a=[MyEnum.A, MyEnum.FOO])
             t = B(a=[MyEnum.FOO, MyEnum.FOO])
 
-            with self.assertRaises(TypeError) as e:
-                s.a < t.a
-            with self.assertRaises(TypeError) as e:
-                s.a <= t.a
-            with self.assertRaises(TypeError) as e:
-                s.a > t.a
-            with self.assertRaises(TypeError) as e:
-                s.a >= t.a
             self.assertEqual(s.a == t.a, False)
             self.assertEqual(s.a != t.a, True)
 

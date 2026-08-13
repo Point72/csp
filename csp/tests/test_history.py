@@ -464,8 +464,8 @@ class TestHistory(unittest.TestCase):
         )
 
         enum_values = [result[1] for result in results["values_enum"]]
-        self.assertTrue(np.array_equal(enum_values[-1], np.array([MyEnum.first] * 3)))
-        self.assertTrue(np.array_equal(enum_values[-2], np.array([MyEnum.first] * 3)))
+        self.assertTrue(np.array_equal(enum_values[-1], np.array([MyEnum.first] * 3, dtype=object)))
+        self.assertTrue(np.array_equal(enum_values[-2], np.array([MyEnum.first] * 3, dtype=object)))
 
         list_values = [result[1] for result in results["values_list"]]
         self.assertTrue(list_values[-1][0] == [1, 2, 3, 4])
@@ -587,16 +587,27 @@ class TestHistory(unittest.TestCase):
         )
 
         extrapolate_enum_values = [result[1] for result in results["values_extrapolate_enum"]]
-        self.assertTrue(np.array_equal(extrapolate_enum_values[-1], np.array([MyEnum.second, MyEnum.first])))
-        self.assertTrue(np.array_equal(extrapolate_enum_values[-2], np.array([MyEnum.second, MyEnum.second])))
-        self.assertTrue(np.array_equal(extrapolate_enum_values[-3], np.array([MyEnum.first, MyEnum.first])))
-        self.assertTrue(np.array_equal(extrapolate_enum_values[-4], np.array([MyEnum.first, MyEnum.first])))
+        self.assertTrue(
+            np.array_equal(extrapolate_enum_values[-1], np.array([MyEnum.second, MyEnum.first], dtype=object))
+        )
+        self.assertTrue(
+            np.array_equal(extrapolate_enum_values[-2], np.array([MyEnum.second, MyEnum.second], dtype=object))
+        )
+        self.assertTrue(
+            np.array_equal(extrapolate_enum_values[-3], np.array([MyEnum.first, MyEnum.first], dtype=object))
+        )
+        self.assertTrue(
+            np.array_equal(extrapolate_enum_values[-4], np.array([MyEnum.first, MyEnum.first], dtype=object))
+        )
 
         enum_boundary_values = [result[1] for result in results["values_enum_boundary"]]
         self.assertTrue(
             np.array_equal(
                 enum_boundary_values[-1],
-                np.array([MyEnum.first, MyEnum.second, MyEnum.second, MyEnum.second, MyEnum.first, MyEnum.first]),
+                np.array(
+                    [MyEnum.first, MyEnum.second, MyEnum.second, MyEnum.second, MyEnum.first, MyEnum.first],
+                    dtype=object,
+                ),
             )
         )
 

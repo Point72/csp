@@ -10,23 +10,6 @@
 namespace csp::python
 {
 
-//This is the base class of csp.Enum
-struct CSPTYPESIMPL_EXPORT PyCspEnumMeta : public PyHeapTypeObject
-{
-    //convert to PyObject ( new ref )
-    PyObject * toPyEnum( CspEnum e ) const;
-
-    std::shared_ptr<CspEnumMeta> enumMeta;
-
-    PyObjectPtr enumsByName;
-    PyObjectPtr enumsByValue;
-
-    //for fast toPython calls
-    std::unordered_map<int64_t,PyObjectPtr> enumsByCValue;
-
-    static PyTypeObject PyType;
-};
-
 //TODO Windows - need to figure out why adding DLL_PUBLIC to this class leads to weird compilation errors on CspEnumMeta's unordered_map...
 
 //This is an extension of csp::CspEnumMeta for python dialect, we need it in order to 
@@ -40,28 +23,25 @@ public:
 
     const PyTypeObjectPtr & pyType() const { return m_pyType; }
 
-    const PyCspEnumMeta * pyMeta() const   { assert( !m_isPyIntEnum ); return ( const PyCspEnumMeta * ) m_pyType.get(); }
+    //returns new ref
+    PyObject * toPyEnum( int64_t value ) const
+    {
+        auto it = m_enumsByCValue.find( value );
+        if( it == m_enumsByCValue.end() )
+            return nullptr;
 
-    bool isPyIntEnum() const               { return m_isPyIntEnum; }
+        PyObject * rv = it -> second.get();
+        Py_INCREF( rv );
+        return rv;
+    }
+    
 private:
 
     PyTypeObjectPtr m_pyType;
-    bool            m_isPyIntEnum;
-};
+    PyObjectPtr     m_enumsByName;
 
-struct CSPTYPESIMPL_EXPORT PyCspEnum : public PyObject
-{
-    PyCspEnum( const CspEnum & e ) : enum_( e ) {}
-    ~PyCspEnum() {}
-
-    CspEnum enum_;
-    PyObjectPtr enumName;
-    PyObjectPtr enumValue;
-
-    PyCspEnumMeta * pyMeta() { return ( PyCspEnumMeta * ) ob_type; };
-    const DialectCspEnumMeta * meta() { return static_cast<const DialectCspEnumMeta*>( pyMeta() -> enumMeta.get() ); }
-
-    static PyTypeObject PyType;
+    //for fast toPython calls
+    std::unordered_map<int64_t,PyObjectPtr> m_enumsByCValue;
 };
 
 }

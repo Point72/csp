@@ -78,13 +78,13 @@ class TestCspEnum(unittest.TestCase):
         self.assertEqual(MyEnum2.c1(), 30)
         self.assertEqual(MyEnum2.s1(), 123)
 
-        with self.assertRaisesRegex(ValueError, "123 is not a valid value on csp.enum type MyEnum"):
+        with self.assertRaisesRegex(ValueError, "123 is not a valid MyEnum"):
             MyEnum(123)
 
-        with self.assertRaisesRegex(ValueError, "ABC is not a valid value on csp.enum type MyEnum"):
+        with self.assertRaisesRegex(ValueError, "'ABC' is not a valid MyEnum"):
             MyEnum("ABC")
 
-        with self.assertRaisesRegex(TypeError, "csp.Enum expected int enum value, got str for field B"):
+        with self.assertRaisesRegex(ValueError, "invalid literal for int\\(\\) with base 10: 'hey'"):
 
             class FOO(csp.Enum):
                 A = 1
@@ -103,9 +103,6 @@ class TestCspEnum(unittest.TestCase):
         self.assertEqual(MyEnum3.A.value, 0)
         self.assertEqual(MyEnum3.B.value, 10)
         self.assertEqual(MyEnum3.C.value, 11)
-
-    def test_python_enum_compatibility(self):
-        self.assertEqual(dict(MyEnum.__members__), dict(MyEnum.__metadata__))
 
     def test_node(self):
         """test ability of node to convert to/from enum types properly"""
@@ -167,12 +164,10 @@ class TestCspEnum(unittest.TestCase):
         class A(csp.Enum):
             RED = 1
 
-        with self.assertRaises(TypeError) as cm:
+        with self.assertRaisesRegex(TypeError, "cannot extend"):
 
             class B(A):
                 GREEN = 2
-
-        self.assertEqual("Cannot extend csp.Enum 'A': inheriting from an Enum is prohibited", str(cm.exception))
 
     def test_pydantic_validation(self):
         assert MyModel(enum="FIELD2").enum == MyEnum3.FIELD2

@@ -18,7 +18,7 @@ public:
     CspTypePtr & typeFromPyType( PyObject * );
     void removeCachedType( PyTypeObject * );
 
-    PyTypeObject * intEnumPyType() { return m_intEnumPyType.get(); }
+    bool isCspEnumPyType( PyTypeObject * pyType );
 
 private:
     using Cache = std::unordered_map<PyTypeObject *, CspTypePtr>;
@@ -28,7 +28,7 @@ private:
     CspTypeFactory();
     Cache m_cache;
 
-    PyTypeObjectPtr m_intEnumPyType;
+    PyTypeObject * m_intEnumPyType;
 };
 
 }

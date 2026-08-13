@@ -80,13 +80,16 @@ class CodeGenerator:
             if not isinstance(v, type):
                 continue
 
+            is_struct = issubclass(v, Struct) and v is not Struct
+            is_enum = issubclass(v, IntEnum) and v not in (Enum, IntEnum)
             if v.__module__ != module_name and not generate_imported_types:
-                self._external_types[v] = importlib.import_module(v.__module__)
+                if is_struct or is_enum:
+                    self._external_types[v] = importlib.import_module(v.__module__)
                 continue
 
-            if issubclass(v, Struct) and v is not Struct:
+            if is_struct:
                 self._struct_types.append(v)
-            elif issubclass(v, Enum) and v is not Enum or issubclass(v, IntEnum) and v is not IntEnum:
+            elif is_enum:
                 self._enum_types.append(v)
 
     def _get_dependent_headers(self):

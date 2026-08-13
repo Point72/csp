@@ -20,7 +20,18 @@ from csp.adapters.utils import (
 from csp.impl.wiring import ReplayMode, input_adapter_def, output_adapter_def, status_adapter_def
 from csp.lib import _kafkaadapterimpl
 
-_ = BytesMessageProtoMapper, DateTimeType, JSONTextMessageMapper, RawBytesMessageMapper, RawTextMessageMapper
+__all__ = (
+    "KafkaAdapterManager",
+    "KafkaStartOffset",
+    "KafkaStatusMessageType",
+    # re-exported from csp.adapters.utils for backwards compatibility
+    "BytesMessageProtoMapper",
+    "DateTimeType",
+    "JSONTextMessageMapper",
+    "RawBytesMessageMapper",
+    "RawTextMessageMapper",
+)
+
 T = TypeVar("T")
 
 

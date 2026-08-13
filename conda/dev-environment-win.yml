@@ -17,7 +17,6 @@ dependencies:
 #  - flex  # not available on windows
  - graphviz
  - gtest
- - httpx>=0.20,<1
  - libarrow<24
  - libboost>=1.80.0
  - libboost-headers>=1.80.0
@@ -41,6 +40,7 @@ dependencies:
  - pytest-sugar
  - python>=3.10,<3.14
  - python-build
+ - python-confluent-kafka
  - python-graphviz
  - python-rapidjson
  - pytz

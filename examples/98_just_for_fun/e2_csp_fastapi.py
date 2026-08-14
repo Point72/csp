@@ -23,6 +23,7 @@ Then visit (check console output for actual port):
 
 import random
 import socket
+import sys
 import time
 from datetime import datetime, timedelta
 from threading import Lock
@@ -36,7 +37,7 @@ try:
 except ImportError:
     print("This example requires FastAPI and uvicorn.")
     print("Install with: pip install fastapi uvicorn")
-    exit(1)
+    sys.exit(1)
 
 import csp
 from csp import ts

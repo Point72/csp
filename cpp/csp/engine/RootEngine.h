@@ -57,10 +57,6 @@ public:
 
     void     run( DateTime start, DateTime end );
 
-    // Backward compatibility wrappers - mode is determined by engine settings
-    void     runSim( DateTime start, DateTime end )      { run( start, end ); }
-    void     runRealtime( DateTime start, DateTime end ) { run( start, end ); }
-
     void     shutdown();
     void     shutdown( std::exception_ptr except );
 
@@ -87,7 +83,7 @@ public:
 
     bool     scheduleEndCycleListener( EndCycleListener * l );
 
-    //returns true if the engine is currently in runRealtime
+    //returns true if the engine is currently running in realtime mode
     bool inRealtime() const         { return m_inRealtime; }
 
     //returns true if engine is configured realtime ( inRealtime can still be false if
@@ -110,7 +106,7 @@ public:
     // Returns a file descriptor that becomes readable when events are queued.  Asking for the fd
     // is what arms the signalling: until then the push path does no fd work at all.  Arming is
     // one-way for the life of the run; it is disarmed only at teardown.
-    int getWakeupFd()
+    FdHandle getWakeupFd()
     {
         if( m_fdWaiter.isValid() )
             m_fdWaiterEnabled.store( true, std::memory_order_relaxed );

@@ -816,6 +816,52 @@ class TestSimulationMode(unittest.TestCase):
         finally:
             loop.close()
 
+    def test_simulation_mode_positive_delay_sleep(self):
+        """Positive-delay sleeps must advance simulated time, not wall-clock time."""
+        loop = CspEventLoop(realtime=False)
+        start = datetime(2020, 1, 1)
+        loop.set_simulation_time_range(start=start)
+
+        async def main():
+            t0 = loop.time()
+            await asyncio.sleep(30)
+            t1 = loop.time()
+            await asyncio.sleep(120)
+            return t1 - t0, loop.time() - t1
+
+        try:
+            wall_start = time.monotonic()
+            first, second = loop.run_until_complete(main())
+            wall_elapsed = time.monotonic() - wall_start
+
+            self.assertGreaterEqual(first, 30)
+            self.assertGreaterEqual(second, 120)
+            # 150 simulated seconds must not cost 150 real ones
+            self.assertLess(wall_elapsed, 5.0)
+        finally:
+            loop.close()
+
+    def test_simulation_time_is_monotonic(self):
+        """loop.time() must never go backwards, per the asyncio contract."""
+        loop = CspEventLoop(realtime=False)
+        loop.set_simulation_time_range(start=datetime(2020, 1, 1))
+
+        samples = []
+
+        async def main():
+            samples.append(loop.time())
+            await asyncio.sleep(0)
+            samples.append(loop.time())
+            await asyncio.sleep(5)
+            samples.append(loop.time())
+
+        try:
+            loop.run_until_complete(main())
+        finally:
+            loop.close()
+
+        self.assertEqual(samples, sorted(samples))
+
     def test_simulation_mode_simple_coroutine(self):
         """Test running a simple coroutine in simulation mode."""
         loop = CspEventLoop(realtime=False)

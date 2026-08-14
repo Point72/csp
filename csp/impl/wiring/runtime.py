@@ -188,8 +188,9 @@ async def _run_asyncio_engine(engine, starttime, endtime):
     engine.run() while still allowing asyncio coroutines to execute
     between engine cycles.
 
-    Everything runs on the main thread so signal handling (KeyboardInterrupt,
-    SIGTERM, etc.) works correctly.
+    Everything runs on the caller's thread, so when that is the main thread signal handling
+    (KeyboardInterrupt, SIGTERM, etc.) works correctly.  ``run_on_thread`` calls this on a worker
+    thread, where Python signal handlers do not run.
     """
     wakeup_fd = engine.get_wakeup_fd()
 
@@ -222,7 +223,14 @@ async def _run_asyncio_engine(engine, starttime, endtime):
             await asyncio.sleep(0)
 
     except BaseException:
-        engine.finish()
+        # finish() rethrows the engine's own exception; letting that escape here would replace the
+        # exception already propagating.  It must still run even when start() itself raised, since
+        # start() ticks the initial scheduled events and finish() is what stops the adapters they
+        # already brought up - skipping it leaves push adapters bound to a destroyed engine.
+        try:
+            engine.finish()
+        except BaseException:
+            pass
         raise
 
     return engine.finish()

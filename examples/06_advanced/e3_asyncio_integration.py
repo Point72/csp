@@ -301,15 +301,12 @@ def _check_event_loop_available():
     """Check if CSP event loop is functional by checking required methods exist."""
     try:
         loop = csp_event_loop.new_event_loop()
-        # Check that the CSP engine has the required start method
-        if not hasattr(loop, "_csp_engine"):
+        try:
+            # _csp_engine is None until initialised, so it has to be created before probing it
+            loop._init_csp_engine()
+            return hasattr(loop._csp_engine, "start")
+        finally:
             loop.close()
-            return False
-        if not hasattr(loop._csp_engine, "start"):
-            loop.close()
-            return False
-        loop.close()
-        return True
     except Exception:
         return False
 

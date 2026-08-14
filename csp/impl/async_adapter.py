@@ -1,8 +1,10 @@
 import asyncio
 import atexit
 import concurrent.futures
+import logging
 import queue
 import threading
+import warnings
 from typing import (
     AsyncIterator,
     Awaitable,
@@ -37,6 +39,19 @@ __all__ = [
 
 T = TypeVar("T")
 U = TypeVar("U")
+
+log = logging.getLogger(__name__)
+
+
+def _warn_type_fallback(api: str, func_name: str) -> None:
+    """Element types are recovered by looking the function up in its own module globals, which
+    misses methods, closures, decorated and shadowed names -- silently changing the resulting
+    ts[] type."""
+    warnings.warn(
+        f"{api} could not infer an element type for {func_name!r} and fell back to `object`; "
+        "the resulting ts[] will be ts[object]",
+        stacklevel=3,
+    )
 
 
 _shared_loop: Optional[asyncio.AbstractEventLoop] = None
@@ -143,20 +158,25 @@ def get_shared_loop() -> asyncio.AbstractEventLoop:
 
         def run_loop():
             global _shared_loop
-            _shared_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(_shared_loop)
-            _shared_ready.set()
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            _shared_loop = loop
+            # Signal readiness from inside the loop. Setting it before run_forever() lets a
+            # concurrent caller fail the is_running() re-check under the lock and start a second
+            # thread, orphaning this one along with everything scheduled on it.
+            loop.call_soon(_shared_ready.set)
             try:
-                _shared_loop.run_forever()
+                loop.run_forever()
             finally:
                 try:
-                    _shared_loop.close()
+                    loop.close()
                 except Exception:
                     pass
 
         _shared_thread = threading.Thread(target=run_loop, daemon=True, name="csp-async-loop")
         _shared_thread.start()
-        _shared_ready.wait(timeout=5.0)
+        if not _shared_ready.wait(timeout=5.0):
+            raise RuntimeError("Timed out waiting for the shared async loop to start")
 
         if _shared_loop is None:
             raise RuntimeError("Failed to start shared async loop")
@@ -211,17 +231,7 @@ def _run_on_async_loop(coro: Awaitable[T], timeout: Optional[float] = None) -> T
     loop = get_shared_loop()
     future = concurrent.futures.Future()
 
-    async def wrapper():
-        try:
-            if timeout is not None:
-                result = await asyncio.wait_for(coro, timeout)
-            else:
-                result = await coro
-            future.set_result(result)
-        except Exception as e:
-            future.set_exception(e)
-
-    loop.call_soon_threadsafe(lambda: asyncio.ensure_future(wrapper(), loop=loop))
+    loop.call_soon_threadsafe(lambda: asyncio.ensure_future(_complete_future(future, coro, timeout), loop=loop))
     return future.result(timeout=timeout)
 
 
@@ -243,6 +253,67 @@ def _schedule_on_loop(loop: asyncio.AbstractEventLoop, callback, *args):
 
     # Cross-thread or no running loop, use threadsafe version
     loop.call_soon_threadsafe(callback, *args)
+
+
+async def _complete_future(future: "concurrent.futures.Future", coro, timeout: Optional[float] = None) -> None:
+    """
+    Await `coro` and complete `future` with its outcome.
+
+    Catches BaseException, not Exception: asyncio.CancelledError derives from BaseException, so an
+    Exception-only handler leaves the future uncompleted and any thread blocked on
+    future.result() waiting forever.
+    """
+    try:
+        if timeout is not None:
+            result = await asyncio.wait_for(coro, timeout)
+        else:
+            result = await coro
+        if not future.done():
+            future.set_result(result)
+    except BaseException as e:
+        if not future.done():
+            future.set_exception(e)
+        if isinstance(e, asyncio.CancelledError):
+            raise  # let asyncio mark the task cancelled rather than failed
+
+
+def _cancel_task_sync(loop: asyncio.AbstractEventLoop, task, timeout: float = 5.0) -> None:
+    """
+    Cancel `task` and do not return until it can no longer run.
+
+    csp adapter stop() is followed by engine teardown, so returning while the task can still
+    resume means it can push into an adapter whose C++ backing is gone.
+
+    When called from the loop's own thread (same-thread asyncio mode) blocking would deadlock, but
+    it is also unnecessary: nothing else runs on this thread until we yield, so the cancellation is
+    guaranteed to be seen before the task next resumes.
+    """
+    if task is None or task.done():
+        return
+
+    try:
+        on_loop_thread = asyncio.get_running_loop() is loop
+    except RuntimeError:
+        on_loop_thread = False
+
+    if on_loop_thread:
+        task.cancel()
+        return
+
+    finished = threading.Event()
+
+    def cancel():
+        task.add_done_callback(lambda _: finished.set())
+        task.cancel()
+
+    try:
+        _schedule_on_loop(loop, cancel)
+    except RuntimeError:
+        # Loop already closed, so the task can never resume
+        return
+
+    if not finished.wait(timeout):
+        raise RuntimeError(f"timed out after {timeout}s waiting for async task {task!r} to cancel")
 
 
 def _schedule_coro_on_loop(loop: asyncio.AbstractEventLoop, coro) -> None:
@@ -276,14 +347,7 @@ def _schedule_on_async_loop(coro: Awaitable[T]) -> concurrent.futures.Future:
     loop = get_async_loop()
     future = concurrent.futures.Future()
 
-    async def wrapper():
-        try:
-            result = await coro
-            future.set_result(result)
-        except Exception as e:
-            future.set_exception(e)
-
-    _schedule_coro_on_loop(loop, wrapper())
+    _schedule_coro_on_loop(loop, _complete_future(future, coro))
     return future
 
 
@@ -337,9 +401,8 @@ class _AsyncForAdapterImpl(PushInputAdapter):
 
     def stop(self):
         self._active = False
-        # Cancel the task on the loop
-        if self._task is not None and not self._task.done():
-            _schedule_on_loop(self._loop, self._task.cancel)
+        _cancel_task_sync(self._loop, self._task)
+        self._task = None
 
     async def _consume_generator(self):
         """Consume the async generator and push each value to CSP."""
@@ -365,6 +428,7 @@ _AsyncForAdapter = py_push_adapter_def(
 def async_for(
     async_gen_or_func: AsyncIterator[T],
     *,
+    output_type: Optional[type] = None,
     loop: Optional[asyncio.AbstractEventLoop] = None,
 ) -> ts[T]:
     """
@@ -374,6 +438,9 @@ def async_for(
 
     Args:
         async_gen_or_func: An async generator instance (result of calling an async generator function).
+        output_type: Element type of the resulting series. Pass this when the generator is a method,
+              a closure or otherwise not resolvable from its module globals, where inference falls
+              back to `object`.
         loop: Event loop to use for running async operations. If None (default), uses CSP's
               shared async loop which is efficient as all adapters share one background thread.
 
@@ -393,24 +460,27 @@ def async_for(
     """
     # Get the output type from the async generator
     if hasattr(async_gen_or_func, "ag_frame"):
-        # It's an async generator instance - get the function from the code object
-        ag_code = async_gen_or_func.ag_code
-        # Try to get type hints from the frame's globals
-        func_name = ag_code.co_name
-        func_globals = async_gen_or_func.ag_frame.f_globals
+        if output_type is None:
+            # It's an async generator instance - get the function from the code object
+            ag_code = async_gen_or_func.ag_code
+            # Try to get type hints from the frame's globals
+            func_name = ag_code.co_name
+            func_globals = async_gen_or_func.ag_frame.f_globals
 
-        # Look for the function in globals to get type hints
-        if func_name in func_globals:
-            func = func_globals[func_name]
-            try:
-                hints = get_type_hints(func)
-                return_hint = hints.get("return", object)
-                # Extract the element type from AsyncIterator[T] or similar
-                output_type = _extract_async_iterator_type(return_hint)
-            except Exception:
-                output_type = object
-        else:
+            # Look for the function in globals to get type hints
             output_type = object
+            if func_name in func_globals:
+                func = func_globals[func_name]
+                try:
+                    hints = get_type_hints(func)
+                    return_hint = hints.get("return", object)
+                    # Extract the element type from AsyncIterator[T] or similar
+                    output_type = _extract_async_iterator_type(return_hint)
+                except Exception:
+                    output_type = object
+
+            if output_type is object:
+                _warn_type_fallback("async_for", func_name)
     else:
         raise TypeError(
             "async_for expects an async generator instance. "
@@ -442,8 +512,12 @@ class _AsyncInAdapterImpl(PushInputAdapter):
             try:
                 result = await self._coro
                 self.push_tick(result)
-            except Exception:
-                pass
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                # The awaited coroutine is the whole point of this adapter; dropping its failure
+                # leaves the graph waiting on a tick that will never come, with no diagnostic.
+                self._loop.call_exception_handler({"message": "async_in coroutine failed", "exception": exc})
 
         _schedule_coro_on_loop(self._loop, run_and_push())
 
@@ -464,6 +538,7 @@ _AsyncInAdapter = py_push_adapter_def(
 def async_in(
     coro: Awaitable[T],
     *,
+    output_type: Optional[type] = None,
     loop: Optional[asyncio.AbstractEventLoop] = None,
 ) -> ts[T]:
     """
@@ -471,6 +546,9 @@ def async_in(
 
     Args:
         coro: A coroutine instance (result of calling an async function).
+        output_type: Type of the resulting series. Pass this when the coroutine function is a
+              method, a closure or otherwise not resolvable from its module globals, where
+              inference falls back to `object`.
         loop: Event loop to use for running async operations. If None (default), uses CSP's
               shared async loop which is efficient as all adapters share one background thread.
 
@@ -489,19 +567,23 @@ def async_in(
     """
     # Get output type from the coroutine
     if hasattr(coro, "cr_code"):
-        # It's a coroutine - get type hints from the function
-        func_name = coro.cr_code.co_name
-        func_globals = coro.cr_frame.f_globals if coro.cr_frame else {}
+        if output_type is None:
+            # It's a coroutine - get type hints from the function
+            func_name = coro.cr_code.co_name
+            func_globals = coro.cr_frame.f_globals if coro.cr_frame else {}
 
-        if func_name in func_globals:
-            func = func_globals[func_name]
-            try:
-                hints = get_type_hints(func)
-                output_type = hints.get("return", object)
-            except Exception:
+            if func_name in func_globals:
+                func = func_globals[func_name]
+                try:
+                    hints = get_type_hints(func)
+                    output_type = hints.get("return", object)
+                except Exception:
+                    output_type = object
+            else:
                 output_type = object
-        else:
-            output_type = object
+
+            if output_type is object:
+                _warn_type_fallback("async_in", func_name)
     else:
         raise TypeError(
             "async_in expects a coroutine instance. "
@@ -567,7 +649,7 @@ class _AsyncNodeOutputAdapterImpl(PushInputAdapter):
         self._state = state
         self._async_func = async_func
         self._output_type = output_type
-        self._tasks = []
+        self._tasks = set()
 
     def start(self, starttime, endtime):
         self._state.push_adapter = self
@@ -585,34 +667,45 @@ class _AsyncNodeOutputAdapterImpl(PushInputAdapter):
             try:
                 result = await self._async_func(value)
                 self.push_tick(result)
-            except Exception:
-                pass
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self._report("async_node function failed", exc)
 
         async def queue_processor():
             while self._state.active:
                 try:
                     value = await asyncio.wait_for(self._state.input_queue.get(), timeout=0.1)
-                    # Process each value as a separate task for concurrency
+                    # Process each value as a separate task for concurrency.  Hold a strong
+                    # reference until it completes - asyncio only weakly references tasks - and
+                    # drop it afterwards so this does not accumulate one Task per tick.
                     task = asyncio.ensure_future(process_one(value), loop=self._state.loop)
-                    self._tasks.append(task)
+                    self._tasks.add(task)
+                    task.add_done_callback(self._tasks.discard)
                 except asyncio.TimeoutError:
                     continue
                 except asyncio.CancelledError:
                     break
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Without a report a persistent failure here is an invisible hot loop
+                    self._report("async_node queue processor failed", exc)
 
         self._processor_task = asyncio.ensure_future(queue_processor(), loop=self._state.loop)
 
+    def _report(self, message: str, exc: BaseException) -> None:
+        loop = self._state.loop
+        if loop is not None:
+            loop.call_exception_handler({"message": message, "exception": exc})
+        else:
+            log.error(message, exc_info=exc)
+
     def stop(self):
         self._state.active = False
-        # Cancel the processor task
-        if hasattr(self, "_processor_task") and not self._processor_task.done():
-            _schedule_on_loop(self._state.loop, self._processor_task.cancel)
-        # Cancel pending tasks
-        for task in self._tasks:
-            if not task.done():
-                _schedule_on_loop(self._state.loop, task.cancel)
+        if hasattr(self, "_processor_task"):
+            _cancel_task_sync(self._state.loop, self._processor_task)
+        for task in list(self._tasks):
+            _cancel_task_sync(self._state.loop, task)
+        self._tasks.clear()
 
 
 _AsyncNodeOutputAdapter = py_push_adapter_def(
@@ -723,32 +816,28 @@ def await_(
             return _schedule_on_async_loop(coro)
     else:
         # Use the provided loop
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
         if block:
+            if running_loop is loop:
+                coro.close()
+                raise RuntimeError(
+                    "await_(block=True, loop=...) cannot be called from that loop's own thread: "
+                    "the coroutine cannot run until this call returns, so it would deadlock. "
+                    "Use block=False, or await the coroutine directly."
+                )
+
             future = concurrent.futures.Future()
 
-            async def wrapper():
-                try:
-                    if timeout is not None:
-                        result = await asyncio.wait_for(coro, timeout)
-                    else:
-                        result = await coro
-                    future.set_result(result)
-                except Exception as e:
-                    future.set_exception(e)
-
-            _schedule_coro_on_loop(loop, wrapper())
+            _schedule_coro_on_loop(loop, _complete_future(future, coro, timeout))
             return future.result(timeout=timeout)
         else:
             future = concurrent.futures.Future()
 
-            async def wrapper():
-                try:
-                    result = await coro
-                    future.set_result(result)
-                except Exception as e:
-                    future.set_exception(e)
-
-            _schedule_coro_on_loop(loop, wrapper())
+            _schedule_coro_on_loop(loop, _complete_future(future, coro))
             return future
 
 
@@ -766,7 +855,7 @@ class AsyncContext:
                 s_ctx = None
 
             with csp.start():
-                s_ctx = csp.AsyncContext()
+                s_ctx = AsyncContext()
                 s_ctx.start()
 
             with csp.stop():
@@ -792,20 +881,24 @@ class AsyncContext:
         self._active = True
 
         def run_loop():
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-            self._ready.set()
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            self._loop = loop
+            # Signal from inside the loop: setting _ready before run_forever() lets run() schedule
+            # onto a loop that is not spinning yet.
+            loop.call_soon(self._ready.set)
             try:
-                self._loop.run_forever()
+                loop.run_forever()
             finally:
                 try:
-                    self._loop.close()
+                    loop.close()
                 except Exception:
                     pass
 
         self._thread = threading.Thread(target=run_loop, daemon=True)
         self._thread.start()
-        self._ready.wait(timeout=5.0)
+        if not self._ready.wait(timeout=5.0):
+            raise RuntimeError("timed out waiting for AsyncContext loop thread to start")
 
     def stop(self):
         """Stop the async context's event loop."""
@@ -813,7 +906,9 @@ class AsyncContext:
         if self._loop is not None and self._loop.is_running():
             self._loop.call_soon_threadsafe(self._loop.stop)
         if self._thread is not None:
-            self._thread.join(timeout=1.0)
+            self._thread.join(timeout=5.0)
+            if self._thread.is_alive():
+                raise RuntimeError("timed out waiting for AsyncContext loop thread to stop")
 
     def run(self, coro: Awaitable[T], timeout: float = None) -> T:
         """
@@ -829,21 +924,9 @@ class AsyncContext:
         if not self._ready.is_set():
             raise RuntimeError("AsyncContext not started. Call start() first.")
 
-        import concurrent.futures
-
         future = concurrent.futures.Future()
 
-        async def wrapper():
-            try:
-                if timeout is not None:
-                    result = await asyncio.wait_for(coro, timeout)
-                else:
-                    result = await coro
-                future.set_result(result)
-            except Exception as e:
-                future.set_exception(e)
-
-        _schedule_coro_on_loop(self._loop, wrapper())
+        _schedule_coro_on_loop(self._loop, _complete_future(future, coro, timeout))
         return future.result(timeout=timeout)
 
     def run_nowait(self, coro: Awaitable[T]) -> "concurrent.futures.Future[T]":
@@ -863,14 +946,7 @@ class AsyncContext:
 
         future = concurrent.futures.Future()
 
-        async def wrapper():
-            try:
-                result = await coro
-                future.set_result(result)
-            except Exception as e:
-                future.set_exception(e)
-
-        _schedule_coro_on_loop(self._loop, wrapper())
+        _schedule_coro_on_loop(self._loop, _complete_future(future, coro))
         return future
 
     def __enter__(self):
@@ -941,20 +1017,24 @@ class AsyncAlarm:
         self._active = True
 
         def run_loop():
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-            self._ready.set()
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            self._loop = loop
+            # Signal from inside the loop: setting _ready before run_forever() lets schedule()
+            # hand work to a loop that is not spinning yet.
+            loop.call_soon(self._ready.set)
             try:
-                self._loop.run_forever()
+                loop.run_forever()
             finally:
                 try:
-                    self._loop.close()
+                    loop.close()
                 except Exception:
                     pass
 
         self._thread = threading.Thread(target=run_loop, daemon=True)
         self._thread.start()
-        self._ready.wait(timeout=5.0)
+        if not self._ready.wait(timeout=5.0):
+            raise RuntimeError("timed out waiting for AsyncAlarm loop thread to start")
 
     def stop(self):
         """Stop the async alarm's event loop and cancel pending tasks."""
@@ -968,7 +1048,9 @@ class AsyncAlarm:
 
             self._loop.call_soon_threadsafe(cancel_all)
         if self._thread is not None:
-            self._thread.join(timeout=1.0)
+            self._thread.join(timeout=5.0)
+            if self._thread.is_alive():
+                raise RuntimeError("timed out waiting for AsyncAlarm loop thread to stop")
 
     def schedule(self, coro: Awaitable[T]) -> None:
         """

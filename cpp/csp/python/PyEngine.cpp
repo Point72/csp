@@ -206,6 +206,11 @@ static PyObject * PyEngine_nextScheduledTime( PyEngine * self, PyObject * args )
     CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
     DateTime nextTime = self -> rootEngine() -> nextScheduledTime();
 
+    // "no events scheduled" is DateTime::NONE(), which converts to a sentinel datetime rather than
+    // None - return None so callers can test for it the obvious way
+    if( nextTime.isNone() )
+        Py_RETURN_NONE;
+
     return toPython( nextTime );
     CSP_RETURN_NONE;
 }
@@ -215,9 +220,10 @@ static PyObject * PyEngine_getWakeupFd( PyEngine * self, PyObject * args )
     CSP_BEGIN_METHOD;
 
     CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
-    int fd = self -> rootEngine() -> getWakeupFd();
+    FdHandle fd = self -> rootEngine() -> getWakeupFd();
 
-    return PyLong_FromLong( fd );
+    // SOCKET is a UINT_PTR on Windows, so this must not go through PyLong_FromLong
+    return PyLong_FromLongLong( ( long long ) fd );
     CSP_RETURN_NONE;
 }
 

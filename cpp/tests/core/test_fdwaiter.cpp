@@ -16,7 +16,7 @@ using namespace csp;
 namespace
 {
 
-bool isReadable( FdWaiter & waiter )
+bool selectReadable( FdWaiter & waiter, long timeoutUs )
 {
     fd_set readSet;
     FD_ZERO( &readSet );
@@ -24,9 +24,31 @@ bool isReadable( FdWaiter & waiter )
 
     struct timeval timeout;
     timeout.tv_sec  = 0;
-    timeout.tv_usec = 0;
+    timeout.tv_usec = timeoutUs;
 
-    return select( ( int ) waiter.readFd() + 1, &readSet, nullptr, nullptr, &timeout ) > 0;
+#ifdef _WIN32
+    const int nfds = 0;  // ignored by winsock
+#else
+    const int nfds = waiter.readFd() + 1;
+#endif
+    return select( nfds, &readSet, nullptr, nullptr, &timeout ) > 0;
+}
+
+bool isReadable( FdWaiter & waiter )
+{
+    return selectReadable( waiter, 0 );
+}
+
+// On Windows the waiter is a loopback socketpair, so notify()'s send() can return before the peer
+// is readable.  Positive assertions must allow for that; negative ones still poll with no wait.
+bool becomesReadable( FdWaiter & waiter, int timeoutMs = 5000 )
+{
+    for( int i = 0; i < timeoutMs; ++i )
+    {
+        if( selectReadable( waiter, 1000 ) )
+            return true;
+    }
+    return false;
 }
 
 // clear() drains a bounded amount per call, so a saturated buffer needs several passes
@@ -53,14 +75,17 @@ TEST( FdWaiterTest, quiet_until_notified )
 TEST( FdWaiterTest, notify_makes_readable )
 {
     FdWaiter waiter;
+    ASSERT_TRUE( waiter.isValid() );
     waiter.notify();
-    EXPECT_TRUE( isReadable( waiter ) );
+    EXPECT_TRUE( becomesReadable( waiter ) );
 }
 
 TEST( FdWaiterTest, clear_makes_quiet )
 {
     FdWaiter waiter;
+    ASSERT_TRUE( waiter.isValid() );
     waiter.notify();
+    ASSERT_TRUE( becomesReadable( waiter ) );
     waiter.clear();
     EXPECT_FALSE( isReadable( waiter ) );
 }
@@ -70,11 +95,12 @@ TEST( FdWaiterTest, clear_makes_quiet )
 TEST( FdWaiterTest, notify_after_clear_signals_again )
 {
     FdWaiter waiter;
+    ASSERT_TRUE( waiter.isValid() );
 
     for( int i = 0; i < 5; ++i )
     {
         waiter.notify();
-        EXPECT_TRUE( isReadable( waiter ) ) << "iteration " << i;
+        EXPECT_TRUE( becomesReadable( waiter ) ) << "iteration " << i;
         waiter.clear();
         EXPECT_FALSE( isReadable( waiter ) ) << "iteration " << i;
     }
@@ -85,16 +111,17 @@ TEST( FdWaiterTest, notify_after_clear_signals_again )
 TEST( FdWaiterTest, saturation_is_handled )
 {
     FdWaiter waiter;
+    ASSERT_TRUE( waiter.isValid() );
 
     for( int i = 0; i < 200000; ++i )
         waiter.notify();
 
-    EXPECT_TRUE( isReadable( waiter ) );
+    EXPECT_TRUE( becomesReadable( waiter ) );
 
     EXPECT_TRUE( drainUntilQuiet( waiter ) );
 
     waiter.notify();
-    EXPECT_TRUE( isReadable( waiter ) );
+    EXPECT_TRUE( becomesReadable( waiter ) );
 }
 
 // Regression test.  The previous implementation suppressed notify() whenever an internal
@@ -104,9 +131,10 @@ TEST( FdWaiterTest, saturation_is_handled )
 TEST( FdWaiterTest, notify_recovers_if_fd_drained_externally )
 {
     FdWaiter waiter;
+    ASSERT_TRUE( waiter.isValid() );
 
     waiter.notify();
-    ASSERT_TRUE( isReadable( waiter ) );
+    ASSERT_TRUE( becomesReadable( waiter ) );
 
     // Drain behind the waiter's back, without going through clear()
     char buf[ 64 ];
@@ -118,12 +146,13 @@ TEST( FdWaiterTest, notify_recovers_if_fd_drained_externally )
     ASSERT_FALSE( isReadable( waiter ) );
 
     waiter.notify();
-    EXPECT_TRUE( isReadable( waiter ) );
+    EXPECT_TRUE( becomesReadable( waiter ) );
 }
 
 TEST( FdWaiterTest, concurrent_notify )
 {
     FdWaiter waiter;
+    ASSERT_TRUE( waiter.isValid() );
 
     std::vector<std::thread> threads;
     for( int t = 0; t < 8; ++t )
@@ -132,7 +161,7 @@ TEST( FdWaiterTest, concurrent_notify )
     for( auto & thread : threads )
         thread.join();
 
-    EXPECT_TRUE( isReadable( waiter ) );
+    EXPECT_TRUE( becomesReadable( waiter ) );
 
     EXPECT_TRUE( drainUntilQuiet( waiter ) );
 }
@@ -142,6 +171,7 @@ TEST( FdWaiterTest, concurrent_notify )
 TEST( FdWaiterTest, clear_terminates_while_producers_are_running )
 {
     FdWaiter waiter;
+    ASSERT_TRUE( waiter.isValid() );
 
     std::atomic<bool> stop{ false };
     std::vector<std::thread> threads;

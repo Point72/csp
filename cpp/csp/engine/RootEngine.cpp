@@ -212,17 +212,23 @@ bool RootEngine::processOneCycle( TimeDelta maxWait )
             return false;
         }
 
-        ++m_cycleCount;
+        // m_cycleCount is the cycle *identity* used by TimeSeries tick bookkeeping
+        // ( lastCycleCount() == cycleCount() ), so it must be bumped before any ticks are
+        // produced - but only for cycles that actually do work, otherwise idle polling inflates it.
+        const bool timersReady = m_scheduler.hasEvents() && m_scheduler.nextTime() < m_now;
+        const bool pushReady   = m_haveEvents || m_pendingPushEvents.hasEvents();
+        if( timersReady || pushReady )
+            ++m_cycleCount;
 
         // Execute timers exactly on their requested time - timers that are ready
         // are executed on their own time cycle before realtime push events
-        if( m_scheduler.hasEvents() && m_scheduler.nextTime() < m_now )
+        if( timersReady )
         {
             m_now = m_scheduler.nextTime();
             m_scheduler.executeNextEvents( m_now );
             hasWork = true;
         }
-        else if( m_haveEvents || m_pendingPushEvents.hasEvents() )
+        else if( pushReady )
         {
             // Process push events
             PushEvent * events = m_pushEventQueue.popAll();
@@ -276,6 +282,11 @@ bool RootEngine::processOneCycle( TimeDelta maxWait )
 
 void RootEngine::start( DateTime startTime, DateTime end )
 {
+    // An engine is single-use; restarting one that has already run would re-enter preRun on
+    // torn-down state
+    if( m_state != State::NONE )
+        CSP_THROW( RuntimeException, "engine cannot be started more than once" );
+
     preRun( startTime, end );
 
     m_exception_mutex.lock();

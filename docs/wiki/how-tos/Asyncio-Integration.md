@@ -800,4 +800,4 @@ The current implementation has some limitations:
 - [Python asyncio documentation](https://docs.python.org/3/library/asyncio.html)
 - [CSP Documentation](../README.md)
 - [uvloop](https://github.com/MagicStack/uvloop) - Similar project for libuv-based event loop
-- [Example: CSP Asyncio Integration](https://github.com/Point72/csp/tree/main/examples/06_advanced/e2_csp_event_loop_integration.py)
+- [Example: CSP Asyncio Integration](https://github.com/Point72/csp/tree/main/examples/06_advanced/e3_asyncio_integration.py)

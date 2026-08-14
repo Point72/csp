@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Coroutine, List, Optional, TypeVar
 
 from csp.impl.genericpushadapter import GenericPushAdapter
+from csp.utils.datetime import utc_now
 
 _T = TypeVar("_T")
 
@@ -55,7 +56,7 @@ class AsyncioBridge:
         self._thread: Optional[threading.Thread] = None
         self._running = False
         self._start_time: Optional[datetime] = None
-        self._lock = threading.Lock()
+        self._ready = threading.Event()
 
     @property
     def adapter(self) -> GenericPushAdapter:
@@ -103,18 +104,15 @@ class AsyncioBridge:
         if self._running:
             raise RuntimeError("Bridge is already running")
 
-        self._start_time = start_time or datetime.utcnow()
+        self._start_time = start_time or utc_now()
         self._running = True
+        self._ready.clear()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
 
-        # Wait for loop to be ready
-        timeout = 5.0
-        start_wait = time.time()
-        while self._loop is None and self._running:
-            if time.time() - start_wait > timeout:
-                raise RuntimeError("Timeout waiting for event loop to start")
-            time.sleep(0.001)
+        if not self._ready.wait(timeout=5.0):
+            self._running = False
+            raise RuntimeError("Timeout waiting for event loop to start")
 
     def stop(self, timeout: float = 5.0) -> None:
         """
@@ -142,13 +140,16 @@ class AsyncioBridge:
 
     def _run_loop(self) -> None:
         """Run the asyncio event loop in a background thread."""
-        self._loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self._loop)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self._loop = loop
+        # Signal from inside the loop so start() cannot hand work to a loop that is not spinning
+        loop.call_soon(self._ready.set)
         try:
-            self._loop.run_forever()
+            loop.run_forever()
         finally:
             try:
-                self._loop.close()
+                loop.close()
             except Exception:
                 pass
 
@@ -188,10 +189,13 @@ class AsyncioBridge:
         def wrapped():
             try:
                 callback(*args)
-            except Exception as e:
-                import sys
-
-                print(f"Error in callback: {e}", file=sys.stderr)
+            except Exception as exc:
+                self._loop.call_exception_handler(
+                    {
+                        "message": "Exception in AsyncioBridge.call_soon callback",
+                        "exception": exc,
+                    }
+                )
 
         self._loop.call_soon_threadsafe(wrapped)
 
@@ -251,7 +255,7 @@ class AsyncioBridge:
         Raises:
             RuntimeError: If the bridge has not been started.
         """
-        now = datetime.utcnow()
+        now = utc_now()
         delay = max(0.0, (when - now).total_seconds())
         return self.call_later(delay, callback, *args)
 
@@ -327,7 +331,7 @@ class AsyncioBridge:
         """
         if self._start_time is None:
             return timedelta(0)
-        return datetime.utcnow() - self._start_time
+        return utc_now() - self._start_time
 
     def wait_for_adapter(self, timeout: Optional[float] = None) -> bool:
         """
@@ -362,18 +366,17 @@ class _DeferredHandle:
     def cancel(self) -> None:
         """Cancel the callback."""
         self._cancelled = True
-        if self._container:
-            self._container[0].cancel()
-        else:
-            # Schedule the cancel for when the handle is available
-            def do_cancel():
-                if self._container:
-                    self._container[0].cancel()
 
-            try:
-                self._loop.call_soon_threadsafe(do_cancel)
-            except RuntimeError:
-                pass
+        # TimerHandle.cancel() mutates loop._timer_cancelled_count, which is not thread-safe, so
+        # always run it on the loop thread rather than the caller's
+        def do_cancel():
+            if self._container:
+                self._container[0].cancel()
+
+        try:
+            self._loop.call_soon_threadsafe(do_cancel)
+        except RuntimeError:
+            pass
 
     def cancelled(self) -> bool:
         """Return True if the callback was cancelled."""
@@ -459,7 +462,3 @@ class BidirectionalBridge(AsyncioBridge):
                     self._loop.call_soon_threadsafe(callback, value)
                 except RuntimeError:
                     pass  # Loop closed
-
-
-# Export for convenience
-__all__ = ["AsyncioBridge", "BidirectionalBridge"]

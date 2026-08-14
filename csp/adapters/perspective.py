@@ -29,7 +29,7 @@ try:
     from packaging import version as _pv
 
     _PERSPECTIVE_4 = _pv.parse(_psp.__version__) >= _pv.parse("4")
-except Exception:
+except (ImportError, AttributeError):
     pass
 
 if _PERSPECTIVE_3:

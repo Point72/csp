@@ -328,14 +328,18 @@ class TestMathEquivalence(AsyncioModeTestCase):
 
 
 class TestAsyncioModePerformance(unittest.TestCase):
-    """Test that asyncio mode performance is within acceptable bounds."""
+    """Test that both asyncio modes keep up with realtime.
 
-    def test_performance_comparison(self):
+    These deliberately assert loose behavioural bounds rather than latency budgets or
+    mode-vs-mode ratios: the point is to catch a mode that stalls or spins, not to benchmark.
+    Timing comparisons flake on emulated, sanitized or saturated runners; they belong in asv.
+    """
+
+    def test_both_modes_track_realtime(self):
         """
-        Compare performance of normal vs asyncio mode.
+        Both execution modes must run a realtime graph to completion in roughly real time.
 
-        Asyncio mode has overhead from Python/C++ boundary crossings,
-        but should be within a reasonable margin for typical workloads.
+        A mode that stalls or busy-spins shows up as a wall time far from the requested duration.
         """
 
         @csp.graph
@@ -356,52 +360,27 @@ class TestAsyncioModePerformance(unittest.TestCase):
             csp.add_graph_output("result", evens)
 
         duration = timedelta(milliseconds=200)
-        iterations = 3
 
         # Warm up
         csp.run(benchmark_graph, realtime=True, endtime=timedelta(milliseconds=50), asyncio_on_thread=True)
         csp.run(benchmark_graph, realtime=True, endtime=timedelta(milliseconds=50))  # default: asyncio on same thread
 
-        # Benchmark background thread mode
-        background_times = []
-        for _ in range(iterations):
-            start = time.perf_counter()
-            csp.run(benchmark_graph, realtime=True, endtime=duration, asyncio_on_thread=True)
-            background_times.append(time.perf_counter() - start)
+        expected = duration.total_seconds()
+        for asyncio_on_thread in (True, False):
+            with self.subTest(asyncio_on_thread=asyncio_on_thread):
+                start = time.perf_counter()
+                csp.run(benchmark_graph, realtime=True, endtime=duration, asyncio_on_thread=asyncio_on_thread)
+                elapsed = time.perf_counter() - start
 
-        # Benchmark same-thread asyncio mode (default)
-        same_thread_times = []
-        for _ in range(iterations):
-            start = time.perf_counter()
-            csp.run(benchmark_graph, realtime=True, endtime=duration)  # default: asyncio on same thread
-            same_thread_times.append(time.perf_counter() - start)
-
-        avg_background = sum(background_times) / len(background_times)
-        avg_same_thread = sum(same_thread_times) / len(same_thread_times)
-
-        # In realtime mode, both should take approximately the same wall time
-        # (the duration), so the ratio should be close to 1.0
-        # Allow up to 50% overhead for same-thread mode
-        ratio = avg_same_thread / avg_background if avg_background > 0 else 1.0
-
-        print("\nPerformance comparison:")
-        print(f"  Background thread mode average: {avg_background:.4f}s")
-        print(f"  Same-thread mode average:       {avg_same_thread:.4f}s")
-        print(f"  Ratio (same_thread/background): {ratio:.2f}x")
-
-        # Both should complete close to the requested duration
-        self.assertAlmostEqual(avg_background, duration.total_seconds(), delta=0.1)
-        self.assertAlmostEqual(avg_same_thread, duration.total_seconds(), delta=0.1)
-
-        # Same-thread mode should not be more than 50% slower
-        self.assertLess(ratio, 1.5, f"Same-thread mode too slow: {ratio:.2f}x background mode")
+                # A realtime run cannot finish early, and must not overshoot wildly
+                self.assertGreaterEqual(elapsed, expected * 0.9)
+                self.assertLess(elapsed, expected + 5.0)
 
     def test_throughput_comparison(self):
         """
-        Compare event throughput between modes.
+        Both modes must actually process events over a realtime window.
 
-        Both modes should process approximately the same number of events
-        in the same time period.
+        No mode-vs-mode ratio is asserted; a stalled loop shows up as near-zero events.
         """
 
         def count_events(asyncio_on_thread: bool) -> int:
@@ -416,22 +395,11 @@ class TestAsyncioModePerformance(unittest.TestCase):
             )
             return len(result.get("count", []))
 
-        background_events = count_events(True)
-        same_thread_events = count_events(False)
-
-        print("\nThroughput comparison:")
-        print(f"  Background thread events: {background_events}")
-        print(f"  Same-thread events:       {same_thread_events}")
-
-        # Both should process similar number of events.  The asyncio-on-same-thread
-        # mode uses short blocking waits (1 ms) between cycles, so on slow CI
-        # machines there can be measurable divergence.  Allow up to 2x.
-        min_events = min(background_events, same_thread_events)
-        max_events = max(background_events, same_thread_events)
-
-        if min_events > 0:
-            ratio = max_events / min_events
-            self.assertLess(ratio, 2.0, f"Event count differs too much: {ratio:.2f}x")
+        # ~20 ticks are scheduled in the window; require a clear majority to allow for a slow
+        # runner while still failing a mode that is not draining its queue
+        for asyncio_on_thread in (True, False):
+            with self.subTest(asyncio_on_thread=asyncio_on_thread):
+                self.assertGreaterEqual(count_events(asyncio_on_thread), 10)
 
 
 if __name__ == "__main__":

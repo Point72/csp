@@ -5,6 +5,7 @@
 // WIN32_LEAN_AND_MEAN is defined project-wide to prevent winsock.h/winsock2.h conflicts
 #ifdef _WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
@@ -26,6 +27,14 @@ namespace csp
 {
 
 class TimeDelta;
+
+// Handle type exposed by FdWaiter::readFd().  On Windows a SOCKET is a UINT_PTR, so it must not
+// be narrowed to int - handles above INT_MAX are legal and narrowing them is undefined.
+#ifdef _WIN32
+using FdHandle = SOCKET;
+#else
+using FdHandle = int;
+#endif
 
 class QueueWaiter
 {
@@ -83,9 +92,13 @@ public:
         {
             m_readFd = fds[0];
             m_writeFd = fds[1];
-            // notify() writes on every call and must never block, so non-blocking is mandatory
+            // notify() writes on every call and must never block, so non-blocking is mandatory.
+            // FD_CLOEXEC is a descriptor flag ( F_SETFD ), not a status flag: without it both ends
+            // leak into any forked child, and a child holding the write end prevents EOF.
             if( fcntl( m_readFd, F_SETFL, O_NONBLOCK ) == -1 ||
-                fcntl( m_writeFd, F_SETFL, O_NONBLOCK ) == -1 )
+                fcntl( m_writeFd, F_SETFL, O_NONBLOCK ) == -1 ||
+                fcntl( m_readFd, F_SETFD, FD_CLOEXEC ) == -1 ||
+                fcntl( m_writeFd, F_SETFD, FD_CLOEXEC ) == -1 )
             {
                 close( m_readFd );
                 close( m_writeFd );
@@ -126,11 +139,7 @@ public:
 
     // Get the file descriptor for select/poll registration
     // Returns -1 (or INVALID_SOCKET on Windows) if not available
-#ifdef _WIN32
-    SOCKET readFd() const { return m_readFd; }
-#else
-    int readFd() const { return m_readFd; }
-#endif
+    FdHandle readFd() const { return m_readFd; }
 
     // Signal the fd ( makes it readable ).  Callable from any producer thread.
     // Deliberately lock-free: this sits on the push-event hot path.  EAGAIN means the eventfd
@@ -203,12 +212,36 @@ private:
     static constexpr size_t DRAIN_MAX_READS   = 64;
 
 #ifdef _WIN32
+    // Winsock must be initialized before any socket call in this process.  Nothing else in the
+    // engine does it, so without this socket() fails and the engine silently has no wakeup fd.
+    static bool initWinsock()
+    {
+        static const bool s_ok = []
+        {
+            WSADATA wsaData;
+            return WSAStartup( MAKEWORD( 2, 2 ), &wsaData ) == 0;
+        }();
+        return s_ok;
+    }
+
     void createSocketPair()
     {
+        if( !initWinsock() )
+            return;
+
         // Create a listening socket on localhost
         SOCKET listener = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
         if( listener == INVALID_SOCKET )
             return;
+
+        // Without this another process can bind the same port and race the accept below
+        int exclusive = 1;
+        if( setsockopt( listener, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                        ( const char * ) &exclusive, sizeof( exclusive ) ) == SOCKET_ERROR )
+        {
+            closesocket( listener );
+            return;
+        }
 
         struct sockaddr_in addr;
         memset( &addr, 0, sizeof( addr ) );
@@ -252,7 +285,10 @@ private:
         }
 
         // Accept the connection
-        m_readFd = accept( listener, NULL, NULL );
+        struct sockaddr_in peer;
+        memset( &peer, 0, sizeof( peer ) );
+        int peerlen = sizeof( peer );
+        m_readFd = accept( listener, ( struct sockaddr * ) &peer, &peerlen );
         closesocket( listener );  // Done with listener
 
         if( m_readFd == INVALID_SOCKET )
@@ -262,10 +298,32 @@ private:
             return;
         }
 
-        // Set non-blocking; notify() must never block on a full buffer
+        // The listener is on loopback but any local process may connect to it, so verify the
+        // accepted peer really is our own client socket before trusting the pair
+        struct sockaddr_in self;
+        memset( &self, 0, sizeof( self ) );
+        int selflen = sizeof( self );
+        if( getsockname( m_writeFd, ( struct sockaddr * ) &self, &selflen ) == SOCKET_ERROR ||
+            selflen != peerlen ||
+            peer.sin_family != self.sin_family ||
+            peer.sin_port != self.sin_port ||
+            peer.sin_addr.s_addr != self.sin_addr.s_addr )
+        {
+            closesocket( m_readFd );
+            closesocket( m_writeFd );
+            m_readFd = INVALID_SOCKET;
+            m_writeFd = INVALID_SOCKET;
+            return;
+        }
+
+        // Set non-blocking; notify() must never block on a full buffer.  TCP_NODELAY matters too:
+        // this is a wakeup signal, and Nagle would let the kernel sit on a 1-byte notify.
         u_long mode = 1;
+        int nodelay = 1;
         if( ioctlsocket( m_readFd, FIONBIO, &mode ) == SOCKET_ERROR ||
-            ioctlsocket( m_writeFd, FIONBIO, &mode ) == SOCKET_ERROR )
+            ioctlsocket( m_writeFd, FIONBIO, &mode ) == SOCKET_ERROR ||
+            setsockopt( m_writeFd, IPPROTO_TCP, TCP_NODELAY,
+                        ( const char * ) &nodelay, sizeof( nodelay ) ) == SOCKET_ERROR )
         {
             closesocket( m_readFd );
             closesocket( m_writeFd );

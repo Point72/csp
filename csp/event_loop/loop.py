@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import contextvars
+import heapq
 import os
 import selectors
 import signal
@@ -17,6 +18,10 @@ from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, TypeVa
 from csp.impl.__cspimpl import _cspimpl
 
 _T = TypeVar("_T")
+
+# Thresholds for reaping cancelled timers, mirroring asyncio.base_events
+_MIN_SCHEDULED_TIMER_HANDLES = 100
+_MIN_CANCELLED_TIMER_HANDLES_FRACTION = 0.5
 
 __all__ = (
     "CspEventLoop",
@@ -110,6 +115,14 @@ class _CspTimerHandle(_CspHandle):
         """Return the scheduled time as a float."""
         return self._when
 
+    def cancel(self) -> None:
+        """Cancel the timer, letting the loop reap it from its heap."""
+        already_cancelled = self._cancelled
+        loop = self._loop
+        super().cancel()
+        if not already_cancelled and loop is not None:
+            loop._timer_handle_cancelled(self)
+
     def __lt__(self, other: "_CspTimerHandle") -> bool:
         return self._when < other._when
 
@@ -154,9 +167,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         self._thread_id: Optional[int] = None
         self._debug = bool(os.environ.get("PYTHONASYNCIODEBUG"))
 
-        # Callback queues
+        # Callback queues.  _scheduled is a heap ordered by _CspTimerHandle._when.
         self._ready: deque = deque()
         self._scheduled: List[_CspTimerHandle] = []
+        self._timer_cancelled_count = 0
 
         # Selector for I/O
         self._selector = selectors.DefaultSelector()
@@ -164,9 +178,13 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         self._writers: Dict[int, _CspHandle] = {}
 
         # Signal handling
-        self._signal_handlers: Dict[int, _CspHandle] = {}
-        self._ssock: Optional[socket.socket] = None
-        self._csock: Optional[socket.socket] = None
+        self._signal_handlers: Dict[int, Tuple[_CspHandle, Any]] = {}
+
+        # Self-pipe so call_soon_threadsafe can interrupt a blocking selector wait
+        self._ssock, self._csock = socket.socketpair()
+        self._ssock.setblocking(False)
+        self._csock.setblocking(False)
+        self._selector.register(self._ssock.fileno(), selectors.EVENT_READ)
 
         # Task factory and exception handler
         self._task_factory: Optional[Callable] = None
@@ -187,6 +205,7 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         self._starttime: Optional[datetime] = None
         self._endtime: Optional[datetime] = None
         self._sim_start_time: Optional[datetime] = None  # Track sim start for time()
+        self._sim_now: Optional[float] = None  # Last simulated time() value, in the sim clock domain
 
         # Threadsafe callback queue
         self._csock_lock = threading.Lock()
@@ -195,6 +214,9 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         # CSP wakeup fd for native event loop integration
         self._csp_wakeup_fd: Optional[int] = None
 
+        # A PyEngine is single-use: once finished it cannot be started again
+        self._csp_finished = False
+
     def _init_csp_engine(self) -> None:
         """Initialize the CSP engine for use."""
         if self._csp_engine is None:
@@ -202,6 +224,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
 
     def _start_csp_engine(self) -> None:
         """Start CSP engine."""
+        # run_forever is re-entered by the shutdown phases (cancelling tasks, shutting down
+        # asyncgens/executor). Those must not resurrect an engine that has already run finish().
+        if self._csp_finished:
+            return
         if not self._csp_active:
             self._init_csp_engine()
             from datetime import timedelta
@@ -244,9 +270,9 @@ class CspEventLoop(asyncio.AbstractEventLoop):
                 self._csp_wakeup_fd = None
             try:
                 self._csp_engine.finish()
-            except Exception:
-                pass  # Ignore errors during cleanup
-            self._csp_active = False
+            finally:
+                self._csp_active = False
+                self._csp_finished = True
 
     def set_simulation_time_range(self, start: Optional[datetime] = None, end: Optional[datetime] = None) -> None:
         """Configure the time range for simulation mode.
@@ -294,16 +320,35 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         self._running = True
         self._thread_id = threading.get_ident()
 
-        old_loop = asyncio._get_running_loop()
+        old_agen_hooks = sys.get_asyncgen_hooks()
         try:
+            sys.set_asyncgen_hooks(
+                firstiter=self._asyncgen_firstiter_hook,
+                finalizer=self._asyncgen_finalizer_hook,
+            )
             asyncio._set_running_loop(self)
             self._start_csp_engine()
             self._run_until_stopped()
         finally:
             self._stop_csp_engine()
-            asyncio._set_running_loop(old_loop)
+            asyncio._set_running_loop(None)
             self._running = False
             self._thread_id = None
+            sys.set_asyncgen_hooks(*old_agen_hooks)
+
+    def _asyncgen_firstiter_hook(self, agen) -> None:
+        if self._asyncgens_shutdown_called:
+            warnings.warn(
+                f"asynchronous generator {agen!r} was scheduled after loop.shutdown_asyncgens() call",
+                ResourceWarning,
+                source=self,
+            )
+        self._asyncgens.add(agen)
+
+    def _asyncgen_finalizer_hook(self, agen) -> None:
+        self._asyncgens.discard(agen)
+        if not self.is_closed():
+            self.call_soon_threadsafe(self.create_task, agen.aclose())
 
     def _run_until_stopped(self) -> None:
         """Internal implementation of run_forever."""
@@ -336,6 +381,33 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         else:
             # Simulation mode: CSP drives time, no waiting
             self._run_once_simulation()
+
+    def _step_csp_engine(self) -> None:
+        """Run a single non-blocking CSP cycle.
+
+        A cycle raises when a node raises, which means the engine is finished - there is nothing
+        left to run and no other code path will report it.  Tear the engine down, hand the
+        exception to the loop's exception handler and stop the loop, rather than spinning on a
+        dead engine with the failure discarded.
+        """
+        try:
+            self._csp_engine.process_one_cycle(0.0)
+        except (SystemExit, KeyboardInterrupt):
+            raise
+        except BaseException as exc:
+            try:
+                # Sets _csp_active/_csp_finished in a finally, and re-raises the engine's own
+                # exception - which is the one we already hold.
+                self._stop_csp_engine()
+            except BaseException:
+                pass
+            self.call_exception_handler(
+                {
+                    "message": "Exception in CSP engine cycle; engine stopped",
+                    "exception": exc,
+                }
+            )
+            self.stop()
 
     def _run_once_realtime(self, timeout: Optional[float] = None) -> None:
         """Run one iteration in realtime mode."""
@@ -372,6 +444,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
 
         # Process I/O events
         for key, mask in events:
+            # Self-pipe wakeup; drain it and move on
+            if self._ssock is not None and key.fd == self._ssock.fileno():
+                self._drain_self_pipe()
+                continue
             # Check if this is the CSP wakeup fd
             if self._csp_wakeup_fd is not None and key.fd == self._csp_wakeup_fd:
                 csp_wakeup_signaled = True
@@ -386,11 +462,8 @@ class CspEventLoop(asyncio.AbstractEventLoop):
             if csp_wakeup_signaled:
                 # Clear the wakeup fd before processing
                 self._csp_engine.clear_wakeup_fd()
-            try:
-                # Step with 0 wait - just process what's ready
-                self._csp_engine.process_one_cycle(0.0)
-            except Exception:
-                pass  # CSP cycle errors handled elsewhere
+            # Step with 0 wait - just process what's ready
+            self._step_csp_engine()
 
         # Process Python scheduled callbacks that are due
         now = self.time()
@@ -398,7 +471,7 @@ class CspEventLoop(asyncio.AbstractEventLoop):
             handle = self._scheduled[0]
             if handle._when > now:
                 break
-            handle = self._scheduled.pop(0)
+            handle = heapq.heappop(self._scheduled)
             if not handle.cancelled():
                 self._ready.append(handle)
 
@@ -408,6 +481,29 @@ class CspEventLoop(asyncio.AbstractEventLoop):
             handle = self._ready.popleft()
             if not handle.cancelled():
                 handle._run()
+
+    def _advance_sim_clock_to_next_timer(self) -> bool:
+        """Move the simulated clock to the earliest pending Python timer.
+
+        Only the CSP scheduler advances simulated time, so a positive-delay `asyncio.sleep()`
+        would otherwise never come due -- the loop would spin at a fixed `now`. Returns True when
+        the clock was moved, in which case the caller must not step CSP past that point this
+        iteration, so the timer still runs in the right order relative to CSP events.
+        """
+        if self._ready or not self._scheduled:
+            return False
+
+        when = self._scheduled[0]._when
+        if when <= self.time():
+            return False
+
+        if self._csp_active and self._csp_engine is not None:
+            csp_next = self._csp_engine.next_scheduled_time()
+            if csp_next is not None and csp_next.timestamp() <= when:
+                return False
+
+        self._sim_now = when
+        return True
 
     def _run_once_simulation(self) -> None:
         """Run one iteration in simulation mode.
@@ -432,12 +528,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
                 self._ready.append(self._writers[key.fd])
 
         # Step CSP engine - this advances simulated time to next event
-        if self._csp_active and self._csp_engine is not None:
-            try:
+        if not self._advance_sim_clock_to_next_timer():
+            if self._csp_active and self._csp_engine is not None:
                 # Step with 0 wait - in sim mode this jumps to next event
-                self._csp_engine.process_one_cycle(0.0)
-            except Exception:
-                pass  # CSP cycle errors handled elsewhere
+                self._step_csp_engine()
 
         # Process Python scheduled callbacks that are due
         # In sim mode, time() returns CSP's simulated time
@@ -446,7 +540,7 @@ class CspEventLoop(asyncio.AbstractEventLoop):
             handle = self._scheduled[0]
             if handle._when > now:
                 break
-            handle = self._scheduled.pop(0)
+            handle = heapq.heappop(self._scheduled)
             if not handle.cancelled():
                 self._ready.append(handle)
 
@@ -530,6 +624,15 @@ class CspEventLoop(asyncio.AbstractEventLoop):
 
         # Close selector
         self._selector.close()
+
+        # Close the self-pipe
+        with self._csock_lock:
+            if self._csock is not None:
+                self._csock.close()
+                self._csock = None
+        if self._ssock is not None:
+            self._ssock.close()
+            self._ssock = None
 
         # Shutdown default executor
         if self._default_executor is not None:
@@ -629,10 +732,22 @@ class CspEventLoop(asyncio.AbstractEventLoop):
             if self._csock is not None:
                 try:
                     self._csock.send(b"\x00")
+                except (BlockingIOError, InterruptedError):
+                    # Buffer full or interrupted; the loop is already going to wake
+                    pass
                 except OSError:
                     pass
 
         return handle
+
+    def _drain_self_pipe(self) -> None:
+        if self._ssock is None:
+            return
+        try:
+            while self._ssock.recv(4096):
+                pass
+        except (BlockingIOError, InterruptedError, OSError):
+            pass
 
     def call_later(
         self,
@@ -665,14 +780,26 @@ class CspEventLoop(asyncio.AbstractEventLoop):
             self._check_thread()
 
         handle = _CspTimerHandle(when, callback, args if args else None, self, context)
-
-        # Insert in sorted order
-        # Using binary search would be more efficient for large lists
-        import bisect
-
-        bisect.insort(self._scheduled, handle)
+        heapq.heappush(self._scheduled, handle)
 
         return handle
+
+    def _timer_handle_cancelled(self, handle: _CspTimerHandle) -> None:
+        """Account for a cancelled timer so the heap does not grow without bound.
+
+        Cancelled handles cannot be removed from a heap in better than O(n), so they are left in
+        place and skipped when popped.  Once they dominate the heap it is rebuilt, matching what
+        asyncio's own selector loop does.
+        """
+        self._timer_cancelled_count += 1
+        if self._timer_cancelled_count <= _MIN_SCHEDULED_TIMER_HANDLES or not self._scheduled:
+            return
+        if self._timer_cancelled_count / len(self._scheduled) < _MIN_CANCELLED_TIMER_HANDLES_FRACTION:
+            return
+
+        self._scheduled = [h for h in self._scheduled if not h.cancelled()]
+        heapq.heapify(self._scheduled)
+        self._timer_cancelled_count = 0
 
     def time(self) -> float:
         """Return the current time according to the event loop's clock.
@@ -680,14 +807,23 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         In realtime mode, returns the monotonic clock time.
         In simulation mode, returns CSP's simulated time as seconds since epoch.
         """
-        if not self._realtime and self._csp_active and self._csp_engine is not None:
-            # Simulation mode: use CSP's simulated time
+        if self._realtime:
+            return time.monotonic()
+
+        # Simulation must stay in one clock domain for the whole loop lifetime.  Falling back to
+        # monotonic() before the engine starts or after it finishes mixes two unrelated origins,
+        # so a timer scheduled in one domain and compared in the other either fires instantly or
+        # never fires at all.  The value only ever moves forward, as asyncio requires.
+        if self._csp_active and self._csp_engine is not None:
             csp_now = self._csp_engine.now()
             if csp_now is not None:
-                # Convert datetime to float seconds since start
-                return csp_now.timestamp()
-        # Realtime mode or no CSP engine: use monotonic clock
-        return time.monotonic()
+                stamp = csp_now.timestamp()
+                if self._sim_now is None or stamp > self._sim_now:
+                    self._sim_now = stamp
+        elif self._sim_now is None:
+            self._sim_now = (self._starttime or datetime(1970, 1, 1)).timestamp()
+
+        return self._sim_now
 
     def create_future(self) -> asyncio.Future:
         """Create and return a new Future."""
@@ -809,6 +945,8 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         fd = sock.fileno()
 
         def callback() -> None:
+            if fut.done():
+                return
             try:
                 data = sock.recv(nbytes)
             except (BlockingIOError, InterruptedError):
@@ -821,7 +959,11 @@ class CspEventLoop(asyncio.AbstractEventLoop):
                 fut.set_result(data)
 
         self.add_reader(fd, callback)
-        return await fut
+        try:
+            return await fut
+        finally:
+            # Cancelling the awaiting task must not leave the fd registered
+            self.remove_reader(fd)
 
     async def sock_recv_into(self, sock: socket.socket, buf: bytearray) -> int:
         """Receive data from a socket into a buffer."""
@@ -829,6 +971,8 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         fd = sock.fileno()
 
         def callback() -> None:
+            if fut.done():
+                return
             try:
                 nbytes = sock.recv_into(buf)
             except (BlockingIOError, InterruptedError):
@@ -841,7 +985,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
                 fut.set_result(nbytes)
 
         self.add_reader(fd, callback)
-        return await fut
+        try:
+            return await fut
+        finally:
+            self.remove_reader(fd)
 
     async def sock_sendall(self, sock: socket.socket, data: bytes) -> None:
         """Send data to a socket."""
@@ -851,6 +998,8 @@ class CspEventLoop(asyncio.AbstractEventLoop):
 
         def callback() -> None:
             nonlocal view
+            if fut.done():
+                return
             try:
                 n = sock.send(view)
             except (BlockingIOError, InterruptedError):
@@ -867,7 +1016,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
                 view = view[n:]
 
         self.add_writer(fd, callback)
-        await fut
+        try:
+            await fut
+        finally:
+            self.remove_writer(fd)
 
     async def sock_connect(self, sock: socket.socket, address: Tuple[str, int]) -> None:
         """Connect a socket to a remote address."""
@@ -881,6 +1033,8 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         fd = sock.fileno()
 
         def callback() -> None:
+            if fut.done():
+                return
             try:
                 err = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
                 if err != 0:
@@ -893,7 +1047,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
                 fut.set_result(None)
 
         self.add_writer(fd, callback)
-        await fut
+        try:
+            await fut
+        finally:
+            self.remove_writer(fd)
 
     async def sock_accept(self, sock: socket.socket) -> Tuple[socket.socket, Tuple[str, int]]:
         """Accept a connection on a socket."""
@@ -901,6 +1058,8 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         fd = sock.fileno()
 
         def callback() -> None:
+            if fut.done():
+                return
             try:
                 conn, addr = sock.accept()
                 conn.setblocking(False)
@@ -914,7 +1073,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
                 fut.set_result((conn, addr))
 
         self.add_reader(fd, callback)
-        return await fut
+        try:
+            return await fut
+        finally:
+            self.remove_reader(fd)
 
     async def getaddrinfo(
         self,
@@ -1078,24 +1240,26 @@ class CspEventLoop(asyncio.AbstractEventLoop):
 
         self._check_closed()
         handle = _CspHandle(callback, args if args else None, self)
-        self._signal_handlers[sig] = handle
 
         try:
-            signal.signal(sig, lambda s, f: self.call_soon_threadsafe(callback, *args))
+            previous = signal.signal(sig, lambda s, f: self.call_soon_threadsafe(callback, *args))
         except OSError:
-            del self._signal_handlers[sig]
             raise
+
+        # Keep the displaced handler so remove_signal_handler can put it back rather than
+        # clobbering a host application's handling with SIG_DFL
+        self._signal_handlers[sig] = (handle, previous)
 
     def remove_signal_handler(self, sig: int) -> bool:
         """Remove a handler for a signal."""
-        if sig not in self._signal_handlers:
+        entry = self._signal_handlers.pop(sig, None)
+        if entry is None:
             return False
 
-        del self._signal_handlers[sig]
-
+        _, previous = entry
         try:
-            signal.signal(sig, signal.SIG_DFL)
-        except OSError:
+            signal.signal(sig, previous if previous is not None else signal.SIG_DFL)
+        except (OSError, TypeError, ValueError):
             pass
 
         return True

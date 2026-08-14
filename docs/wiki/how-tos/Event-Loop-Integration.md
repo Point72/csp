@@ -487,8 +487,8 @@ async def test_historical():
     start_time = loop.time()
     print(f"Start: {datetime.fromtimestamp(start_time)}")
 
-    await asyncio.sleep(0)  # Yields but doesn't wait
-    # Time jumps instantly to next event
+    await asyncio.sleep(0)  # Yields without advancing simulated time
+    await asyncio.sleep(60)  # Advances simulated time by a minute, costs no wall time
 
     return "done"
 
@@ -501,7 +501,7 @@ loop.close()
 | Aspect            | Realtime Mode (`realtime=True`) | Simulation Mode (`realtime=False`) |
 | ----------------- | ------------------------------- | ---------------------------------- |
 | `loop.time()`     | Wall clock (monotonic)          | CSP simulated time                 |
-| `asyncio.sleep()` | Actually waits                  | Returns immediately                |
+| `asyncio.sleep()` | Actually waits                  | Advances simulated time            |
 | I/O waiting       | Blocks on selectors             | Polls only (no waiting)            |
 | Time progression  | Follows wall clock              | Jumps to next event                |
 | Use case          | Live applications               | Backtesting, testing               |
@@ -793,4 +793,4 @@ The current implementation has some limitations:
 - [Python asyncio documentation](https://docs.python.org/3/library/asyncio.html)
 - [CSP Documentation](../README.md)
 - [uvloop](https://github.com/MagicStack/uvloop) - Similar project for libuv-based event loop
-- [Example: CSP Asyncio Integration](https://github.com/Point72/csp/tree/main/examples/06_advanced/e2_csp_event_loop_integration.py)
+- [Example: CSP Asyncio Integration](https://github.com/Point72/csp/tree/main/examples/06_advanced/e3_asyncio_integration.py)

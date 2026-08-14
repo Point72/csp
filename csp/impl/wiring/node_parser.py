@@ -113,6 +113,7 @@ class NodeParser(BaseParser):
         self._stateblock = []
         self._startblock = []
         self._stopblock = []
+        self._async_alarms = {}
         self._func_globals_modified.update(builtin_functions.CSP_BUILTIN_CONTEXT_DICT)
         self._func_globals_modified.update(self._LOCAL_METHODS)
         self._gen = None
@@ -196,8 +197,6 @@ class NodeParser(BaseParser):
 
                 if is_async_alarm:
                     # Track async alarms for special handling
-                    if not hasattr(self, "_async_alarms"):
-                        self._async_alarms = {}
                     self._async_alarms[name] = typ
                     self._inputs.insert(
                         num_alarms, InputDef(name, ts_type_arg, ArgKind.ASYNC_ALARM, None, num_alarms, -1)
@@ -326,7 +325,9 @@ class NodeParser(BaseParser):
 
     def visit_Name(self, node: ast.Name):
         """Handle name access for async alarms - return manager's value instead of alarm proxy."""
-        if hasattr(self, "_async_alarms") and node.id in self._async_alarms:
+        if node.id in self._async_alarms:
+            if not isinstance(node.ctx, ast.Load):
+                raise CspParseError(f"async alarm '{node.id}' cannot be assigned to or deleted", node.lineno)
             # For async alarms, accessing by name should get the manager's value
             mgr_name = f"#async_mgr_{node.id}"
             return ast.Attribute(
@@ -965,14 +966,16 @@ class NodeParser(BaseParser):
         async_alarm_state = []
         async_alarm_start = []
         async_alarm_stop = []
-        if hasattr(self, "_async_alarms") and self._async_alarms:
+        if self._async_alarms:
             # Add AsyncAlarm to globals only when needed (lazy import to avoid circular dependency)
             self._func_globals_modified["AsyncAlarm"] = _get_async_alarm_class()
             for name, typ in self._async_alarms.items():
                 mgr_name = f"#async_mgr_{name}"
-                # State: create the AsyncAlarm manager
-                # We need to create a reference to the type, not embed it as a constant
-                type_name = typ.__name__ if hasattr(typ, "__name__") else str(typ)
+                # Inject the type object itself.  Emitting ast.Name(typ.__name__) would re-resolve
+                # it from the node's globals, which breaks for aliased imports, for types from an
+                # enclosing scope, and for generics like List[int] that have no __name__.
+                type_name = f"#async_type_{name}"
+                self._func_globals_modified[type_name] = typ
                 async_alarm_state.append(
                     ast.Assign(
                         targets=[ast.Name(id=mgr_name, ctx=ast.Store())],

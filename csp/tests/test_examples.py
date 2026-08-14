@@ -8,7 +8,6 @@ EXAMPLES_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 
 # Examples to skip in tests (may hang or require specific environment)
 SKIP_EXAMPLES = {
-    "e3_asyncio_integration.py",  # Requires CSP event loop features
     "e4_csp_asyncio_integration.py",  # Requires CSP event loop features
     "e2_csp_fastapi.py",  # Starts a server that runs forever
 }

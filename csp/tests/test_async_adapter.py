@@ -83,8 +83,16 @@ class TestAsyncFor(unittest.TestCase):
 
         @csp.graph
         def graph():
-            values = csp.async_for(typed_generator())
-            csp.add_graph_output("values", values)
+            # A closure is not resolvable from module globals, so inference cannot see the
+            # annotation and warns before falling back to ts[object]
+            with self.assertWarns(UserWarning):
+                values = csp.async_for(typed_generator())
+            self.assertEqual(values.tstype.typ, object)
+
+            typed = csp.async_for(typed_generator(), output_type=str)
+            self.assertEqual(typed.tstype.typ, str)
+
+            csp.add_graph_output("values", typed)
 
         results = csp.run(graph, realtime=True, endtime=timedelta(seconds=0.3))
         values = [v for _, v in results["values"]]

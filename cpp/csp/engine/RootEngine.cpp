@@ -93,6 +93,8 @@ RootEngine::RootEngine( const Dictionary & settings ) : Engine( m_cycleStepTable
 
 RootEngine::~RootEngine()
 {
+    // Defense in depth for callers of the decomposed API that abandon an engine without finish()
+    m_fdWaiterEnabled.store( false, std::memory_order_relaxed );
 }
 
 bool RootEngine::interrupted() const
@@ -115,6 +117,8 @@ void RootEngine::preRun( DateTime start, DateTime end )
 void RootEngine::postRun()
 {
     m_state = State::SHUTDOWN;
+    // Disarm before stopping adapters so producer threads stop reaching for the fd on their way out
+    m_fdWaiterEnabled.store( false, std::memory_order_relaxed );
     stop();
 }
 

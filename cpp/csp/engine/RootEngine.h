@@ -14,6 +14,7 @@
 #include <csp/engine/PushEvent.h>
 #include <csp/engine/PushPullEvent.h>
 #include <csp/engine/Scheduler.h>
+#include <atomic>
 #include <memory>
 
 namespace csp
@@ -81,8 +82,8 @@ public:
 
     void     cancelCallback( Scheduler::Handle handle );
 
-    void     schedulePushEvent( PushEvent * event )             { m_pushEventQueue.push( event ); m_fdWaiter.notify(); }
-    void     schedulePushBatch( PushEventQueue::Batch & batch ) { m_pushEventQueue.push( batch ); m_fdWaiter.notify(); }
+    void     schedulePushEvent( PushEvent * event )             { m_pushEventQueue.push( event ); notifyFdWaiter(); }
+    void     schedulePushBatch( PushEventQueue::Batch & batch ) { m_pushEventQueue.push( batch ); notifyFdWaiter(); }
 
     bool     scheduleEndCycleListener( EndCycleListener * l );
 
@@ -106,8 +107,15 @@ public:
     PushPullEventQueue & pushPullEventQueue() { return m_pushPullEventQueue; }
 
     // Native fd-based wakeup for external event loops (asyncio, etc.)
-    // Returns a file descriptor that becomes readable when events are queued
-    int getWakeupFd() const { return m_fdWaiter.readFd(); }
+    // Returns a file descriptor that becomes readable when events are queued.  Asking for the fd
+    // is what arms the signalling: until then the push path does no fd work at all.  Arming is
+    // one-way for the life of the run; it is disarmed only at teardown.
+    int getWakeupFd()
+    {
+        if( m_fdWaiter.isValid() )
+            m_fdWaiterEnabled.store( true, std::memory_order_relaxed );
+        return m_fdWaiter.readFd();
+    }
     void clearWakeupFd() { m_fdWaiter.clear(); }
 
 protected:
@@ -122,6 +130,15 @@ protected:
     void    processPushEventQueue( PushEvent * events, std::vector<PushGroup*> & dirtyGroups );
 
     void    processEndCycle();
+
+    // Signals only once a consumer has armed the fd, keeping the push hot path syscall-free.
+    // The flag carries no data, hence relaxed; it is a hint, not a synchronization point, and it
+    // does not make teardown safe - adapters must still be stopped before the engine is destroyed.
+    void    notifyFdWaiter()
+    {
+        if( m_fdWaiterEnabled.load( std::memory_order_relaxed ) ) [[unlikely]]
+            m_fdWaiter.notify();
+    }
 
     struct Settings
     {
@@ -161,6 +178,9 @@ protected:
     std::mutex                        m_exception_mutex;
     std::unique_ptr<csp::Profiler>    m_profiler;
     mutable FdWaiter                  m_fdWaiter;  // For native fd-based event loop integration
+    // Only armed once a consumer asks for the fd, and disarmed at teardown, so the default
+    // engine.run() path never touches the fd from the push hot path
+    std::atomic<bool>                 m_fdWaiterEnabled{ false };
 
 };
 

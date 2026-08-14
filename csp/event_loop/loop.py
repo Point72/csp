@@ -218,11 +218,8 @@ class CspEventLoop(asyncio.AbstractEventLoop):
                 start = self._starttime or datetime(1970, 1, 1)
                 end = self._endtime or (start + timedelta(days=365 * 100))
 
-            self._csp_engine.start(start, end)
-            self._csp_active = True
-            self._sim_start_time = start  # Track simulation start for time()
-
-            # Register wakeup fd with selector for native event integration
+            # Arm and register the wakeup fd before start(), so events pushed while adapters are
+            # starting up still signal rather than waiting on the selector timeout.
             self._csp_wakeup_fd = self._csp_engine.get_wakeup_fd()
             if self._csp_wakeup_fd >= 0:
                 try:
@@ -230,6 +227,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
                 except (ValueError, OSError):
                     # Fd already registered or invalid, fall back to polling
                     self._csp_wakeup_fd = None
+
+            self._csp_engine.start(start, end)
+            self._csp_active = True
+            self._sim_start_time = start  # Track simulation start for time()
 
     def _stop_csp_engine(self) -> None:
         """Stop CSP engine."""

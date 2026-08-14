@@ -8,6 +8,7 @@
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
+#include <cerrno>
 #include <mutex>
 #include <condition_variable>
 #include <csp/core/Time.h>
@@ -61,6 +62,10 @@ private:
 // FdWaiter provides file descriptor based signaling for integration with
 // external event loops like asyncio. The read fd can be registered with
 // select/poll/epoll and will become readable when notify() is called.
+//
+// Consumers must clear() BEFORE draining the event queue they are guarding, never after.
+// Clearing afterwards discards the signal for any event queued between the drain and the clear,
+// which strands that event until the next unrelated wakeup.
 class FdWaiter
 {
 public:
@@ -78,9 +83,15 @@ public:
         {
             m_readFd = fds[0];
             m_writeFd = fds[1];
-            // Set non-blocking
-            fcntl( m_readFd, F_SETFL, O_NONBLOCK );
-            fcntl( m_writeFd, F_SETFL, O_NONBLOCK );
+            // notify() writes on every call and must never block, so non-blocking is mandatory
+            if( fcntl( m_readFd, F_SETFL, O_NONBLOCK ) == -1 ||
+                fcntl( m_writeFd, F_SETFL, O_NONBLOCK ) == -1 )
+            {
+                close( m_readFd );
+                close( m_writeFd );
+                m_readFd = -1;
+                m_writeFd = -1;
+            }
         }
         else
         {
@@ -121,43 +132,61 @@ public:
     int readFd() const { return m_readFd; }
 #endif
 
-    // Signal the fd (makes it readable)
+    // Signal the fd ( makes it readable ).  Callable from any producer thread.
+    // Deliberately lock-free: this sits on the push-event hot path.  EAGAIN means the eventfd
+    // counter saturated or the pipe buffer is full, ie the fd is already readable, which is the
+    // state notify() is trying to reach - so it needs no handling.
     void notify()
     {
-        std::lock_guard<std::mutex> guard( m_lock );
-        if( m_notified )
-            return;  // Already notified, avoid filling buffer
-
-        m_notified = true;
-
 #ifdef __linux__
         uint64_t val = 1;
-        [[maybe_unused]] auto rv = write( m_eventfd, &val, sizeof( val ) );
+        ssize_t rv;
+        do { rv = write( m_eventfd, &val, sizeof( val ) ); } while( rv < 0 && errno == EINTR );
 #elif defined(__APPLE__)
         char c = 1;
-        [[maybe_unused]] auto rv = write( m_writeFd, &c, 1 );
+        ssize_t rv;
+        do { rv = write( m_writeFd, &c, 1 ); } while( rv < 0 && errno == EINTR );
 #elif defined(_WIN32)
         char c = 1;
-        send( m_writeFd, &c, 1, 0 );
+        int rv;
+        do { rv = send( m_writeFd, &c, 1, 0 ); } while( rv == SOCKET_ERROR && WSAGetLastError() == WSAEINTR );
 #endif
+        ( void ) rv;
     }
 
-    // Clear the notification (call after processing)
+    // Drain the fd.  See the class comment: call this before draining the guarded event queue.
+    // The drain is bounded - producers are unsynchronized and can refill faster than we read, and
+    // leaving bytes behind is harmless: the fd simply stays readable and costs one extra cycle.
     void clear()
     {
-        std::lock_guard<std::mutex> guard( m_lock );
-        m_notified = false;
-
 #ifdef __linux__
         uint64_t val;
-        [[maybe_unused]] auto rv = read( m_eventfd, &val, sizeof( val ) );
+        ssize_t rv;
+        do { rv = read( m_eventfd, &val, sizeof( val ) ); } while( rv < 0 && errno == EINTR );
 #elif defined(__APPLE__)
-        char buf[64];
-        while( read( m_readFd, buf, sizeof( buf ) ) > 0 ) {}
+        char buf[ DRAIN_BUFFER_SIZE ];
+        ssize_t rv = 0;
+        for( size_t i = 0; i < DRAIN_MAX_READS; ++i )
+        {
+            rv = read( m_readFd, buf, sizeof( buf ) );
+            if( rv < 0 && errno == EINTR )
+                continue;
+            if( rv <= 0 )
+                break;
+        }
 #elif defined(_WIN32)
-        char buf[64];
-        while( recv( m_readFd, buf, sizeof( buf ), 0 ) > 0 ) {}
+        char buf[ DRAIN_BUFFER_SIZE ];
+        int rv = 0;
+        for( size_t i = 0; i < DRAIN_MAX_READS; ++i )
+        {
+            rv = recv( m_readFd, buf, sizeof( buf ), 0 );
+            if( rv == SOCKET_ERROR && WSAGetLastError() == WSAEINTR )
+                continue;
+            if( rv <= 0 )
+                break;
+        }
 #endif
+        ( void ) rv;
     }
 
     bool isValid() const
@@ -170,6 +199,9 @@ public:
     }
 
 private:
+    static constexpr size_t DRAIN_BUFFER_SIZE = 64;
+    static constexpr size_t DRAIN_MAX_READS   = 64;
+
 #ifdef _WIN32
     void createSocketPair()
     {
@@ -230,10 +262,16 @@ private:
             return;
         }
 
-        // Set non-blocking
+        // Set non-blocking; notify() must never block on a full buffer
         u_long mode = 1;
-        ioctlsocket( m_readFd, FIONBIO, &mode );
-        ioctlsocket( m_writeFd, FIONBIO, &mode );
+        if( ioctlsocket( m_readFd, FIONBIO, &mode ) == SOCKET_ERROR ||
+            ioctlsocket( m_writeFd, FIONBIO, &mode ) == SOCKET_ERROR )
+        {
+            closesocket( m_readFd );
+            closesocket( m_writeFd );
+            m_readFd = INVALID_SOCKET;
+            m_writeFd = INVALID_SOCKET;
+        }
     }
 
     SOCKET m_readFd;
@@ -245,8 +283,6 @@ private:
     int m_eventfd;
 #endif
 #endif
-    std::mutex m_lock;
-    bool m_notified = false;
 };
 
 }

@@ -203,15 +203,16 @@ async def _run_asyncio_engine(engine, starttime, endtime):
             if not engine.is_running():
                 break
 
+            # Drain the wakeup fd before the cycle consumes the queue; clearing afterwards would
+            # discard the signal for anything pushed in between.
+            if wakeup_fd >= 0:
+                engine.clear_wakeup_fd()
+
             # Short blocking wait (up to 1 ms).  The C++ engine releases
             # the GIL during the internal condition-variable wait so other
             # Python threads can progress.  Push events from adapter
             # threads wake it immediately via QueueWaiter::notify().
             has_more = engine.process_one_cycle(0.001)
-
-            # Drain the wakeup pipe so it doesn't fill up.
-            if wakeup_fd >= 0:
-                engine.clear_wakeup_fd()
 
             if not has_more:
                 break

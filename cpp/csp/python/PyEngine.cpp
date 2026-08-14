@@ -135,6 +135,9 @@ static PyObject * PyEngine_start( PyEngine * self, PyObject * args )
     CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
     self -> rootEngine() -> start( start, end );
 
+    if( PyErr_Occurred() )
+        return nullptr;
+
     Py_RETURN_NONE;
     CSP_RETURN_NONE;
 }
@@ -155,6 +158,10 @@ static PyObject * PyEngine_processOneCycle( PyEngine * self, PyObject * args )
     TimeDelta maxWait = TimeDelta::fromNanoseconds( maxWaitNanos );
     bool hasMore = self -> rootEngine() -> processOneCycle( maxWait );
 
+    // dialectLockGIL runs PyErr_CheckSignals, so a KeyboardInterrupt may be pending here
+    if( PyErr_Occurred() )
+        return nullptr;
+
     return PyBool_FromLong( hasMore );
     CSP_RETURN_NONE;
 }
@@ -166,7 +173,7 @@ static PyObject * PyEngine_finish( PyEngine * self, PyObject * args )
     CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
     self -> rootEngine() -> finish();
 
-    return self -> collectOutputs();
+    return PyErr_Occurred() ? nullptr : self -> collectOutputs();
     CSP_RETURN_NONE;
 }
 
@@ -233,7 +240,7 @@ static PyMethodDef PyEngine_methods[] = {
     { "now",               ( PyCFunction ) PyEngine_now,               METH_NOARGS,  "get current engine time" },
     { "next_scheduled_time", ( PyCFunction ) PyEngine_nextScheduledTime, METH_NOARGS,  "get next scheduled event time" },
     { "get_wakeup_fd",     ( PyCFunction ) PyEngine_getWakeupFd,       METH_NOARGS,  "get fd that becomes readable when events are queued" },
-    { "clear_wakeup_fd",   ( PyCFunction ) PyEngine_clearWakeupFd,     METH_NOARGS,  "clear the wakeup fd after processing events" },
+    { "clear_wakeup_fd",   ( PyCFunction ) PyEngine_clearWakeupFd,     METH_NOARGS,  "drain the wakeup fd; call before processing events, never after" },
     { NULL }
 };
 

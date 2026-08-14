@@ -390,7 +390,12 @@ class TestKafka:
         with pytest.raises(RuntimeError):
             csp.run(graph_sub, starttime=utc_now(), endtime=timedelta(seconds=2), realtime=True)
 
-        kafkaadapter2 = KafkaAdapterManager(**kafkaadapterkwargs)
+        kafkaadapter2 = KafkaAdapterManager(
+            **kafkaadapterkwargs,
+            # The producer holds a message for a topic it cannot find until this elapses, on the
+            # assumption the topic is about to be created; the 30s default dominates the test
+            rd_kafka_producer_conf_options={"topic.metadata.propagation.max.ms": "2000"},
+        )
 
         def graph_pub():
             msg_mapper = RawTextMessageMapper()
@@ -398,7 +403,7 @@ class TestKafka:
 
         # With bug this would deadlock
         with pytest.raises(RuntimeError):
-            csp.run(graph_pub, starttime=utc_now(), endtime=timedelta(seconds=2), realtime=True)
+            csp.run(graph_pub, starttime=utc_now(), endtime=timedelta(seconds=5), realtime=True)
 
     @pytest.mark.skipif(not os.environ.get("CSP_TEST_KAFKA"), reason="Skipping kafka adapter tests")
     def test_invalid_broker(self, kafkaadapterkwargs):

@@ -65,6 +65,7 @@ class KafkaAdapterManager:
         rd_kafka_conf_options=None,
         debug: bool = False,
         poll_timeout: timedelta = timedelta(seconds=1),
+        broker_down_tolerance: timedelta = timedelta(milliseconds=500),
         rd_kafka_consumer_conf_options=None,
         rd_kafka_producer_conf_options=None,
     ):
@@ -78,6 +79,8 @@ class KafkaAdapterManager:
                             set in this case since adapter will always replay from the last consumed offset.
         :param group_id_prefix - ( optional ) when not passing an explicit group_id, a prefix can be supplied that will be use to
                             prefix the UUID generated for the group_id
+        :param broker_down_tolerance - how long all brokers may stay unreachable before the engine is shut down. librdkafka
+                            reconnects on its own, so a single report is not evidence the brokers are gone.
         """
         if group_id is not None and start_offset is not None:
             raise ValueError("start_offset is not supported when consuming with group_id")
@@ -112,6 +115,7 @@ class KafkaAdapterManager:
             "start_offset": start_offset.value if isinstance(start_offset, KafkaStartOffset) else start_offset,
             "max_threads": max_threads,
             "poll_timeout": poll_timeout,
+            "broker_down_tolerance": broker_down_tolerance,
             "rd_kafka_conf_properties": conf_properties,
             "rd_kafka_consumer_conf_properties": consumer_properties,
             "rd_kafka_producer_conf_properties": producer_properties,

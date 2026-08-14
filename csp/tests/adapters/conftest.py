@@ -7,8 +7,9 @@ from csp.adapters.kafka import KafkaAdapterManager
 
 @pytest.fixture(scope="module", autouse=True)
 def kafkabroker():
-    # Defined in ci/kafka/docker-compose.yml
-    return "localhost:9092"
+    # Defined in ci/kafka/docker-compose.yml. Not "localhost": that also resolves to ::1, where
+    # the container publishes nothing, and librdkafka alternates between the resolved addresses.
+    return "127.0.0.1:9092"
 
 
 @pytest.fixture(scope="module", autouse=True)

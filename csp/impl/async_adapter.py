@@ -5,6 +5,7 @@ import logging
 import queue
 import threading
 import warnings
+from datetime import timedelta
 from typing import (
     AsyncIterator,
     Awaitable,
@@ -644,12 +645,44 @@ def async_out(
 class _AsyncNodeState:
     """Shared state for the async node pattern."""
 
-    def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None):
+    def __init__(
+        self,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
+        maxsize: int = 0,
+        on_overflow: str = "drop_oldest",
+    ):
         self.provided_loop = loop
         self.loop: asyncio.AbstractEventLoop = None
         self.active = True
+        self.maxsize = maxsize
+        self.on_overflow = on_overflow
         self.input_queue: asyncio.Queue = None
         self.push_adapter = None
+        self.dropped = 0
+        self.dropped_reported = False
+
+    def enqueue(self, value) -> None:
+        """Put a tick on the queue, applying the overflow policy. Runs on the loop thread."""
+        queue_ = self.input_queue
+        if queue_ is None or not self.active:
+            return
+
+        # maxsize 0 is unbounded, so full() is never true and neither branch below is taken
+        if queue_.full():
+            if self.on_overflow == "drop_newest":
+                self.dropped += 1
+                return
+            # drop_oldest: make room by discarding the stalest item
+            queue_.get_nowait()
+            self.dropped += 1
+
+        queue_.put_nowait(value)
+
+
+# Pushed on stop so the queue processor wakes immediately instead of being polled awake
+_ASYNC_NODE_SHUTDOWN = object()
+
+_ASYNC_NODE_OVERFLOW_POLICIES = ("drop_oldest", "drop_newest")
 
 
 class _AsyncNodeOutputAdapterImpl(PushInputAdapter):
@@ -666,41 +699,55 @@ class _AsyncNodeOutputAdapterImpl(PushInputAdapter):
 
         # Use provided loop, running loop, or shared loop
         self._state.loop = self._state.provided_loop if self._state.provided_loop is not None else get_async_loop()
-        self._state.input_queue = asyncio.Queue()
+        self._state.input_queue = asyncio.Queue(maxsize=self._state.maxsize)
         # Schedule the processor on the loop
         _schedule_on_loop(self._state.loop, self._schedule_processor)
 
     def _schedule_processor(self):
         """Schedule the async processor on the shared loop."""
+        self._processor_task = asyncio.ensure_future(self._queue_processor(), loop=self._state.loop)
 
-        async def process_one(value):
+    async def _process_one(self, value, slot=None):
+        try:
+            result = await self._async_func(value)
+            self.push_tick(result)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._report("async_node function failed", exc)
+        finally:
+            if slot is not None:
+                slot.release()
+
+    async def _queue_processor(self):
+        # Bounding the queue alone would not bound anything: this loop drains it as fast as it
+        # can into tasks, so without a concurrency limit the backlog just moves into _tasks.
+        # Acquiring before dequeuing is what pushes back on the queue and triggers the drop
+        # policy.  maxsize 0 means unbounded, which is the historical behaviour.
+        slots = asyncio.Semaphore(self._state.maxsize) if self._state.maxsize else None
+
+        while self._state.active:
             try:
-                result = await self._async_func(value)
-                self.push_tick(result)
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                self._report("async_node function failed", exc)
+                if slots is not None:
+                    await slots.acquire()
 
-        async def queue_processor():
-            while self._state.active:
-                try:
-                    value = await asyncio.wait_for(self._state.input_queue.get(), timeout=0.1)
-                    # Process each value as a separate task for concurrency.  Hold a strong
-                    # reference until it completes - asyncio only weakly references tasks - and
-                    # drop it afterwards so this does not accumulate one Task per tick.
-                    task = asyncio.ensure_future(process_one(value), loop=self._state.loop)
-                    self._tasks.add(task)
-                    task.add_done_callback(self._tasks.discard)
-                except asyncio.TimeoutError:
-                    continue
-                except asyncio.CancelledError:
+                value = await self._state.input_queue.get()
+                if value is _ASYNC_NODE_SHUTDOWN:
                     break
-                except Exception as exc:
-                    # Without a report a persistent failure here is an invisible hot loop
-                    self._report("async_node queue processor failed", exc)
 
-        self._processor_task = asyncio.ensure_future(queue_processor(), loop=self._state.loop)
+                # Process each value as a separate task for concurrency.  Hold a strong
+                # reference until it completes - asyncio only weakly references tasks - and
+                # drop it afterwards so this does not accumulate one Task per tick.
+                task = asyncio.ensure_future(self._process_one(value, slots), loop=self._state.loop)
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
+                # Without a report a persistent failure here is an invisible hot loop
+                if slots is not None:
+                    slots.release()
+                self._report("async_node queue processor failed", exc)
 
     def _report(self, message: str, exc: BaseException) -> None:
         loop = self._state.loop
@@ -711,11 +758,31 @@ class _AsyncNodeOutputAdapterImpl(PushInputAdapter):
 
     def stop(self):
         self._state.active = False
+        queue_ = self._state.input_queue
+        loop = self._state.loop
+        if queue_ is not None and loop is not None and loop.is_running():
+            # The graceful exit: the processor leaves its loop instead of unwinding through a
+            # cancellation.  Cancellation below is still what guarantees termination, since in
+            # same-thread asyncio mode the loop cannot reach this callback during teardown.
+            # A full bounded queue has no room for the sentinel, so make some.
+            def signal_shutdown():
+                if queue_.full():
+                    queue_.get_nowait()
+                queue_.put_nowait(_ASYNC_NODE_SHUTDOWN)
+
+            _schedule_on_loop(loop, signal_shutdown)
+
         if hasattr(self, "_processor_task"):
             _cancel_task_sync(self._state.loop, self._processor_task)
         for task in list(self._tasks):
             _cancel_task_sync(self._state.loop, task)
         self._tasks.clear()
+
+        # Read the counter only once the loop has quiesced, so a drop racing with teardown is
+        # still counted, and only once, so a repeated stop() does not repeat the warning
+        if self._state.dropped and not self._state.dropped_reported:
+            self._state.dropped_reported = True
+            log.warning("async_node dropped %d input ticks that did not fit its queue", self._state.dropped)
 
 
 _AsyncNodeOutputAdapter = py_push_adapter_def(
@@ -733,7 +800,7 @@ def _async_node_input(x: ts["T"], state: _AsyncNodeState):
     """Helper node that feeds input values to the async processing queue."""
     if csp.ticked(x):
         if state.loop is not None and state.loop.is_running():
-            _schedule_on_loop(state.loop, state.input_queue.put_nowait, x)
+            _schedule_on_loop(state.loop, state.enqueue, x)
 
 
 def async_node(
@@ -741,6 +808,8 @@ def async_node(
     async_func: Callable[["T"], Awaitable["U"]],
     *,
     loop: Optional[asyncio.AbstractEventLoop] = None,
+    maxsize: int = 0,
+    on_overflow: str = "drop_oldest",
 ) -> ts["U"]:
     """
     Apply an async function to each tick of the input, outputting the results.
@@ -753,6 +822,14 @@ def async_node(
         async_func: An async function that transforms the input value.
         loop: Event loop to use for running async operations. If None (default), uses CSP's
               shared async loop which is efficient as all adapters share one background thread.
+        maxsize: Bound on outstanding work: at most this many ticks wait in the queue and at
+                 most this many run concurrently. 0 (default) is unbounded, which means an
+                 async_func slower than the input grows memory without limit; set a bound if
+                 the input can outrun the function.
+        on_overflow: What to do with a tick that arrives at a full queue, either "drop_oldest"
+                     (default, keeps the freshest data) or "drop_newest" (keeps the accepted
+                     sequence intact). Still validated but has no effect when maxsize is 0.
+                     Drops are counted and logged once at stop.
 
     Returns:
         A CSP time series with the async function's results.
@@ -768,6 +845,11 @@ def async_node(
             results = csp.async_node(values, process)
             csp.print("results", results)
     """
+    if maxsize < 0:
+        raise ValueError(f"async_node maxsize must be >= 0, got {maxsize}")
+    if on_overflow not in _ASYNC_NODE_OVERFLOW_POLICIES:
+        raise ValueError(f"async_node on_overflow must be one of {_ASYNC_NODE_OVERFLOW_POLICIES}, got {on_overflow!r}")
+
     # Get output type from the async function
     try:
         hints = get_type_hints(async_func)
@@ -775,7 +857,7 @@ def async_node(
     except Exception:
         output_type = object
 
-    state = _AsyncNodeState(loop)
+    state = _AsyncNodeState(loop, maxsize=maxsize, on_overflow=on_overflow)
 
     # Wire up the input feeder and output adapter
     _async_node_input(x, state)
@@ -975,36 +1057,28 @@ class AsyncAlarm:
     This class provides an alarm-like interface for async operations within CSP nodes.
     When an async operation completes, the alarm "ticks" with the result value.
 
-    The internal mechanism uses a background thread with an event loop to run async
-    operations, and a polling alarm to check for completed results.
+    In same-thread asyncio mode the coroutine runs on the engine's own loop and its completion
+    wakes the node directly, so no polling alarm is needed.  When there is no engine loop to
+    borrow the alarm falls back to a background thread, and the node only observes the result the
+    next time something else ticks it.
 
     Example:
         @csp.node
-        def my_node() -> ts[int]:
+        def my_node(trigger: ts[object]) -> ts[int]:
             with csp.alarms():
-                poll_alarm = csp.alarm(bool)
                 async_alarm = csp.async_alarm(int)
 
             with csp.state():
                 s_counter = 0
-                s_pending = False
 
-            with csp.start():
-                csp.schedule_alarm(poll_alarm, timedelta(milliseconds=10), True)
+            with csp.stop():
+                async_alarm.stop()
 
-            if csp.ticked(poll_alarm):
-                # Only schedule a new async operation if one isn't already pending
-                if not s_pending:
-                    s_counter += 1
-                    csp.schedule_async_alarm(async_alarm, async_func(s_counter))
-                    s_pending = True
-
-                # Keep polling
-                csp.schedule_alarm(poll_alarm, timedelta(milliseconds=10), True)
+            if csp.ticked(trigger):
+                s_counter += 1
+                csp.schedule_async_alarm(async_alarm, async_func(s_counter))
 
             if csp.ticked(async_alarm):
-                # Async operation completed - we can schedule another one now
-                s_pending = False
                 return async_alarm
     """
 
@@ -1018,13 +1092,32 @@ class AsyncAlarm:
         self._pending_count = 0
         self._lock = threading.Lock()
         self._last_result = None  # Store the last result for value access
+        self._ticked_this_cycle = False
+        self._wakeup_proxy = None
+        self._owns_loop = False
+        self._tasks = set()
+
+    def bind_wakeup(self, proxy) -> None:
+        """Bind this alarm's own input proxy, used to wake the node when a result lands."""
+        self._wakeup_proxy = proxy
 
     def start(self):
-        """Start the async alarm's event loop in a background thread."""
+        """Start the async alarm's event loop."""
         if self._active:
             return
 
         self._active = True
+
+        # In same-thread asyncio mode the engine's own loop is available, and completions on it
+        # run on the engine thread - which is what makes the alarm wakeup below legal.
+        csp_loop = get_csp_asyncio_loop()
+        if csp_loop is not None:
+            self._loop = csp_loop
+            self._owns_loop = False
+            self._ready.set()
+            return
+
+        self._owns_loop = True
 
         def run_loop():
             loop = asyncio.new_event_loop()
@@ -1049,6 +1142,16 @@ class AsyncAlarm:
     def stop(self):
         """Stop the async alarm's event loop and cancel pending tasks."""
         self._active = False
+        self._wakeup_proxy = None
+
+        # On a shared loop the tasks outlive this alarm unless cancelled here; stop() runs on the
+        # loop's own thread in that mode, so cancel() is enough to keep them from resuming.
+        for task in list(self._tasks):
+            _cancel_task_sync(self._loop, task)
+        self._tasks.clear()
+
+        if not self._owns_loop:
+            return
         if self._loop is not None and self._loop.is_running():
             # Cancel all pending tasks before stopping
             def cancel_all():
@@ -1079,21 +1182,56 @@ class AsyncAlarm:
             try:
                 result = await coro
                 self._results.put(("success", result))
+                self._wake_node(result)
             except Exception as e:
                 self._results.put(("error", e))
+                # Wake for failures too, else a node with no other ticking input never raises
+                self._wake_node(self._placeholder_value())
             finally:
                 with self._lock:
                     self._pending_count -= 1
 
-        _schedule_coro_on_loop(self._loop, wrapper())
+        def schedule():
+            task = asyncio.ensure_future(wrapper(), loop=self._loop)
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
+
+        _schedule_on_loop(self._loop, schedule)
+
+    def _placeholder_value(self):
+        """A value of the alarm's type to carry a failure wakeup, which never reaches the node."""
+        try:
+            return self._output_type()
+        except Exception:
+            return None
+
+    def _wake_node(self, value) -> None:
+        """Fire this alarm's own slot so the node runs now rather than on the user's next poll.
+
+        Only legal when the completion ran on the engine thread, which is the case when the
+        coroutine was scheduled on CSP's own loop. Otherwise the result waits for a poll.
+        """
+        proxy = self._wakeup_proxy
+        if proxy is None or not self._active or self._owns_loop:
+            return
+        try:
+            proxy.schedule_alarm(timedelta(0), value)
+        except Exception as exc:
+            # Without a wakeup a node with no other ticking input never sees this result, so this
+            # must not pass silently
+            self._loop.call_exception_handler({"message": "async alarm wakeup failed", "exception": exc})
 
     def has_result(self) -> bool:
         """Check if any async operation has completed and has a result waiting."""
-        return not self._results.empty()
+        return self._ticked_this_cycle or not self._results.empty()
+
+    def start_cycle(self) -> None:
+        """Clear the per-cycle latch. Called once per node invocation by generated code."""
+        self._ticked_this_cycle = False
 
     def get_result(self) -> T:
         """
-        Get the next completed result. Also stores it as _last_result for value access.
+        Get the result for this cycle, dequeuing at most once per node invocation.
 
         Returns:
             The result of the completed async operation.
@@ -1102,14 +1240,15 @@ class AsyncAlarm:
             queue.Empty: If no result is available.
             Exception: If the async operation raised an exception.
         """
-        try:
-            status, value = self._results.get_nowait()
-            if status == "error":
-                raise value
-            self._last_result = value
-            return value
-        except queue.Empty:
-            raise
+        if self._ticked_this_cycle:
+            return self._last_result
+
+        status, value = self._results.get_nowait()
+        if status == "error":
+            raise value
+        self._last_result = value
+        self._ticked_this_cycle = True
+        return value
 
     @property
     def value(self) -> T:

@@ -949,6 +949,24 @@ class NodeParser(BaseParser):
         # innerbody is the while loop.  Start off with a yield, will get called when something ticks
         innerbody = [ast.Expr(value=ast.Yield(value=None))]
 
+        # Immediately after the yield is the one point that runs exactly once per invocation, so it
+        # is where the alarms' per-cycle latch is cleared - without it, evaluating csp.ticked() on
+        # an async alarm twice in one body would dequeue two results.
+        for name in self._async_alarms:
+            innerbody.append(
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(id=f"#async_mgr_{name}", ctx=ast.Load()),
+                            attr="start_cycle",
+                            ctx=ast.Load(),
+                        ),
+                        args=[],
+                        keywords=[],
+                    )
+                )
+            )
+
         for x in range(idx, len(self._funcdef.body)):
             func_body_transformed = self.visit(self._funcdef.body[x])
             if isinstance(func_body_transformed, list):
@@ -996,6 +1014,25 @@ class NodeParser(BaseParser):
                                 ctx=ast.Load(),
                             ),
                             args=[],
+                            keywords=[],
+                        )
+                    )
+                )
+                # Hand the manager this alarm's own proxy so a completion can wake the node
+                # instead of waiting for whatever poll the user happens to have running
+                async_alarm_start.append(
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id=mgr_name, ctx=ast.Load()),
+                                attr="bind_wakeup",
+                                ctx=ast.Load(),
+                            ),
+                            args=[
+                                self._ts_inproxy_expr(
+                                    self._signature.input(name, allow_missing=False).ts_idx, ast.Load()
+                                )
+                            ],
                             keywords=[],
                         )
                     )

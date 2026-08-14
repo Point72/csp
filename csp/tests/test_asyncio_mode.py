@@ -1,3 +1,5 @@
+import asyncio
+import threading
 import time
 import unittest
 from datetime import datetime, timedelta
@@ -5,6 +7,7 @@ from typing import List
 
 import csp
 from csp import ts
+from csp.impl.wiring.runtime import _thread_event_loop_or_none
 
 
 @csp.node
@@ -325,6 +328,49 @@ class TestMathEquivalence(AsyncioModeTestCase):
         # Should have both True and False values
         self.assertIn(False, normal_values)
         self.assertIn(True, normal_values)
+
+
+class TestAsyncioModeLoopOwnership(unittest.TestCase):
+    """csp.run(realtime=True) drives the calling thread's asyncio loop, so it must not damage it."""
+
+    def test_restores_callers_event_loop(self):
+        caller_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(caller_loop)
+        try:
+            csp.run(csp.const(1), realtime=True, endtime=timedelta(seconds=0.1))
+            self.assertIs(asyncio.get_event_loop(), caller_loop)
+            self.assertFalse(caller_loop.is_closed())
+        finally:
+            asyncio.set_event_loop(None)
+            caller_loop.close()
+
+    def test_leaves_thread_without_a_loop_when_it_started_without_one(self):
+        """csp.run() must not leave its own closed loop installed for the next caller to trip on."""
+
+        result = {}
+
+        def body():
+            csp.run(csp.const(1), realtime=True, endtime=timedelta(seconds=0.1))
+            result["loop"] = _thread_event_loop_or_none()
+
+        # A fresh thread has no loop set and, unlike the main thread, never gets one implicitly
+        thread = threading.Thread(target=body)
+        thread.start()
+        thread.join(timeout=30)
+        self.assertFalse(thread.is_alive())
+        self.assertIsNone(result["loop"])
+
+    def test_rejects_nested_run_with_actionable_message(self):
+        async def main():
+            csp.run(csp.const(1), realtime=True, endtime=timedelta(seconds=0.1))
+
+        loop = asyncio.new_event_loop()
+        try:
+            with self.assertRaises(RuntimeError) as ctx:
+                loop.run_until_complete(main())
+            self.assertIn("asyncio_on_thread=True", str(ctx.exception))
+        finally:
+            loop.close()
 
 
 class TestAsyncioModePerformance(unittest.TestCase):

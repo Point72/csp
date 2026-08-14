@@ -369,29 +369,19 @@ async def async_process(value: int) -> int:
     return value * 2
 
 @csp.node
-def node_with_async_alarm() -> ts[int]:
+def node_with_async_alarm(trigger: ts[object]) -> ts[int]:
     with csp.alarms():
-        poll_alarm = csp.alarm(bool)
         async_alarm = csp.async_alarm(int)  # Declare in alarms block
 
     with csp.state():
         s_counter = 0
-        s_pending = False
 
-    with csp.start():
-        csp.schedule_alarm(poll_alarm, timedelta(milliseconds=10), True)
-
-    if csp.ticked(poll_alarm):
-        # Only schedule new async if previous completed
-        if not s_pending:
-            s_counter += 1
-            csp.schedule_async_alarm(async_alarm, async_process(s_counter))
-            s_pending = True
-        csp.schedule_alarm(poll_alarm, timedelta(milliseconds=10), True)
+    if csp.ticked(trigger):
+        s_counter += 1
+        csp.schedule_async_alarm(async_alarm, async_process(s_counter))
 
     if csp.ticked(async_alarm):
         # Async operation completed
-        s_pending = False
         return async_alarm  # Returns the result value
 ```
 
@@ -402,6 +392,7 @@ def node_with_async_alarm() -> ts[int]:
 - Check completion with `if csp.ticked(async_alarm):`
 - Access the result value directly with `async_alarm`
 - Lifecycle (start/stop) is managed automatically
+- No polling alarm is needed: in same-thread asyncio mode the completion wakes the node itself
 
 ### AsyncContext - Persistent Async Event Loop (Advanced)
 
@@ -493,28 +484,19 @@ def counter_node() -> ts[int]:
 
 
 @csp.node
-def async_alarm_node() -> ts[int]:
+def async_alarm_node(trigger: ts[object]) -> ts[int]:
     """Node using async_alarm pattern."""
     with csp.alarms():
-        poll = csp.alarm(bool)
         result_alarm = csp.async_alarm(int)
 
     with csp.state():
         s_counter = 0
-        s_pending = False
 
-    with csp.start():
-        csp.schedule_alarm(poll, timedelta(milliseconds=10), True)
-
-    if csp.ticked(poll):
-        if not s_pending:
-            s_counter += 1
-            csp.schedule_async_alarm(result_alarm, async_double(s_counter))
-            s_pending = True
-        csp.schedule_alarm(poll, timedelta(milliseconds=10), True)
+    if csp.ticked(trigger):
+        s_counter += 1
+        csp.schedule_async_alarm(result_alarm, async_double(s_counter))
 
     if csp.ticked(result_alarm):
-        s_pending = False
         return result_alarm
 
 
@@ -538,7 +520,7 @@ def main_graph():
     csp.print("doubled", doubled)
 
     # async_alarm in a node
-    alarm_results = async_alarm_node()
+    alarm_results = async_alarm_node(counter)
     csp.print("alarm_results", alarm_results)
 
 

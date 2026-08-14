@@ -9,7 +9,7 @@ import pytest
 
 import csp
 from csp import ts
-from csp.impl.async_adapter import AsyncContext
+from csp.impl.async_adapter import AsyncContext, _AsyncNodeState
 
 # Windows has lower timer resolution (~15.6ms vs ~1ms on Unix)
 IS_WINDOWS = sys.platform == "win32"
@@ -176,8 +176,119 @@ class TestAsyncNode(unittest.TestCase):
         values = [v for _, v in results["doubled"]]
 
         # Each value should be doubled
+        self.assertGreater(len(values), 0, "async_node produced no output at all")
         for i, v in enumerate(values, 1):
             self.assertEqual(v, i * 2)
+
+    def test_async_node_rejects_bad_queue_settings(self):
+        with self.assertRaises(ValueError) as ctx:
+            csp.run(
+                lambda: csp.async_node(csp.const(1), async_double, maxsize=-1),
+                realtime=True,
+                endtime=timedelta(seconds=0.1),
+            )
+        self.assertIn("maxsize", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            csp.run(
+                lambda: csp.async_node(csp.const(1), async_double, on_overflow="drop_middle"),
+                realtime=True,
+                endtime=timedelta(seconds=0.1),
+            )
+        self.assertIn("on_overflow", str(ctx.exception))
+
+    def test_async_node_bounded_queue_drops_instead_of_growing(self):
+        """A bounded queue must shed load rather than buffer an unbounded backlog."""
+        state = _AsyncNodeState(maxsize=2, on_overflow="drop_oldest")
+        state.input_queue = asyncio.Queue(maxsize=2)
+
+        for value in range(5):
+            state.enqueue(value)
+
+        self.assertEqual(state.input_queue.qsize(), 2)
+        self.assertEqual(state.dropped, 3)
+        # drop_oldest keeps the freshest ticks
+        self.assertEqual([state.input_queue.get_nowait() for _ in range(2)], [3, 4])
+
+    def test_async_node_drop_newest_keeps_the_earliest_ticks(self):
+        state = _AsyncNodeState(maxsize=2, on_overflow="drop_newest")
+        state.input_queue = asyncio.Queue(maxsize=2)
+
+        for value in range(5):
+            state.enqueue(value)
+
+        self.assertEqual(state.dropped, 3)
+        self.assertEqual([state.input_queue.get_nowait() for _ in range(2)], [0, 1])
+
+    def test_async_node_default_queue_is_unbounded(self):
+        """The default must not silently start dropping ticks for existing users."""
+        state = _AsyncNodeState()
+        state.input_queue = asyncio.Queue(maxsize=state.maxsize)
+
+        for value in range(100):
+            state.enqueue(value)
+
+        self.assertEqual(state.input_queue.qsize(), 100)
+        self.assertEqual(state.dropped, 0)
+
+    def test_async_node_processor_exits_on_shutdown_sentinel(self):
+        """Shutdown must wake the processor immediately, not wait for it to poll the queue."""
+        from csp.impl.async_adapter import _ASYNC_NODE_SHUTDOWN, _AsyncNodeOutputAdapterImpl
+
+        state = _AsyncNodeState()
+        adapter = _AsyncNodeOutputAdapterImpl.__new__(_AsyncNodeOutputAdapterImpl)
+        adapter._state = state
+        adapter._tasks = set()
+        adapter._async_func = None
+
+        done = {}
+
+        async def drive():
+            state.loop = asyncio.get_running_loop()
+            state.input_queue = asyncio.Queue()
+            processor = asyncio.ensure_future(adapter._queue_processor())
+            await asyncio.sleep(0)
+
+            # state.active stays True, so only the sentinel can end this loop
+            state.input_queue.put_nowait(_ASYNC_NODE_SHUTDOWN)
+            await asyncio.sleep(0.05)
+
+            done["exited"] = processor.done()
+            processor.cancel()
+
+        # wait_for cannot be used to detect a hang here: _queue_processor catches CancelledError,
+        # so a timed-out wait_for sees a normally completed task and does not raise
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(drive())
+        finally:
+            loop.close()
+
+        self.assertTrue(done["exited"], "processor did not exit on the shutdown sentinel")
+
+    def test_async_node_maxsize_bounds_concurrent_work(self):
+        """maxsize must bound in-flight work too, else the backlog just moves into the task set."""
+        peak = {"value": 0, "current": 0}
+
+        async def slow(n: int) -> int:
+            peak["current"] += 1
+            peak["value"] = max(peak["value"], peak["current"])
+            try:
+                await asyncio.sleep(0.05)
+                return n
+            finally:
+                peak["current"] -= 1
+
+        @csp.graph
+        def graph():
+            # Ticks far faster than slow() completes, so an unbounded node piles up tasks
+            counter = csp.count(csp.timer(timedelta(milliseconds=2), True))
+            csp.add_graph_output("out", csp.async_node(counter, slow, maxsize=2))
+
+        csp.run(graph, realtime=True, endtime=timedelta(seconds=0.5))
+
+        self.assertGreater(peak["value"], 0, "async_func never ran")
+        self.assertLessEqual(peak["value"], 2, f"maxsize=2 did not bound concurrency, peaked at {peak['value']}")
 
 
 class TestAwait(unittest.TestCase):
@@ -294,6 +405,83 @@ class TestAsyncAlarm(unittest.TestCase):
 
         # Should have values 2, 4, 6 (1*2, 2*2, 3*2)
         self.assertEqual(values, [2, 4, 6])
+
+    def test_async_alarm_ticked_is_idempotent_within_a_cycle(self):
+        """csp.ticked() on an async alarm must not consume a result per evaluation.
+
+        Unit-level so the assertion is on the latch itself rather than on realtime delivery
+        timing.  The generated per-cycle start_cycle() call is covered by test_async_alarm_basic,
+        which returns stale repeats if the latch is never reset.
+        """
+        from csp.impl.async_adapter import AsyncAlarm
+
+        alarm = AsyncAlarm(int)
+        alarm._results.put(("result", 7))
+        alarm._results.put(("result", 8))
+
+        alarm.start_cycle()
+        self.assertTrue(alarm.has_result())
+        self.assertEqual(alarm.get_result(), 7)
+        # Same cycle: must report the same tick, not eat the next result
+        self.assertTrue(alarm.has_result())
+        self.assertEqual(alarm.get_result(), 7)
+
+        alarm.start_cycle()
+        self.assertTrue(alarm.has_result())
+        self.assertEqual(alarm.get_result(), 8)
+
+        alarm.start_cycle()
+        self.assertFalse(alarm.has_result())
+
+    def test_async_alarm_delivers_without_a_poll_loop(self):
+        """A completed coroutine must wake the node itself, not wait for a user's poll alarm."""
+
+        @csp.node
+        def no_poll(trigger: ts[bool]) -> ts[int]:
+            with csp.alarms():
+                aa = csp.async_alarm(int)
+
+            if csp.ticked(trigger):
+                csp.schedule_async_alarm(aa, async_double(21, delay=0.05))
+
+            # No poll alarm, and csp.const ticks once at start, so after that tick nothing can
+            # invoke this node again except the async alarm waking it
+            if csp.ticked(aa):
+                return aa
+
+        @csp.graph
+        def graph():
+            csp.add_graph_output("out", no_poll(csp.const(True)))
+
+        results = csp.run(graph, realtime=True, endtime=timedelta(seconds=0.4))
+
+        self.assertEqual([v for _, v in results["out"]], [42], "result not delivered without a poll")
+
+    def test_async_alarm_failure_reaches_a_node_with_no_poll(self):
+        """A coroutine that raises must also wake the node, not be stranded in the queue."""
+
+        async def boom():
+            await asyncio.sleep(0.05)
+            raise ValueError("async boom")
+
+        @csp.node
+        def no_poll(trigger: ts[bool]) -> ts[int]:
+            with csp.alarms():
+                aa = csp.async_alarm(int)
+
+            if csp.ticked(trigger):
+                csp.schedule_async_alarm(aa, boom())
+
+            if csp.ticked(aa):
+                return aa
+
+        @csp.graph
+        def graph():
+            csp.add_graph_output("out", no_poll(csp.const(True)))
+
+        with self.assertRaises(Exception) as ctx:
+            csp.run(graph, realtime=True, endtime=timedelta(seconds=0.4))
+        self.assertIn("async boom", str(ctx.exception.__cause__ or ctx.exception))
 
     def test_async_alarm_multiple_operations(self):
         """Test async_alarm with multiple sequential operations."""

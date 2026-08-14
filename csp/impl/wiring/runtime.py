@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import time
+import warnings
 from collections import deque
 from datetime import datetime, timedelta
 from typing import Optional
@@ -179,20 +180,37 @@ class _WrappedContext:
         self.context = context
 
 
-async def _run_asyncio_engine(engine, starttime, endtime):
+def _thread_event_loop_or_none():
+    """The event loop already set on this thread, or None, without installing one.
+
+    Promoting the DeprecationWarning to an error is what stops get_event_loop() from creating a
+    loop that csp would then be silently responsible for closing; it warns before it creates.
+    From 3.14 it raises RuntimeError in that case and needs no help.  The event loop policy is
+    deliberately not consulted: it is deprecated in 3.14 and removed in 3.16.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        try:
+            return asyncio.get_event_loop()
+        except (RuntimeError, DeprecationWarning):
+            return None
+
+
+async def _run_asyncio_engine(engine, starttime, endtime, queue_wait_time=None):
     """Run the engine in asyncio mode using step-based execution.
 
-    Uses short blocking waits (1 ms) with the GIL released, interleaved
-    with asyncio yields.  Push events from adapter threads wake the C++
-    wait instantly via QueueWaiter::notify(), giving throughput close to
-    engine.run() while still allowing asyncio coroutines to execute
-    between engine cycles.
+    Uses short blocking waits with the GIL released, interleaved with asyncio yields.  Push events
+    from adapter threads wake the C++ wait instantly via QueueWaiter::notify(), giving throughput
+    close to engine.run() while still allowing asyncio coroutines to execute between engine cycles.
 
     Everything runs on the caller's thread, so when that is the main thread signal handling
     (KeyboardInterrupt, SIGTERM, etc.) works correctly.  ``run_on_thread`` calls this on a worker
     thread, where Python signal handlers do not run.
     """
-    wakeup_fd = engine.get_wakeup_fd()
+    # This wait is also how long asyncio callbacks are stalled, so the engine's own 100ms default
+    # is far too coarse here.  An explicit queue_wait_time still wins - the caller owns that
+    # trade-off between engine wakeup latency and coroutine responsiveness.
+    wait_seconds = 0.001 if queue_wait_time is None else queue_wait_time.total_seconds()
 
     try:
         engine.start(starttime, endtime)
@@ -204,16 +222,10 @@ async def _run_asyncio_engine(engine, starttime, endtime):
             if not engine.is_running():
                 break
 
-            # Drain the wakeup fd before the cycle consumes the queue; clearing afterwards would
-            # discard the signal for anything pushed in between.
-            if wakeup_fd >= 0:
-                engine.clear_wakeup_fd()
-
-            # Short blocking wait (up to 1 ms).  The C++ engine releases
-            # the GIL during the internal condition-variable wait so other
-            # Python threads can progress.  Push events from adapter
-            # threads wake it immediately via QueueWaiter::notify().
-            has_more = engine.process_one_cycle(0.001)
+            # The C++ engine releases the GIL during the internal condition-variable wait so other
+            # Python threads can progress.  Push events from adapter threads wake it immediately
+            # via QueueWaiter::notify().
+            has_more = engine.process_one_cycle(wait_seconds)
 
             if not has_more:
                 break
@@ -250,6 +262,18 @@ def run(
     # Determine if we run asyncio on the same thread (asyncio mode)
     # When realtime=True and asyncio_on_thread=False (default), we run in asyncio mode
     run_asyncio_mode = realtime and not asyncio_on_thread
+
+    if run_asyncio_mode:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError(
+                "csp.run(realtime=True) runs the engine on the calling thread's asyncio loop and "
+                "cannot be called from inside a running loop. Pass asyncio_on_thread=True to run "
+                "the engine on a background thread instead."
+            )
 
     with ExceptionContext():
         starttime, endtime = _normalize_run_times(starttime, endtime, realtime)
@@ -293,6 +317,8 @@ def run(
             with mem_cache:
                 if run_asyncio_mode:
                     # Run in asyncio mode using step-based execution
+                    prev_loop = _thread_event_loop_or_none()
+
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     try:
@@ -304,10 +330,14 @@ def run(
                             asyncio_on_thread=False,
                             asyncio_loop=loop,
                         ):
-                            return loop.run_until_complete(_run_asyncio_engine(engine, starttime, endtime))
+                            return loop.run_until_complete(
+                                _run_asyncio_engine(engine, starttime, endtime, queue_wait_time)
+                            )
                     finally:
                         loop.close()
-                        asyncio.set_event_loop(None)
+                        # Restore rather than clear: csp.run() should not destroy a loop the
+                        # caller had already set on this thread
+                        asyncio.set_event_loop(prev_loop)
                 else:
                     return engine.run(starttime, endtime)
 

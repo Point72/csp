@@ -15,6 +15,10 @@ from datetime import datetime, timedelta
 
 import csp
 from csp.impl.__cspimpl import _cspimpl
+from csp.impl.genericpushadapter import GenericPushAdapter
+from csp.impl.wiring.context import Context
+from csp.impl.wiring.runtime import _build_engine
+from csp.utils.datetime import utc_now
 
 
 class TestFdWakeupBasics(unittest.TestCase):
@@ -98,6 +102,53 @@ class TestFdWakeupCrossThread(unittest.TestCase):
             self.assertGreaterEqual(elapsed, 0.05)
         finally:
             engine.finish()
+
+    @unittest.skipIf(sys.platform == "win32", "select.select on fds not supported on Windows")
+    def test_producer_thread_push_makes_fd_readable(self):
+        """A push from an adapter thread must make the wakeup fd readable.
+
+        This is the behaviour FdWaiter exists for, and the regression guard for the arming in
+        RootEngine::getWakeupFd() -- if arming broke, the asyncio path would silently fall back to
+        its 1 ms poll and nothing else would fail.
+        """
+        pusher = GenericPushAdapter(int)
+        start = utc_now()
+        end = start + timedelta(hours=1)
+
+        with Context(start_time=start, end_time=end) as context:
+            csp.add_graph_output("out", pusher.out())
+
+        engine = _cspimpl.PyEngine(realtime=True)
+        _build_engine(engine, context)
+
+        # Asking for the fd is what arms the notify path, so it must happen before start()
+        fd = engine.get_wakeup_fd()
+        if fd < 0:
+            self.skipTest("FdWaiter not supported on this platform")
+
+        try:
+            engine.start(start, end)
+            engine.clear_wakeup_fd()
+            self.assertEqual(select.select([fd], [], [], 0)[0], [], "fd readable before any push")
+
+            self.assertTrue(pusher.started())
+            pushed = []
+            producer = threading.Thread(target=lambda: pushed.append(pusher.push_tick(42)))
+            producer.start()
+            producer.join(timeout=5)
+            self.assertFalse(producer.is_alive())
+            self.assertEqual(pushed, [True])
+
+            readable, _, _ = select.select([fd], [], [], 5.0)
+            self.assertEqual(readable, [fd], "push from producer thread did not signal the fd")
+
+            engine.clear_wakeup_fd()
+            engine.process_one_cycle(0.0)
+        finally:
+            outputs = engine.finish()
+
+        # The signalled event must also be deliverable, not just a stray byte on the fd
+        self.assertEqual([v for _, v in outputs["out"]], [42])
 
 
 class TestEventLoopFdIntegration(unittest.TestCase):

@@ -503,26 +503,36 @@ class _AsyncInAdapterImpl(PushInputAdapter):
         self._output_type = output_type
         self._provided_loop = loop
         self._loop: asyncio.AbstractEventLoop = None
+        self._active = False
+        self._task: asyncio.Task = None
 
     def start(self, starttime, endtime):
         # Use provided loop, running loop, or shared loop
+        self._active = True
         self._loop = self._provided_loop if self._provided_loop is not None else get_async_loop()
+        _schedule_on_loop(self._loop, self._schedule_runner)
 
-        async def run_and_push():
-            try:
-                result = await self._coro
+    def _schedule_runner(self):
+        self._task = asyncio.ensure_future(self._run_and_push(), loop=self._loop)
+
+    async def _run_and_push(self):
+        try:
+            result = await self._coro
+            if self._active:
                 self.push_tick(result)
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                # The awaited coroutine is the whole point of this adapter; dropping its failure
-                # leaves the graph waiting on a tick that will never come, with no diagnostic.
-                self._loop.call_exception_handler({"message": "async_in coroutine failed", "exception": exc})
-
-        _schedule_coro_on_loop(self._loop, run_and_push())
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            # The awaited coroutine is the whole point of this adapter; dropping its failure
+            # leaves the graph waiting on a tick that will never come, with no diagnostic.
+            self._loop.call_exception_handler({"message": "async_in coroutine failed", "exception": exc})
 
     def stop(self):
-        pass  # Nothing to clean up - loop is managed externally
+        # The coroutine can complete after teardown starts; returning before it is cancelled
+        # would let it push into an adapter whose C++ backing is gone.
+        self._active = False
+        _cancel_task_sync(self._loop, self._task)
+        self._task = None
 
 
 _AsyncInAdapter = py_push_adapter_def(

@@ -1,12 +1,18 @@
 [build-system]
-requires = ["cmake", "csp", "scikit-build"]
-build-backend="setuptools.build_meta"
+requires = ["hatchling", "hatch-cpp", "csp"]
+build-backend = "hatchling.build"
 
 [project]
 name = "csp-example-piglatin"
 authors = [{name = "the csp authors", email = "CSPOpenSource@point72.com"}]
-description="csp example of C++ node"
+description = "csp example of C++ node"
 readme = "README.md"
 version = "0.0.1"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = ["csp"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["piglatin"]
+
+[tool.hatch.build.hooks.hatch-cpp]
+cmake = { root = "." }

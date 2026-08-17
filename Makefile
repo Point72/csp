@@ -44,7 +44,7 @@ lint-cpp:
 
 lint-docs:
 	python -m mdformat --check docs/wiki/ README.md examples/
-	python -m codespell_lib docs/wiki/ README.md examples/ --skip "*.cpp,*.h"
+	python -m codespell_lib docs/wiki/ README.md examples/ --skip "*.cpp,*.h,*/build/*,*/target/*,*/_skbuild/*"
 
 # lint: lint-py lint-cpp  ## run lints
 lint: lint-py lint-docs ## run lints
@@ -62,7 +62,7 @@ fix-cpp:
 
 fix-docs:
 	python -m mdformat docs/wiki/ README.md examples/
-	python -m codespell_lib --write docs/wiki/ README.md examples/ --skip "*.cpp,*.h"
+	python -m codespell_lib --write docs/wiki/ README.md examples/ --skip "*.cpp,*.h,*/build/*,*/target/*,*/_skbuild/*"
 
 fix: fix-py fix-cpp fix-docs ## run autofixers
 

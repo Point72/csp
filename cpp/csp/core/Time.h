@@ -110,10 +110,15 @@ inline std::string TimeDelta::asString() const
     int32_t s = seconds();
     int32_t n = nanoseconds();
 
-    int idx = d ? sprintf( buf, "%d %s ", d, d == 1 ? "day" : "days" ) : 0;
-    idx += sprintf( buf + idx, "%02d:%02d:%02d", h, m, s );
+    int idx = d ? snprintf( buf, sizeof(buf), "%d %s ", d, d == 1 ? "day" : "days" ) : 0;
+    // snprintf returns what it *would* have written, so clamp before using it as an offset
+    if( idx < 0 || ( size_t ) idx >= sizeof(buf) )
+        idx = sizeof(buf) - 1;
+    idx += snprintf( buf + idx, sizeof(buf) - idx, "%02d:%02d:%02d", h, m, s );
+    if( idx < 0 || ( size_t ) idx >= sizeof(buf) )
+        idx = sizeof(buf) - 1;
     if( n )
-        sprintf( buf + idx, ".%09d", n );
+        snprintf( buf + idx, sizeof(buf) - idx, ".%09d", n );
     return buf;
 }
 
@@ -306,7 +311,7 @@ inline Date Date::today()
 inline std::string Date::asYYYYMMDD() const 
 {
     char buf[32];
-    sprintf( buf, "%04d%02d%02d", year(), month(), day() );
+    snprintf( buf, sizeof(buf), "%04d%02d%02d", year(), month(), day() );
     return buf;
 }
 
@@ -416,7 +421,7 @@ inline Time& Time::operator -=( const TimeDelta & delta )
 inline std::string Time::asString() const
 {
     char buf[64];
-    sprintf( buf, "%02d:%02d:%02d.%09d", hour(), minute(), second(), nanosecond() );
+    snprintf( buf, sizeof(buf), "%02d:%02d:%02d.%09d", hour(), minute(), second(), nanosecond() );
     return buf;
 }
 

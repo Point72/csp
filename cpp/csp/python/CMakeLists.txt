@@ -50,6 +50,13 @@ set(CSPIMPL_PUBLIC_HEADERS
         PyStructToJson.h
         PyStructToDict.h)
 
+# C API headers (ABI-stable interface)
+set(CSPIMPL_C_API_HEADERS
+        c/PyInputAdapter.h
+        c/PyOutputAdapter.h
+        c/PyAdapterManager.h
+)
+
 add_library(cspimpl SHARED
         cspimpl.cpp
         Conversions.cpp
@@ -76,6 +83,18 @@ add_library(cspimpl SHARED
         PyPullInputAdapter.cpp
         PyPushInputAdapter.cpp
         PyPushPullInputAdapter.cpp
+        PyCApiAdapters.cpp
+        # The C API shims live with the engine but are built here so they pick up CSPIMPL_EXPORTS
+        # and land directly in the extension module rather than needing the archive force-loaded.
+        ../engine/AdapterManagerExtern.cpp
+        ../engine/DictionaryExtern.cpp
+        ../engine/ErrorExtern.cpp
+        ../engine/OutputAdapterExtern.cpp
+        ../engine/PushInputAdapterExtern.cpp
+        ../engine/StringExtern.cpp
+        ../engine/StructExtern.cpp
+        ../engine/TimeExtern.cpp
+        ../engine/ValueExtern.cpp
         PyManagedSimInputAdapter.cpp
         PyTimerAdapter.cpp
         PyConstants.cpp
@@ -83,7 +102,7 @@ add_library(cspimpl SHARED
 
 set_target_properties(cspimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_PUBLIC_HEADERS}")
 
-target_link_libraries(cspimpl csptypesimpl csp_core csp_engine )
+target_link_libraries(cspimpl csptypesimpl csp_core csp_engine)
 
 target_compile_definitions(cspimpl PUBLIC NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
 target_compile_definitions(cspimpl PRIVATE CSPIMPL_EXPORTS=1)
@@ -125,8 +144,22 @@ target_compile_definitions(cspimpl PRIVATE PY_ARRAY_UNIQUE_SYMBOL=CSP_CSPIMPL_AR
 target_compile_definitions(npstatsimpl PRIVATE PY_ARRAY_UNIQUE_SYMBOL=CSP_CSPNPSTATSIMPL_ARRAY_API)
 target_compile_definitions(cspnpstatsimpl PRIVATE PY_ARRAY_UNIQUE_SYMBOL=CSP_CSPNPSTATSIMPL_ARRAY_API)
 
+## C API Meta Library
+# Header-only target external adapters can link to pick up the C API include path
+add_library(cspcapiimpl INTERFACE)
+set_target_properties(cspcapiimpl PROPERTIES PUBLIC_HEADER "${CSPIMPL_C_API_HEADERS}")
+target_include_directories(cspcapiimpl INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/cpp>
+        $<INSTALL_INTERFACE:include>)
+
 install(TARGETS csptypesimpl cspimpl cspbaselibimpl cspbasketlibimpl cspmathimpl cspstatsimpl csptestlibimpl cspnpstatsimpl
         PUBLIC_HEADER DESTINATION include/csp/python
         RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}
         LIBRARY DESTINATION lib/
+        # Windows consumers link the import library rather than the module itself
+        ARCHIVE DESTINATION lib/
        )
+
+install(TARGETS cspcapiimpl
+        PUBLIC_HEADER DESTINATION include/csp/python/c
+)

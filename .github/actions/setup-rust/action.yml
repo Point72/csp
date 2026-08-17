@@ -1,0 +1,65 @@
+name: Setup Rust
+description: 'Ensure Rust compiler and utilities are available, and setup caching'
+
+inputs:
+  kind:
+    description: "Targets to install: 'runner' for the host only, 'full' for cross targets (e.g. wheel building), or 'wasm'"
+    default: "runner"
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate kind
+      shell: bash
+      env:
+        KIND: ${{ inputs.kind }}
+      run: |
+        case "$KIND" in
+          runner|full|wasm) ;;
+          *) echo "::error::invalid kind '$KIND' (expected runner, full or wasm)"; exit 1 ;;
+        esac
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+      with:
+        toolchain: stable
+        components: clippy, rustfmt
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      with:
+        key: ${{ runner.os }}
+
+    - run: rustup target add x86_64-unknown-linux-gnu
+      shell: bash
+      if: ${{ inputs.kind == 'runner' && runner.os == 'Linux' }}
+
+    - run: |
+        rustup target add aarch64-unknown-linux-gnu
+        rustup target add x86_64-unknown-linux-gnu
+      shell: bash
+      if: ${{ inputs.kind == 'full' && runner.os == 'Linux' }}
+
+    - run: rustup target add aarch64-apple-darwin
+      shell: bash
+      if: ${{ inputs.kind == 'runner' && runner.os == 'macOS' }}
+
+    - run: |
+        rustup target add aarch64-apple-darwin
+        rustup target add x86_64-apple-darwin
+      shell: bash
+      if: ${{ inputs.kind == 'full' && runner.os == 'macOS' }}
+
+    - run: rustup target add x86_64-pc-windows-msvc
+      shell: bash
+      if: ${{ inputs.kind == 'runner' && runner.os == 'Windows' }}
+
+    - run: |
+        rustup target add x86_64-pc-windows-msvc
+        rustup target add aarch64-pc-windows-msvc
+      shell: bash
+      if: ${{ inputs.kind == 'full' && runner.os == 'Windows' }}
+
+    - run: rustup target add wasm32-unknown-unknown
+      shell: bash
+      if: ${{ inputs.kind == 'wasm' }}

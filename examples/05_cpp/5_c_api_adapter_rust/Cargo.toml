@@ -1,0 +1,18 @@
+[package]
+name = "exampleadapter"
+version = "0.1.0"
+edition = "2021"
+description = "Example Rust adapter for CSP using the C API"
+license = "Apache-2.0"
+authors = ["CSP Contributors"]
+
+[lib]
+name = "exampleadapter"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.24", features = ["extension-module"] }
+libc = "0.2"
+
+[features]
+default = []

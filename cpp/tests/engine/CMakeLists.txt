@@ -18,7 +18,20 @@ target_link_libraries(test_partial_switch_csp_type csp_engine GTest::gtest GTest
 add_executable(test_window_buffer test_window_buffer.cpp)
 target_link_libraries(test_window_buffer csp_engine GTest::gtest GTest::gtest_main)
 
-install(TARGETS test_tick_buffer test_time_series test_partial_switch_csp_type test_dictionary test_window_buffer
+# The value/string/time layer of the C API has no engine dependency, so it is compiled directly
+# into the test rather than linked from the extension module that normally hosts it.
+add_executable(test_c_api
+        test_c_api.cpp
+        ../../csp/engine/ErrorExtern.cpp
+        ../../csp/engine/StringExtern.cpp
+        ../../csp/engine/TimeExtern.cpp
+        ../../csp/engine/ValueExtern.cpp)
+# These sources define the C API symbols, so the export macro must resolve to dllexport rather
+# than dllimport; without this MSVC emits LNK4217/LNK4286 for every locally defined symbol.
+target_compile_definitions(test_c_api PRIVATE CSPIMPL_EXPORTS)
+target_link_libraries(test_c_api GTest::gtest GTest::gtest_main)
+
+install(TARGETS test_tick_buffer test_time_series test_partial_switch_csp_type test_dictionary test_window_buffer test_c_api
         RUNTIME DESTINATION tests/bin/
         LIBRARY DESTINATION tests/lib/
         ARCHIVE DESTINATION tests/lib/)

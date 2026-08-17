@@ -52,6 +52,9 @@ if(NOT DEFINED CSP_CMAKE_MODULE_PATH)
 endif()
 list(PREPEND CMAKE_MODULE_PATH "${CSP_CMAKE_MODULE_PATH}")
 
+# Install the modules with the package. The trailing slash installs the directory contents.
+install(DIRECTORY "${CSP_CMAKE_MODULE_PATH}/" DESTINATION "cmake/modules")
+
 ###################################################################################################################################################
 # Build Configuration #
 #######################

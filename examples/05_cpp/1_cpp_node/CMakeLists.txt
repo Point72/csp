@@ -41,6 +41,8 @@ include_directories(${CSP_INCLUDE_DIR})
 include_directories(${Python_INCLUDE_DIRS})
 
 add_library(piglatin SHARED cpp/piglatin.cpp)
-target_link_libraries(piglatin ${CSP_LIBRARY})
+# Python::Module supplies pythonXY.lib on Windows, where an extension module must link it.
+# On Unix it deliberately links no libpython, leaving the symbols to the host interpreter.
+target_link_libraries(piglatin ${CSP_LIBRARY} Python::Module)
 
 install(TARGETS piglatin LIBRARY DESTINATION piglatin RUNTIME DESTINATION piglatin)

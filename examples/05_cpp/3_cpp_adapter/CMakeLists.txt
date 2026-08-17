@@ -47,7 +47,9 @@ add_library(counteradapter SHARED
     cpp/CounterOutputAdapter.cpp
     cpp/counteradapterimpl.cpp
 )
-target_link_libraries(counteradapter ${CSP_LIBRARY})
+# Python::Module supplies pythonXY.lib on Windows, where an extension module must link it.
+# On Unix it deliberately links no libpython, leaving the symbols to the host interpreter.
+target_link_libraries(counteradapter ${CSP_LIBRARY} Python::Module)
 target_include_directories(counteradapter PRIVATE "${CMAKE_SOURCE_DIR}")
 
 install(TARGETS counteradapter LIBRARY DESTINATION counteradapter RUNTIME DESTINATION counteradapter)

@@ -48,7 +48,9 @@ add_custom_command(OUTPUT "${MYSTRUCT_SRC}" "${MYSTRUCT_HDR}"
 )
                     
 add_library(mystruct SHARED cpp/struct.cpp ${MYSTRUCT_SRC})
-target_link_libraries(mystruct ${CSP_LIBRARY})
+# Python::Module supplies pythonXY.lib on Windows, where an extension module must link it.
+# On Unix it deliberately links no libpython, leaving the symbols to the host interpreter.
+target_link_libraries(mystruct ${CSP_LIBRARY} Python::Module)
 target_include_directories(mystruct PRIVATE "${CMAKE_BINARY_DIR}")
 set_target_properties(mystruct PROPERTIES PUBLIC_HEADER "${MYSTRUCT_HDR}")
 

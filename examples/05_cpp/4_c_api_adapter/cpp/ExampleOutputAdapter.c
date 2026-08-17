@@ -9,14 +9,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "ExampleOutputAdapter.h"
 
 /* Adapter state structure */
 typedef struct {
     char * prefix;       /* Prefix to print before each value */
-    int fd;              /* File descriptor to write to */
+    FILE * out;          /* Stream to write to */
     int owns_prefix;     /* Whether we own the prefix memory */
 } ExampleOutputAdapterState;
 
@@ -29,13 +28,13 @@ static void example_output_start( void * user_data, CCspEngineHandle engine, CCs
     ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * ) user_data;
     ( void ) engine;
 
-    dprintf( state -> fd, "[ExampleOutputAdapter] Started. Time range: %lld - %lld ns\n", ( long long ) start_time, ( long long ) end_time );
+    fprintf( state -> out, "[ExampleOutputAdapter] Started. Time range: %lld - %lld ns\n", ( long long ) start_time, ( long long ) end_time );
 }
 
 static void example_output_stop( void * user_data )
 {
     ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * ) user_data;
-    dprintf( state -> fd, "[ExampleOutputAdapter] Stopped.\n" );
+    fprintf( state -> out, "[ExampleOutputAdapter] Stopped.\n" );
 }
 
 static void example_output_execute( void * user_data, CCspEngineHandle engine, CCspInputHandle input )
@@ -54,7 +53,7 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine, C
             int8_t val;
             if( ccsp_input_get_last_bool( input, &val ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] bool: %s\n", prefix, ( long long ) now, val ? "true" : "false" );
+                fprintf( state -> out, "%s[%lld] bool: %s\n", prefix, ( long long ) now, val ? "true" : "false" );
             }
             break;
         }
@@ -63,7 +62,7 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine, C
             int64_t val;
             if( ccsp_input_get_last_int64( input, &val ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] int64: %lld\n", prefix, ( long long ) now, ( long long ) val );
+                fprintf( state -> out, "%s[%lld] int64: %lld\n", prefix, ( long long ) now, ( long long ) val );
             }
             break;
         }
@@ -72,7 +71,7 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine, C
             double val;
             if( ccsp_input_get_last_double( input, &val ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] double: %f\n", prefix, ( long long ) now, val );
+                fprintf( state -> out, "%s[%lld] double: %f\n", prefix, ( long long ) now, val );
             }
             break;
         }
@@ -82,7 +81,7 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine, C
             size_t len;
             if( ccsp_input_get_last_string( input, &data, &len ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] string: %.*s\n", prefix, ( long long ) now, ( int ) len, data );
+                fprintf( state -> out, "%s[%lld] string: %.*s\n", prefix, ( long long ) now, ( int ) len, data );
             }
             break;
         }
@@ -91,12 +90,12 @@ static void example_output_execute( void * user_data, CCspEngineHandle engine, C
             CCspDateTime val;
             if( ccsp_input_get_last_datetime( input, &val ) == CCSP_OK )
             {
-                dprintf( state -> fd, "%s[%lld] datetime: %lld ns\n", prefix, ( long long ) now, ( long long ) val );
+                fprintf( state -> out, "%s[%lld] datetime: %lld ns\n", prefix, ( long long ) now, ( long long ) val );
             }
             break;
         }
         default:
-            dprintf( state -> fd, "%s[%lld] <type %d>\n", prefix, ( long long ) now, ( int ) type );
+            fprintf( state -> out, "%s[%lld] <type %d>\n", prefix, ( long long ) now, ( int ) type );
             break;
     }
 }
@@ -120,10 +119,10 @@ static void example_output_destroy( void * user_data )
 
 CCspOutputAdapterVTable example_output_adapter_create( const char * prefix )
 {
-    return example_output_adapter_create_fd( STDOUT_FILENO, prefix );
+    return example_output_adapter_create_stream( stdout, prefix );
 }
 
-CCspOutputAdapterVTable example_output_adapter_create_fd( int fd, const char * prefix )
+CCspOutputAdapterVTable example_output_adapter_create_stream( FILE * out, const char * prefix )
 {
     CCspOutputAdapterVTable vtable;
     CCSP_VTABLE_INIT( &vtable, CCspOutputAdapterVTable );
@@ -136,7 +135,7 @@ CCspOutputAdapterVTable example_output_adapter_create_fd( int fd, const char * p
         return vtable;
     }
 
-    state -> fd = fd;
+    state -> out = out;
     state -> owns_prefix = 0;
     state -> prefix = NULL;
 

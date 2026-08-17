@@ -8,6 +8,7 @@
 #define _IN_CSP_ADAPTERS_C_EXAMPLE_OUTPUT_ADAPTER_H
 
 #include <csp/engine/c/OutputAdapter.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,13 +23,13 @@ extern "C" {
 CCspOutputAdapterVTable example_output_adapter_create( const char * prefix );
 
 /*
- * Alternative: Get an adapter that logs to a specific file descriptor.
+ * Alternative: Get an adapter that logs to a specific stream.
  *
- * @param fd      File descriptor to write to
+ * @param out     Stream to write to
  * @param prefix  Prefix string (can be NULL)
  * @return        VTable structure
  */
-CCspOutputAdapterVTable example_output_adapter_create_fd( int fd, const char * prefix );
+CCspOutputAdapterVTable example_output_adapter_create_stream( FILE * out, const char * prefix );
 
 #ifdef __cplusplus
 }

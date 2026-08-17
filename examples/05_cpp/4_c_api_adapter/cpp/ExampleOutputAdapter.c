@@ -125,7 +125,8 @@ CCspOutputAdapterVTable example_output_adapter_create( const char * prefix )
 
 CCspOutputAdapterVTable example_output_adapter_create_fd( int fd, const char * prefix )
 {
-    CCspOutputAdapterVTable vtable = {0};
+    CCspOutputAdapterVTable vtable;
+    CCSP_VTABLE_INIT( &vtable, CCspOutputAdapterVTable );
 
     /* Allocate state */
     ExampleOutputAdapterState * state = ( ExampleOutputAdapterState * )malloc( sizeof( ExampleOutputAdapterState ) );

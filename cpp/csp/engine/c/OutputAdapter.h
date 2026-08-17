@@ -15,6 +15,7 @@
 #define _IN_CSP_ENGINE_C_OUTPUTADAPTER_H
 
 #include <csp/engine/c/CspExport.h>
+#include <csp/engine/c/CspAbi.h>
 #include <csp/engine/c/CspType.h>
 #include <csp/engine/c/CspValue.h>
 #include <csp/engine/c/CspTime.h>
@@ -101,6 +102,10 @@ CSP_C_API_EXPORT uint64_t ccsp_engine_cycle_count( CCspEngineHandle engine );
  * ============================================================================ */
 
 typedef struct CCspOutputAdapterVTable {
+    /* ABI header. Initialize with CCSP_VTABLE_INIT before setting any callback. */
+    uint32_t abi_version;
+    uint32_t struct_size;
+
     /*
      * User data pointer passed to all callbacks.
      * This is typically a pointer to your adapter's state structure.
@@ -167,9 +172,10 @@ CSP_C_API_EXPORT CCspOutputAdapterHandle ccsp_output_adapter_extern_create( CCsp
                                                                             const CCspOutputAdapterVTable * vtable );
 
 /*
- * Destroy an external output adapter.
- * This is typically called by CSP when the graph is destroyed.
- * The destroy callback in the vtable will be invoked.
+ * Release an output adapter handle.
+ *
+ * This is a no-op: the adapter is owned by the engine, which destroys it (and invokes the
+ * destroy callback) when the graph tears down.
  */
 CSP_C_API_EXPORT void ccsp_output_adapter_extern_destroy( CCspOutputAdapterHandle adapter );
 

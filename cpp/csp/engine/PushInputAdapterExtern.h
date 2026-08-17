@@ -14,7 +14,7 @@
 namespace csp
 {
 
-class PushInputAdapterExtern final : public PushInputAdapter
+class PushInputAdapterExtern : public PushInputAdapter
 {
 public:
     PushInputAdapterExtern( Engine * engine, CspTypePtr & type, PushMode pushMode,

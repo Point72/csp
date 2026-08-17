@@ -8,6 +8,7 @@
 #ifndef _IN_CSP_ENGINE_C_CSPSTRING_H
 #define _IN_CSP_ENGINE_C_CSPSTRING_H
 
+#include <csp/engine/c/CspExport.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -40,43 +41,43 @@ typedef struct {
  * Create a string view from a null-terminated C string.
  * The original string must outlive the view.
  */
-CCspStringView ccsp_string_view_from_cstr( const char * cstr );
+CSP_C_API_EXPORT CCspStringView ccsp_string_view_from_cstr( const char * cstr );
 
 /*
  * Create a string view from data and length.
  * The original data must outlive the view.
  */
-CCspStringView ccsp_string_view_from_data( const char * data, size_t length );
+CSP_C_API_EXPORT CCspStringView ccsp_string_view_from_data( const char * data, size_t length );
 
 /*
  * Create an owned string by copying the given data.
  * Returns empty string on allocation failure.
  */
-CCspString ccsp_string_create( const char * data, size_t length );
+CSP_C_API_EXPORT CCspString ccsp_string_create( const char * data, size_t length );
 
 /*
  * Create an owned string from a null-terminated C string.
  * Returns empty string on allocation failure.
  */
-CCspString ccsp_string_create_from_cstr( const char * cstr );
+CSP_C_API_EXPORT CCspString ccsp_string_create_from_cstr( const char * cstr );
 
 /*
  * Create an empty owned string with the given capacity.
  * Useful when you need to build a string incrementally.
  */
-CCspString ccsp_string_create_with_capacity( size_t capacity );
+CSP_C_API_EXPORT CCspString ccsp_string_create_with_capacity( size_t capacity );
 
 /*
  * Free an owned string's memory.
  * Safe to call on an already-freed or zero-initialized string.
  */
-void ccsp_string_free( CCspString * str );
+CSP_C_API_EXPORT void ccsp_string_free( CCspString * str );
 
 /*
  * Get a view of an owned string.
  * The view is only valid while the owned string is not modified or freed.
  */
-CCspStringView ccsp_string_as_view( const CCspString * str );
+CSP_C_API_EXPORT CCspStringView ccsp_string_as_view( const CCspString * str );
 
 /*
  * Check if a string view is empty.

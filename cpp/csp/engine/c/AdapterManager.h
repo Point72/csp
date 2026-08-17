@@ -15,6 +15,7 @@
 #define _IN_CSP_ENGINE_C_ADAPTER_MANAGER_H
 
 #include <csp/engine/c/CspExport.h>
+#include <csp/engine/c/CspAbi.h>
 #include <csp/engine/c/CspError.h>
 #include <csp/engine/c/CspTime.h>
 #include <csp/engine/c/OutputAdapter.h>
@@ -48,6 +49,10 @@ typedef struct CCspManagedSimInputAdapterImpl * CCspManagedSimInputAdapterHandle
  */
 
 typedef struct CCspAdapterManagerVTable {
+    /* ABI header. Initialize with CCSP_VTABLE_INIT before setting any callback. */
+    uint32_t abi_version;
+    uint32_t struct_size;
+
     /* User-defined data pointer passed to all callbacks */
     void * user_data;
 
@@ -74,19 +79,20 @@ typedef struct CCspAdapterManagerVTable {
      *
      * Called repeatedly during simulation mode to process data. Should:
      *   1. Process all data with timestamp equal to 'time'
-     *   2. Return the next available timestamp, or 0 if no more data
+     *   2. Return the next available timestamp, or CCSP_DATETIME_NONE if no more data
      *
      * The first call is made with start_time. Subsequent calls use the
      * previously returned timestamp.
      *
-     * For realtime adapters that don't support simulation, return 0.
+     * For realtime adapters that don't support simulation, return CCSP_DATETIME_NONE.
+     * Note that 0 is a valid timestamp (the Unix epoch), not a terminator.
      *
      * Parameters:
      *   user_data   - The user_data pointer from this vtable
      *   time        - The current simulation time to process
      *
      * Returns:
-     *   Next timestamp with available data, or 0 if no more data
+     *   Next timestamp with available data, or CCSP_DATETIME_NONE if no more data
      */
     CCspDateTime ( * process_next_sim_time_slice )( void * user_data, CCspDateTime time );
 
@@ -149,9 +155,11 @@ typedef struct CCspAdapterManagerVTable {
 CSP_C_API_EXPORT CCspAdapterManagerHandle ccsp_adapter_manager_extern_create( CCspEngineHandle engine, const CCspAdapterManagerVTable * vtable );
 
 /*
- * ccsp_adapter_manager_extern_destroy - Destroy an external adapter manager
+ * ccsp_adapter_manager_extern_destroy - Release an adapter manager handle
  *
- * Calls the destroy callback and frees internal resources.
+ * This is a no-op: the manager is owned by the engine, which destroys it (and invokes the
+ * destroy callback) when the graph tears down. Provided so callers can pair creation and
+ * release symmetrically.
  *
  * Parameters:
  *   manager  - Handle to the adapter manager
@@ -245,13 +253,13 @@ CSP_C_API_EXPORT CCspPushInputAdapterHandle ccsp_adapter_manager_create_push_inp
  * Adapter managers can report status to the graph via a status adapter.
  */
 
-/* Status levels (matching csp.StatusLevel) */
+/* Status levels. These are passed through unchanged, so they must match csp.adapters.status.Level */
 typedef enum {
-    CCSP_STATUS_LEVEL_CRITICAL = 0,
-    CCSP_STATUS_LEVEL_ERROR = 1,
+    CCSP_STATUS_LEVEL_DEBUG = 0,
+    CCSP_STATUS_LEVEL_INFO = 1,
     CCSP_STATUS_LEVEL_WARNING = 2,
-    CCSP_STATUS_LEVEL_INFO = 3,
-    CCSP_STATUS_LEVEL_DEBUG = 4
+    CCSP_STATUS_LEVEL_ERROR = 3,
+    CCSP_STATUS_LEVEL_CRITICAL = 4
 } CCspStatusLevel;
 
 /*

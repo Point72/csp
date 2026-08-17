@@ -6,7 +6,7 @@
 
 use std::ffi::{c_char, c_void, CString};
 
-use crate::bindings::{CCspAdapterManagerHandle, CCspDateTime};
+use crate::bindings::{CCspAdapterManagerHandle, CCspDateTime, CCSP_DATETIME_NONE};
 
 /// Adapter manager that coordinates input and output adapters.
 ///
@@ -66,11 +66,11 @@ impl RustAdapterManager {
 
     /// Process simulation time slice.
     ///
-    /// For realtime adapters that don't support simulation, return 0.
+    /// For realtime adapters that don't support simulation, return `CCSP_DATETIME_NONE`.
     /// For sim adapters, process data at the given time and return the next time.
     pub fn process_next_sim_time_slice(&mut self, _time: CCspDateTime) -> CCspDateTime {
         // This example doesn't support simulation mode
-        0
+        CCSP_DATETIME_NONE
     }
 }
 
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn rust_adapter_manager_process_sim_time(
     time: CCspDateTime,
 ) -> CCspDateTime {
     if user_data.is_null() {
-        return 0;
+        return CCSP_DATETIME_NONE;
     }
     let manager = &mut *(user_data as *mut RustAdapterManager);
     manager.process_next_sim_time_slice(time)

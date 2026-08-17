@@ -21,6 +21,7 @@ set(CSP_TYPES_SOURCE_FILES
 # C API headers (ABI-stable interface)
 set(CSP_C_API_HEADERS
         c/CspExport.h
+        c/CspAbi.h
         c/CspError.h
         c/CspTime.h
         c/CspString.h
@@ -91,11 +92,6 @@ set(ENGINE_SOURCE_FILES
         InputAdapter.cpp
         Node.cpp
         OutputAdapter.cpp
-        OutputAdapterExtern.cpp
-        AdapterManagerExtern.cpp
-        DictionaryExtern.cpp
-        StructExtern.cpp
-        PushInputAdapterExtern.cpp
         PendingPushEvents.cpp
         PushPullInputAdapter.cpp
         RootEngine.cpp

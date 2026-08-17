@@ -124,31 +124,14 @@ def _create_managed_input_adapter(mgr_capsule, engine, pytype, push_mode, scalar
     """
     Bridge function for managed input adapter.
 
-    scalars: (ExampleAdapterManager, typ, interval_ms, push_group)
+    scalars are positional, in the order declared by _managed_input_adapter_def:
+    (manager, ts_type, interval_ms, push_group)
     """
-    # Debug: print scalars to understand format
-    # print(f"DEBUG: scalars = {scalars}, len = {len(scalars)}")
-    # for i, s in enumerate(scalars):
-    #     print(f"  scalars[{i}] = {s} (type: {type(s).__name__})")
+    _, _, interval_ms, push_group = scalars
 
-    # scalars format: (manager_instance, typ, interval_ms, push_group)
-    # Extract interval_ms (index 2)
-    interval_ms = 100
-    for s in scalars:
-        if isinstance(s, int) and not isinstance(s, bool):
-            interval_ms = s
-            break
-
-    # Create the VTable capsule for this adapter
     capsule = _exampleadapterimpl._example_input_adapter(interval_ms=interval_ms)
 
-    # Get push group from scalars (last element if it's a PushGroup)
-    push_group_capsule = None
-    if len(scalars) > 0 and hasattr(scalars[-1], "__class__") and "PushGroup" in type(scalars[-1]).__name__:
-        push_group_capsule = scalars[-1]
-
-    # Pass to CSP bridge
-    return _cspimpl._c_api_push_input_adapter(mgr_capsule, engine, pytype, push_mode, (capsule, push_group_capsule))
+    return _cspimpl._c_api_push_input_adapter(mgr_capsule, engine, pytype, push_mode, (capsule, push_group))
 
 
 def _create_managed_output_adapter(mgr_capsule, engine, scalars):

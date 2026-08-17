@@ -224,34 +224,81 @@ CCspOutputAdapterVTable create_log_adapter(const char* prefix)
 
 Push input adapters are more complex because they push data from external threads into the CSP engine.
 
+The engine calls `stop()` on its own thread while your worker is still running, so the stop state must be
+synchronized. A plain `int` flag read by one thread and written by another is a data race, and therefore
+undefined behaviour. Waiting on a condition variable (or a Windows event) rather than sleeping also lets
+`stop()` interrupt the worker immediately instead of waiting out a full interval.
+
+For a complete, compiling version of the pattern below — including the Windows branch — see
+[ExamplePushInputAdapter.c](../../../examples/05_cpp/4_c_api_adapter/cpp/ExamplePushInputAdapter.c).
+
 #### Step 1: Define State with Threading
 
 ```c
 #include <csp/engine/c/InputAdapter.h>
+#include <errno.h>
 #include <pthread.h>
+#include <time.h>
 
 typedef struct {
     int interval_ms;
-    int running;
     int64_t counter;
     CCspPushInputAdapterHandle adapter;  // Handle for pushing data
+
     pthread_t thread;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    int stopping;
+    int started;
 } CounterAdapterState;
 ```
 
 #### Step 2: Implement the Data Source Thread
 
+Wait on the condition variable instead of sleeping, so `stop()` can wake the worker at once:
+
 ```c
+// Waits up to timeout_ms; returns 1 once stop has been requested.
+static int counter_should_stop(CounterAdapterState* state, int timeout_ms)
+{
+    struct timespec deadline;
+    int stopping;
+
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_sec += timeout_ms / 1000;
+    deadline.tv_nsec += (long)(timeout_ms % 1000) * 1000000L;
+    if (deadline.tv_nsec >= 1000000000L) {
+        deadline.tv_sec += 1;
+        deadline.tv_nsec -= 1000000000L;
+    }
+
+    pthread_mutex_lock(&state->mutex);
+    while (!state->stopping) {
+        int rc = pthread_cond_timedwait(&state->cond, &state->mutex, &deadline);
+        if (rc == ETIMEDOUT)
+            break;
+        if (rc != 0) {          // stop rather than spin on an unrecoverable error
+            state->stopping = 1;
+            break;
+        }
+    }
+    stopping = state->stopping;
+    pthread_mutex_unlock(&state->mutex);
+
+    return stopping;
+}
+
 static void* counter_thread(void* arg)
 {
     CounterAdapterState* state = (CounterAdapterState*)arg;
 
-    while (state->running) {
+    for (;;) {
         // Push the current value (thread-safe)
         ccsp_push_input_adapter_push_int64(state->adapter, state->counter, NULL);
         state->counter++;
 
-        usleep(state->interval_ms * 1000);
+        if (counter_should_stop(state, state->interval_ms))
+            break;
     }
 
     return NULL;
@@ -259,6 +306,8 @@ static void* counter_thread(void* arg)
 ```
 
 #### Step 3: Implement Lifecycle Callbacks
+
+Check every initialization result, and only join a thread you actually created:
 
 ```c
 static void counter_start(void* user_data, CCspEngineHandle engine,
@@ -269,25 +318,56 @@ static void counter_start(void* user_data, CCspEngineHandle engine,
 
     // Save the adapter handle for pushing data
     state->adapter = adapter;
-    state->running = 1;
     state->counter = 0;
+    state->stopping = 0;
 
-    // Start the data thread
-    pthread_create(&state->thread, NULL, counter_thread, state);
+    if (pthread_mutex_init(&state->mutex, NULL) != 0)
+        return;
+    if (pthread_cond_init(&state->cond, NULL) != 0) {
+        pthread_mutex_destroy(&state->mutex);
+        return;
+    }
+    if (pthread_create(&state->thread, NULL, counter_thread, state) != 0) {
+        pthread_cond_destroy(&state->cond);
+        pthread_mutex_destroy(&state->mutex);
+        ccsp_set_error(CCSP_ERROR_RUNTIME, "failed to start counter adapter thread");
+        return;
+    }
+
+    state->started = 1;
 }
 
 static void counter_stop(void* user_data)
 {
     CounterAdapterState* state = (CounterAdapterState*)user_data;
-    state->running = 0;
+
+    if (!state->started)
+        return;
+
+    pthread_mutex_lock(&state->mutex);
+    state->stopping = 1;
+    pthread_cond_broadcast(&state->cond);
+    pthread_mutex_unlock(&state->mutex);
+
     pthread_join(state->thread, NULL);
+    pthread_cond_destroy(&state->cond);
+    pthread_mutex_destroy(&state->mutex);
+    state->started = 0;
 }
 
 static void counter_destroy(void* user_data)
 {
+    // stop() is normally called first, but an engine torn down mid-startup comes straight here
+    counter_stop(user_data);
     free(user_data);
 }
 ```
+
+> [!WARNING]
+> Never cast a `void* (*)(void*)` worker to `LPTHREAD_START_ROUTINE` on Windows — the return type and
+> calling convention differ. Define a separate `unsigned __stdcall` entry point and start it with
+> `_beginthreadex`. Avoid `usleep`, which is undefined for arguments of 1,000,000 or more and was removed
+> from POSIX.1-2008, and avoid `rand()`, which is not thread-safe.
 
 #### Step 4: Create Factory Function
 
@@ -335,7 +415,7 @@ typedef struct CCspAdapterManagerVTable {
     // REQUIRED: Return the name of this manager
     const char* (*name)(void* user_data);
 
-    // REQUIRED: Process simulation time slice (return 0 for realtime-only)
+    // REQUIRED: Process simulation time slice (return CCSP_DATETIME_NONE for realtime-only)
     CCspDateTime (*process_next_sim_time_slice)(void* user_data, CCspDateTime time);
 
     // REQUIRED: Clean up resources
@@ -402,10 +482,11 @@ static void manager_stop(void* user_data) {
 }
 
 static CCspDateTime manager_process_sim(void* user_data, CCspDateTime time) {
-    /* Realtime-only adapter - return 0 */
+    /* Realtime-only adapter, so there is never any sim data.
+     * 0 would mean the Unix epoch, so the terminator is CCSP_DATETIME_NONE. */
     (void)user_data;
     (void)time;
-    return 0;
+    return CCSP_DATETIME_NONE;
 }
 
 static void manager_destroy(void* user_data) {

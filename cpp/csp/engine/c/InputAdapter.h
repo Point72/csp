@@ -19,6 +19,7 @@
 #define _IN_CSP_ENGINE_C_INPUTADAPTER_H
 
 #include <csp/engine/c/CspExport.h>
+#include <csp/engine/c/CspAbi.h>
 #include <csp/engine/c/CspType.h>
 #include <csp/engine/c/CspValue.h>
 #include <csp/engine/c/CspTime.h>
@@ -68,6 +69,10 @@ typedef enum {
  * ============================================================================ */
 
 typedef struct CCspPushInputAdapterVTable {
+    /* ABI header. Initialize with CCSP_VTABLE_INIT before setting any callback. */
+    uint32_t abi_version;
+    uint32_t struct_size;
+
     /*
      * User data pointer passed to all callbacks.
      * This is typically a pointer to your adapter's state structure.
@@ -127,8 +132,10 @@ CSP_C_API_EXPORT CCspPushInputAdapterHandle ccsp_push_input_adapter_extern_creat
                                                                                    const CCspPushInputAdapterVTable * vtable );
 
 /*
- * Destroy an external push input adapter.
- * This is typically called by CSP when the graph is destroyed.
+ * Release a push input adapter handle.
+ *
+ * This is a no-op: the adapter is owned by the engine, which destroys it (and invokes the
+ * destroy callback) when the graph tears down.
  */
 CSP_C_API_EXPORT void ccsp_push_input_adapter_extern_destroy( CCspPushInputAdapterHandle adapter );
 

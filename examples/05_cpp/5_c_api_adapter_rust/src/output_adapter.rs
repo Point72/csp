@@ -76,7 +76,7 @@ impl RustOutputAdapter {
         let input_type = match csp_input_get_type(input) {
             Some(value) => value,
             None => {
-                eprintln!("{}[RustOutputAdapter] CSP symbol missing: ccsp_input_get_type", prefix);
+                eprintln!("{}[RustOutputAdapter] ccsp_input_get_type unavailable or returned an unrecognized type", prefix);
                 return;
             }
         };

@@ -1015,7 +1015,8 @@ typedef struct CCspAdapterManagerVTable {
     const char* (*name)(void* user_data);
 
     // REQUIRED: Process simulation time slice
-    // Return next timestamp, or 0 if no more data
+    // Return next timestamp, or CCSP_DATETIME_NONE if no more data.
+    // Note 0 is a valid timestamp (the Unix epoch), not a terminator.
     CCspDateTime (*process_next_sim_time_slice)(void* user_data, CCspDateTime time);
 
     // REQUIRED: Clean up manager resources
@@ -1033,13 +1034,13 @@ typedef struct CCspAdapterManagerVTable {
 
 #### Callbacks
 
-| Callback                      | Required     | Description                                          |
-| ----------------------------- | ------------ | ---------------------------------------------------- |
-| `name`                        | **Required** | Returns manager name for logging/debugging           |
-| `process_next_sim_time_slice` | **Required** | Processes sim data, returns next timestamp or 0      |
-| `destroy`                     | **Required** | Frees all allocated resources                        |
-| `start`                       | Optional     | Called when graph starts. Initialize resources here. |
-| `stop`                        | Optional     | Called when graph stops. Clean up resources.         |
+| Callback                      | Required     | Description                                                        |
+| ----------------------------- | ------------ | ------------------------------------------------------------------ |
+| `name`                        | **Required** | Returns manager name for logging/debugging                         |
+| `process_next_sim_time_slice` | **Required** | Processes sim data, returns next timestamp or `CCSP_DATETIME_NONE` |
+| `destroy`                     | **Required** | Frees all allocated resources                                      |
+| `start`                       | Optional     | Called when graph starts. Initialize resources here.               |
+| `stop`                        | Optional     | Called when graph stops. Clean up resources.                       |
 
 ### Creation and Lifecycle
 
@@ -1089,11 +1090,11 @@ CCspPushInputAdapterHandle ccsp_adapter_manager_create_push_input_adapter(
 
 ```c
 typedef enum {
-    CCSP_STATUS_LEVEL_CRITICAL = 0,
-    CCSP_STATUS_LEVEL_ERROR = 1,
+    CCSP_STATUS_LEVEL_DEBUG = 0,
+    CCSP_STATUS_LEVEL_INFO = 1,
     CCSP_STATUS_LEVEL_WARNING = 2,
-    CCSP_STATUS_LEVEL_INFO = 3,
-    CCSP_STATUS_LEVEL_DEBUG = 4
+    CCSP_STATUS_LEVEL_ERROR = 3,
+    CCSP_STATUS_LEVEL_CRITICAL = 4
 } CCspStatusLevel;
 
 // Push a status message to the graph

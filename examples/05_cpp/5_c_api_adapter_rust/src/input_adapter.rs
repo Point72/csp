@@ -8,8 +8,8 @@
 
 use std::ffi::c_void;
 use std::ptr;
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicPtr, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, AtomicPtr, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -29,8 +29,9 @@ pub struct RustInputAdapter {
     /// Counter value (shared with thread)
     counter: Arc<AtomicI64>,
 
-    /// Flag to signal thread to stop
-    running: Arc<AtomicBool>,
+    /// Stop signal. Waiting on the condvar rather than sleeping lets `stop` interrupt the
+    /// interval immediately instead of blocking shutdown for up to `interval_ms`.
+    stop: Arc<(Mutex<bool>, Condvar)>,
 
     /// Push adapter handle (stored as AtomicPtr for thread-safe access)
     adapter_handle: Arc<AtomicPtr<c_void>>,
@@ -45,7 +46,7 @@ impl RustInputAdapter {
         Self {
             interval_ms: if interval_ms > 0 { interval_ms } else { 100 },
             counter: Arc::new(AtomicI64::new(0)),
-            running: Arc::new(AtomicBool::new(false)),
+            stop: Arc::new((Mutex::new(false), Condvar::new())),
             adapter_handle: Arc::new(AtomicPtr::new(ptr::null_mut())),
             thread_handle: None,
         }
@@ -56,11 +57,16 @@ impl RustInputAdapter {
     /// Spawns a background thread that pushes integer values at the configured
     /// interval using the CSP C API.
     pub fn start(&mut self, adapter: CCspPushInputAdapterHandle) {
+        // A second start would orphan the first worker, leaving it pushing to a stale handle
+        if self.thread_handle.is_some() {
+            self.stop();
+        }
+
         // Store the adapter handle (AtomicPtr is Send + Sync)
         self.adapter_handle.store(adapter, Ordering::SeqCst);
-        self.running.store(true, Ordering::SeqCst);
+        *self.stop.0.lock().unwrap() = false;
 
-        let running = Arc::clone(&self.running);
+        let stop = Arc::clone(&self.stop);
         let counter = Arc::clone(&self.counter);
         let adapter_handle = Arc::clone(&self.adapter_handle);
         let interval_ms = self.interval_ms;
@@ -73,8 +79,9 @@ impl RustInputAdapter {
         // Spawn background thread that pushes values
         let handle = thread::spawn(move || {
             let interval = Duration::from_millis(interval_ms);
+            let (lock, cvar) = &*stop;
 
-            while running.load(Ordering::SeqCst) {
+            loop {
                 let value = counter.fetch_add(1, Ordering::SeqCst);
                 let adapter_ptr = adapter_handle.load(Ordering::SeqCst);
 
@@ -87,7 +94,7 @@ impl RustInputAdapter {
                             ptr::null_mut(),
                         );
                         if result.is_none() {
-                            eprintln!("[RustInputAdapter] CSP symbol missing: ccsp_push_input_adapter_push_int64");
+                            eprintln!("[RustInputAdapter] ccsp_push_input_adapter_push_int64 unavailable or returned an unrecognized code");
                             break;
                         }
                         if result != Some(crate::bindings::CCspErrorCode::Ok) {
@@ -99,7 +106,11 @@ impl RustInputAdapter {
                     }
                 }
 
-                thread::sleep(interval);
+                let stopping = lock.lock().unwrap();
+                let (stopping, _) = cvar.wait_timeout_while(stopping, interval, |s| !*s).unwrap();
+                if *stopping {
+                    break;
+                }
             }
 
             eprintln!(
@@ -118,7 +129,11 @@ impl RustInputAdapter {
             self.counter.load(Ordering::SeqCst)
         );
 
-        self.running.store(false, Ordering::SeqCst);
+        {
+            let (lock, cvar) = &*self.stop;
+            *lock.lock().unwrap() = true;
+            cvar.notify_all();
+        }
 
         // Wait for the thread to finish
         if let Some(handle) = self.thread_handle.take() {

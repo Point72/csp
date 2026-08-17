@@ -39,21 +39,21 @@ typedef struct CCspDictIteratorImpl * CCspDictIteratorHandle;
  */
 
 typedef enum {
-    CCSP_DICT_TYPE_NONE = 0,      /* monostate / not found */
-    CCSP_DICT_TYPE_BOOL,
-    CCSP_DICT_TYPE_INT32,
-    CCSP_DICT_TYPE_UINT32,
-    CCSP_DICT_TYPE_INT64,
-    CCSP_DICT_TYPE_UINT64,
-    CCSP_DICT_TYPE_DOUBLE,
-    CCSP_DICT_TYPE_STRING,
-    CCSP_DICT_TYPE_DATETIME,
-    CCSP_DICT_TYPE_TIMEDELTA,
-    CCSP_DICT_TYPE_STRUCT_META,   /* StructMetaPtr - opaque */
-    CCSP_DICT_TYPE_DIALECT,       /* DialectGenericType - opaque */
-    CCSP_DICT_TYPE_DICTIONARY,    /* Nested dictionary */
-    CCSP_DICT_TYPE_VECTOR,        /* Vector of values */
-    CCSP_DICT_TYPE_DATA           /* Raw data pointer */
+    CCSP_DICT_TYPE_NONE = 0,        /* monostate / not found */
+    CCSP_DICT_TYPE_BOOL = 1,
+    CCSP_DICT_TYPE_INT32 = 2,
+    CCSP_DICT_TYPE_UINT32 = 3,
+    CCSP_DICT_TYPE_INT64 = 4,
+    CCSP_DICT_TYPE_UINT64 = 5,
+    CCSP_DICT_TYPE_DOUBLE = 6,
+    CCSP_DICT_TYPE_STRING = 7,
+    CCSP_DICT_TYPE_DATETIME = 8,
+    CCSP_DICT_TYPE_TIMEDELTA = 9,
+    CCSP_DICT_TYPE_STRUCT_META = 10, /* StructMetaPtr - opaque */
+    CCSP_DICT_TYPE_DIALECT = 11,     /* DialectGenericType - opaque */
+    CCSP_DICT_TYPE_DICTIONARY = 12,  /* Nested dictionary */
+    CCSP_DICT_TYPE_VECTOR = 13,      /* Vector of values */
+    CCSP_DICT_TYPE_DATA = 14         /* Raw data pointer */
 } CCspDictValueType;
 
 /* ============================================================================

@@ -53,10 +53,10 @@ static void managed_adapter_stop( void * user_data )
 
 static CCspDateTime managed_adapter_process_next_sim_time_slice( void * user_data, CCspDateTime time )
 {
-    /* This example is realtime-only, so we return 0 (no more sim data) */
+    /* This example is realtime-only, so there is never any sim data */
     ( void )user_data;
     ( void )time;
-    return 0;
+    return CCSP_DATETIME_NONE;
 }
 
 static void managed_adapter_destroy( void * user_data )
@@ -86,6 +86,7 @@ CCspAdapterManagerVTable example_managed_adapter_create( const char * name )
     }
 
     CCspAdapterManagerVTable vtable;
+    CCSP_VTABLE_INIT( &vtable, CCspAdapterManagerVTable );
     vtable.user_data = state;
     vtable.name = managed_adapter_name;
     vtable.start = managed_adapter_start;
@@ -186,7 +187,8 @@ static void managed_output_destroy( void * user_data )
 
 CCspOutputAdapterVTable example_managed_output_adapter_create( ManagedAdapterState * shared_state, const char * topic )
 {
-    CCspOutputAdapterVTable vtable = {0};
+    CCspOutputAdapterVTable vtable;
+    CCSP_VTABLE_INIT( &vtable, CCspOutputAdapterVTable );
 
     if( !shared_state )
     {

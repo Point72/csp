@@ -13,7 +13,12 @@ execute_process(
     COMMAND "${Python_EXECUTABLE}" -c "import csp; print(csp.get_lib_path(), end='')"
     OUTPUT_VARIABLE CSP_LIB_DIR)
 
-find_library(CSP_LIBRARY NAMES _cspimpl.so PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PATH)
+# Windows links the import library; elsewhere the module itself is linked
+if(WIN32)
+    find_library(CSP_LIBRARY NAMES _cspimpl PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PATH)
+else()
+    find_library(CSP_LIBRARY NAMES _cspimpl.so PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PATH)
+endif()
 
 # Position independent code for shared libraries
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -23,9 +28,13 @@ if(APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
 endif()
 
-# Shared library naming conventions
+# Python extension modules are _name.so on Unix (macOS included) and _name.pyd on Windows
 set(CMAKE_SHARED_LIBRARY_PREFIX _)
-set(CMAKE_SHARED_LIBRARY_SUFFIX .so)
+if(WIN32)
+    set(CMAKE_SHARED_LIBRARY_SUFFIX .pyd)
+else()
+    set(CMAKE_SHARED_LIBRARY_SUFFIX .so)
+endif()
 
 include_directories(${CSP_INCLUDE_DIR})
 include_directories(${Python_INCLUDE_DIRS})
@@ -33,4 +42,4 @@ include_directories(${Python_INCLUDE_DIRS})
 add_library(piglatin SHARED cpp/piglatin.cpp)
 target_link_libraries(piglatin ${CSP_LIBRARY})
 
-install(TARGETS piglatin LIBRARY DESTINATION piglatin)
+install(TARGETS piglatin LIBRARY DESTINATION piglatin RUNTIME DESTINATION piglatin)

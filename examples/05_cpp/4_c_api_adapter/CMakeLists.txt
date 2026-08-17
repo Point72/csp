@@ -13,7 +13,12 @@ execute_process(
     COMMAND "${Python_EXECUTABLE}" -c "import csp; print(csp.get_lib_path(), end='')"
     OUTPUT_VARIABLE CSP_LIB_DIR)
 
-find_library(CSP_LIBRARY NAMES _cspimpl.so PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PATH)
+# Windows links the import library; elsewhere the module itself is linked
+if(WIN32)
+    find_library(CSP_LIBRARY NAMES _cspimpl PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PATH)
+else()
+    find_library(CSP_LIBRARY NAMES _cspimpl.so PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PATH)
+endif()
 
 # Position independent code for shared libraries
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -23,9 +28,13 @@ if(APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
 endif()
 
-# Shared library naming conventions
+# Python extension modules are _name.so on Unix (macOS included) and _name.pyd on Windows
 set(CMAKE_SHARED_LIBRARY_PREFIX _)
-set(CMAKE_SHARED_LIBRARY_SUFFIX .so)
+if(WIN32)
+    set(CMAKE_SHARED_LIBRARY_SUFFIX .pyd)
+else()
+    set(CMAKE_SHARED_LIBRARY_SUFFIX .so)
+endif()
 
 include_directories(${CSP_INCLUDE_DIR})
 include_directories(${Python_INCLUDE_DIRS})
@@ -43,7 +52,7 @@ if(NOT WIN32)
     target_link_libraries(csp_c_example_adapter pthread)
 endif()
 
-install(TARGETS csp_c_example_adapter LIBRARY DESTINATION exampleadapter/lib)
+install(TARGETS csp_c_example_adapter ARCHIVE DESTINATION exampleadapter/lib)
 
 # Python bindings for example C adapters
 Python_add_library(_exampleadapterimpl MODULE cpp/exampleadapterimpl.c)
@@ -51,4 +60,4 @@ target_link_libraries(_exampleadapterimpl PRIVATE csp_c_example_adapter ${CSP_LI
 target_include_directories(_exampleadapterimpl PRIVATE ${CMAKE_SOURCE_DIR}/cpp ${Python_INCLUDE_DIRS})
 set_target_properties(_exampleadapterimpl PROPERTIES PREFIX "" C_STANDARD 11 C_STANDARD_REQUIRED ON)
 
-install(TARGETS _exampleadapterimpl LIBRARY DESTINATION exampleadapter)
+install(TARGETS _exampleadapterimpl LIBRARY DESTINATION exampleadapter RUNTIME DESTINATION exampleadapter)

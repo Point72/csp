@@ -8,17 +8,22 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/lib.rs");
 
-    // For macOS, we need to allow undefined symbols since CSP functions
-    // are resolved at runtime when Python loads both our module and CSP
-    #[cfg(target_os = "macos")]
-    {
-        println!("cargo:rustc-link-arg=-undefined");
-        println!("cargo:rustc-link-arg=dynamic_lookup");
-    }
+    // cfg! in a build script describes the host, so read the target from Cargo instead
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
 
-    // On Linux, allow undefined symbols to be resolved at runtime
-    #[cfg(target_os = "linux")]
-    {
-        println!("cargo:rustc-link-arg=-Wl,--allow-shlib-undefined");
+    match target_os.as_str() {
+        // CSP symbols are resolved at runtime once Python has loaded both modules
+        "macos" => {
+            println!("cargo:rustc-link-arg=-undefined");
+            println!("cargo:rustc-link-arg=dynamic_lookup");
+        }
+        "linux" => {
+            println!("cargo:rustc-link-arg=-Wl,--allow-shlib-undefined");
+        }
+        // Windows resolves every symbol at link time, so this example needs an import library
+        "windows" => {}
+        other => {
+            println!("cargo:warning=unrecognized target OS '{other}'; no link arguments applied");
+        }
     }
 }

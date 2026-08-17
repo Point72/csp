@@ -111,7 +111,12 @@ inline std::string TimeDelta::asString() const
     int32_t n = nanoseconds();
 
     int idx = d ? snprintf( buf, sizeof(buf), "%d %s ", d, d == 1 ? "day" : "days" ) : 0;
+    // snprintf returns what it *would* have written, so clamp before using it as an offset
+    if( idx < 0 || ( size_t ) idx >= sizeof(buf) )
+        idx = sizeof(buf) - 1;
     idx += snprintf( buf + idx, sizeof(buf) - idx, "%02d:%02d:%02d", h, m, s );
+    if( idx < 0 || ( size_t ) idx >= sizeof(buf) )
+        idx = sizeof(buf) - 1;
     if( n )
         snprintf( buf + idx, sizeof(buf) - idx, ".%09d", n );
     return buf;

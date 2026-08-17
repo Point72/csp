@@ -4,6 +4,7 @@
 #include <csp/engine/c/CspDictionary.h>
 #include <csp/engine/c/CspError.h>
 #include <csp/engine/Dictionary.h>
+#include <csp/engine/ExternBoundary.h>
 #include <csp/core/Exception.h>
 #include <cstring>
 #include <variant>
@@ -33,27 +34,28 @@ struct CCspDictIteratorImpl
 
 static CCspDictValueType variantIndexToType( size_t index )
 {
-    // Dictionary::Value = std::variant<std::monostate,bool,int32_t,uint32_t,int64_t,uint64_t,double,
-    //                                  std::string,DateTime,TimeDelta,StructMetaPtr,DialectGenericType,
-    //                                  DictionaryPtr,Vector,std::shared_ptr<Data>>
-    switch( index )
+    /* Breaks the build if Dictionary::Value gains or reorders an alternative */
+    static_assert( std::variant_size_v<csp::Dictionary::Value> == 15,
+                   "Dictionary::Value changed; update the CCspDictValueType mapping below" );
+
+    switch( static_cast<csp::Dictionary::DictDataType>( index ) )
     {
-        case 0:  return CCSP_DICT_TYPE_NONE;       // monostate
-        case 1:  return CCSP_DICT_TYPE_BOOL;
-        case 2:  return CCSP_DICT_TYPE_INT32;
-        case 3:  return CCSP_DICT_TYPE_UINT32;
-        case 4:  return CCSP_DICT_TYPE_INT64;
-        case 5:  return CCSP_DICT_TYPE_UINT64;
-        case 6:  return CCSP_DICT_TYPE_DOUBLE;
-        case 7:  return CCSP_DICT_TYPE_STRING;
-        case 8:  return CCSP_DICT_TYPE_DATETIME;
-        case 9:  return CCSP_DICT_TYPE_TIMEDELTA;
-        case 10: return CCSP_DICT_TYPE_STRUCT_META;
-        case 11: return CCSP_DICT_TYPE_DIALECT;
-        case 12: return CCSP_DICT_TYPE_DICTIONARY;
-        case 13: return CCSP_DICT_TYPE_VECTOR;
-        case 14: return CCSP_DICT_TYPE_DATA;
-        default: return CCSP_DICT_TYPE_NONE;
+        case csp::Dictionary::MONOSTATE:   return CCSP_DICT_TYPE_NONE;
+        case csp::Dictionary::BOOL:        return CCSP_DICT_TYPE_BOOL;
+        case csp::Dictionary::INT32:       return CCSP_DICT_TYPE_INT32;
+        case csp::Dictionary::UINT32:      return CCSP_DICT_TYPE_UINT32;
+        case csp::Dictionary::INT64:       return CCSP_DICT_TYPE_INT64;
+        case csp::Dictionary::UINT64:      return CCSP_DICT_TYPE_UINT64;
+        case csp::Dictionary::DOUBLE:      return CCSP_DICT_TYPE_DOUBLE;
+        case csp::Dictionary::STRING:      return CCSP_DICT_TYPE_STRING;
+        case csp::Dictionary::DATETIME:    return CCSP_DICT_TYPE_DATETIME;
+        case csp::Dictionary::TIMEDELTA:   return CCSP_DICT_TYPE_TIMEDELTA;
+        case csp::Dictionary::STRUCTMETAPTR:      return CCSP_DICT_TYPE_STRUCT_META;
+        case csp::Dictionary::DIALECTGENERICTYPE: return CCSP_DICT_TYPE_DIALECT;
+        case csp::Dictionary::DICTIONARYPTR:      return CCSP_DICT_TYPE_DICTIONARY;
+        case csp::Dictionary::VECTOR:             return CCSP_DICT_TYPE_VECTOR;
+        case csp::Dictionary::DATA:               return CCSP_DICT_TYPE_DATA;
+        default:                                  return CCSP_DICT_TYPE_NONE;
     }
 }
 
@@ -71,7 +73,11 @@ int ccsp_dictionary_exists( CCspDictionaryHandle dict, const char * key )
 {
     if( !dict || !key ) return 0;
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
-    return d -> exists( key ) ? 1 : 0;
+    try
+    {
+        return d -> exists( key ) ? 1 : 0;
+    }
+    CCSP_CATCH_RET( 0 )
 }
 
 size_t ccsp_dictionary_size( CCspDictionaryHandle dict )
@@ -93,11 +99,11 @@ CCspDictValueType ccsp_dictionary_get_type( CCspDictionaryHandle dict, const cha
     if( !dict || !key ) return CCSP_DICT_TYPE_NONE;
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
 
-    if( !d -> exists( key ) )
-        return CCSP_DICT_TYPE_NONE;
-
     try
     {
+        if( !d -> exists( key ) )
+            return CCSP_DICT_TYPE_NONE;
+
         const csp::Dictionary::Value & value = d -> getUntypedValue( key );
         return variantIndexToType( value.index() );
     }
@@ -135,11 +141,7 @@ CCspErrorCode ccsp_dictionary_get_bool( CCspDictionaryHandle dict, const char * 
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_dictionary_get_int32( CCspDictionaryHandle dict, const char * key, int32_t * out_value )
@@ -166,11 +168,7 @@ CCspErrorCode ccsp_dictionary_get_int32( CCspDictionaryHandle dict, const char *
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_dictionary_get_uint32( CCspDictionaryHandle dict, const char * key, uint32_t * out_value )
@@ -197,11 +195,7 @@ CCspErrorCode ccsp_dictionary_get_uint32( CCspDictionaryHandle dict, const char 
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_dictionary_get_int64( CCspDictionaryHandle dict, const char * key, int64_t * out_value )
@@ -228,11 +222,7 @@ CCspErrorCode ccsp_dictionary_get_int64( CCspDictionaryHandle dict, const char *
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_dictionary_get_uint64( CCspDictionaryHandle dict, const char * key, uint64_t * out_value )
@@ -259,11 +249,7 @@ CCspErrorCode ccsp_dictionary_get_uint64( CCspDictionaryHandle dict, const char 
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_dictionary_get_double( CCspDictionaryHandle dict, const char * key, double * out_value )
@@ -290,11 +276,7 @@ CCspErrorCode ccsp_dictionary_get_double( CCspDictionaryHandle dict, const char 
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_dictionary_get_datetime( CCspDictionaryHandle dict, const char * key, CCspDateTime * out_value )
@@ -322,11 +304,7 @@ CCspErrorCode ccsp_dictionary_get_datetime( CCspDictionaryHandle dict, const cha
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_dictionary_get_timedelta( CCspDictionaryHandle dict, const char * key, CCspTimeDelta * out_value )
@@ -354,11 +332,7 @@ CCspErrorCode ccsp_dictionary_get_timedelta( CCspDictionaryHandle dict, const ch
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char * key, const char ** out_data, size_t * out_length )
@@ -387,11 +361,7 @@ CCspErrorCode ccsp_dictionary_get_string( CCspDictionaryHandle dict, const char 
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * key, CCspDictionaryHandle * out_dict )
@@ -419,11 +389,7 @@ CCspErrorCode ccsp_dictionary_get_dict( CCspDictionaryHandle dict, const char * 
         ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "type mismatch" );
         return CCSP_ERROR_TYPE_MISMATCH;
     }
-    catch( const std::exception & e )
-    {
-        ccsp_set_error( CCSP_ERROR_RUNTIME, e.what() );
-        return CCSP_ERROR_RUNTIME;
-    }
+    CCSP_CATCH_ERR
 }
 
 // ----------------------------------------------------------------------------
@@ -593,8 +559,12 @@ CCspDictIteratorHandle ccsp_dictionary_iter_create( CCspDictionaryHandle dict )
     if( !dict ) return nullptr;
 
     auto * d = reinterpret_cast<const csp::Dictionary *>( dict );
-    auto * iter = new CCspDictIteratorImpl( d );
-    return reinterpret_cast<CCspDictIteratorHandle>( iter );
+    try
+    {
+        auto * iter = new CCspDictIteratorImpl( d );
+        return reinterpret_cast<CCspDictIteratorHandle>( iter );
+    }
+    CCSP_CATCH_RET( nullptr )
 }
 
 void ccsp_dictionary_iter_destroy( CCspDictIteratorHandle iter )
@@ -609,6 +579,10 @@ int ccsp_dictionary_iter_next( CCspDictIteratorHandle iter, const char ** out_ke
     if( !iter || !out_key ) return 0;
 
     auto * impl = reinterpret_cast<CCspDictIteratorImpl *>( iter );
+
+    /* Incrementing an already-exhausted iterator would be undefined, so stop here */
+    if( impl -> started && impl -> current == impl -> end )
+        return 0;
 
     if( !impl -> started )
     {

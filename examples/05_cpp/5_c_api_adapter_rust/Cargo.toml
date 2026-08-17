@@ -14,9 +14,5 @@ crate-type = ["cdylib"]
 pyo3 = { version = "0.24", features = ["extension-module"] }
 libc = "0.2"
 
-[build-dependencies]
-# For generating Rust bindings from C headers
-# bindgen = "0.69"
-
 [features]
 default = []

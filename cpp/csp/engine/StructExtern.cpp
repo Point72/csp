@@ -4,6 +4,7 @@
 
 #include <csp/engine/c/CspStruct.h>
 #include <csp/engine/c/CspError.h>
+#include <csp/engine/ExternBoundary.h>
 #include <csp/engine/Struct.h>
 #include <cstring>
 
@@ -51,6 +52,24 @@ static inline csp::Struct * getStruct( CCspStructHandle s )
 {
     auto * ptr = reinterpret_cast<csp::StructPtr *>( s );
     return ptr -> get();
+}
+
+// A field handle is a raw offset into its own struct type's storage, so applying one to an
+// instance of a different type reads or writes outside that instance. A derived struct may
+// override an inherited field with a distinct StructField sharing the base's layout, so accept
+// any handle whose layout matches and resolve to this instance's own field.
+static const csp::StructField * resolveField( const csp::Struct * st, CCspStructFieldHandle field )
+{
+    auto * f = reinterpret_cast<const csp::StructField *>( field );
+    const csp::StructField * owned = st -> meta() -> field( f -> fieldname() ).get();
+    if( !owned || ( owned != f && ( owned -> offset()     != f -> offset()     ||
+                                    owned -> maskOffset() != f -> maskOffset() ||
+                                    owned -> maskBit()    != f -> maskBit()    ) ) )
+    {
+        ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "field does not belong to this struct type" );
+        return nullptr;
+    }
+    return owned;
 }
 
 extern "C" {
@@ -171,8 +190,8 @@ int ccsp_struct_field_is_set( CCspStructHandle s, CCspStructFieldHandle field )
     if( !s || !field ) return 0;
     
     const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    return f -> isSet( st ) ? 1 : 0;
+    auto * f = resolveField( st, field );
+    return f && f -> isSet( st ) ? 1 : 0;
 }
 
 int ccsp_struct_field_is_none( CCspStructHandle s, CCspStructFieldHandle field )
@@ -180,380 +199,91 @@ int ccsp_struct_field_is_none( CCspStructHandle s, CCspStructFieldHandle field )
     if( !s || !field ) return 0;
     
     const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    return f -> isNone( st ) ? 1 : 0;
+    auto * f = resolveField( st, field );
+    return f && f -> isNone( st ) ? 1 : 0;
 }
 
 // ============================================================================
 // Field Value Getters
 // ============================================================================
 
-// Helper macro for type-safe getters
-#define IMPLEMENT_GETTER( c_type, csp_field_type, type_enum )                              \
-    CCspErrorCode ccsp_struct_get_##c_type( CCspStructHandle s, CCspStructFieldHandle field,\
-                                            c_type##_t * out_value )                       \
+#define IMPLEMENT_GETTER( name, out_type, csp_field_type, type_enum, value_expr )           \
+    CCspErrorCode ccsp_struct_get_##name( CCspStructHandle s, CCspStructFieldHandle field,  \
+                                          out_type * out_value )                           \
     {                                                                                       \
-        if( !s || !field || !out_value )                                                   \
+        if( !s || !field || !out_value )                                                    \
         {                                                                                   \
-            ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );                    \
+            ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );                     \
             return CCSP_ERROR_NULL_POINTER;                                                 \
         }                                                                                   \
-                                                                                            \
-        const csp::Struct * st = getStructConst( s );                            \
-        auto * f = reinterpret_cast<const csp::StructField *>( field );                    \
-                                                                                            \
-        if( !f -> isSet( st ) )                                                            \
+        try                                                                                 \
         {                                                                                   \
-            ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );                   \
-            return CCSP_ERROR_KEY_NOT_FOUND;                                                \
-        }                                                                                   \
+            const csp::Struct * st = getStructConst( s );                                   \
+            auto * f = resolveField( st, field );                                           \
+            if( !f )                                                                        \
+                return CCSP_ERROR_INVALID_ARGUMENT;                                         \
                                                                                             \
-        if( f -> type() -> type() != csp::CspType::Type::type_enum )                       \
+            if( !f -> isSet( st ) )                                                         \
+            {                                                                               \
+                ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );                \
+                return CCSP_ERROR_KEY_NOT_FOUND;                                            \
+            }                                                                               \
+                                                                                            \
+            if( f -> type() -> type() != csp::CspType::Type::type_enum )                    \
+            {                                                                               \
+                ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );          \
+                return CCSP_ERROR_TYPE_MISMATCH;                                            \
+            }                                                                               \
+                                                                                            \
+            auto * tf = static_cast<const csp::csp_field_type *>( f );                      \
+            *out_value = value_expr;                                                        \
+            return CCSP_OK;                                                                 \
+        }                                                                                   \
+        CCSP_CATCH_ERR                                                                      \
+    }
+
+#define IMPLEMENT_SETTER( name, in_type, csp_field_type, type_enum, value_expr )            \
+    CCspErrorCode ccsp_struct_set_##name( CCspStructHandle s, CCspStructFieldHandle field,  \
+                                          in_type value )                                  \
+    {                                                                                       \
+        if( !s || !field )                                                                  \
         {                                                                                   \
-            ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );             \
-            return CCSP_ERROR_TYPE_MISMATCH;                                                \
+            ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );                     \
+            return CCSP_ERROR_NULL_POINTER;                                                 \
         }                                                                                   \
+        try                                                                                 \
+        {                                                                                   \
+            csp::Struct * st = getStruct( s );                                              \
+            auto * f = resolveField( st, field );                                           \
+            if( !f )                                                                        \
+                return CCSP_ERROR_INVALID_ARGUMENT;                                         \
                                                                                             \
-        auto * tf = static_cast<const csp::csp_field_type *>( f );                         \
-        *out_value = tf -> value( st );                                                    \
-        return CCSP_OK;                                                                     \
+            if( f -> type() -> type() != csp::CspType::Type::type_enum )                    \
+            {                                                                               \
+                ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );          \
+                return CCSP_ERROR_TYPE_MISMATCH;                                            \
+            }                                                                               \
+                                                                                            \
+            auto * tf = static_cast<const csp::csp_field_type *>( f );                      \
+            tf -> setValue( st, value_expr );                                               \
+            return CCSP_OK;                                                                 \
+        }                                                                                   \
+        CCSP_CATCH_ERR                                                                      \
     }
 
-CCspErrorCode ccsp_struct_get_bool( CCspStructHandle s, CCspStructFieldHandle field, int8_t * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::BOOL )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::BoolStructField *>( f );
-    *out_value = tf -> value( st ) ? 1 : 0;
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_int8( CCspStructHandle s, CCspStructFieldHandle field, int8_t * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::INT8 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::Int8StructField *>( f );
-    *out_value = tf -> value( st );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_uint8( CCspStructHandle s, CCspStructFieldHandle field, uint8_t * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::UINT8 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::UInt8StructField *>( f );
-    *out_value = tf -> value( st );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_int16( CCspStructHandle s, CCspStructFieldHandle field, int16_t * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::INT16 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::Int16StructField *>( f );
-    *out_value = tf -> value( st );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_uint16( CCspStructHandle s, CCspStructFieldHandle field, uint16_t * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::UINT16 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::UInt16StructField *>( f );
-    *out_value = tf -> value( st );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_int32( CCspStructHandle s, CCspStructFieldHandle field, int32_t * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::INT32 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::Int32StructField *>( f );
-    *out_value = tf -> value( st );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_uint32( CCspStructHandle s, CCspStructFieldHandle field, uint32_t * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::UINT32 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::UInt32StructField *>( f );
-    *out_value = tf -> value( st );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_int64( CCspStructHandle s, CCspStructFieldHandle field, int64_t * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::INT64 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::Int64StructField *>( f );
-    *out_value = tf -> value( st );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_uint64( CCspStructHandle s, CCspStructFieldHandle field, uint64_t * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::UINT64 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::UInt64StructField *>( f );
-    *out_value = tf -> value( st );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_double( CCspStructHandle s, CCspStructFieldHandle field, double * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::DOUBLE )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::DoubleStructField *>( f );
-    *out_value = tf -> value( st );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_datetime( CCspStructHandle s, CCspStructFieldHandle field, CCspDateTime * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::DATETIME )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::DateTimeStructField *>( f );
-    *out_value = tf -> value( st ).asNanoseconds();
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_get_timedelta( CCspStructHandle s, CCspStructFieldHandle field, CCspTimeDelta * out_value )
-{
-    if( !s || !field || !out_value )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::TIMEDELTA )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::TimeDeltaStructField *>( f );
-    *out_value = tf -> value( st ).asNanoseconds();
-    return CCSP_OK;
-}
+IMPLEMENT_GETTER( bool,      int8_t,        BoolStructField,      BOOL,      tf -> value( st ) ? 1 : 0 )
+IMPLEMENT_GETTER( int8,      int8_t,        Int8StructField,      INT8,      tf -> value( st ) )
+IMPLEMENT_GETTER( uint8,     uint8_t,       UInt8StructField,     UINT8,     tf -> value( st ) )
+IMPLEMENT_GETTER( int16,     int16_t,       Int16StructField,     INT16,     tf -> value( st ) )
+IMPLEMENT_GETTER( uint16,    uint16_t,      UInt16StructField,    UINT16,    tf -> value( st ) )
+IMPLEMENT_GETTER( int32,     int32_t,       Int32StructField,     INT32,     tf -> value( st ) )
+IMPLEMENT_GETTER( uint32,    uint32_t,      UInt32StructField,    UINT32,    tf -> value( st ) )
+IMPLEMENT_GETTER( int64,     int64_t,       Int64StructField,     INT64,     tf -> value( st ) )
+IMPLEMENT_GETTER( uint64,    uint64_t,      UInt64StructField,    UINT64,    tf -> value( st ) )
+IMPLEMENT_GETTER( double,    double,        DoubleStructField,    DOUBLE,    tf -> value( st ) )
+IMPLEMENT_GETTER( datetime,  CCspDateTime,  DateTimeStructField,  DATETIME,  tf -> value( st ).asNanoseconds() )
+IMPLEMENT_GETTER( timedelta, CCspTimeDelta, TimeDeltaStructField, TIMEDELTA, tf -> value( st ).asNanoseconds() )
+IMPLEMENT_GETTER( enum,      int32_t,       CspEnumStructField,   ENUM,      static_cast<int32_t>( tf -> value( st ).value() ) )
 
 CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle field, const char ** out_data, size_t * out_length )
 {
@@ -564,7 +294,9 @@ CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle 
     }
     
     const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
+    auto * f = resolveField( st, field );
+    if( !f )
+        return CCSP_ERROR_INVALID_ARGUMENT;
     
     if( !f -> isSet( st ) )
     {
@@ -585,34 +317,6 @@ CCspErrorCode ccsp_struct_get_string( CCspStructHandle s, CCspStructFieldHandle 
     return CCSP_OK;
 }
 
-CCspErrorCode ccsp_struct_get_enum( CCspStructHandle s, CCspStructFieldHandle field, int32_t * out_ordinal )
-{
-    if( !s || !field || !out_ordinal )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( !f -> isSet( st ) )
-    {
-        ccsp_set_error( CCSP_ERROR_KEY_NOT_FOUND, "field not set" );
-        return CCSP_ERROR_KEY_NOT_FOUND;
-    }
-    
-    if( f -> type() -> type() != csp::CspType::Type::ENUM )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::CspEnumStructField *>( f );
-    *out_ordinal = static_cast<int32_t>( tf -> value( st ).value() );
-    return CCSP_OK;
-}
-
 CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle field, CCspStructHandle * out_struct )
 {
     if( !s || !field || !out_struct )
@@ -622,7 +326,9 @@ CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle 
     }
     
     const csp::Struct * st = getStructConst( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
+    auto * f = resolveField( st, field );
+    if( !f )
+        return CCSP_ERROR_INVALID_ARGUMENT;
     
     if( !f -> isSet( st ) )
     {
@@ -636,10 +342,17 @@ CCspErrorCode ccsp_struct_get_struct( CCspStructHandle s, CCspStructFieldHandle 
         return CCSP_ERROR_TYPE_MISMATCH;
     }
     
-    // StructStructField stores StructPtr, need to get raw pointer
-    // This is a bit tricky - we need to access the nested struct
-    ccsp_set_error( CCSP_ERROR_NOT_IMPLEMENTED, "nested struct access not implemented yet" );
-    return CCSP_ERROR_NOT_IMPLEMENTED;
+    /* Hand back an independent handle sharing ownership; released with ccsp_struct_destroy */
+    auto * tf = static_cast<const csp::StructStructField *>( f );
+    const csp::StructPtr & nested = tf -> value( st );
+    if( !nested.get() )
+    {
+        ccsp_set_error( CCSP_ERROR_VALUE, "nested struct is null" );
+        return CCSP_ERROR_VALUE;
+    }
+
+    *out_struct = reinterpret_cast<CCspStructHandle>( new csp::StructPtr( nested ) );
+    return CCSP_OK;
 }
 
 // ============================================================================
@@ -764,269 +477,18 @@ CCspErrorCode ccsp_struct_get_string_by_name( CCspStructHandle s, const char * n
 // Field Value Setters
 // ============================================================================
 
-CCspErrorCode ccsp_struct_set_bool( CCspStructHandle s, CCspStructFieldHandle field, int8_t value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::BOOL )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::BoolStructField *>( f );
-    tf -> setValue( st, value != 0 );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_int8( CCspStructHandle s, CCspStructFieldHandle field, int8_t value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::INT8 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::Int8StructField *>( f );
-    tf -> setValue( st, value );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_uint8( CCspStructHandle s, CCspStructFieldHandle field, uint8_t value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::UINT8 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::UInt8StructField *>( f );
-    tf -> setValue( st, value );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_int16( CCspStructHandle s, CCspStructFieldHandle field, int16_t value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::INT16 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::Int16StructField *>( f );
-    tf -> setValue( st, value );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_uint16( CCspStructHandle s, CCspStructFieldHandle field, uint16_t value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::UINT16 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::UInt16StructField *>( f );
-    tf -> setValue( st, value );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_int32( CCspStructHandle s, CCspStructFieldHandle field, int32_t value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::INT32 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::Int32StructField *>( f );
-    tf -> setValue( st, value );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_uint32( CCspStructHandle s, CCspStructFieldHandle field, uint32_t value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::UINT32 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::UInt32StructField *>( f );
-    tf -> setValue( st, value );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_int64( CCspStructHandle s, CCspStructFieldHandle field, int64_t value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::INT64 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::Int64StructField *>( f );
-    tf -> setValue( st, value );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_uint64( CCspStructHandle s, CCspStructFieldHandle field, uint64_t value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::UINT64 )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::UInt64StructField *>( f );
-    tf -> setValue( st, value );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_double( CCspStructHandle s, CCspStructFieldHandle field, double value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::DOUBLE )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::DoubleStructField *>( f );
-    tf -> setValue( st, value );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_datetime( CCspStructHandle s, CCspStructFieldHandle field, CCspDateTime value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::DATETIME )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::DateTimeStructField *>( f );
-    tf -> setValue( st, csp::DateTime::fromNanoseconds( value ) );
-    return CCSP_OK;
-}
-
-CCspErrorCode ccsp_struct_set_timedelta( CCspStructHandle s, CCspStructFieldHandle field, CCspTimeDelta value )
-{
-    if( !s || !field )
-    {
-        ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
-        return CCSP_ERROR_NULL_POINTER;
-    }
-    
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::TIMEDELTA )
-    {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
-    }
-    
-    auto * tf = static_cast<const csp::TimeDeltaStructField *>( f );
-    tf -> setValue( st, csp::TimeDelta::fromNanoseconds( value ) );
-    return CCSP_OK;
-}
+IMPLEMENT_SETTER( bool,      int8_t,        BoolStructField,      BOOL,      value != 0 )
+IMPLEMENT_SETTER( int8,      int8_t,        Int8StructField,      INT8,      value )
+IMPLEMENT_SETTER( uint8,     uint8_t,       UInt8StructField,     UINT8,     value )
+IMPLEMENT_SETTER( int16,     int16_t,       Int16StructField,     INT16,     value )
+IMPLEMENT_SETTER( uint16,    uint16_t,      UInt16StructField,    UINT16,    value )
+IMPLEMENT_SETTER( int32,     int32_t,       Int32StructField,     INT32,     value )
+IMPLEMENT_SETTER( uint32,    uint32_t,      UInt32StructField,    UINT32,    value )
+IMPLEMENT_SETTER( int64,     int64_t,       Int64StructField,     INT64,     value )
+IMPLEMENT_SETTER( uint64,    uint64_t,      UInt64StructField,    UINT64,    value )
+IMPLEMENT_SETTER( double,    double,        DoubleStructField,    DOUBLE,    value )
+IMPLEMENT_SETTER( datetime,  CCspDateTime,  DateTimeStructField,  DATETIME,  csp::DateTime::fromNanoseconds( value ) )
+IMPLEMENT_SETTER( timedelta, CCspTimeDelta, TimeDeltaStructField, TIMEDELTA, csp::TimeDelta::fromNanoseconds( value ) )
 
 CCspErrorCode ccsp_struct_set_string( CCspStructHandle s, CCspStructFieldHandle field,
                                       const char * data, size_t length )
@@ -1037,18 +499,30 @@ CCspErrorCode ccsp_struct_set_string( CCspStructHandle s, CCspStructFieldHandle 
         return CCSP_ERROR_NULL_POINTER;
     }
     
-    csp::Struct * st = getStruct( s );
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::STRING )
+    if( !data && length > 0 )
     {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
+        ccsp_set_error( CCSP_ERROR_INVALID_ARGUMENT, "null data with non-zero length" );
+        return CCSP_ERROR_INVALID_ARGUMENT;
     }
     
-    auto * tf = static_cast<const csp::StringStructField *>( f );
-    tf -> setValue( st, std::string( data, length ) );
-    return CCSP_OK;
+    try
+    {
+        csp::Struct * st = getStruct( s );
+        auto * f = resolveField( st, field );
+        if( !f )
+            return CCSP_ERROR_INVALID_ARGUMENT;
+        
+        if( f -> type() -> type() != csp::CspType::Type::STRING )
+        {
+            ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
+            return CCSP_ERROR_TYPE_MISMATCH;
+        }
+        
+        auto * tf = static_cast<const csp::StringStructField *>( f );
+        tf -> setValue( st, std::string( data ? data : "", length ) );
+        return CCSP_OK;
+    }
+    CCSP_CATCH_ERR
 }
 
 CCspErrorCode ccsp_struct_set_enum( CCspStructHandle s, CCspStructFieldHandle field, int32_t ordinal )
@@ -1058,19 +532,27 @@ CCspErrorCode ccsp_struct_set_enum( CCspStructHandle s, CCspStructFieldHandle fi
         ccsp_set_error( CCSP_ERROR_NULL_POINTER, "null argument" );
         return CCSP_ERROR_NULL_POINTER;
     }
-    
-    auto * f = reinterpret_cast<const csp::StructField *>( field );
-    
-    if( f -> type() -> type() != csp::CspType::Type::ENUM )
+
+    try
     {
-        ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
-        return CCSP_ERROR_TYPE_MISMATCH;
+        csp::Struct * st = getStruct( s );
+        auto * f = resolveField( st, field );
+        if( !f )
+            return CCSP_ERROR_INVALID_ARGUMENT;
+
+        if( f -> type() -> type() != csp::CspType::Type::ENUM )
+        {
+            ccsp_set_error( CCSP_ERROR_TYPE_MISMATCH, "field type mismatch" );
+            return CCSP_ERROR_TYPE_MISMATCH;
+        }
+
+        /* The ordinal is only meaningful against the field's own enum meta */
+        const auto & meta = static_cast<const csp::CspEnumType *>( f -> type().get() ) -> meta();
+        auto * tf = static_cast<const csp::CspEnumStructField *>( f );
+        tf -> setValue( st, meta -> create( ordinal ) );
+        return CCSP_OK;
     }
-    
-    // Setting enum requires creating a CspEnum with the correct meta
-    // This is more complex - for now mark as not implemented
-    ccsp_set_error( CCSP_ERROR_NOT_IMPLEMENTED, "enum set not implemented" );
-    return CCSP_ERROR_NOT_IMPLEMENTED;
+    CCSP_CATCH_ERR
 }
 
 // ============================================================================

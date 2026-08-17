@@ -22,10 +22,6 @@
 //! 3. Use PyO3 to create Python capsules wrapping the VTables
 //! 4. CSP's Python layer extracts the VTables from capsules and registers with the engine
 
-#![allow(non_upper_case_globals)]
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
-
 pub mod bindings;
 pub mod output_adapter;
 pub mod input_adapter;
@@ -68,6 +64,8 @@ fn _example_adapter_manager(
 
     // Create vtable
     let vtable = CCspAdapterManagerVTable {
+        abi_version: CCSP_ABI_VERSION,
+        struct_size: std::mem::size_of::<CCspAdapterManagerVTable>() as u32,
         user_data,
         name: Some(rust_adapter_manager_name),
         process_next_sim_time_slice: Some(rust_adapter_manager_process_sim_time),
@@ -90,12 +88,20 @@ fn _example_adapter_manager(
 #[pyfunction]
 #[pyo3(signature = (interval_ms=100))]
 fn _example_input_adapter(py: Python<'_>, interval_ms: i32) -> PyResult<PyObject> {
+    if interval_ms <= 0 {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "interval_ms must be positive",
+        ));
+    }
+
     // Create the input adapter
     let adapter = Box::new(RustInputAdapter::new(interval_ms as u64));
     let user_data = Box::into_raw(adapter) as *mut std::ffi::c_void;
 
     // Create vtable
     let vtable = CCspPushInputAdapterVTable {
+        abi_version: CCSP_ABI_VERSION,
+        struct_size: std::mem::size_of::<CCspPushInputAdapterVTable>() as u32,
         user_data,
         start: Some(rust_input_adapter_start),
         stop: Some(rust_input_adapter_stop),
@@ -122,6 +128,8 @@ fn _example_output_adapter(py: Python<'_>, prefix: Option<String>) -> PyResult<P
 
     // Create vtable
     let vtable = CCspOutputAdapterVTable {
+        abi_version: CCSP_ABI_VERSION,
+        struct_size: std::mem::size_of::<CCspOutputAdapterVTable>() as u32,
         user_data,
         start: Some(rust_output_adapter_start),
         stop: Some(rust_output_adapter_stop),

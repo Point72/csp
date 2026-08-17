@@ -16,6 +16,9 @@
 #include <csp/engine/c/InputAdapter.h>
 #include <csp/engine/c/OutputAdapter.h>
 #include <csp/engine/c/AdapterManager.h>
+#include <csp/python/c/PyAdapterManager.h>
+#include <csp/python/c/PyInputAdapter.h>
+#include <csp/python/c/PyOutputAdapter.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
 #include <csp/python/InitHelper.h>
@@ -26,10 +29,23 @@
 namespace csp::python
 {
 
-/* Capsule names - must match the C API headers */
-static const char * const CSP_C_INPUT_ADAPTER_CAPSULE_NAME = "csp.c.InputAdapterCapsule";
-static const char * const CSP_C_OUTPUT_ADAPTER_CAPSULE_NAME = "csp.c.OutputAdapterCapsule";
-static const char * const CSP_C_ADAPTER_MANAGER_CAPSULE_NAME = "csp.c.AdapterManagerCapsule";
+/*
+ * The PushGroup is owned by a Python capsule which can be collected once wiring completes, while
+ * the engine keeps the raw pointer for the whole run, so hold a reference alongside it.
+ */
+class CApiPushInputAdapter final : public PushInputAdapterExtern
+{
+public:
+    CApiPushInputAdapter( Engine * engine, CspTypePtr & type, PushMode pushMode, PushGroup * group,
+                          const CCspPushInputAdapterVTable & vtable, PyObjectPtr pyPushGroup )
+        : PushInputAdapterExtern( engine, type, pushMode, group, vtable )
+        , m_pyPushGroup( pyPushGroup )
+    {
+    }
+
+private:
+    PyObjectPtr m_pyPushGroup;
+};
 
 /*
  * Create a PushInputAdapterExtern from a C API capsule.
@@ -56,6 +72,9 @@ static InputAdapter * c_api_push_input_adapter_creator( csp::AdapterManager * ma
     if( !vtable )
         CSP_THROW( ValueError, "Failed to extract VTable from capsule" );
 
+    if( PyCapsule_GetContext( capsule ) == CCSP_PY_CAPSULE_TRANSFERRED )
+        CSP_THROW( ValueError, "Input adapter capsule has already been used; create a new one per adapter" );
+
     /* Get push group if provided */
     csp::PushGroup * pushGroup = nullptr;
     if( pyPushGroup != Py_None )
@@ -71,14 +90,16 @@ static InputAdapter * c_api_push_input_adapter_creator( csp::AdapterManager * ma
     /* Get the CSP type from Python type */
     auto & cspType = pyTypeAsCspType( pyType );
 
-    /* Create the adapter using createOwnedObject */
-    auto * adapter = pyengine->engine()->createOwnedObject<PushInputAdapterExtern>( cspType, pushMode, pushGroup, *vtable );
+    /* Claim user_data before constructing. createOwnedObject registers the object after building
+     * it, and if that registration throws, the object's destructor has already run destroy().
+     * Claiming first can leak user_data if construction itself fails, but never double-frees it. */
+    if( PyCapsule_SetContext( capsule, CCSP_PY_CAPSULE_TRANSFERRED ) != 0 )
+        CSP_THROW( PythonPassthrough, "" );
 
-    /* Transfer ownership of the VTable to the adapter by clearing the capsule's destructor.
-     * This prevents double-free since PushInputAdapterExtern will call destroy in its destructor. */
-    PyCapsule_SetDestructor( capsule, nullptr );
-
-    return adapter;
+    /* The adapter holds its own copy of the VTable. The capsule keeps ownership of its heap copy,
+     * so it is still released by whoever allocated it. */
+    return pyengine->engine()->createOwnedObject<CApiPushInputAdapter>( cspType, pushMode, pushGroup, *vtable,
+                                                                       PyObjectPtr::incref( pyPushGroup ) );
 }
 
 /*
@@ -108,17 +129,17 @@ static OutputAdapter * c_api_output_adapter_creator(
     if( !vtable )
         CSP_THROW( ValueError, "Failed to extract VTable from capsule" );
 
+    if( PyCapsule_GetContext( capsule ) == CCSP_PY_CAPSULE_TRANSFERRED )
+        CSP_THROW( ValueError, "Output adapter capsule has already been used; create a new one per adapter" );
+
     /* Get the CSP type from Python type */
     auto & cspType = pyTypeAsCspType( pyInputType );
 
-    /* Create the adapter using createOwnedObject */
-    auto * adapter = pyengine->engine()->createOwnedObject<OutputAdapterExtern>( cspType, *vtable );
+    /* See the input adapter creator for why the capsule is marked before construction */
+    if( PyCapsule_SetContext( capsule, CCSP_PY_CAPSULE_TRANSFERRED ) != 0 )
+        CSP_THROW( PythonPassthrough, "" );
 
-    /* Transfer ownership of the VTable to the adapter by clearing the capsule's destructor.
-     * This prevents double-free since OutputAdapterExtern will call destroy in its destructor. */
-    PyCapsule_SetDestructor( capsule, nullptr );
-
-    return adapter;
+    return pyengine->engine()->createOwnedObject<OutputAdapterExtern>( cspType, *vtable );
 }
 
 REGISTER_INPUT_ADAPTER( _c_api_push_input_adapter, c_api_push_input_adapter_creator );
@@ -153,12 +174,15 @@ static PyObject * c_api_adapter_manager_bridge( PyObject * /* self */, PyObject 
     if( !vtable )
         CSP_THROW( ValueError, "Failed to extract VTable from C API capsule" );
 
+    if( PyCapsule_GetContext( cApiCapsule ) == CCSP_PY_CAPSULE_TRANSFERRED )
+        CSP_THROW( ValueError, "Adapter manager capsule has already been used; create a new one per manager" );
+
+    /* See the input adapter creator for why the capsule is marked before construction */
+    if( PyCapsule_SetContext( cApiCapsule, CCSP_PY_CAPSULE_TRANSFERRED ) != 0 )
+        CSP_THROW( PythonPassthrough, "" );
+
     /* Create the AdapterManagerExtern owned by the engine */
     auto * adapterMgr = pyEngine->engine()->createOwnedObject<AdapterManagerExtern>( *vtable );
-
-    /* Transfer ownership of the VTable to the adapter manager by clearing the capsule's destructor.
-     * This prevents double-free since AdapterManagerExtern will call destroy in its destructor. */
-    PyCapsule_SetDestructor( cApiCapsule, nullptr );
 
     /* Return a capsule with the name CSP's wiring layer expects */
     return PyCapsule_New( adapterMgr, "adapterMgr", nullptr );

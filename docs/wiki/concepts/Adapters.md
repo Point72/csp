@@ -13,4 +13,4 @@ There are common cases where a single data source may be used to provide data to
 In such cases an AdapterManager is used to coordinate management of the single source (CSV file, database, Kafka connection, etc) and provided data to individual adapters.
 
 Note that adapters can be quickly written and prototyped in Python, and if needed can be moved to a C++ implementation for more efficiency.
-For maximum portability and ABI stability, adapters can also be written in C (or any language with C FFI such as Rust or Go) using the [C API](../api-references/C-APIs.md).
+For maximum portability and ABI stability, adapters can also be written in C (or any language with C FFI such as Rust or Go) using the [C API](C-APIs.md).

@@ -41,9 +41,7 @@ def declared_symbols() -> set[str]:
 
 def exported_symbols(library: Path) -> set[str]:
     if platform.system() == "Windows":
-        out = subprocess.run(
-            ["dumpbin", "/EXPORTS", str(library)], capture_output=True, text=True, check=True
-        ).stdout
+        out = subprocess.run(["dumpbin", "/EXPORTS", str(library)], capture_output=True, text=True, check=True).stdout
         return set(re.findall(r"\b(ccsp_[A-Za-z0-9_]+)\b", out))
 
     out = subprocess.run(
@@ -59,14 +57,25 @@ def exported_symbols(library: Path) -> set[str]:
 
 
 def find_library() -> Path | None:
-    suffixes = ("*.so", "*.pyd", "*.dylib")
-    for pattern in suffixes:
-        for candidate in REPO_ROOT.rglob(f"_cspimpl{pattern[1:]}"):
-            return candidate
-    for pattern in suffixes:
-        matches = sorted(REPO_ROOT.rglob(f"cspimpl{pattern[1:]}"))
-        if matches:
-            return matches[0]
+    # The repo's own build wins, so a developer checks what they just built rather than an
+    # unrelated csp that happens to be installed. CI builds the examples against an installed
+    # wheel with nothing built in-tree, so fall back to the package's lib directory.
+    roots = [REPO_ROOT]
+    try:
+        import csp
+
+        roots.append(Path(csp.get_lib_path()))
+    except (ImportError, AttributeError):
+        # csp not installed, or too old to expose get_lib_path; the repo scan is all we have.
+        pass
+
+    suffixes = (".so", ".pyd", ".dylib")
+    for stem in ("_cspimpl", "cspimpl"):
+        for root in roots:
+            for suffix in suffixes:
+                matches = sorted(root.rglob(f"{stem}{suffix}"))
+                if matches:
+                    return matches[0]
     return None
 
 

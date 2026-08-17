@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import platform
 import re
+import struct
 import subprocess
 import sys
 import sysconfig
@@ -39,10 +40,55 @@ def declared_symbols() -> set[str]:
     return symbols
 
 
+def pe_exported_symbols(library: Path) -> set[str]:
+    """Read the export name table out of a PE image.
+
+    dumpbin is the obvious tool but only exists inside a Visual Studio developer environment,
+    which the CI runner does not enter, so parse the image directly instead.
+    """
+    data = library.read_bytes()
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    if data[pe : pe + 4] != b"PE\0\0":
+        raise ValueError(f"{library} is not a PE image")
+
+    num_sections = struct.unpack_from("<H", data, pe + 6)[0]
+    opt_size = struct.unpack_from("<H", data, pe + 20)[0]
+    opt = pe + 24
+    magic = struct.unpack_from("<H", data, opt)[0]
+    # The export directory is the first data directory entry; PE32+ places it 16 bytes later.
+    export_rva = struct.unpack_from("<I", data, opt + (112 if magic == 0x20B else 96))[0]
+    if not export_rva:
+        return set()
+
+    sections = []
+    sec = opt + opt_size
+    for i in range(num_sections):
+        off = sec + i * 40
+        virt_addr, raw_size, raw_ptr = struct.unpack_from("<III", data, off + 12)
+        sections.append((virt_addr, raw_size, raw_ptr))
+
+    def to_offset(rva: int) -> int:
+        for virt_addr, raw_size, raw_ptr in sections:
+            if virt_addr <= rva < virt_addr + raw_size:
+                return raw_ptr + (rva - virt_addr)
+        raise ValueError(f"RVA {rva:#x} outside every section of {library}")
+
+    export = to_offset(export_rva)
+    num_names = struct.unpack_from("<I", data, export + 24)[0]
+    names_rva = struct.unpack_from("<I", data, export + 32)[0]
+    names = to_offset(names_rva)
+
+    symbols = set()
+    for i in range(num_names):
+        name_rva = struct.unpack_from("<I", data, names + i * 4)[0]
+        start = to_offset(name_rva)
+        symbols.add(data[start : data.index(b"\0", start)].decode("ascii"))
+    return symbols
+
+
 def exported_symbols(library: Path) -> set[str]:
     if platform.system() == "Windows":
-        out = subprocess.run(["dumpbin", "/EXPORTS", str(library)], capture_output=True, text=True, check=True).stdout
-        return set(re.findall(r"\b(ccsp_[A-Za-z0-9_]+)\b", out))
+        return {s for s in pe_exported_symbols(library) if s.startswith("ccsp_")}
 
     out = subprocess.run(
         ["nm", "-gU" if platform.system() == "Darwin" else "-D", "--defined-only", str(library)]

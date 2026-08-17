@@ -26,6 +26,9 @@ add_executable(test_c_api
         ../../csp/engine/StringExtern.cpp
         ../../csp/engine/TimeExtern.cpp
         ../../csp/engine/ValueExtern.cpp)
+# These sources define the C API symbols, so the export macro must resolve to dllexport rather
+# than dllimport; without this MSVC emits LNK4217/LNK4286 for every locally defined symbol.
+target_compile_definitions(test_c_api PRIVATE CSPIMPL_EXPORTS)
 target_link_libraries(test_c_api GTest::gtest GTest::gtest_main)
 
 install(TARGETS test_tick_buffer test_time_series test_partial_switch_csp_type test_dictionary test_window_buffer test_c_api

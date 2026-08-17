@@ -88,6 +88,7 @@ add_library(cspimpl SHARED
         # and land directly in the extension module rather than needing the archive force-loaded.
         ../engine/AdapterManagerExtern.cpp
         ../engine/DictionaryExtern.cpp
+        ../engine/ErrorExtern.cpp
         ../engine/OutputAdapterExtern.cpp
         ../engine/PushInputAdapterExtern.cpp
         ../engine/StringExtern.cpp

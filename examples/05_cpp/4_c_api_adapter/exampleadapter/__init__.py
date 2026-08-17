@@ -124,10 +124,12 @@ def _create_managed_input_adapter(mgr_capsule, engine, pytype, push_mode, scalar
     """
     Bridge function for managed input adapter.
 
-    scalars are positional, in the order declared by _managed_input_adapter_def:
-    (manager, ts_type, interval_ms, push_group)
+    scalars are positional, in the order the kwargs are declared by
+    _managed_input_adapter_def: (typ, interval_ms, push_group). The manager is a
+    separate positional argument to input_adapter_def, so it is delivered as
+    mgr_capsule rather than as a scalar.
     """
-    _, _, interval_ms, push_group = scalars
+    _, interval_ms, push_group = scalars
 
     capsule = _exampleadapterimpl._example_input_adapter(interval_ms=interval_ms)
 
@@ -138,10 +140,10 @@ def _create_managed_output_adapter(mgr_capsule, engine, scalars):
     """
     Bridge function for managed output adapter.
 
-    scalars: (ExampleAdapterManager, prefix)
+    The manager is delivered as mgr_capsule rather than as a scalar, and the ts
+    input is not a scalar, so scalars is just (prefix,).
     """
-    # Extract prefix from scalars
-    prefix = scalars[1] if len(scalars) > 1 else ""
+    (prefix,) = scalars
     if prefix is None:
         prefix = ""
 
@@ -211,12 +213,9 @@ def _create_standalone_input_adapter(mgr, engine, pytype, push_mode, scalars):
     """
     Bridge function for standalone input adapter.
 
-    For standalone adapters without a manager, scalars contains:
-    - scalars[0]: typ (the Python type, e.g., int)
-    - scalars[1]: interval_ms (int)
+    There is no manager, so scalars is (typ, interval_ms).
     """
-    # Extract interval_ms from scalars (second element, after typ)
-    interval_ms = scalars[1] if len(scalars) > 1 else 100
+    _, interval_ms = scalars
 
     # Create the VTable capsule
     capsule = _exampleadapterimpl._example_input_adapter(interval_ms=interval_ms)
@@ -228,9 +227,10 @@ def _create_standalone_input_adapter(mgr, engine, pytype, push_mode, scalars):
 def _create_standalone_output_adapter(mgr, engine, scalars):
     """
     Bridge function for standalone output adapter.
+
+    The ts input is not a scalar, so scalars is just (prefix,).
     """
-    # Extract prefix from scalars
-    prefix = scalars[0] if scalars else None
+    (prefix,) = scalars
     # Convert None to empty string as the C function expects a string
     if prefix is None:
         prefix = ""

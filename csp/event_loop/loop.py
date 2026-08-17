@@ -207,8 +207,10 @@ class CspEventLoop(asyncio.AbstractEventLoop):
         self._sim_start_time: Optional[datetime] = None  # Track sim start for time()
         self._sim_now: Optional[float] = None  # Last simulated time() value, in the sim clock domain
 
-        # Threadsafe callback queue
-        self._csock_lock = threading.Lock()
+        # Threadsafe callback queue. Reentrant because a signal handler runs on the thread that
+        # was interrupted, and ours calls call_soon_threadsafe: a plain Lock self-deadlocks when
+        # the signal lands while that same thread already holds it.
+        self._csock_lock = threading.RLock()
         self._threadsafe_callbacks: deque = deque()
 
         # CSP wakeup fd for native event loop integration
@@ -382,6 +384,20 @@ class CspEventLoop(asyncio.AbstractEventLoop):
             # Simulation mode: CSP drives time, no waiting
             self._run_once_simulation()
 
+    def _csp_event_is_due(self) -> bool:
+        """Whether the engine has a scheduled event at or before now.
+
+        Without this the loop pays for a full cycle on every wakeup, however unrelated.
+        Unknown timings count as due, so a cycle is never withheld from a live engine.
+        """
+        csp_next = self._csp_engine.next_scheduled_time()
+        if csp_next is None:
+            return False
+        csp_now = self._csp_engine.now()
+        if csp_now is None:
+            return True
+        return csp_next <= csp_now
+
     def _step_csp_engine(self) -> None:
         """Run a single non-blocking CSP cycle.
 
@@ -462,8 +478,9 @@ class CspEventLoop(asyncio.AbstractEventLoop):
             if csp_wakeup_signaled:
                 # Clear the wakeup fd before processing
                 self._csp_engine.clear_wakeup_fd()
-            # Step with 0 wait - just process what's ready
-            self._step_csp_engine()
+                self._step_csp_engine()
+            elif self._csp_event_is_due():
+                self._step_csp_engine()
 
         # Process Python scheduled callbacks that are due
         now = self.time()

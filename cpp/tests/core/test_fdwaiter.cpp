@@ -166,6 +166,29 @@ TEST( FdWaiterTest, concurrent_notify )
     EXPECT_TRUE( drainUntilQuiet( waiter ) );
 }
 
+// notify() is unsynchronized against ~FdWaiter, so the supported pattern is to quiesce producers
+// before destroying.  Repeat that pattern under load to catch descriptor leaks and any ordering
+// problem in construction or teardown.
+TEST( FdWaiterTest, construct_and_destroy_under_load )
+{
+    for( int iteration = 0; iteration < 50; ++iteration )
+    {
+        FdWaiter waiter;
+        ASSERT_TRUE( waiter.isValid() ) << "failed to create waiter on iteration " << iteration;
+
+        std::atomic<bool> stop{ false };
+        std::vector<std::thread> threads;
+        for( int t = 0; t < 4; ++t )
+            threads.emplace_back( [&waiter, &stop]() { while( !stop.load( std::memory_order_relaxed ) ) waiter.notify(); } );
+
+        EXPECT_TRUE( becomesReadable( waiter ) );
+
+        stop.store( true, std::memory_order_relaxed );
+        for( auto & thread : threads )
+            thread.join();
+    }
+}
+
 // notify() is unsynchronized, so producers can refill the fd while clear() is draining it.
 // clear() must be bounded and return regardless; if it spun until the fd ran dry this would hang.
 TEST( FdWaiterTest, clear_terminates_while_producers_are_running )

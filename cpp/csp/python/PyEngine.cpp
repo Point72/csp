@@ -138,7 +138,6 @@ static PyObject * PyEngine_start( PyEngine * self, PyObject * args )
     if( PyErr_Occurred() )
         return nullptr;
 
-    Py_RETURN_NONE;
     CSP_RETURN_NONE;
 }
 

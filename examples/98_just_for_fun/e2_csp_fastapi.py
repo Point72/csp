@@ -46,13 +46,16 @@ from csp.utils.datetime import utc_now
 
 # Utilities
 
+# The /order endpoint mutates graph state without authentication, so keep this off the network
+HOST = "127.0.0.1"
+
 
 def find_free_port(start_port: int = 8000, max_attempts: int = 100) -> int:
     """Find an available port starting from start_port."""
     for port in range(start_port, start_port + max_attempts):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(("0.0.0.0", port))
+                s.bind((HOST, port))
                 return port
         except OSError:
             continue
@@ -288,7 +291,7 @@ def main():
     try:
         uvicorn.run(
             app,
-            host="0.0.0.0",
+            host=HOST,
             port=port,
             log_level="info",
         )

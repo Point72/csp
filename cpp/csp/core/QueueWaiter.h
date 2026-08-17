@@ -119,6 +119,9 @@ public:
 #endif
     }
 
+    // Producers must be quiesced before this runs: notify() takes no lock, so destroying while
+    // another thread is inside it writes to a descriptor this closed, which the OS may already
+    // have handed to something else.
     ~FdWaiter()
     {
 #ifdef __linux__

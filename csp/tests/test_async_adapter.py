@@ -479,9 +479,75 @@ class TestAsyncAlarm(unittest.TestCase):
         def graph():
             csp.add_graph_output("out", no_poll(csp.const(True)))
 
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ValueError) as ctx:
             csp.run(graph, realtime=True, endtime=timedelta(seconds=0.4))
-        self.assertIn("async boom", str(ctx.exception.__cause__ or ctx.exception))
+        self.assertIn("async boom", str(ctx.exception))
+
+    def test_ticked_on_a_failed_alarm_does_not_raise(self):
+        """csp.ticked() is a predicate everywhere else in csp, so it must not raise here."""
+        from csp.impl.async_adapter import AsyncAlarm
+
+        alarm = AsyncAlarm(int)
+        alarm._results.put(("error", ValueError("boom")))
+
+        alarm.start_cycle()
+        self.assertTrue(alarm.has_result())
+        self.assertIsNone(alarm.get_result())
+
+        # The error surfaces where the node reads the value, not where it tests ticked()
+        with self.assertRaises(ValueError):
+            alarm.value
+
+    def test_async_alarm_cannot_be_assigned_or_deleted(self):
+        """The alarm name is rewritten to a value read, so writing to it must be a parse error."""
+        from csp.impl.wiring.base_parser import CspParseError
+
+        with self.assertRaises(CspParseError):
+
+            @csp.node
+            def assigns_alarm(x: ts[int]) -> ts[int]:
+                with csp.alarms():
+                    aa = csp.async_alarm(int)
+
+                if csp.ticked(x):
+                    aa = 5  # noqa: F841
+                    return aa
+
+        with self.assertRaises(CspParseError):
+
+            @csp.node
+            def deletes_alarm(x: ts[int]) -> ts[int]:
+                with csp.alarms():
+                    aa = csp.async_alarm(int)
+
+                if csp.ticked(x):
+                    del aa
+                    return x
+
+    def test_async_alarm_accepts_types_that_have_no_name(self):
+        """The alarm type is injected as an object, so aliased and generic types must work."""
+        import typing
+        from datetime import timedelta as aliased_timedelta
+
+        async def make_list(n: int) -> typing.List[int]:
+            return [n, n]
+
+        @csp.node
+        def generic_alarm(x: ts[int]) -> ts[typing.List[int]]:
+            with csp.alarms():
+                aa = csp.async_alarm(typing.List[int])
+
+            if csp.ticked(x):
+                csp.schedule_async_alarm(aa, make_list(x))
+            if csp.ticked(aa):
+                return aa
+
+        results = csp.run(
+            lambda: csp.add_graph_output("out", generic_alarm(csp.const(3))),
+            realtime=True,
+            endtime=aliased_timedelta(seconds=0.4),
+        )
+        self.assertEqual([v for _, v in results["out"]], [[3, 3]])
 
     def test_async_alarm_multiple_operations(self):
         """Test async_alarm with multiple sequential operations."""

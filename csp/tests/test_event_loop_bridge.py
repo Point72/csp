@@ -22,6 +22,15 @@ IS_WINDOWS = sys.platform == "win32"
 TIMING_TOLERANCE = 0.05 if IS_WINDOWS else 0.01
 
 
+def wait_for(predicate, timeout=5.0):
+    """Wait until predicate() is truthy. Sleeping a fixed interval is both slower and flaky,
+    since a loaded CI machine can miss the window entirely."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and not predicate():
+        time.sleep(0.005)
+    return predicate()
+
+
 class TestAsyncioBridgeBasic(unittest.TestCase):
     """Basic tests for AsyncioBridge."""
 
@@ -37,6 +46,7 @@ class TestAsyncioBridgeBasic(unittest.TestCase):
         bridge = AsyncioBridge(int, "test_bridge")
 
         bridge.start()
+        self.addCleanup(bridge.stop)
         self.assertTrue(bridge.is_running)
         self.assertIsNotNone(bridge.loop)
 
@@ -50,6 +60,7 @@ class TestAsyncioBridgeBasic(unittest.TestCase):
         start_time = datetime(2026, 1, 1, 12, 0, 0)
 
         bridge.start(start_time)
+        self.addCleanup(bridge.stop)
         self.assertEqual(bridge._start_time, start_time)
 
         bridge.stop()
@@ -58,6 +69,7 @@ class TestAsyncioBridgeBasic(unittest.TestCase):
         """Test that starting twice raises an error."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         try:
             with self.assertRaises(RuntimeError):
@@ -69,6 +81,7 @@ class TestAsyncioBridgeBasic(unittest.TestCase):
         """Test that push returns False before graph starts."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         # Push before adapter is bound to graph
         result = bridge.push(42)
@@ -84,13 +97,14 @@ class TestAsyncioBridgeCallbacks(unittest.TestCase):
         """Test call_soon schedules a callback."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         results = []
 
         bridge.call_soon(lambda: results.append("called"))
 
         # Wait for callback to execute
-        time.sleep(0.1)
+        wait_for(lambda: results)
 
         self.assertEqual(results, ["called"])
         bridge.stop()
@@ -99,12 +113,13 @@ class TestAsyncioBridgeCallbacks(unittest.TestCase):
         """Test call_soon with arguments."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         results = []
 
         bridge.call_soon(lambda x, y: results.append(x + y), 1, 2)
 
-        time.sleep(0.1)
+        wait_for(lambda: results)
 
         self.assertEqual(results, [3])
         bridge.stop()
@@ -120,6 +135,7 @@ class TestAsyncioBridgeCallbacks(unittest.TestCase):
         """Test call_later schedules a delayed callback."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         results = []
         start = time.time()
@@ -127,10 +143,10 @@ class TestAsyncioBridgeCallbacks(unittest.TestCase):
         bridge.call_later(0.1, lambda: results.append(time.time() - start))
 
         # Wait for callback
-        time.sleep(0.2)
+        wait_for(lambda: results)
 
         self.assertEqual(len(results), 1)
-        self.assertGreaterEqual(results[0], 0.09)
+        self.assertGreaterEqual(results[0], 0.1 - TIMING_TOLERANCE)
 
         bridge.stop()
 
@@ -138,6 +154,7 @@ class TestAsyncioBridgeCallbacks(unittest.TestCase):
         """Test that negative delay raises an error."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         try:
             with self.assertRaises(ValueError):
@@ -149,13 +166,14 @@ class TestAsyncioBridgeCallbacks(unittest.TestCase):
         """Test call_at schedules at specific time."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         results = []
         target = datetime.utcnow() + timedelta(milliseconds=100)
 
         bridge.call_at(target, lambda: results.append(datetime.utcnow()))
 
-        time.sleep(0.2)
+        wait_for(lambda: results)
 
         self.assertEqual(len(results), 1)
         # Allow some tolerance
@@ -167,13 +185,14 @@ class TestAsyncioBridgeCallbacks(unittest.TestCase):
         """Test call_at with past time schedules immediately."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         results = []
         past_time = datetime.utcnow() - timedelta(seconds=10)
 
         bridge.call_at(past_time, lambda: results.append(True))
 
-        time.sleep(0.1)
+        wait_for(lambda: results)
 
         self.assertEqual(results, [True])
         bridge.stop()
@@ -183,12 +202,13 @@ class TestAsyncioBridgeCallbacks(unittest.TestCase):
         bridge = AsyncioBridge(int, "test_bridge")
         start_time = datetime.utcnow()
         bridge.start(start_time)
+        self.addCleanup(bridge.stop)
 
         results = []
 
         bridge.call_at_offset(timedelta(milliseconds=100), lambda: results.append(True))
 
-        time.sleep(0.2)
+        wait_for(lambda: results)
 
         self.assertEqual(results, [True])
         bridge.stop()
@@ -201,6 +221,7 @@ class TestAsyncioBridgeCoroutines(unittest.TestCase):
         """Test running a coroutine."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         async def my_coro():
             await asyncio.sleep(0.05)
@@ -226,6 +247,7 @@ class TestAsyncioBridgeCoroutines(unittest.TestCase):
         """Test coroutine that raises exception."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         async def failing_coro():
             raise ValueError("test error")
@@ -245,6 +267,7 @@ class TestAsyncioBridgeTime(unittest.TestCase):
         """Test time() returns current time."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         t1 = bridge.time()
         time.sleep(0.05)
@@ -259,6 +282,7 @@ class TestAsyncioBridgeTime(unittest.TestCase):
         """Test elapsed_since_start returns correct duration."""
         bridge = AsyncioBridge(int, "test_bridge")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         time.sleep(0.1)
         elapsed = bridge.elapsed_since_start()
@@ -295,6 +319,7 @@ class TestAsyncioBridgeWithCSP(unittest.TestCase):
 
         start_time = utc_now()
         bridge.start(start_time)
+        self.addCleanup(bridge.stop)
         time.sleep(0.05)
 
         runner = csp.run_on_thread(g, realtime=True, starttime=start_time, endtime=timedelta(seconds=1))
@@ -330,6 +355,7 @@ class TestAsyncioBridgeWithCSP(unittest.TestCase):
 
         start_time = utc_now()
         bridge.start(start_time)
+        self.addCleanup(bridge.stop)
         time.sleep(0.05)
 
         runner = csp.run_on_thread(g, realtime=True, starttime=start_time, endtime=timedelta(seconds=1))
@@ -365,6 +391,7 @@ class TestAsyncioBridgeWithCSP(unittest.TestCase):
 
         start_time = utc_now()
         bridge.start(start_time)
+        self.addCleanup(bridge.stop)
         time.sleep(0.05)
 
         runner = csp.run_on_thread(g, realtime=True, starttime=start_time, endtime=timedelta(seconds=1))
@@ -406,6 +433,7 @@ class TestAsyncioBridgeWithCSP(unittest.TestCase):
 
         start_time = utc_now()
         bridge.start(start_time)
+        self.addCleanup(bridge.stop)
         time.sleep(0.05)
 
         runner = csp.run_on_thread(g, realtime=True, starttime=start_time, endtime=timedelta(milliseconds=500))
@@ -443,6 +471,7 @@ class TestBidirectionalBridge(unittest.TestCase):
         """Test registering event callbacks."""
         bridge = BidirectionalBridge(str, "bidi")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         received = []
         bridge.on_event(lambda x: received.append(x))
@@ -459,6 +488,7 @@ class TestBidirectionalBridge(unittest.TestCase):
         """Test unregistering event callbacks."""
         bridge = BidirectionalBridge(str, "bidi")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         received = []
         callback = lambda x: received.append(x)
@@ -502,6 +532,7 @@ class TestBidirectionalBridge(unittest.TestCase):
 
         start_time = utc_now()
         bridge.start(start_time)
+        self.addCleanup(bridge.stop)
         time.sleep(0.05)
 
         runner = csp.run_on_thread(g, realtime=True, starttime=start_time, endtime=timedelta(seconds=1))
@@ -531,6 +562,7 @@ class TestBidirectionalBridge(unittest.TestCase):
         """Test multiple event callbacks receive events."""
         bridge = BidirectionalBridge(str, "bidi")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         received1 = []
         received2 = []
@@ -554,6 +586,7 @@ class TestDeferredHandle(unittest.TestCase):
         """Test cancelling a deferred handle."""
         bridge = AsyncioBridge(int, "test")
         bridge.start()
+        self.addCleanup(bridge.stop)
 
         results = []
         handle = bridge.call_later(0.5, lambda: results.append(True))

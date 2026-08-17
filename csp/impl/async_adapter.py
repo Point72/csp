@@ -31,11 +31,6 @@ __all__ = [
     "await_",
     "async_alarm",
     "schedule_async_alarm",
-    "get_async_loop",
-    "get_shared_loop",
-    "get_csp_asyncio_loop",
-    "is_csp_asyncio_mode",
-    "shutdown_shared_loop",
 ]
 
 T = TypeVar("T")
@@ -733,6 +728,8 @@ class _AsyncNodeOutputAdapterImpl(PushInputAdapter):
 
                 value = await self._state.input_queue.get()
                 if value is _ASYNC_NODE_SHUTDOWN:
+                    if slots is not None:
+                        slots.release()
                     break
 
                 # Process each value as a separate task for concurrency.  Hold a strong
@@ -1071,9 +1068,6 @@ class AsyncAlarm:
             with csp.state():
                 s_counter = 0
 
-            with csp.stop():
-                async_alarm.stop()
-
             if csp.ticked(trigger):
                 s_counter += 1
                 csp.schedule_async_alarm(async_alarm, async_func(s_counter))
@@ -1092,6 +1086,8 @@ class AsyncAlarm:
         self._pending_count = 0
         self._lock = threading.Lock()
         self._last_result = None  # Store the last result for value access
+        self._last_error: Optional[BaseException] = None
+        self._error_observed = False
         self._ticked_this_cycle = False
         self._wakeup_proxy = None
         self._owns_loop = False
@@ -1227,32 +1223,46 @@ class AsyncAlarm:
 
     def start_cycle(self) -> None:
         """Clear the per-cycle latch. Called once per node invocation by generated code."""
+        # A node may tick on a failed alarm and never read it; without this the exception would
+        # vanish, since csp.ticked() no longer raises
+        if self._last_error is not None and not self._error_observed:
+            self._error_observed = True
+            log.error("async alarm coroutine failed and the node never read the value", exc_info=self._last_error)
         self._ticked_this_cycle = False
 
     def get_result(self) -> T:
         """
-        Get the result for this cycle, dequeuing at most once per node invocation.
+        Latch the result for this cycle, dequeuing at most once per node invocation.
 
-        Returns:
-            The result of the completed async operation.
+        A failed coroutine is latched rather than raised here, because this runs inside
+        csp.ticked(), which everywhere else in csp is a plain predicate. The exception is
+        raised when the node reads the alarm's value.
 
         Raises:
             queue.Empty: If no result is available.
-            Exception: If the async operation raised an exception.
         """
         if self._ticked_this_cycle:
             return self._last_result
 
         status, value = self._results.get_nowait()
-        if status == "error":
-            raise value
-        self._last_result = value
         self._ticked_this_cycle = True
+
+        if status == "error":
+            self._last_error = value
+            self._error_observed = False
+            self._last_result = None
+            return None
+
+        self._last_error = None
+        self._last_result = value
         return value
 
     @property
     def value(self) -> T:
         """Get the last result value. Used when accessing the alarm as a value."""
+        if self._last_error is not None:
+            self._error_observed = True
+            raise self._last_error
         return self._last_result
 
     def pending_count(self) -> int:
@@ -1267,8 +1277,7 @@ def async_alarm(output_type: type = object) -> AsyncAlarm:
     Create an async alarm for use in CSP nodes.
 
     This is meant to be used in a pattern similar to csp.alarm(), but for async operations.
-    The async alarm is automatically started when created and should be stopped in the
-    node's stop block.
+    The alarm is started when created and stopped for you when the node stops.
 
     Args:
         output_type: The type of values that will be produced by async operations.
@@ -1279,9 +1288,6 @@ def async_alarm(output_type: type = object) -> AsyncAlarm:
     Example:
         with csp.alarms():
             async_alarm = csp.async_alarm(int)
-
-        with csp.stop():
-            async_alarm.stop()
     """
     alarm = AsyncAlarm(output_type)
     alarm.start()  # Auto-start for convenience

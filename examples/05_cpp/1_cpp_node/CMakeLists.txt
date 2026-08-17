@@ -13,9 +13,10 @@ execute_process(
     COMMAND "${Python_EXECUTABLE}" -c "import csp; print(csp.get_lib_path(), end='')"
     OUTPUT_VARIABLE CSP_LIB_DIR)
 
-# Windows links the import library; elsewhere the module itself is linked
+# Windows links the import library; elsewhere the module itself is linked. CMake applies the
+# leading underscore to the module but not to its import library, so accept either name.
 if(WIN32)
-    find_library(CSP_LIBRARY NAMES _cspimpl PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PATH)
+    find_library(CSP_LIBRARY NAMES _cspimpl cspimpl PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PATH)
 else()
     find_library(CSP_LIBRARY NAMES _cspimpl.so PATHS "${CSP_LIB_DIR}" NO_DEFAULT_PATH)
 endif()

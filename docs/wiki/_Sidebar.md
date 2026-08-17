@@ -37,7 +37,6 @@ Notes for editors:
   - [Write Output Adapters](Write-Output-Adapters)
 - [Profile CSP Code](Profile-CSP-Code)
 - [Event Loop Integration](Event-Loop-Integration)
-- [Asyncio Integration](Asyncio-Integration)
 
 **References**
 

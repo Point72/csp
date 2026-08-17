@@ -1,7 +1,8 @@
 # CSP Event Loop Integration
 
-CSP provides two complementary integration patterns with Python's `asyncio` framework:
+CSP provides three complementary integration patterns with Python's `asyncio` framework:
 
+1. **Same-Thread Asyncio Mode (Default)**: In realtime mode, CSP runs async operations on the same thread by default
 1. **Standalone Event Loop**: Use CSP as the asyncio event loop backend (similar to uvloop)
 1. **Bridge with Running Graph**: Interleave asyncio operations with a running CSP graph
 
@@ -20,6 +21,70 @@ The `csp.event_loop` module provides:
 
 - **`AsyncioBridge`**: Bridge for pushing data from asyncio to CSP graphs
 - **`BidirectionalBridge`**: Bridge supporting two-way communication
+
+## Part 0: Same-Thread Asyncio Mode (Default)
+
+When running CSP graphs in realtime mode, async operations run on the same thread by default:
+
+```python
+import csp
+from datetime import timedelta
+from typing import AsyncIterator
+import asyncio
+
+async def fetch_data(count: int) -> AsyncIterator[int]:
+    """Async generator that fetches data."""
+    for i in range(count):
+        await asyncio.sleep(0.1)
+        yield i * 10
+
+@csp.graph
+def my_graph():
+    # Async adapters automatically use CSP's asyncio loop
+    data = csp.async_for(fetch_data(5))
+    csp.print("data", data)
+
+# In realtime mode, asyncio runs on the same thread by default
+csp.run(my_graph, realtime=True, endtime=timedelta(seconds=2))
+```
+
+### How It Works
+
+When you call `csp.run(..., realtime=True)`:
+
+1. CSP creates a new asyncio event loop on the **current thread**
+1. The CSP engine yields control to the asyncio loop between engine cycles, allowing async tasks to run
+1. All async adapters (`async_for`, `async_in`, `async_out`, etc.) automatically detect this mode and run on the **same thread** as CSP
+1. No background thread is needed - this eliminates cross-thread synchronization overhead
+
+**To use the legacy background thread mode**, set `asyncio_on_thread=True`:
+
+```python
+# Explicitly use background thread for async operations
+csp.run(my_graph, realtime=True, endtime=timedelta(seconds=2), asyncio_on_thread=True)
+```
+
+### Detecting Asyncio Mode
+
+You can check if you're running in CSP's asyncio mode:
+
+```python
+from csp.impl.async_adapter import is_csp_asyncio_mode, get_csp_asyncio_loop
+
+@csp.node
+def my_node(x: ts[int]) -> ts[int]:
+    if csp.ticked(x):
+        if is_csp_asyncio_mode():
+            loop = get_csp_asyncio_loop()
+            # We're running in asyncio mode, can schedule directly on the loop
+        return x * 2
+```
+
+### Requirements
+
+- Same-thread asyncio mode is only active in realtime mode (`realtime=True`)
+- The graph runs synchronously (blocks until complete)
+- The return value is the same as normal `csp.run()`
 
 ## Part 1: Standalone Event Loop
 
@@ -788,9 +853,35 @@ The current implementation has some limitations:
 
 1. **Bridge timing**: The bridge uses wall-clock time, not CSP engine time. Use `call_at_offset` to align with CSP start time.
 
+## Comparison: Choosing the Right Integration
+
+| Feature            | `csp.run(realtime=True)`        | `CspEventLoop`                        | `AsyncioBridge`                |
+| ------------------ | ------------------------------- | ------------------------------------- | ------------------------------ |
+| **Use case**       | CSP graph with async operations | Pure asyncio code with CSP scheduling | CSP graph receiving async data |
+| **Threading**      | Single-threaded (default)       | Single-threaded                       | Multi-threaded                 |
+| **CSP graph**      | Yes (main focus)                | No (pure asyncio)                     | Yes (main focus)               |
+| **Async adapters** | Automatic integration           | Need to run in the loop               | Need explicit bridge           |
+| **Complexity**     | Low                             | Low                                   | Medium                         |
+| **When to use**    | Async I/O in CSP nodes          | Replace asyncio.run()                 | Push external data to CSP      |
+
+### Quick Decision Guide
+
+1. **I have a CSP graph with async operations (fetch APIs, async I/O):**
+   → Use `csp.run(my_graph, realtime=True, ...)` - same-thread asyncio is the default
+
+1. **I want to use asyncio code and need CSP's scheduler:**
+   → Use `CspEventLoop` or `csp.event_loop.run()`
+
+1. **I have a running CSP graph and need to push data from external async sources:**
+   → Use `AsyncioBridge` or `BidirectionalBridge`
+
+1. **I want async adapters to work without extra configuration:**
+   → Just use `realtime=True` - adapters auto-detect the asyncio mode
+
 ## See Also
 
+- [Async Adapters Reference](Async.md) - Detailed async adapter documentation
 - [Python asyncio documentation](https://docs.python.org/3/library/asyncio.html)
-- [CSP Documentation](../README.md)
+- [CSP Documentation](../Home.md)
 - [uvloop](https://github.com/MagicStack/uvloop) - Similar project for libuv-based event loop
 - [Example: CSP Asyncio Integration](https://github.com/Point72/csp/tree/main/examples/06_advanced/e3_asyncio_integration.py)

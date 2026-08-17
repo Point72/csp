@@ -89,15 +89,7 @@ To use the legacy background thread mode instead:
 csp.run(my_graph, realtime=True, endtime=timedelta(seconds=5), asyncio_on_thread=True)
 ```
 
-To check if you're in asyncio mode:
-
-```python
-from csp.impl.async_adapter import is_csp_asyncio_mode, get_csp_asyncio_loop
-
-if is_csp_asyncio_mode():
-    loop = get_csp_asyncio_loop()
-    print(f"Running in CSP asyncio mode on {loop}")
-```
+See [Event Loop Integration](Event-Loop-Integration.md) for how this mode works, how to detect it from inside a node, and its requirements.
 
 ### Option 3: Custom Event Loop
 

@@ -1,13 +1,16 @@
-import httpx
+__all__ = ("create_topic",)
 
 
-def _precreate_topic(topic):
-    """Since we test against confluent kafka, just use the kafka rest addon"""
-    rest_broker = "http://localhost:8082"
-    cluster_info = httpx.get(f"{rest_broker}/v3/clusters")
-    cluster_id = cluster_info.json()["data"][0]["cluster_id"]
-    resp = httpx.post(f"{rest_broker}/v3/clusters/{cluster_id}/topics", json={"topic_name": topic})
-    if resp.status_code != 201 and "already exists" not in resp.content.decode("utf8"):
-        raise Exception(
-            f"Could not create topic {topic} on cluster {rest_broker}/v3/clusters/{cluster_id}/topics - received {resp.content}"
-        )
+def create_topic(broker, topic):
+    """Create `topic` and block until the broker acknowledges it.
+
+    Creation is done out of band rather than by publishing a warm-up message, so that no test data
+    lands on the topic and so tests do not depend on broker-side auto-creation (disabled in
+    ci/kafka/docker-compose.yml so test_invalid_topic can exercise the failure path).
+    """
+    # Imported lazily so collection does not require confluent-kafka when the kafka tests are skipped
+    from confluent_kafka.admin import AdminClient, NewTopic
+
+    admin = AdminClient({"bootstrap.servers": broker})
+    for _, future in admin.create_topics([NewTopic(topic, num_partitions=1, replication_factor=1)]).items():
+        future.result()

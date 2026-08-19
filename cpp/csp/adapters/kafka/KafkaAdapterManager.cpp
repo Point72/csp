@@ -23,6 +23,14 @@ INIT_CSP_ENUM( csp::adapters::kafka::KafkaStatusMessageType,
 namespace csp::adapters::kafka
 {
 
+//A topic that does not exist is only reported this way when the broker will not auto-create it.
+//The producer reports it after topic.metadata.propagation.max.ms rather than immediately.
+static bool isUnknownTopic( int err )
+{
+    return err == RdKafka::ErrorCode::ERR_UNKNOWN_TOPIC_OR_PART ||
+           err == RdKafka::ErrorCode::ERR__UNKNOWN_TOPIC;
+}
+
 class DeliveryReportCb : public RdKafka::DeliveryReportCb
 {
 public:
@@ -38,7 +46,12 @@ public:
         {
             std::string msg = "KafkaPublisher: Message delivery failed for topic " + message.topic_name() + ". Failure: " + message.errstr();
             m_adapterManager -> pushStatus( StatusLevel::ERROR, KafkaStatusMessageType::MSG_DELIVERY_FAILED, msg );
+
+            if( isUnknownTopic( message.err() ) )
+                m_adapterManager -> forceShutdown( msg );
         }
+        else
+            m_adapterManager -> onBrokerActivity();
     }
 private:
     KafkaAdapterManager * m_adapterManager;
@@ -60,12 +73,16 @@ public:
         if( event.type() == RdKafka::Event::EVENT_ERROR )
         {
             //We shutdown the app if its a fatal error OR if its an authentication issue which has plagued users multiple times
-            //Adding ERR__ALL_BROKERS_DOWN which happens when all brokers are down
             if( event.fatal() ||
-                event.err() == RdKafka::ErrorCode::ERR__AUTHENTICATION ||
-                event.err() == RdKafka::ErrorCode::ERR__ALL_BROKERS_DOWN )
+                event.err() == RdKafka::ErrorCode::ERR__AUTHENTICATION )
             {
                 m_adapterManager -> forceShutdown( RdKafka::err2str( ( RdKafka::ErrorCode ) event.err() ) + event.str() );
+            }
+            //librdkafka reports this on every failed connection round and reconnects on its own, so a
+            //single report says nothing about whether the brokers are really gone
+            else if( event.err() == RdKafka::ErrorCode::ERR__ALL_BROKERS_DOWN )
+            {
+                m_adapterManager -> onBrokersDown( RdKafka::err2str( ( RdKafka::ErrorCode ) event.err() ) + event.str() );
             }
         }
     }
@@ -77,10 +94,12 @@ private:
 KafkaAdapterManager::KafkaAdapterManager( csp::Engine * engine, const Dictionary & properties ) : AdapterManager( engine ),
                                                                                                   m_consumerIdx( 0 ),
                                                                                                   m_producerPollThreadActive( false ),
-                                                                                                  m_unrecoverableError( false )
+                                                                                                  m_unrecoverableError( false ),
+                                                                                                  m_brokersDownSince( 0 )
 {
     m_maxThreads = properties.get<uint64_t>( "max_threads" );
     m_pollTimeoutMs = properties.get<TimeDelta>( "poll_timeout" ).asMilliseconds();
+    m_brokersDownTolerance = properties.get<TimeDelta>( "broker_down_tolerance" ).asNanoseconds();
 
     m_eventCb = std::make_unique<EventCb>( this );
     m_producerCb = std::make_unique<DeliveryReportCb>( this );
@@ -131,6 +150,33 @@ void KafkaAdapterManager::setConfProperties( RdKafka::Conf * conf, const Diction
         if( conf -> set( key, value, errstr ) != RdKafka::Conf::CONF_OK )
             CSP_THROW( RuntimeException, "Failed to set property " << key << ": " << errstr );
     }
+}
+
+void KafkaAdapterManager::onBrokersDown( const std::string & err )
+{
+    int64_t since = 0;
+
+    //Only the first report starts the clock. Escalation is left to checkBrokersDown() on the poll
+    //threads rather than done here, since librdkafka may not report again for seconds.
+    if( m_brokersDownSince.compare_exchange_strong( since, DateTime::now().asNanoseconds() ) )
+    {
+        std::lock_guard<std::mutex> guard( m_brokersDownLock );
+        m_brokersDownError = err;
+    }
+}
+
+void KafkaAdapterManager::checkBrokersDown()
+{
+    int64_t since = m_brokersDownSince.load( std::memory_order_relaxed );
+    if( since == 0 || DateTime::now().asNanoseconds() - since < m_brokersDownTolerance )
+        return;
+
+    std::string err;
+    {
+        std::lock_guard<std::mutex> guard( m_brokersDownLock );
+        err = m_brokersDownError;
+    }
+    forceShutdown( err );
 }
 
 void KafkaAdapterManager::forceShutdown( const std::string & err )
@@ -228,6 +274,7 @@ void KafkaAdapterManager::pollProducers()
     while( m_producerPollThreadActive )
     {
         m_producer -> poll( m_pollTimeoutMs );
+        checkBrokersDown();
     }
 
     try
@@ -235,7 +282,9 @@ void KafkaAdapterManager::pollProducers()
         while( true )
         {
             auto rc = m_producer -> flush( 5000 );
-            if( !rc || m_unrecoverableError )
+            //Waiting on a flush that cannot complete is what used to hang shutdown, so give up as
+            //soon as there is nothing to flush to
+            if( !rc || m_unrecoverableError || brokersDown() )
                 break;
 
             if( rc != RdKafka::ERR__TIMED_OUT )

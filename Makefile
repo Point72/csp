@@ -117,7 +117,9 @@ tests: test
 
 .PHONY: dockerup dockerps dockerdown initpodmanmac
 ADAPTER := kafka
-DOCKER := podman
+# Prefer docker, fall back to podman-compose; override with DOCKER_COMPOSE=...
+DOCKER_COMPOSE := $(shell command -v docker >/dev/null 2>&1 && echo "docker compose" || echo "podman-compose")
+DOCKERARGS :=
 
 initpodmanmac:
 	podman machine stop
@@ -125,13 +127,13 @@ initpodmanmac:
 	podman machine start
 
 dockerup:  ## spin up docker compose services for adapter testing
-	$(DOCKER) compose -f ci/$(ADAPTER)/docker-compose.yml up -d
+	$(DOCKER_COMPOSE) -f ci/$(ADAPTER)/docker-compose.yml up -d $(DOCKERARGS)
 
-dockerps:  ## spin up docker compose services for adapter testing
-	$(DOCKER) compose -f ci/$(ADAPTER)/docker-compose.yml ps
+dockerps:  ## get status of current docker compose services
+	$(DOCKER_COMPOSE) -f ci/$(ADAPTER)/docker-compose.yml ps
 
-dockerdown:  ## spin up docker compose services for adapter testing
-	$(DOCKER) compose -f ci/$(ADAPTER)/docker-compose.yml down
+dockerdown:  ## spin down docker compose services for adapter testing
+	$(DOCKER_COMPOSE) -f ci/$(ADAPTER)/docker-compose.yml down
 
 ###########
 # VERSION #
@@ -222,9 +224,11 @@ dependencies-fedora:  ## install dependencies for linux - note that zip is neede
 dependencies-vcpkg:  ## install dependencies via vcpkg
 	cd vcpkg && ./bootstrap-vcpkg.sh && ./vcpkg install
 
+# curl.exe ships with Windows; installing it from choco breaks whenever a new version is
+# approved on the feed before the package is actually downloadable
 dependencies-win:  ## install dependencies via windows
 	choco install cmake --version=3.31.6 --allow-downgrade
-	choco install curl winflexbison ninja unzip --no-progress -y
+	choco install winflexbison ninja unzip --no-progress -y
 
 ############################################################################################
 # Thanks to Francoise at marmelab.com for this

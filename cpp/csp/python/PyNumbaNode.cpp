@@ -228,6 +228,12 @@ void PyNumbaNode::initStateArrays( PyObjectPtr stateVariables, PyObjectPtr nrtSt
             *reinterpret_cast<int64_t *>( buf ) = pyEnum -> enum_.value();
             m_stateArgs[ i ] = buf;
         }
+        else if( PyBool_Check( stateVal ) )
+        {
+            char * buf = new char[ 1 ];
+            *reinterpret_cast<int8_t *>( buf ) = ( stateVal == Py_True ) ? 1 : 0;
+            m_stateArgs[ i ] = buf;
+        }
         else if( PyLong_Check( stateVal ) )
         {
             char * buf = new char[ 8 ];
@@ -238,12 +244,6 @@ void PyNumbaNode::initStateArrays( PyObjectPtr stateVariables, PyObjectPtr nrtSt
         {
             char * buf = new char[ 8 ];
             *reinterpret_cast<double *>( buf ) = PyFloat_AsDouble( stateVal );
-            m_stateArgs[ i ] = buf;
-        }
-        else if( PyBool_Check( stateVal ) )
-        {
-            char * buf = new char[ 8 ];
-            *reinterpret_cast<int8_t *>( buf ) = ( stateVal == Py_True ) ? 1 : 0;
             m_stateArgs[ i ] = buf;
         }
         else

@@ -55,7 +55,6 @@ class CspNodeTransformer(ast.NodeTransformer):
                 attr_name="valid",
                 op=ast.And(),
             ),
-            "output": self._transform_output,
         }
         self.special_block_transformers = {
             "state": self._transform_state_block,
@@ -140,7 +139,7 @@ class CspNodeTransformer(ast.NodeTransformer):
 
         return ast.BoolOp(op=op, values=signal_checks)
 
-    def _transform_output(self, node: ast.Call) -> Union[ast.AST, List[ast.AST]]:
+    def _transform_output(self, node: ast.Call) -> List[ast.AST]:
         """Transform csp.output(...) calls into set_output(...) helper calls."""
         statements = []
 
@@ -162,14 +161,27 @@ class CspNodeTransformer(ast.NodeTransformer):
             )
             statements.append(ast.Expr(value=set_output_call))
 
-        if len(statements) == 1:
-            return statements[0]
         return statements
+
+    def visit_Expr(self, node: ast.Expr) -> Union[ast.AST, List[ast.AST]]:
+        """Lower standalone ``csp.output(...)`` calls into output statements."""
+        if isinstance(node.value, ast.Call) and self._is_csp_call(node.value, "output"):
+            return self._transform_output(node.value)
+        return self.generic_visit(node)
+
+    def visit_Return(self, node: ast.Return) -> Union[ast.AST, List[ast.AST]]:
+        """Lower ``return csp.output(...)`` while preserving the early return."""
+        if isinstance(node.value, ast.Call) and self._is_csp_call(node.value, "output"):
+            return [*self._transform_output(node.value), ast.Return(value=None)]
+        return self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> ast.AST:
         for method_name, transformer in self.csp_call_transformers.items():
             if self._is_csp_call(node, method_name):
                 return transformer(node)
+
+        if self._is_csp_call(node, "output"):
+            raise ValueError("csp.output(...) must be used as a standalone statement or returned")
 
         # Recursively transform arguments
         node.args = [self.visit(arg) for arg in node.args]

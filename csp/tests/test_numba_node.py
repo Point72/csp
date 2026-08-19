@@ -889,6 +889,38 @@ class TestFeatures(unittest.TestCase):
         self.assertEqual([v for _, v in results["squared"]], [4, 9, 0])
         self.assertEqual([v for _, v in results["positive"]], [3])
 
+    def test_multiple_outputs_in_single_call(self):
+        @numba_node
+        def multi_out(x: ts[int]) -> csp.Outputs(doubled=ts[int], squared=ts[int]):
+            csp.output(doubled=x * 2, squared=x * x)
+
+        @csp.graph
+        def g():
+            outputs = multi_out(csp.const(3))
+            csp.add_graph_output("doubled", outputs.doubled)
+            csp.add_graph_output("squared", outputs.squared)
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual([v for _, v in results["doubled"]], [6])
+        self.assertEqual([v for _, v in results["squared"]], [9])
+
+    def test_return_multiple_outputs(self):
+        @numba_node
+        def multi_out(x: ts[int]) -> csp.Outputs(doubled=ts[int], squared=ts[int]):
+            if x > 0:
+                return csp.output(doubled=x * 2, squared=x * x)
+
+        @csp.graph
+        def g():
+            values = csp.curve(int, [(timedelta(seconds=0), -2), (timedelta(seconds=1), 3)])
+            outputs = multi_out(values)
+            csp.add_graph_output("doubled", outputs.doubled)
+            csp.add_graph_output("squared", outputs.squared)
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=2))
+        self.assertEqual([v for _, v in results["doubled"]], [6])
+        self.assertEqual([v for _, v in results["squared"]], [9])
+
     def test_single_set_output(self):
         @numba_node
         def emit_scaled(x: ts[int]) -> ts[int]:

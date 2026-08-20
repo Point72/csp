@@ -1,15 +1,40 @@
 #ifndef _IN_CSP_CORE_QUEUEBLOCKINGWAIT_H
 #define _IN_CSP_CORE_QUEUEBLOCKINGWAIT_H
 
+// Windows: Include winsock2.h for FdWaiter socket pair implementation
+// WIN32_LEAN_AND_MEAN is defined project-wide to prevent winsock.h/winsock2.h conflicts
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#endif
+
+#include <cerrno>
 #include <mutex>
 #include <condition_variable>
 #include <csp/core/Time.h>
 #include <csp/core/System.h>
 
+#ifdef __linux__
+#include <sys/eventfd.h>
+#include <unistd.h>
+#elif defined(__APPLE__)
+#include <unistd.h>
+#include <fcntl.h>
+#endif
+
 namespace csp
 {
 
 class TimeDelta;
+
+// Handle type exposed by FdWaiter::readFd().  On Windows a SOCKET is a UINT_PTR, so it must not
+// be narrowed to int - handles above INT_MAX are legal and narrowing them is undefined.
+#ifdef _WIN32
+using FdHandle = SOCKET;
+#else
+using FdHandle = int;
+#endif
 
 class QueueWaiter
 {
@@ -41,6 +66,284 @@ private:
     std::mutex              m_lock;
     std::condition_variable m_condition;
     bool                    m_eventsPending;
+};
+
+// FdWaiter provides file descriptor based signaling for integration with
+// external event loops like asyncio. The read fd can be registered with
+// select/poll/epoll and will become readable when notify() is called.
+//
+// Consumers must clear() BEFORE draining the event queue they are guarding, never after.
+// Clearing afterwards discards the signal for any event queued between the drain and the clear,
+// which strands that event until the next unrelated wakeup.
+class FdWaiter
+{
+public:
+    FdWaiter()
+    {
+#ifdef __linux__
+        // Linux: use eventfd (single fd, most efficient)
+        m_eventfd = eventfd( 0, EFD_NONBLOCK | EFD_CLOEXEC );
+        m_readFd = m_eventfd;
+        m_writeFd = m_eventfd;
+#elif defined(__APPLE__)
+        // macOS: use pipe
+        int fds[2];
+        if( pipe( fds ) == 0 )
+        {
+            m_readFd = fds[0];
+            m_writeFd = fds[1];
+            // notify() writes on every call and must never block, so non-blocking is mandatory.
+            // FD_CLOEXEC is a descriptor flag ( F_SETFD ), not a status flag: without it both ends
+            // leak into any forked child, and a child holding the write end prevents EOF.
+            if( fcntl( m_readFd, F_SETFL, O_NONBLOCK ) == -1 ||
+                fcntl( m_writeFd, F_SETFL, O_NONBLOCK ) == -1 ||
+                fcntl( m_readFd, F_SETFD, FD_CLOEXEC ) == -1 ||
+                fcntl( m_writeFd, F_SETFD, FD_CLOEXEC ) == -1 )
+            {
+                close( m_readFd );
+                close( m_writeFd );
+                m_readFd = -1;
+                m_writeFd = -1;
+            }
+        }
+        else
+        {
+            m_readFd = -1;
+            m_writeFd = -1;
+        }
+#elif defined(_WIN32)
+        // Windows: use socket pair (localhost loopback)
+        m_readFd = INVALID_SOCKET;
+        m_writeFd = INVALID_SOCKET;
+        createSocketPair();
+#endif
+    }
+
+    // Producers must be quiesced before this runs: notify() takes no lock, so destroying while
+    // another thread is inside it writes to a descriptor this closed, which the OS may already
+    // have handed to something else.
+    ~FdWaiter()
+    {
+#ifdef __linux__
+        if( m_eventfd >= 0 )
+            close( m_eventfd );
+#elif defined(__APPLE__)
+        if( m_readFd >= 0 )
+            close( m_readFd );
+        if( m_writeFd >= 0 )
+            close( m_writeFd );
+#elif defined(_WIN32)
+        if( m_readFd != INVALID_SOCKET )
+            closesocket( m_readFd );
+        if( m_writeFd != INVALID_SOCKET )
+            closesocket( m_writeFd );
+#endif
+    }
+
+    // Get the file descriptor for select/poll registration
+    // Returns -1 (or INVALID_SOCKET on Windows) if not available
+    FdHandle readFd() const { return m_readFd; }
+
+    // Signal the fd ( makes it readable ).  Callable from any producer thread.
+    // Deliberately lock-free: this sits on the push-event hot path.  EAGAIN means the eventfd
+    // counter saturated or the pipe buffer is full, ie the fd is already readable, which is the
+    // state notify() is trying to reach - so it needs no handling.
+    void notify()
+    {
+#ifdef __linux__
+        uint64_t val = 1;
+        ssize_t rv;
+        do { rv = write( m_eventfd, &val, sizeof( val ) ); } while( rv < 0 && errno == EINTR );
+#elif defined(__APPLE__)
+        char c = 1;
+        ssize_t rv;
+        do { rv = write( m_writeFd, &c, 1 ); } while( rv < 0 && errno == EINTR );
+#elif defined(_WIN32)
+        char c = 1;
+        int rv;
+        do { rv = send( m_writeFd, &c, 1, 0 ); } while( rv == SOCKET_ERROR && WSAGetLastError() == WSAEINTR );
+#endif
+        ( void ) rv;
+    }
+
+    // Drain the fd.  See the class comment: call this before draining the guarded event queue.
+    // The drain is bounded - producers are unsynchronized and can refill faster than we read, and
+    // leaving bytes behind is harmless: the fd simply stays readable and costs one extra cycle.
+    void clear()
+    {
+#ifdef __linux__
+        uint64_t val;
+        ssize_t rv;
+        do { rv = read( m_eventfd, &val, sizeof( val ) ); } while( rv < 0 && errno == EINTR );
+#elif defined(__APPLE__)
+        char buf[ DRAIN_BUFFER_SIZE ];
+        ssize_t rv = 0;
+        for( size_t i = 0; i < DRAIN_MAX_READS; ++i )
+        {
+            rv = read( m_readFd, buf, sizeof( buf ) );
+            if( rv < 0 && errno == EINTR )
+                continue;
+            if( rv <= 0 )
+                break;
+        }
+#elif defined(_WIN32)
+        char buf[ DRAIN_BUFFER_SIZE ];
+        int rv = 0;
+        for( size_t i = 0; i < DRAIN_MAX_READS; ++i )
+        {
+            rv = recv( m_readFd, buf, sizeof( buf ), 0 );
+            if( rv == SOCKET_ERROR && WSAGetLastError() == WSAEINTR )
+                continue;
+            if( rv <= 0 )
+                break;
+        }
+#endif
+        ( void ) rv;
+    }
+
+    bool isValid() const
+    {
+#ifdef _WIN32
+        return m_readFd != INVALID_SOCKET;
+#else
+        return m_readFd >= 0;
+#endif
+    }
+
+private:
+    static constexpr size_t DRAIN_BUFFER_SIZE = 64;
+    static constexpr size_t DRAIN_MAX_READS   = 64;
+
+#ifdef _WIN32
+    // Winsock must be initialized before any socket call in this process.  Nothing else in the
+    // engine does it, so without this socket() fails and the engine silently has no wakeup fd.
+    static bool initWinsock()
+    {
+        static const bool s_ok = []
+        {
+            WSADATA wsaData;
+            return WSAStartup( MAKEWORD( 2, 2 ), &wsaData ) == 0;
+        }();
+        return s_ok;
+    }
+
+    void createSocketPair()
+    {
+        if( !initWinsock() )
+            return;
+
+        // Create a listening socket on localhost
+        SOCKET listener = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+        if( listener == INVALID_SOCKET )
+            return;
+
+        // Without this another process can bind the same port and race the accept below
+        int exclusive = 1;
+        if( setsockopt( listener, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                        ( const char * ) &exclusive, sizeof( exclusive ) ) == SOCKET_ERROR )
+        {
+            closesocket( listener );
+            return;
+        }
+
+        struct sockaddr_in addr;
+        memset( &addr, 0, sizeof( addr ) );
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl( INADDR_LOOPBACK );
+        addr.sin_port = 0;  // Let OS pick a port
+
+        if( bind( listener, (struct sockaddr*)&addr, sizeof( addr ) ) == SOCKET_ERROR )
+        {
+            closesocket( listener );
+            return;
+        }
+
+        int addrlen = sizeof( addr );
+        if( getsockname( listener, (struct sockaddr*)&addr, &addrlen ) == SOCKET_ERROR )
+        {
+            closesocket( listener );
+            return;
+        }
+
+        if( listen( listener, 1 ) == SOCKET_ERROR )
+        {
+            closesocket( listener );
+            return;
+        }
+
+        // Create client socket and connect
+        m_writeFd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+        if( m_writeFd == INVALID_SOCKET )
+        {
+            closesocket( listener );
+            return;
+        }
+
+        if( connect( m_writeFd, (struct sockaddr*)&addr, sizeof( addr ) ) == SOCKET_ERROR )
+        {
+            closesocket( m_writeFd );
+            closesocket( listener );
+            m_writeFd = INVALID_SOCKET;
+            return;
+        }
+
+        // Accept the connection
+        struct sockaddr_in peer;
+        memset( &peer, 0, sizeof( peer ) );
+        int peerlen = sizeof( peer );
+        m_readFd = accept( listener, ( struct sockaddr * ) &peer, &peerlen );
+        closesocket( listener );  // Done with listener
+
+        if( m_readFd == INVALID_SOCKET )
+        {
+            closesocket( m_writeFd );
+            m_writeFd = INVALID_SOCKET;
+            return;
+        }
+
+        // The listener is on loopback but any local process may connect to it, so verify the
+        // accepted peer really is our own client socket before trusting the pair
+        struct sockaddr_in self;
+        memset( &self, 0, sizeof( self ) );
+        int selflen = sizeof( self );
+        if( getsockname( m_writeFd, ( struct sockaddr * ) &self, &selflen ) == SOCKET_ERROR ||
+            selflen != peerlen ||
+            peer.sin_family != self.sin_family ||
+            peer.sin_port != self.sin_port ||
+            peer.sin_addr.s_addr != self.sin_addr.s_addr )
+        {
+            closesocket( m_readFd );
+            closesocket( m_writeFd );
+            m_readFd = INVALID_SOCKET;
+            m_writeFd = INVALID_SOCKET;
+            return;
+        }
+
+        // Set non-blocking; notify() must never block on a full buffer.  TCP_NODELAY matters too:
+        // this is a wakeup signal, and Nagle would let the kernel sit on a 1-byte notify.
+        u_long mode = 1;
+        int nodelay = 1;
+        if( ioctlsocket( m_readFd, FIONBIO, &mode ) == SOCKET_ERROR ||
+            ioctlsocket( m_writeFd, FIONBIO, &mode ) == SOCKET_ERROR ||
+            setsockopt( m_writeFd, IPPROTO_TCP, TCP_NODELAY,
+                        ( const char * ) &nodelay, sizeof( nodelay ) ) == SOCKET_ERROR )
+        {
+            closesocket( m_readFd );
+            closesocket( m_writeFd );
+            m_readFd = INVALID_SOCKET;
+            m_writeFd = INVALID_SOCKET;
+        }
+    }
+
+    SOCKET m_readFd;
+    SOCKET m_writeFd;
+#else
+    int m_readFd;
+    int m_writeFd;
+#ifdef __linux__
+    int m_eventfd;
+#endif
+#endif
 };
 
 }

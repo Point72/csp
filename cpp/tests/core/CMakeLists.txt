@@ -1,4 +1,4 @@
-enable_testing() 
+enable_testing()
 find_package(GTest CONFIG REQUIRED)
 
 add_executable(test_basic_allocator test_basic_allocator.cpp)
@@ -22,9 +22,13 @@ target_link_libraries(test_tagged_pointer_union csp_core GTest::gtest GTest::gte
 add_executable(test_time test_time.cpp )
 target_link_libraries(test_time csp_core GTest::gtest GTest::gtest_main)
 
+add_executable(test_fdwaiter test_fdwaiter.cpp )
+target_link_libraries(test_fdwaiter csp_core GTest::gtest GTest::gtest_main)
+
 install(TARGETS test_basic_allocator
                 test_dynamicbitset
                 test_enum
+                test_fdwaiter
                 test_srmwlockfreequeue
                 test_tagged_pointer_union
                 test_time

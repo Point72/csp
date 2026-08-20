@@ -97,7 +97,7 @@ static void PyEngine_dealloc( PyEngine * self )
 {
     CSP_BEGIN_METHOD;
     self -> ~PyEngine();
-    Py_TYPE( self ) -> tp_free( self ); 
+    Py_TYPE( self ) -> tp_free( self );
     CSP_RETURN;
 }
 
@@ -107,7 +107,7 @@ static PyObject * PyEngine_run( PyEngine * self, PyObject * args )
 
     PyObject * pyStart;
     PyObject * pyEnd;
-    if( !PyArg_ParseTuple( args, "OO", &pyStart, &pyEnd ) ) 
+    if( !PyArg_ParseTuple( args, "OO", &pyStart, &pyEnd ) )
         return nullptr;
 
     auto start = fromPython<DateTime>( pyStart );
@@ -120,8 +120,132 @@ static PyObject * PyEngine_run( PyEngine * self, PyObject * args )
     CSP_RETURN_NONE;
 }
 
+static PyObject * PyEngine_start( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    PyObject * pyStart;
+    PyObject * pyEnd;
+    if( !PyArg_ParseTuple( args, "OO", &pyStart, &pyEnd ) )
+        return nullptr;
+
+    auto start = fromPython<DateTime>( pyStart );
+    auto end   = fromPython<DateTime>( pyEnd );
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    self -> rootEngine() -> start( start, end );
+
+    if( PyErr_Occurred() )
+        return nullptr;
+
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_processOneCycle( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    double maxWaitSeconds = 0.0;
+    if( !PyArg_ParseTuple( args, "|d", &maxWaitSeconds ) )
+        return nullptr;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+
+    // Convert double seconds to nanoseconds to preserve sub-second precision
+    // fromSeconds takes int64_t which would truncate 0.001 to 0
+    int64_t maxWaitNanos = static_cast<int64_t>( maxWaitSeconds * 1e9 );
+    TimeDelta maxWait = TimeDelta::fromNanoseconds( maxWaitNanos );
+    bool hasMore = self -> rootEngine() -> processOneCycle( maxWait );
+
+    // dialectLockGIL runs PyErr_CheckSignals, so a KeyboardInterrupt may be pending here
+    if( PyErr_Occurred() )
+        return nullptr;
+
+    return PyBool_FromLong( hasMore );
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_finish( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    self -> rootEngine() -> finish();
+
+    return PyErr_Occurred() ? nullptr : self -> collectOutputs();
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_isRunning( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    bool running = self -> rootEngine() -> isRunning();
+
+    return PyBool_FromLong( running );
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_now( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    DateTime now = self -> rootEngine() -> now();
+
+    return toPython( now );
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_nextScheduledTime( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    DateTime nextTime = self -> rootEngine() -> nextScheduledTime();
+
+    // "no events scheduled" is DateTime::NONE(), which converts to a sentinel datetime rather than
+    // None - return None so callers can test for it the obvious way
+    if( nextTime.isNone() )
+        Py_RETURN_NONE;
+
+    return toPython( nextTime );
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_getWakeupFd( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    FdHandle fd = self -> rootEngine() -> getWakeupFd();
+
+    // SOCKET is a UINT_PTR on Windows, so this must not go through PyLong_FromLong
+    return PyLong_FromLongLong( ( long long ) fd );
+    CSP_RETURN_NONE;
+}
+
+static PyObject * PyEngine_clearWakeupFd( PyEngine * self, PyObject * args )
+{
+    CSP_BEGIN_METHOD;
+
+    CSP_TRUE_OR_THROW_RUNTIME( self -> engine() -> isRootEngine(), "engine is not root engine" );
+    self -> rootEngine() -> clearWakeupFd();
+
+    CSP_RETURN_NONE;
+}
+
 static PyMethodDef PyEngine_methods[] = {
-    { "run",             (PyCFunction) PyEngine_run,            METH_VARARGS, "start and run engine" },
+    { "run",               ( PyCFunction ) PyEngine_run,               METH_VARARGS, "start and run engine" },
+    { "start",             ( PyCFunction ) PyEngine_start,             METH_VARARGS, "start engine (call before process_one_cycle)" },
+    { "process_one_cycle", ( PyCFunction ) PyEngine_processOneCycle,   METH_VARARGS, "execute one cycle, returns True if more work pending" },
+    { "finish",            ( PyCFunction ) PyEngine_finish,            METH_NOARGS,  "finish execution and cleanup" },
+    { "is_running",        ( PyCFunction ) PyEngine_isRunning,         METH_NOARGS,  "check if engine is running" },
+    { "now",               ( PyCFunction ) PyEngine_now,               METH_NOARGS,  "get current engine time" },
+    { "next_scheduled_time", ( PyCFunction ) PyEngine_nextScheduledTime, METH_NOARGS,  "get next scheduled event time" },
+    { "get_wakeup_fd",     ( PyCFunction ) PyEngine_getWakeupFd,       METH_NOARGS,  "get fd that becomes readable when events are queued" },
+    { "clear_wakeup_fd",   ( PyCFunction ) PyEngine_clearWakeupFd,     METH_NOARGS,  "drain the wakeup fd; call before processing events, never after" },
     { NULL }
 };
 

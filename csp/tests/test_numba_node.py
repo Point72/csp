@@ -550,7 +550,9 @@ class TestFeatures(unittest.TestCase):
         def g():
             csp.add_graph_output("result", typed_signal(csp.const(1.25)))
 
-        with self.assertRaisesRegex(TypeError, r"expected ts\[int\], got ts\[float\]"):
+        with self.assertRaisesRegex(
+            TypeError, r"cannot validate ts\[float\] as ts\[int\]|Expected ts\[int\].*got ts\[float\]"
+        ):
             csp.build_graph(g)
 
     def test_allows_int_to_float_signal_upcast(self):
@@ -574,7 +576,9 @@ class TestFeatures(unittest.TestCase):
         def g():
             csp.add_graph_output("result", typed_basket([csp.const(1), csp.const(2.5)]))
 
-        with self.assertRaisesRegex(TypeError, r"expected ts\[int\], got ts\[float\]"):
+        with self.assertRaisesRegex(
+            TypeError, r"cannot validate ts\[float\] as ts\[int\]|Expected list\[.*TsType\[int\]\]"
+        ):
             csp.build_graph(g)
 
     def test_rejects_mismatched_dict_basket_key_type(self):
@@ -586,7 +590,9 @@ class TestFeatures(unittest.TestCase):
         def g():
             csp.add_graph_output("result", typed_basket({"bad": csp.const(1)}))
 
-        with self.assertRaisesRegex(TypeError, r"key 'bad' must be int, got str"):
+        with self.assertRaisesRegex(
+            TypeError, r"Input should be a valid integer|Expected dict\[int, .*TsType\[int\]\]"
+        ):
             csp.build_graph(g)
 
     def test_lifecycle_start(self):

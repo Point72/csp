@@ -1,7 +1,5 @@
-import ast
-import functools
 import inspect
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Optional, get_args, get_origin
 
 from numba_cfunc_compiler.compilation_context import CompilationContext
 from numba_cfunc_compiler.defaults import register_types as register_default_types
@@ -11,15 +9,14 @@ from numba_cfunc_compiler.defaults.source_categories import (
     OutputCategory,
     StateCategory,
 )
+from numba_cfunc_compiler.numba_config import NumbaDict, NumbaList
 from numba_cfunc_compiler.numba_core import create_compiled_func
 from numba_cfunc_compiler.source_registry import SourceRegistry
 
 from csp.impl.__cspimpl import _cspimpl
-from csp.impl.types.container_type_normalizer import ContainerTypeNormalizer
-from csp.impl.types.tstype import ts
 from csp.impl.wiring.csp_numba.csp_node_transformer import CspNodeTransformer
 from csp.impl.wiring.csp_numba.enum_support import register as register_enum_support
-from csp.impl.wiring.csp_numba.input_handlers import register as register_input_handlers
+from csp.impl.wiring.csp_numba.input_handlers import CspInputMetadata, register as register_input_handlers
 from csp.impl.wiring.csp_numba.output_handlers import register as register_output_handlers
 from csp.impl.wiring.csp_numba.signal_set_support import (
     register_ast_handlers as register_signal_set_ast_handlers,
@@ -30,7 +27,8 @@ from csp.impl.wiring.csp_numba.struct_support import (
     struct_enum_store,
     struct_enum_value,
 )
-from csp.impl.wiring.edge import Edge
+from csp.impl.wiring.node import NodeDef, NodeDefMeta
+from csp.impl.wiring.node_parser import NodeDefinitionParser
 
 __all__ = (
     "numba_node",
@@ -65,57 +63,64 @@ def _get_csp_context() -> CompilationContext:
     return _csp_context
 
 
-class NumbaNodeDef:
-    def __init__(
-        self,
-        name: str,
-        inputs: List[Edge],
-        output_types: List[type],
-        compiled_func,
-        state_values: Tuple,
-        nrt_state_indices: Tuple,
-        struct_state_indices: Tuple,
-        struct_state_sizes: Tuple,
-        func_globals: dict,
-    ):
-        self.__name__ = name
-        self._inputs = inputs
-        self._output_types = output_types
-        self._compiled_func = compiled_func
-        self._state_values = state_values
-        self._nrt_state_indices = nrt_state_indices
-        self._struct_state_indices = struct_state_indices
-        self._struct_state_sizes = struct_state_sizes
-        self._func_globals = func_globals
+class _NumbaNodeDefinitionParser(NodeDefinitionParser):
+    def parse_func_signature(self, funcdef):
+        inputs, defaults, outputs = super().parse_func_signature(funcdef)
+        normalized_inputs = []
+        for input_def in inputs:
+            origin = get_origin(input_def.typ)
+            if origin is NumbaList:
+                input_def = input_def._replace(typ=list[get_args(input_def.typ)[0]])
+            elif origin is NumbaDict:
+                input_def = input_def._replace(typ=dict[get_args(input_def.typ)])
+            normalized_inputs.append(input_def)
+        return normalized_inputs, defaults, outputs
 
-    def ts_inputs(self):
-        ts_idx = 0
-        for edge in self._inputs:
-            yield ((ts_idx, -1), edge)
-            ts_idx += 1
+
+class NumbaNodeDefMeta(NodeDefMeta):
+    def _instantiate_impl(self, __forced_tvars, name, args, kwargs):
+        inputs, scalars, tvars = self._signature.parse_inputs(__forced_tvars, *args, **kwargs)
+        input_values = iter(inputs)
+        scalar_values = iter(scalars)
+        compiler_kwargs = {}
+        for input_def in self._signature.inputs:
+            if input_def.kind.is_any_ts():
+                value = next(input_values)
+                compiler_kwargs[input_def.name] = dict(enumerate(value)) if isinstance(value, (list, tuple)) else value
+            else:
+                compiler_kwargs[input_def.name] = next(scalar_values)
+
+        compilation = self._compile_call(**compiler_kwargs)
+        flattened_inputs = tuple(compilation.ordered_input_signals)
+        nodedef = type.__call__(self, flattened_inputs, scalars, tvars, self._impl, self._pre_create_hook, compilation)
+        return self._finalize_nodedef(nodedef, inputs, scalars, tvars, name)
+
+
+class NumbaNodeDef(NodeDef):
+    def __init__(self, inputs, scalars, tvars, impl, pre_create_hook, compilation):
+        super().__init__(inputs, scalars, tvars, impl, pre_create_hook)
+        self._compilation = compilation
 
     def _create(self, engine, memo):
-        func_ptr = self._compiled_func.address
+        if self._pre_create_hook:
+            self._pre_create_hook(engine, memo)
 
-        cpp_output_types = tuple(
-            ContainerTypeNormalizer.normalized_type_to_actual_python_type(t) for t in self._output_types
-        )
+        compiled_func = self._compilation.compiled_func
+        ordered_inputs = tuple(edge for _, edge in self.ts_inputs())
 
         node = _cspimpl.PyNumbaNode(
             engine,
-            func_ptr,
-            tuple(self._inputs),
-            cpp_output_types,
-            self._state_values,
-            self._nrt_state_indices,
-            self._struct_state_indices,
-            self._struct_state_sizes,
-            self._compiled_func,
+            compiled_func.address,
+            ordered_inputs,
+            self._output_types,
+            self._compilation.state_values,
+            self._compilation.nrt_state_indices,
+            self._compilation.struct_state_indices,
+            self._compilation.struct_state_sizes,
+            compiled_func,
         )
 
-        for idx, output_type in enumerate(cpp_output_types):
-            node.create_output(idx, output_type)
-
+        self._create_outputs(node)
         return node
 
 
@@ -148,10 +153,19 @@ def numba_node(
 
     """
 
+    func_frame = inspect.currentframe().f_back
+
     def _impl(func: Callable) -> Callable:
+        node_name = name or func.__name__
+        parser = _NumbaNodeDefinitionParser(node_name, func, func_frame)
+        parser.parse()
+        definition = parser.definition
+        if definition.signature.alarms():
+            raise NotImplementedError("numba_node does not support alarms")
+
         transformer = CspNodeTransformer()
-        transformed = transformer.transform_csp_node(func)
-        transformed_ast = ast.parse(transformed.transformed_source).body[0]
+        transformed = transformer.transform_csp_node(definition)
+        transformed_ast = transformed.transformed_ast
 
         transformed_globals = func.__globals__.copy()
 
@@ -165,63 +179,62 @@ def numba_node(
         transformed_globals["struct_enum_value"] = struct_enum_value
         transformed_globals["struct_enum_store"] = struct_enum_store
 
-        def get_edge_type(edge: Edge) -> type:
+        def get_edge_type(edge) -> type:
             return edge.tstype.typ
 
-        original_signature = inspect.signature(func)
+        original_signature = inspect.signature(
+            func,
+            globals=transformed_globals,
+            locals=func_frame.f_locals,
+            eval_str=True,
+        )
+        compiler_signature = original_signature.replace(
+            parameters=[
+                param.replace(
+                    annotation=CspInputMetadata(
+                        category="signal_set" if definition.signature.input(param.name).kind.is_basket() else "signal"
+                    )
+                )
+                if definition.signature.input(param.name).kind.is_any_ts()
+                else param
+                for param in original_signature.parameters.values()
+            ]
+        )
 
-        @functools.wraps(func)
-        def numba_proxy(*args, **kwargs):
+        def compile_call(*args, **kwargs):
             with _get_csp_context():
-                result = create_compiled_func(
+                return create_compiled_func(
                     transformed_ast,
                     *args,
                     extract_python_type_fn=get_edge_type,
                     decorator_name="@numba_node",
                     func_globals=transformed_globals,
-                    signature=original_signature,
+                    signature=compiler_signature,
                     call_globals=transformed_globals,
                     start_body=transformed.start_body,
                     stop_body=transformed.stop_body,
                     **kwargs,
                 )
 
-            output_names = list(result.named_outputs.keys()) if result.named_outputs else None
-            nodedef = NumbaNodeDef(
-                name=name or func.__name__,
-                inputs=result.ordered_input_signals,
-                output_types=result.output_types,
-                compiled_func=result.compiled_func,
-                state_values=result.state_values,
-                nrt_state_indices=result.nrt_state_indices,
-                struct_state_indices=result.struct_state_indices,
-                struct_state_sizes=result.struct_state_sizes,
-                func_globals=transformed_globals,
-            )
-
-            if output_names is not None:
-                from csp.impl.wiring.outputs import OutputsContainer
-
-                outputs = {}
-                for idx, (out_name, out_type) in enumerate(zip(output_names, result.output_types)):
-                    edge = Edge(
-                        tstype=ts[out_type],
-                        nodedef=nodedef,
-                        output_idx=idx,
-                    )
-                    outputs[out_name] = edge
-                return OutputsContainer(**outputs)
-            else:
-                return Edge(
-                    tstype=ts[result.output_types[0]],
-                    nodedef=nodedef,
-                    output_idx=0,
-                )
-
-        numba_proxy._numba_transformed = transformed
-        numba_proxy._numba_transformed_ast = transformed_ast
-
-        return numba_proxy
+        nodetype = NumbaNodeDefMeta(
+            node_name,
+            (NumbaNodeDef,),
+            {
+                "_signature": definition.signature,
+                "_impl": func,
+                "_compile_call": staticmethod(compile_call),
+                "memoize": True,
+                "force_memoize": False,
+                "_cppimpl": None,
+                "_pre_create_hook": None,
+                "__wrapped__": func,
+                "__module__": func.__module__,
+                "__doc__": func.__doc__,
+                "_numba_transformed": transformed,
+                "_numba_transformed_ast": transformed_ast,
+            },
+        )
+        return nodetype
 
     if func is None:
         return _impl

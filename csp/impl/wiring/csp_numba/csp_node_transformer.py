@@ -1,8 +1,9 @@
 import ast
-import inspect
-import textwrap
 from dataclasses import dataclass, field
-from typing import List, Optional, Set, Union
+from typing import TYPE_CHECKING, List, Optional, Union
+
+if TYPE_CHECKING:
+    from csp.impl.wiring.node_parser import ParsedNodeDefinition
 
 
 @dataclass
@@ -23,6 +24,7 @@ class TransformedNode:
     transformed_source: str = ""
     start_body: List[ast.AST] = field(default_factory=list)  # Code from with csp.start():
     stop_body: List[ast.AST] = field(default_factory=list)  # Code from with csp.stop():
+    transformed_ast: Optional[ast.FunctionDef] = None
 
 
 class CspNodeTransformer(ast.NodeTransformer):
@@ -41,7 +43,6 @@ class CspNodeTransformer(ast.NodeTransformer):
 
     def __init__(self):
         self.state_variables: List[StateVariable] = []
-        self.input_names: Set[str] = set()
         self.start_body: List[ast.AST] = []
         self.stop_body: List[ast.AST] = []
         self.csp_call_transformers = {
@@ -56,38 +57,6 @@ class CspNodeTransformer(ast.NodeTransformer):
                 op=ast.And(),
             ),
         }
-        self.special_block_transformers = {
-            "state": self._transform_state_block,
-            "start": lambda node: self.start_body.extend(self._flatten_transformed_statements(node.body)) or [],
-            "stop": lambda node: self.stop_body.extend(self._flatten_transformed_statements(node.body)) or [],
-            "alarms": lambda node: [],
-        }
-
-    def _is_special_block(self, node: ast.AST, block_name: str) -> bool:
-        """Returns True if this is a block we need to handle"""
-        if not isinstance(node, ast.With):
-            return False
-
-        if len(node.items) != 1:
-            return False
-
-        context_expr = node.items[0].context_expr
-
-        if isinstance(context_expr, ast.Call):
-            func = context_expr.func
-            if isinstance(func, ast.Name) and func.id == block_name:
-                return True
-            if isinstance(func, ast.Attribute):
-                if isinstance(func.value, ast.Name) and func.value.id == "csp" and func.attr == block_name:
-                    return True
-
-        return False
-
-    def _get_special_block_name(self, node: ast.AST) -> Optional[str]:
-        for block_name in self.special_block_transformers:
-            if self._is_special_block(node, block_name):
-                return block_name
-        return None
 
     def _infer_type(self, name: str, value: ast.AST) -> ast.AST:
         if isinstance(value, ast.Constant):
@@ -203,21 +172,10 @@ class CspNodeTransformer(ast.NodeTransformer):
         self.state_variables.append(StateVariable(name=name, type_annotation=type_annotation, initial_value=value))
         return ast.AnnAssign(target=target, annotation=state_type, value=value, simple=simple)
 
-    def _transform_state_block(self, node: ast.With) -> List[ast.AST]:
-        """
-        Transform state block variables to have State[type] annotations.
-
-        with csp.state():
-            x = 0
-            y: float = 1.0
-
-        becomes:
-            x: State[int] = 0
-            y: State[float] = 1.0
-        """
+    def _transform_state_statements(self, statements) -> List[ast.AST]:
         transformed = []
 
-        for stmt in node.body:
+        for stmt in statements:
             if isinstance(stmt, ast.AnnAssign):
                 # Already annotated: y: float = 1.0
                 name = stmt.target.id if isinstance(stmt.target, ast.Name) else None
@@ -263,31 +221,12 @@ class CspNodeTransformer(ast.NodeTransformer):
                 flattened.append(transformed_stmt)
         return flattened
 
-    def _transform_body(self, body: List[ast.AST]) -> List[ast.AST]:
-        transformed = []
-
-        for stmt in body:
-            block_name = self._get_special_block_name(stmt)
-            if block_name is not None:
-                transformed.extend(self.special_block_transformers[block_name](stmt))
-                continue
-
-            # Transform the statement
-            transformed.extend(self._flatten_transformed_statements([stmt]))
-
-        return transformed
-
-    def _transform_func_def(self, func_def: ast.FunctionDef) -> TransformedNode:
+    def _reset(self):
         self.state_variables = []
-        self.input_names = set()
         self.start_body = []
         self.stop_body = []
 
-        # Collect input names (don't transform annotations)
-        for arg in func_def.args.args:
-            self.input_names.add(arg.arg)
-
-        transformed_body = self._transform_body(func_def.body)
+    def _build_transformed_node(self, func_def: ast.FunctionDef, transformed_body: List[ast.AST]) -> TransformedNode:
         new_func_def = ast.FunctionDef(
             name=func_def.name,
             args=func_def.args,  # Keep original args with ts[type] annotations
@@ -304,21 +243,16 @@ class CspNodeTransformer(ast.NodeTransformer):
             state_variables=self.state_variables,
             transformed_body=transformed_body,
             original_ast=func_def,
+            transformed_ast=new_func_def,
             transformed_source=transformed_source,
             start_body=self.start_body,
             stop_body=self.stop_body,
         )
 
-    def transform_csp_node(self, func) -> TransformedNode:
-        if callable(func):
-            source = textwrap.dedent(inspect.getsource(func))
-        else:
-            source = textwrap.dedent(func)
-
-        tree = ast.parse(source)
-        func_def = tree.body[0]
-
-        if not isinstance(func_def, ast.FunctionDef):
-            raise ValueError("Expected a function definition")
-
-        return self._transform_func_def(func_def)
+    def transform_csp_node(self, definition: "ParsedNodeDefinition") -> TransformedNode:
+        self._reset()
+        self.start_body = self._flatten_transformed_statements(definition.blocks.start)
+        self.stop_body = self._flatten_transformed_statements(definition.blocks.stop)
+        transformed_body = self._transform_state_statements(definition.blocks.state)
+        transformed_body.extend(self._flatten_transformed_statements(definition.blocks.body))
+        return self._build_transformed_node(definition.funcdef, transformed_body)

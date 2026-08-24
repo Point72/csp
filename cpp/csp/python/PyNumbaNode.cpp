@@ -1,6 +1,7 @@
 #include <csp/engine/InputId.h>
 #include <csp/engine/Node.h>
 #include <csp/engine/CspEnum.h>
+#include <csp/engine/PartialSwitchCspType.h>
 #include <csp/engine/Struct.h>
 #include <csp/python/Conversions.h>
 #include <csp/python/Exception.h>
@@ -17,6 +18,7 @@
 #include <unordered_map>
 #include <cstring>
 #include <iostream>
+#include <type_traits>
 
 namespace csp::python
 {
@@ -30,18 +32,54 @@ extern "C" CSPIMPL_EXPORT int64_t csp_numba_struct_enum_field_value( const void 
     return enumField -> value();
 }
 
-extern "C" CSPIMPL_EXPORT void csp_numba_struct_enum_field_set( void * struct_ptr, int64_t field_offset, int64_t value )
+extern "C" CSPIMPL_EXPORT void csp_numba_struct_enum_field_set(
+    void * struct_ptr,
+    int64_t field_offset,
+    int64_t value,
+    const void * struct_type
+)
 {
-    // Rebuild the field from its existing enum meta rather than treating the
-    // destination as a raw int64 slot.
-    char * bytes = static_cast<char *>( struct_ptr );
-    auto * enumField = reinterpret_cast<CspEnum *>( bytes + field_offset );
-    *enumField = enumField -> meta() -> create( value );
+    // An unset enum field does not contain enum metadata. Resolve the declared
+    // field type through the owning struct type and use the field setter so its
+    // set bit is updated as well.
+    const auto * pyStructMeta = static_cast<const PyStructMeta *>( struct_type );
+    const auto & fields = pyStructMeta -> structMeta -> fields();
+    auto fieldIt = std::find_if( fields.begin(), fields.end(), [field_offset]( const auto & field )
+    {
+        return field -> offset() == static_cast<size_t>( field_offset );
+    } );
+    CSP_ASSERT( fieldIt != fields.end() );
+    CSP_ASSERT( ( *fieldIt ) -> type() -> type() == CspType::Type::ENUM );
+
+    const auto * enumType = static_cast<const CspEnumType *>( ( *fieldIt ) -> type().get() );
+    ( *fieldIt ) -> setValue<CspEnum>(
+        static_cast<Struct *>( struct_ptr ),
+        enumType -> meta() -> create( value )
+    );
 }
 
 namespace
 {
 constexpr size_t OUTPUT_VALUE_SLOT_BYTES = sizeof( int64_t );
+
+using NumbaInputTypeSwitch = PartialSwitchCspType<
+    CspType::Type::BOOL,
+    CspType::Type::INT64,
+    CspType::Type::DOUBLE,
+    CspType::Type::DATETIME,
+    CspType::Type::TIMEDELTA,
+    CspType::Type::ENUM,
+    CspType::Type::STRUCT
+>;
+
+using NumbaOutputTypeSwitch = PartialSwitchCspType<
+    CspType::Type::BOOL,
+    CspType::Type::INT64,
+    CspType::Type::DOUBLE,
+    CspType::Type::DATETIME,
+    CspType::Type::TIMEDELTA,
+    CspType::Type::ENUM
+>;
 }
 
 PyNumbaNode::PyNumbaNode(
@@ -303,33 +341,21 @@ void PyNumbaNode::executeImpl()
             {
                 const CspType * cspType = ts -> type();
                 CSP_ASSERT( cspType != nullptr );
-                switch( cspType -> type() )
+                NumbaInputTypeSwitch::invoke( cspType, [this, ts, i]( auto tag )
                 {
-                    case CspType::Type::INT64:
-                        m_inputArgs[ i ] = &( ts -> lastValueTyped<int64_t>() );
-                        break;
-                    case CspType::Type::DOUBLE:
-                        m_inputArgs[ i ] = &( ts -> lastValueTyped<double>() );
-                        break;
-                    case CspType::Type::BOOL:
-                        m_inputArgs[ i ] = &( ts -> lastValueTyped<bool>() );
-                        break;
-                    case CspType::Type::DATETIME:
-                        m_inputArgs[ i ] = &( ts -> lastValueTyped<DateTime>() );
-                        break;
-                    case CspType::Type::TIMEDELTA:
-                        m_inputArgs[ i ] = &( ts -> lastValueTyped<TimeDelta>() );
-                        break;
-                    case CspType::Type::ENUM:
+                    using CType = typename decltype( tag )::type;
+                    if constexpr( std::is_same_v<CType, CspEnum> )
+                    {
                         m_inputEnumStorage[ i ] = ts -> lastValueTyped<CspEnum>().value();
                         m_inputArgs[ i ] = &m_inputEnumStorage[ i ];
-                        break;
-                    case CspType::Type::STRUCT:
+                    }
+                    else if constexpr( std::is_same_v<CType, StructPtr> )
+                    {
                         m_inputArgs[ i ] = ts -> lastValueTyped<StructPtr>().get();
-                        break;
-                    default:
-                        break;
-                }
+                    }
+                    else
+                        m_inputArgs[ i ] = &( ts -> lastValueTyped<CType>() );
+                } );
             }
         }
     }
@@ -360,52 +386,38 @@ void PyNumbaNode::executeImpl()
             {
                 const CspType * cspType = ts -> type();
                 CSP_ASSERT( cspType != nullptr );
-                switch( cspType -> type() )
+                NumbaOutputTypeSwitch::invoke( cspType, [this, ts, cspType, i, currentCycleCount, currentTime]( auto tag )
                 {
-                    case CspType::Type::INT64:
-                        ts -> outputTickTyped<int64_t>(
-                            currentCycleCount, currentTime,
-                            *static_cast<int64_t *>( m_outputValueSlots[ i ] )
-                        );
-                        break;
-                    case CspType::Type::DOUBLE:
-                        ts -> outputTickTyped<double>(
-                            currentCycleCount, currentTime,
-                            *static_cast<double *>( m_outputValueSlots[ i ] )
-                        );
-                        break;
-                    case CspType::Type::BOOL:
-                        ts -> outputTickTyped<bool>(
-                            currentCycleCount, currentTime,
-                            *static_cast<bool *>( m_outputValueSlots[ i ] )
-                        );
-                        break;
-                    case CspType::Type::DATETIME:
+                    using CType = typename decltype( tag )::type;
+                    if constexpr( std::is_same_v<CType, DateTime> )
+                    {
                         ts -> outputTickTyped<DateTime>(
                             currentCycleCount, currentTime,
                             DateTime::fromNanoseconds( *static_cast<int64_t *>( m_outputValueSlots[ i ] ) )
                         );
-                        break;
-                    case CspType::Type::TIMEDELTA:
+                    }
+                    else if constexpr( std::is_same_v<CType, TimeDelta> )
+                    {
                         ts -> outputTickTyped<TimeDelta>(
                             currentCycleCount, currentTime,
                             TimeDelta::fromNanoseconds( *static_cast<int64_t *>( m_outputValueSlots[ i ] ) )
                         );
-                        break;
-                    case CspType::Type::ENUM:
+                    }
+                    else if constexpr( std::is_same_v<CType, CspEnum> )
                     {
                         auto enumType = static_cast<const CspEnumType *>( cspType );
                         int64_t enumValue = *static_cast<int64_t *>( m_outputValueSlots[ i ] );
-                        CspEnum enumInstance = enumType -> meta() -> create( enumValue );
                         ts -> outputTickTyped<CspEnum>(
                             currentCycleCount, currentTime,
-                            enumInstance
+                            enumType -> meta() -> create( enumValue )
                         );
-                        break;
                     }
-                    default:
-                        break;
-                }
+                    else
+                        ts -> outputTickTyped<CType>(
+                            currentCycleCount, currentTime,
+                            *static_cast<CType *>( m_outputValueSlots[ i ] )
+                        );
+                } );
             }
         }
     }

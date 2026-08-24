@@ -1038,6 +1038,31 @@ class TestFeatures(unittest.TestCase):
 
 
 class TestStructSupport(unittest.TestCase):
+    def test_assign_unset_struct_enum_field(self):
+        class Direction(csp.Enum):
+            UP = 1
+            DOWN = -1
+
+        class Velocity(csp.Struct):
+            direction: Direction
+
+        @numba_node
+        def set_direction(x: ts[int]) -> ts[int]:
+            with csp.state():
+                s_velocity: Velocity = Velocity()
+
+            s_velocity.direction = Direction.UP
+            if s_velocity.direction == Direction.UP:
+                return x
+            return 0
+
+        @csp.graph
+        def g():
+            csp.add_graph_output("result", set_direction(csp.const(7)))
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual([value for _, value in results["result"]], [7])
+
     def test_invalid_struct_output(self):
         class Point(csp.Struct):
             x: float

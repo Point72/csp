@@ -63,14 +63,19 @@ def struct_enum_value(typingctx, struct_ptr, field_offset_const):
 
 
 @intrinsic
-def struct_enum_store(typingctx, struct_ptr, field_offset_const, value):
+def struct_enum_store(typingctx, struct_ptr, field_offset_const, value, struct_type_address_const):
     """Store an integer enum value into a CspEnum struct field."""
-    if struct_ptr == numba_types.voidptr and isinstance(field_offset_const, numba_types.Literal):
+    if (
+        struct_ptr == numba_types.voidptr
+        and isinstance(field_offset_const, numba_types.Literal)
+        and isinstance(struct_type_address_const, numba_types.Literal)
+    ):
         field_offset = field_offset_const.literal_value
-        sig = numba_types.void(struct_ptr, field_offset_const, numba_types.int64)
+        struct_type_address = struct_type_address_const.literal_value
+        sig = numba_types.void(struct_ptr, field_offset_const, numba_types.int64, struct_type_address_const)
 
         def codegen(context, builder, signature, args):
-            [struct_ptr_val, _field_offset, enum_value] = args
+            [struct_ptr_val, _field_offset, enum_value, _struct_type_address] = args
 
             i8p = ir.IntType(8).as_pointer()
             i64 = ir.IntType(64)
@@ -78,13 +83,15 @@ def struct_enum_store(typingctx, struct_ptr, field_offset_const, value):
             fn_name = "csp_numba_struct_enum_field_set"
             fn = module.globals.get(fn_name)
             if fn is None:
-                fn_ty = ir.FunctionType(ir.VoidType(), [i8p, i64, i64])
+                fn_ty = ir.FunctionType(ir.VoidType(), [i8p, i64, i64, i8p])
                 fn = ir.Function(module, fn_ty, name=fn_name)
                 fn.attributes.add("nounwind")
 
             struct_bytes = builder.bitcast(struct_ptr_val, i8p)
             offset_val = context.get_constant(numba_types.int64, field_offset)
-            builder.call(fn, [struct_bytes, offset_val, enum_value])
+            struct_type_address_val = context.get_constant(numba_types.uintp, struct_type_address)
+            struct_type_ptr = builder.inttoptr(struct_type_address_val, i8p)
+            builder.call(fn, [struct_bytes, offset_val, enum_value, struct_type_ptr])
             return context.get_dummy_value()
 
         return sig, codegen
@@ -159,7 +166,13 @@ class CspStructType(StructType):
         # reconstructed back into the field's native CspEnum representation.
         field_info = self._get_field_info(field_name)
         struct_ptr = ast.Name(id=struct_name, ctx=ast.Load())
-        return AST.function_call("struct_enum_store", struct_ptr, ast.Constant(value=field_info.offset), value_expr)
+        return AST.function_call(
+            "struct_enum_store",
+            struct_ptr,
+            ast.Constant(value=field_info.offset),
+            value_expr,
+            ast.Constant(value=id(self.value)),
+        )
 
     @classmethod
     def try_parse_state(cls, node: ast.AnnAssign, var_name: str, globalns: dict) -> Optional[StateVariableInfo]:

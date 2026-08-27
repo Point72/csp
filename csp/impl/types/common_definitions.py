@@ -58,6 +58,9 @@ class Outputs:
             _make_pydantic_outputs(kwargs)
         except ImportError:
             pass
+        # None keys the single unnamed output in __annotations__; drop it from
+        # the class namespace, where a non-string key warns on py3.13+.
+        kwargs.pop(None, None)
         return type("Outputs", (Outputs,), kwargs)
 
     def __init__(self, *args, **kwargs):

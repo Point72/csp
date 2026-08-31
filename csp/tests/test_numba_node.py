@@ -1,5 +1,6 @@
 import unittest
 from datetime import datetime, timedelta, timezone
+from enum import IntEnum
 
 from numba_cfunc_compiler.numba_config import NumbaDict, NumbaList, create_new_dict, create_new_list
 
@@ -193,6 +194,39 @@ class TestBasicTypes(unittest.TestCase):
         results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=10))
         actual = [v for _, v in results["result"]]
         self.assertEqual(actual, [Mode.IDLE, Mode.RUNNING, Mode.PAUSED])
+
+    def test_int_enum(self):
+        class Mode(IntEnum):
+            IDLE = 0
+            RUNNING = 1
+            PAUSED = 2
+
+        @numba_node
+        def enum_node(cmd: ts[Mode], default_mode: Mode) -> ts[Mode]:
+            with csp.state():
+                s_mode: Mode = Mode.IDLE
+
+            if cmd == Mode.RUNNING:
+                s_mode = cmd
+            else:
+                s_mode = default_mode
+            return s_mode
+
+        @csp.graph
+        def g():
+            commands = csp.curve(
+                Mode,
+                [
+                    (timedelta(seconds=0), Mode.RUNNING),
+                    (timedelta(seconds=1), Mode.PAUSED),
+                ],
+            )
+            result = enum_node(commands, Mode.IDLE)
+            csp.add_graph_output("result", result)
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=10))
+        actual = [v for _, v in results["result"]]
+        self.assertEqual(actual, [Mode.RUNNING, Mode.IDLE])
 
     def test_unsupported_state_expression(self):
         with self.assertRaisesRegex(ValueError, "Unable to infer type for state variable 'total'"):
@@ -1039,7 +1073,7 @@ class TestFeatures(unittest.TestCase):
 
 class TestStructSupport(unittest.TestCase):
     def test_assign_unset_struct_enum_field(self):
-        class Direction(csp.Enum):
+        class Direction(IntEnum):
             UP = 1
             DOWN = -1
 

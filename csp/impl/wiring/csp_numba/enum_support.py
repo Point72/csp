@@ -1,6 +1,7 @@
 import ast
 import inspect
 from dataclasses import dataclass
+from enum import IntEnum
 from typing import Any, Optional
 
 from numba_cfunc_compiler.models import ParameterInfo, StateVariableInfo, VariableType
@@ -8,10 +9,8 @@ from numba_cfunc_compiler.numba_type_inference import NumbaTypeInference
 from numba_cfunc_compiler.type_factory import TypeFactory
 from numba_cfunc_compiler.utils.ast import AST
 
-from csp.impl.enum import Enum as CspEnum
 
-
-def _resolve_csp_enum_member(node: ast.AST, globalns: dict) -> Optional[CspEnum]:
+def _resolve_csp_enum_member(node: ast.AST, globalns: dict) -> Optional[IntEnum]:
     """Resolve `MyEnum.VALUE` and `MyEnum.VALUE.value` AST nodes."""
     if not isinstance(node, ast.Attribute):
         return None
@@ -27,7 +26,7 @@ def _resolve_csp_enum_member(node: ast.AST, globalns: dict) -> Optional[CspEnum]
     except Exception:
         return None
 
-    if not (isinstance(enum_class, type) and issubclass(enum_class, CspEnum)):
+    if not (isinstance(enum_class, type) and issubclass(enum_class, IntEnum)):
         return None
 
     try:
@@ -35,12 +34,12 @@ def _resolve_csp_enum_member(node: ast.AST, globalns: dict) -> Optional[CspEnum]
     except AttributeError:
         return None
 
-    return enum_member if isinstance(enum_member, CspEnum) else None
+    return enum_member if isinstance(enum_member, IntEnum) else None
 
 
 @dataclass(frozen=True)
 class CspEnumType(VariableType):
-    """Handles csp.Enum types, represented as int64 in Numba."""
+    """Handles CSP-native IntEnum types, represented as int64 in Numba."""
 
     def get_numba_type_name(self) -> str:
         # enums are represented as int64 in Numba
@@ -52,11 +51,11 @@ class CspEnumType(VariableType):
 
     @classmethod
     def is_type_supported(cls, var_type: Any) -> bool:
-        return isinstance(var_type, type) and issubclass(var_type, CspEnum)
+        return isinstance(var_type, type) and issubclass(var_type, IntEnum)
 
     @classmethod
     def from_type(cls, var_type: Any, value: Any) -> Optional["CspEnumType"]:
-        """Create CspEnumType from a csp.Enum subclass."""
+        """Create CspEnumType from an IntEnum subclass."""
         if cls.is_type_supported(var_type):
             return cls(var_type, value)
         return None
@@ -77,8 +76,8 @@ class CspEnumType(VariableType):
 
     @classmethod
     def try_parse_input(cls, param: inspect.Parameter, ann: Any) -> Optional[ParameterInfo]:
-        """Parse csp.Enum constant input parameters."""
-        if isinstance(ann, type) and issubclass(ann, CspEnum):
+        """Parse IntEnum constant input parameters."""
+        if isinstance(ann, type) and issubclass(ann, IntEnum):
             return ParameterInfo(expected_type=ann)  # defaults to category="constant"
         return None
 
@@ -96,12 +95,12 @@ class CspEnumType(VariableType):
 
         if isinstance(slice_node, ast.Name):
             state_type = globalns.get(slice_node.id)
-            if state_type is None or not isinstance(state_type, type) or not issubclass(state_type, CspEnum):
+            if state_type is None or not isinstance(state_type, type) or not issubclass(state_type, IntEnum):
                 return None
         elif isinstance(slice_node, ast.Attribute):
             try:
                 state_type = eval(ast.unparse(slice_node), globalns)
-                if not isinstance(state_type, type) or not issubclass(state_type, CspEnum):
+                if not isinstance(state_type, type) or not issubclass(state_type, IntEnum):
                     return None
             except Exception:
                 return None

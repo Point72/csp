@@ -10,7 +10,6 @@
 #include <csp/python/PyNodeWrapper.h>
 #include <csp/python/PyNumbaNode.h>
 #include <csp/python/PyCspType.h>
-#include <csp/python/PyCspEnum.h>
 #include <csp/python/PyStruct.h>
 
 #include <algorithm>
@@ -259,13 +258,6 @@ void PyNumbaNode::initStateArrays( PyObjectPtr stateVariables, PyObjectPtr nrtSt
             
             m_stateArgs[ i ] = buf;
         }
-        else if( PyObject_IsInstance( stateVal, ( PyObject * ) &PyCspEnum::PyType ) )
-        {
-            char * buf = new char[ 8 ];
-            PyCspEnum * pyEnum = reinterpret_cast<PyCspEnum *>( stateVal );
-            *reinterpret_cast<int64_t *>( buf ) = pyEnum -> enum_.value();
-            m_stateArgs[ i ] = buf;
-        }
         else if( PyBool_Check( stateVal ) )
         {
             char * buf = new char[ 1 ];
@@ -274,8 +266,11 @@ void PyNumbaNode::initStateArrays( PyObjectPtr stateVariables, PyObjectPtr nrtSt
         }
         else if( PyLong_Check( stateVal ) )
         {
+            // CSP enums are IntEnum instances, so their Numba representation
+            // is initialized through the same int64 path as Python integers.
+            int64_t stateValue = fromPython<int64_t>( stateVal );
             char * buf = new char[ 8 ];
-            *reinterpret_cast<int64_t *>( buf ) = PyLong_AsLongLong( stateVal );
+            *reinterpret_cast<int64_t *>( buf ) = stateValue;
             m_stateArgs[ i ] = buf;
         }
         else if( PyFloat_Check( stateVal ) )

@@ -1,4 +1,5 @@
 import io
+import json as _json
 import typing
 from copy import deepcopy
 from datetime import date, datetime, time, timedelta
@@ -34,6 +35,54 @@ def _cpp_fromdict_type_ok(typ, seen):
             return typ._cpp_from_dict_ok(seen)
         return issubclass(typ, csp.Enum) or typ in _CPP_FROMDICT_SCALARS
     return False  # Literal, ForwardRef, etc
+
+
+# json carries no python objects
+_CPP_FROMJSON_SCALARS = (int, float, bool, str, datetime, date, time, timedelta)
+
+
+def _cpp_fromjson_type_ok(typ, seen):
+    if CspTypingUtils.is_generic_container(typ):
+        origin = CspTypingUtils.get_origin(typ)
+        if origin in (typing.List, typing.Set, typing.Tuple, FastList):
+            elem = typ.__args__[0]
+            return isinstance(elem, type) and _cpp_fromjson_type_ok(elem, seen)
+        return False  # Dict[K,V], numpy arrays
+    if isinstance(typ, type):
+        if issubclass(typ, Struct):
+            return typ._cpp_from_json_ok(seen)
+        return issubclass(typ, csp.Enum) or typ in _CPP_FROMJSON_SCALARS
+    return False  # Literal, Union, object, ForwardRef
+
+
+def _json_to_python(obj, typ):
+    """Decode the string forms to_json writes back into what _obj_from_python expects"""
+    if obj is None:
+        return None
+    if CspTypingUtils.is_generic_container(typ):
+        origin = CspTypingUtils.get_origin(typ)
+        if origin in (typing.List, typing.Set, typing.Tuple, FastList):
+            return [_json_to_python(v, typ.__args__[0]) for v in obj]
+        if origin is typing.Dict:
+            key_type, value_type = typ.__args__
+            return {_json_to_python(k, key_type): _json_to_python(v, value_type) for k, v in obj.items()}
+        return obj
+    if isinstance(typ, type):
+        if issubclass(typ, Struct):
+            meta = typ.__full_metadata_typed__
+            return {k: _json_to_python(v, meta.get(k, object)) for k, v in obj.items()}
+        if issubclass(typ, csp.Enum):
+            return typ[obj] if isinstance(obj, str) else obj
+        if isinstance(obj, str):
+            if typ is datetime:
+                return datetime.fromisoformat(obj)
+            if typ is date:
+                return date.fromisoformat(obj)
+            if typ is time:
+                return time.fromisoformat(obj)
+            if typ is timedelta:
+                return timedelta(seconds=float(obj))
+    return obj
 
 
 class StructMeta(_csptypesimpl.PyStructMeta):
@@ -318,6 +367,27 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
         if cls._cpp_from_dict_ok():
             return super().from_dict(json)
         return cls._obj_from_python(json, cls)
+
+    @classmethod
+    def _cpp_from_json_ok(cls, _seen=None):
+        """True if every field (recursively) is convertible by the C++ from_json, cached per class"""
+        ok = cls.__dict__.get("__cpp_fromjson_ok__")
+        if ok is None:
+            _seen = _seen if _seen is not None else set()
+            if cls in _seen:
+                return True
+            _seen.add(cls)
+            cls.__cpp_fromjson_ok__ = ok = all(
+                _cpp_fromjson_type_ok(t, _seen) for t in cls.__full_metadata_typed__.values()
+            )
+        return ok
+
+    @classmethod
+    def from_json(cls, json_str: str):
+        """Create a struct from the json representation produced by to_json"""
+        if cls._cpp_from_json_ok():
+            return super().from_json(json_str)
+        return cls._obj_from_python(_json_to_python(_json.loads(json_str), cls), cls)
 
     def to_dict_depr(self):
         res = self._obj_to_python(self)

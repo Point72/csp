@@ -1868,6 +1868,72 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "l_any": l_any_result}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
+    def test_from_json(self):
+        class Inner(csp.Struct):
+            i: int = 1
+            f: float = 2.5
+
+        class Outer(csp.Struct):
+            b: bool
+            i: int
+            f: float
+            s: str
+            dt: datetime
+            d: date
+            t: time
+            td: timedelta
+            e: MyEnum
+            inner: Inner
+            floats: List[float]
+            inners: List[Inner]
+
+        expected = Outer(
+            b=True,
+            i=-123456789,
+            f=3.14,
+            s="hello world",
+            dt=datetime(2020, 1, 2, 3, 4, 5, 123456),
+            d=date(2021, 6, 15),
+            t=time(9, 30, 0, 500000),
+            td=timedelta(seconds=-90, microseconds=-500000),
+            e=MyEnum.FOO,
+            inner=Inner(i=7),
+            floats=[1.0, 2.5, -3.75],
+            inners=[Inner(i=8), Inner(f=9.5)],
+        )
+
+        # every field type above is handled, so this takes the C++ path
+        self.assertTrue(Outer._cpp_from_json_ok())
+        self.assertEqual(Outer.from_json(expected.to_json()), expected)
+
+        # fields absent from the json stay unset
+        partial = Outer.from_json('{"i": 5}')
+        self.assertEqual(partial.i, 5)
+        self.assertFalse(partial.all_fields_set())
+        self.assertEqual(partial.to_dict(), {"i": 5})
+
+        # Dict[K, V] type parameters are normalized before C++ sees them, so structs
+        # containing one fall back to the python impl
+        class WithDict(csp.Struct):
+            m: Dict[str, MyEnum] = {"a": MyEnum.A}
+            n: int = 3
+
+        self.assertFalse(WithDict._cpp_from_json_ok())
+        with_dict = WithDict()
+        self.assertEqual(WithDict.from_json(with_dict.to_json()), with_dict)
+
+        # errors
+        with self.assertRaises(KeyError):
+            Outer.from_json('{"nosuchfield": 1}')
+        with self.assertRaises(ValueError):
+            Outer.from_json("not json at all")
+        with self.assertRaises(TypeError):
+            Outer.from_json('{"i": "not an int"}')
+        with self.assertRaises(TypeError):
+            Outer.from_json("[1, 2, 3]")
+        with self.assertRaises(ValueError):
+            Outer.from_json('{"dt": "not a datetime"}')
+
     def test_to_json_dict(self):
         class MyStruct(csp.Struct):
             i: int = 123

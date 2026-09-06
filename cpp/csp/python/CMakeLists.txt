@@ -52,7 +52,7 @@ set(CSPIMPL_PUBLIC_HEADERS
         PyStructToJson.h
         PyStructToDict.h
         PyStructFromDict.h
-        PyStructFromJson.cpp)
+        PyStructFromJson.h)
 
 add_library(cspimpl SHARED
         cspimpl.cpp

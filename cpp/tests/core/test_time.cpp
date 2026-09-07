@@ -296,6 +296,18 @@ TEST( DateTest, test_basic_functionality )
     }
 }
 
+TEST( sleep, nanoseconds )
+{
+    TimeDelta waittime = TimeDelta::fromNanoseconds( 100'000'000 ); // 100 ms
+    DateTime t1 = DateTime::now();
+
+    csp::sleep( waittime );
+
+    DateTime t2 = DateTime::now();
+
+    ASSERT_GE( t2 - t1, waittime );
+}
+
 TEST( sleep, basic_functionality )
 {
     TimeDelta waittime = TimeDelta::fromSeconds( 1 );

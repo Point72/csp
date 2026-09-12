@@ -74,6 +74,7 @@ option(CSP_ENABLE_UBSAN "Build with undefined behavior sanitizer" OFF)
 option(CSP_BUILD_KAFKA_ADAPTER "Build kafka adapter" ON)
 option(CSP_BUILD_ARROW_ADAPTER "Build arrow adapter" ON)
 option(CSP_BUILD_PARQUET_ADAPTER "Build parquet adapter" ON)
+option(CSP_BUILD_CSV_ADAPTER "Build CSV adapter" ON)
 
 # Parquet adapter depends on arrow adapter
 if(CSP_BUILD_PARQUET_ADAPTER AND NOT CSP_BUILD_ARROW_ADAPTER)
@@ -269,6 +270,10 @@ endif()
 
 if(CSP_BUILD_PARQUET_ADAPTER)
     find_package(DepsParquetAdapter REQUIRED)
+endif()
+
+if(CSP_BUILD_CSV_ADAPTER)
+    find_package(DepsCsvAdapter REQUIRED)
 endif()
 
 

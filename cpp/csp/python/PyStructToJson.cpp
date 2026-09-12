@@ -1,3 +1,4 @@
+#include <csp/python/CspTypeFactory.h>
 #include <csp/python/PyStructToJson.h>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -209,7 +210,7 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, P
     // JSON encoding requires all names to be strings so convert them to strings
 
     static thread_local PyTypeObjectPtr s_tl_enum_type;
-    // Get the enum type on the first call and save it for future use
+    // Get the enum type on the first call and save it for future use.  Note this is for regular enum, not IntEnum which would be a CspEnum 
     if( s_tl_enum_type.get() == nullptr ) [[unlikely]]
     {
         // Import enum module to extract the Enum type
@@ -223,7 +224,7 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, P
             CSP_THROW( RuntimeException, "Unable to import enum module from the python standard library" );
         }
     }
-
+    
     rapidjson::Value val;
     if( py_key == Py_None )
     {
@@ -244,6 +245,9 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, P
     }
     else if( PyLong_Check( py_key ) )
     {
+        if( CspTypeFactory::instance().isCspEnumPyType( Py_TYPE( py_key ) ) )
+            return pyDictKeyToName( PyObjectPtr::own( PyObject_GetAttrString( py_key, "name" ) ).get(), doc, callable );
+        
         auto key = PyLong_AsLong( py_key );
         val.SetString( std::to_string( key ), doc.GetAllocator() );
     }
@@ -279,11 +283,6 @@ rapidjson::Value pyDictKeyToName( PyObject * py_key, rapidjson::Document& doc, P
     {
         auto v = fromPython<DateTime>( py_key );
         val = toJson( v, CspType( CspType::Type::DATETIME ), doc, callable );
-    }
-    else if( PyType_IsSubtype( Py_TYPE( py_key ), &PyCspEnum::PyType ) )
-    {
-        auto enum_ptr = static_cast<PyCspEnum *>( py_key ) -> enum_;
-        val = toJson( enum_ptr, CspType( CspType::Type::ENUM ), doc, callable );
     }
     else if( PyType_IsSubtype( Py_TYPE( py_key ), s_tl_enum_type.get() ) )
     {
@@ -365,6 +364,8 @@ rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyO
     }
     else if( PyLong_Check( value ) )
     {
+        if( CspTypeFactory::instance().isCspEnumPyType( Py_TYPE( value ) ) )
+            return pyObjectToJson( PyObjectPtr::own( PyObject_GetAttrString( value, "name" ) ).get(), doc, callable, true );
         return rapidjson::Value( fromPython<int64_t>( value ) );
     }
     else if( PyFloat_Check( value ) )
@@ -426,11 +427,6 @@ rapidjson::Value pyObjectToJson( PyObject * value, rapidjson::Document& doc, PyO
     {
         auto struct_ptr = static_cast<PyStruct *>( value ) -> struct_;
         return toJsonRecursive( struct_ptr, doc, callable );
-    }
-    else if( PyType_IsSubtype( Py_TYPE( value ), &PyCspEnum::PyType ) )
-    {
-        auto enum_ptr = static_cast<PyCspEnum *>( value ) -> enum_;
-        return toJson( enum_ptr, CspType( CspType::Type::ENUM ), doc, callable );
     }
     else
     {

@@ -17,7 +17,7 @@ dependencies:
 #  - flex  # not available on windows
  - graphviz
  - gtest
- - httpx>=0.20,<1
+ - httpx2>=2,<3
  - libarrow<24
  - libboost>=1.80.0
  - libboost-headers>=1.80.0

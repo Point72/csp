@@ -239,8 +239,8 @@ PyObject *PyInputProxy::valuesAt( ValueType valueType, PyObject *startIndexArg,
                                   PyObject *endIndexPolicyArg ) const
 {
     int32_t startIndex, endIndex;
-    auto startPolicy = static_cast<autogen::TimeIndexPolicy>( static_cast<PyCspEnum *>( startIndexPolicyArg ) -> enum_ );
-    auto endPolicy = static_cast<autogen::TimeIndexPolicy>( static_cast<PyCspEnum *>( endIndexPolicyArg ) -> enum_ );
+    auto startPolicy = csp::autogen::TimeIndexPolicy::create( startIndexPolicyArg );
+    auto endPolicy   = csp::autogen::TimeIndexPolicy::create( endIndexPolicyArg );
 
     if( startIndexArg == Py_None )
         startIndex = 1 - ts() -> numTicks();
@@ -513,9 +513,9 @@ static inline PyObject * PyInputProxy_values_at_impl( ValueType valueType, PyInp
     PyObject * endIndexArg;
     PyObject * startExclusiveArg;
     PyObject * endExclusiveArg;
-    if( !PyArg_ParseTuple( args, "OOO!O!", &startIndexArg, &endIndexArg,
-                           &PyCspEnum::PyType, &startExclusiveArg,
-                           &PyCspEnum::PyType, &endExclusiveArg ) )
+    if( !PyArg_ParseTuple( args, "OOOO", &startIndexArg, &endIndexArg,
+                           &startExclusiveArg,
+                           &endExclusiveArg ) )
         CSP_THROW( RuntimeException, "Invalid arguments passed to values_at" );
 
     return proxy -> valuesAt( valueType, startIndexArg, endIndexArg, startExclusiveArg, endExclusiveArg );

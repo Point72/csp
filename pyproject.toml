@@ -81,7 +81,7 @@ develop = [
     "graphviz",
     "pillow",
     # adapters
-    "httpx>=0.20,<1",  # kafka
+    "httpx2>=2,<3",  # kafka
     "perspective-python>=2",  # perspective
     "anywidget",  # perspective
     "polars",  # parquet
@@ -102,7 +102,7 @@ test = [
     "pytest-asyncio",
     "pytest-cov",
     "pytest-sugar",
-    "httpx>=0.20,<1",
+    "httpx2>=2,<3",
     "perspective-python",
     "polars",
     "psutil",

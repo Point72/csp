@@ -1,3 +1,4 @@
+#include <csp/python/CspTypeFactory.h>
 #include <csp/python/PyStructToDict.h>
 #include <csp/python/PyIterator.h>
 
@@ -99,7 +100,6 @@ inline PyObjectPtr StructToDictHelper::parseCspToPython( const T& val, const Csp
     return PyObjectPtr::own( toPython( val ) );
 }
 
-// Helper function to convert Enums into python object recursively
 template<>
 inline PyObjectPtr StructToDictHelper::parseCspToPython<CspEnum>( const CspEnum& val, const CspType& typ )
 {
@@ -225,11 +225,21 @@ PyObjectPtr StructToDictHelper::parsePyObject( PyObject * value, bool is_recursi
     INIT_PYDATETIME;
 
     if( ( value == Py_None ) ||                                                             // None check
-        ( PyBool_Check( value ) || PyLong_Check( value ) || PyFloat_Check( value ) ) ||     // Primitives check
+        ( PyBool_Check( value ) || PyFloat_Check( value ) ) ||     // Primitives check
         ( PyUnicode_Check( value ) || PyBytes_Check( value ) ) ||                           // Unicode/bytes check
         ( PyTime_CheckExact( value ) || PyDate_CheckExact( value ) ||
         PyDateTime_CheckExact( value ) || PyDelta_CheckExact( value ) ) )                 // Datetime check
         return PyObjectPtr::incref( value );
+    else if( PyLong_Check( value ) ) //Sepearate LongCheck to account for enums
+    {
+        if( CspTypeFactory::instance().isCspEnumPyType( Py_TYPE( value ) ) )
+        {
+            if( m_preserveEnums )
+                return PyObjectPtr::incref( value );
+            return PyObjectPtr::check( PyObject_GetAttrString( value, "name" ) );
+        }
+        return PyObjectPtr::incref( value );
+    }
     else if( PyTuple_Check( value ) || PyList_Check( value ) || PySet_Check( value ) )
         return parsePySequence( value );
     else if( PyDict_Check( value ) )
@@ -238,12 +248,6 @@ PyObjectPtr StructToDictHelper::parsePyObject( PyObject * value, bool is_recursi
     {
         auto struct_ptr = static_cast<PyStruct *>( value ) -> struct_;
         return parseStructToDictRecursive( struct_ptr );
-    }
-    else if( PyType_IsSubtype( Py_TYPE( value ), &PyCspEnum::PyType ) )
-    {
-        auto enum_ptr = static_cast<PyCspEnum *>( value ) -> enum_;
-        PyObject* py_type = ( PyObject* ) ( Py_TYPE( value ) );
-        return parseCspToPython( enum_ptr, *pyTypeAsCspType( py_type ) );
     }
     else
     {

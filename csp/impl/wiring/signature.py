@@ -65,7 +65,7 @@ class Signature:
             # Prefix all names with INPUT_PREFIX to avoid conflicts with pydantic names (i.e. model_validate)
             input_fields = {}
             for defn in inputs:
-                if defn.kind != ArgKind.ALARM:
+                if not defn.kind.is_alarm():
                     default = defaults.get(defn.name, ...)
                     typ = adjust_annotations(defn.typ, make_optional=True)
                     if defn.kind.is_scalar():  # Allow for SnapType and SnapKeyType
@@ -116,7 +116,7 @@ class Signature:
             new_inputs = []
             cur_ts_dx = 0
             for input in self._inputs:
-                if input.kind == ArgKind.ALARM:
+                if input.kind.is_alarm():
                     continue
                 else:
                     new_inputs.append(
@@ -179,7 +179,7 @@ class Signature:
         # We need to do some special handling here of int arguments connected to float
         tvars = type_resolver.tvars
         resolved_ts_inputs = type_resolver.ts_inputs
-        non_alarm_inputs = (e for e in self._ts_inputs if e.kind != ArgKind.ALARM)
+        non_alarm_inputs = (e for e in self._ts_inputs if not e.kind.is_alarm())
         for i, (input, resolved_input) in enumerate(zip(non_alarm_inputs, resolved_ts_inputs)):
             if isinstance(resolved_input, Edge):
                 if getattr(resolved_input.tstype, "typ", None) is int:

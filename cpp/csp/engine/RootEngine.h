@@ -2,6 +2,7 @@
 #define _IN_CSP_ENGINE_ROOTENGINE_H
 
 #include <csp/core/Exception.h>
+#include <csp/core/QueueWaiter.h>
 #include <csp/core/SRMWLockFreeQueue.h>
 #include <csp/core/System.h>
 #include <csp/core/Time.h>
@@ -13,6 +14,7 @@
 #include <csp/engine/PushEvent.h>
 #include <csp/engine/PushPullEvent.h>
 #include <csp/engine/Scheduler.h>
+#include <atomic>
 #include <memory>
 
 namespace csp
@@ -25,7 +27,7 @@ class EndCycleListener
 public:
     virtual ~EndCycleListener() {};
     virtual void onEndCycle() = 0;
-    
+
     bool isDirty() const  { return m_dirty; }
     void setDirtyFlag()   { m_dirty = true; }
     void clearDirtyFlag() { m_dirty = false; }
@@ -54,8 +56,17 @@ public:
     csp::Profiler* profiler() const { return m_profiler.get(); }
 
     void     run( DateTime start, DateTime end );
+
     void     shutdown();
     void     shutdown( std::exception_ptr except );
+
+    // Decomposed execution API - run() uses these internally
+    // External event loops can call start/processOneCycle/finish directly
+    void     start( DateTime start, DateTime end );
+    bool     processOneCycle( TimeDelta maxWait = TimeDelta::ZERO() );  // Returns true if more work pending
+    void     finish();
+    bool     isRunning() const { return m_state == State::RUNNING; }
+    DateTime nextScheduledTime();  // Returns next scheduled event time, or NONE if none
 
     Scheduler::Handle reserveSchedulerHandle();
     Scheduler::Handle scheduleCallback( TimeDelta delta, Scheduler::Callback cb );
@@ -67,12 +78,12 @@ public:
 
     void     cancelCallback( Scheduler::Handle handle );
 
-    void     schedulePushEvent( PushEvent * event )             { m_pushEventQueue.push( event ); }
-    void     schedulePushBatch( PushEventQueue::Batch & batch ) { m_pushEventQueue.push( batch ); }
+    void     schedulePushEvent( PushEvent * event )             { m_pushEventQueue.push( event ); notifyFdWaiter(); }
+    void     schedulePushBatch( PushEventQueue::Batch & batch ) { m_pushEventQueue.push( batch ); notifyFdWaiter(); }
 
     bool     scheduleEndCycleListener( EndCycleListener * l );
 
-    //returns true if the engine is currently in runRealtime
+    //returns true if the engine is currently running in realtime mode
     bool inRealtime() const         { return m_inRealtime; }
 
     //returns true if engine is configured realtime ( inRealtime can still be false if
@@ -90,7 +101,19 @@ public:
     bool interrupted() const;
 
     PushPullEventQueue & pushPullEventQueue() { return m_pushPullEventQueue; }
-    
+
+    // Native fd-based wakeup for external event loops (asyncio, etc.)
+    // Returns a file descriptor that becomes readable when events are queued.  Asking for the fd
+    // is what arms the signalling: until then the push path does no fd work at all.  Arming is
+    // one-way for the life of the run; it is disarmed only at teardown.
+    FdHandle getWakeupFd()
+    {
+        if( m_fdWaiter.isValid() )
+            m_fdWaiterEnabled.store( true, std::memory_order_relaxed );
+        return m_fdWaiter.readFd();
+    }
+    void clearWakeupFd() { m_fdWaiter.clear(); }
+
 protected:
     enum State { NONE, STARTING, RUNNING, SHUTDOWN, DONE };
     using EndCycleListeners = std::vector<EndCycleListener*>;
@@ -99,13 +122,19 @@ protected:
     void    preRun( DateTime start, DateTime end );
     void    postRun();
 
-    void    runSim( DateTime end );
-    void    runRealtime( DateTime end );
-
     void    processPendingPushEvents( std::vector<PushGroup*> & dirtyGroups );
     void    processPushEventQueue( PushEvent * events, std::vector<PushGroup*> & dirtyGroups );
 
     void    processEndCycle();
+
+    // Signals only once a consumer has armed the fd, keeping the push hot path syscall-free.
+    // The flag carries no data, hence relaxed; it is a hint, not a synchronization point, and it
+    // does not make teardown safe - adapters must still be stopped before the engine is destroyed.
+    void    notifyFdWaiter()
+    {
+        if( m_fdWaiterEnabled.load( std::memory_order_relaxed ) ) [[unlikely]]
+            m_fdWaiter.notify();
+    }
 
     struct Settings
     {
@@ -131,7 +160,11 @@ protected:
     PendingPushEvents m_pendingPushEvents;
     Settings          m_settings;
     bool              m_inRealtime;
+    bool              m_haveEvents;  // Tracks pending events across cycles in realtime mode
     int               m_initSignalCount;
+
+    // Shared across cycles for event processing
+    std::vector<PushGroup *> m_dirtyGroups;
 
     PushEventQueue     m_pushEventQueue;
     //This queue is managed entirely from the PushPullInputAdapter
@@ -140,6 +173,10 @@ protected:
     std::exception_ptr                m_exception_ptr;
     std::mutex                        m_exception_mutex;
     std::unique_ptr<csp::Profiler>    m_profiler;
+    mutable FdWaiter                  m_fdWaiter;  // For native fd-based event loop integration
+    // Only armed once a consumer asks for the fd, and disarmed at teardown, so the default
+    // engine.run() path never touches the fd from the push hot path
+    std::atomic<bool>                 m_fdWaiterEnabled{ false };
 
 };
 
@@ -168,7 +205,7 @@ inline Scheduler::Handle RootEngine::scheduleCallback( Scheduler::Handle reserve
     if( time < m_now ) [[unlikely]]
         CSP_THROW( ValueError, "Cannot schedule event in the past.  new time: " << time << " now: " << m_now );
 
-    return m_scheduler.scheduleCallback( reservedHandle, time, std::move( cb ) ); 
+    return m_scheduler.scheduleCallback( reservedHandle, time, std::move( cb ) );
 }
 
 inline Scheduler::Handle RootEngine::rescheduleCallback( Scheduler::Handle id, csp::DateTime time )

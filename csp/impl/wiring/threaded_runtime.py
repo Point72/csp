@@ -112,8 +112,16 @@ def run_on_thread(
     realtime=False,
     auto_shutdown=False,
     daemon=False,
+    asyncio_on_thread=False,
     **kwargs,
 ):
+    """Run a graph on a background thread.
+
+    ``asyncio_on_thread`` is surfaced explicitly because it changes which engine loop is used:
+    with the default ``False`` and ``realtime=True`` the graph runs on the step-based asyncio
+    loop - on this worker thread, not the main thread, so Python signal handlers do not run
+    there. Pass ``asyncio_on_thread=True`` to use the plain blocking engine loop instead.
+    """
     return ThreadRunner(
         g,
         *args,
@@ -123,5 +131,6 @@ def run_on_thread(
         realtime=realtime,
         auto_shutdown=auto_shutdown,
         daemon=daemon,
+        asyncio_on_thread=asyncio_on_thread,
         **kwargs,
     )

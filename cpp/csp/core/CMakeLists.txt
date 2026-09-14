@@ -27,6 +27,12 @@ configure_file(Config.h.in ${CMAKE_CURRENT_BINARY_DIR}/cpp/csp/core/Config.h)
 add_library(csp_core STATIC ${CORE_SOURCE_FILES})
 set_target_properties(csp_core PROPERTIES PUBLIC_HEADER "${CORE_PUBLIC_HEADERS}")
 
+if(WIN32)
+  # QueueWaiter.h's FdWaiter uses Winsock. The `#pragma comment(lib, ...)` in that header is
+  # MSVC-only, so link it explicitly for MinGW/clang-cl too.
+  target_link_libraries(csp_core PUBLIC ws2_32)
+endif()
+
 install(TARGETS csp_core
         PUBLIC_HEADER DESTINATION include/csp/core
         RUNTIME DESTINATION ${CSP_RUNTIME_INSTALL_SUBDIR}

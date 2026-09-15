@@ -1087,6 +1087,30 @@ class TestParsing(unittest.TestCase):
 
         #     csp.print("out5", my_node5(csp.const(1), csp.const(2)))
 
+    def test_outputs_no_non_string_key_warning(self):
+        # csp.Outputs(...) builds a class via type(name, bases, namespace); the unnamed-output
+        # case used to leave `None` as a literal key in that namespace, which raises
+        # RuntimeWarning: non-string key in the __dict__ of class Outputs on Python 3.13+
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            Outputs(ts[int])
+            Outputs(my_output=ts[int])
+
+        @csp.node
+        def my_node(x: ts[int]) -> Outputs(ts[int]):
+            if csp.ticked(x):
+                return x
+
+        @csp.graph
+        def g():
+            csp.print("out", my_node(csp.const(1)))
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta())
+
     def test_output_annotation_parsing_graphs(self):
         @csp.graph
         def graph() -> Outputs({str: ts[int]}):

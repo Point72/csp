@@ -58,6 +58,13 @@ class Outputs:
             _make_pydantic_outputs(kwargs)
         except ImportError:
             pass
+
+        # `None` is the internal key for a single unnamed output (see above), but it is not a
+        # valid class attribute name. CPython 3.13+ warns when the namespace passed to `type()`
+        # contains a non-string key. The value is still reachable via `__annotations__[None]`,
+        # which is all that downstream code reads, so it is safe to drop the top-level entry here.
+        kwargs.pop(None, None)
+
         return type("Outputs", (Outputs,), kwargs)
 
     def __init__(self, *args, **kwargs):

@@ -202,6 +202,22 @@ class TestPushPullAdapter(unittest.TestCase):
                 realtime=True,
             )
 
+    def test_early_start_exception(self):
+        """was a bug where a different adapter raises on start and pushpull adapter got stuck on shutdown"""
+
+        @csp.graph
+        def g() -> None:
+            dt = utc_now()
+            data = [(False, dt, 1)]
+            pushpull = test_adapter(int, data)
+
+            # Trigger start exception in csp.curve
+            csp.print("x", csp.curve(int, [("foo", "bar")]))
+            csp.print("y", pushpull)
+
+        with self.assertRaises(AttributeError):
+            csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -17,7 +17,9 @@ add_library(csptypesimpl
             PyCspType.cpp
             PyStruct.cpp
             PyStructToJson.cpp
-            PyStructToDict.cpp)
+            PyStructToDict.cpp
+            PyStructFromDict.cpp
+            PyStructFromJson.cpp)
 
 set_target_properties(csptypesimpl PROPERTIES PUBLIC_HEADER "${CSPTYPESIMPL_PUBLIC_HEADERS}")
 target_compile_definitions(csptypesimpl PUBLIC RAPIDJSON_HAS_STDSTRING=1)
@@ -48,7 +50,9 @@ set(CSPIMPL_PUBLIC_HEADERS
         PyOutputProxy.h
         PyConstants.h
         PyStructToJson.h
-        PyStructToDict.h)
+        PyStructToDict.h
+        PyStructFromDict.h
+        PyStructFromJson.h)
 
 add_library(cspimpl SHARED
         cspimpl.cpp

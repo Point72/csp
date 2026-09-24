@@ -7,6 +7,9 @@
 #include <csp/python/PyStructList_impl.h>
 #include <csp/python/PyStructToJson.h>
 #include <csp/python/PyStructToDict.h>
+#include <csp/python/PyStructFromDict.h>
+#include <csp/python/PyStructFromJson.h>
+#include <rapidjson/error/en.h>
 #include <unordered_set>
 #include <type_traits>
 
@@ -1052,6 +1055,40 @@ PyObject * PyStruct_to_dict( PyStruct * self, PyObject * args, PyObject * kwargs
     CSP_RETURN_NULL;
 }
 
+PyObject * PyStruct_from_dict( PyStructMeta * cls, PyObject * args, PyObject * kwargs) {
+    CSP_BEGIN_METHOD;
+
+    PyObject* dict = NULL;
+
+    if (!PyArg_ParseTuple(args, "O:from_dict", &dict)) {
+        return NULL;
+    }
+    auto& struct_meta = cls->structMeta;
+    return toPython(structFromDict(struct_meta, dict));
+
+    CSP_RETURN_NULL;
+}
+
+PyObject * PyStruct_from_json( PyStructMeta * cls, PyObject * args, PyObject * kwargs )
+{
+    CSP_BEGIN_METHOD;
+
+    const char * json = nullptr;
+    Py_ssize_t len = 0;
+    if( !PyArg_ParseTuple( args, "s#:from_json", &json, &len ) )
+        return NULL;
+
+    //kParseNanAndInfFlag to match to_json, which writes NaN / Inf for doubles
+    rapidjson::Document doc;
+    rapidjson::ParseResult ok = doc.Parse<rapidjson::kParseNanAndInfFlag>( json, len );
+    if( !ok )
+        CSP_THROW( ValueError, "Failed to parse json: " << rapidjson::GetParseError_En( ok.Code() ) );
+
+    return toPython( structFromJson( cls -> structMeta, doc ) );
+
+    CSP_RETURN_NULL;
+}
+
 PyObject * PyStruct_to_json( PyStruct * self, PyObject * args, PyObject * kwargs )
 {
     CSP_BEGIN_METHOD;
@@ -1087,6 +1124,8 @@ static PyMethodDef PyStruct_methods[] = {
     { "all_fields_set", (PyCFunction) PyStruct_all_fields_set, METH_NOARGS, "return true if all fields on the struct are set" },
     { "to_dict",        (PyCFunction) PyStruct_to_dict,        METH_VARARGS | METH_KEYWORDS, "return a python dict of the struct by recursively converting struct members into python dicts" },
     { "to_json",        (PyCFunction) PyStruct_to_json,        METH_VARARGS | METH_KEYWORDS, "return a json string of the struct by recursively converting struct members into json format" },
+    { "from_dict",     (PyCFunction) PyStruct_from_dict,      METH_VARARGS | METH_KEYWORDS | METH_CLASS, "return a struct by recursively reading the values from a python dictionary"},
+    { "from_json",     (PyCFunction) PyStruct_from_json,      METH_VARARGS | METH_KEYWORDS | METH_CLASS, "return a struct by recursively reading the values from a json string"},
     { NULL}
 };
 

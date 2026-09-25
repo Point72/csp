@@ -32,7 +32,7 @@ CMAKE_OPTIONS = (
 )
 
 if sys.platform == "linux":
-    VCPKG_TRIPLET = "x64-linux"
+    VCPKG_TRIPLET = "arm64-linux" if platform.machine().lower() in ("aarch64", "arm64") else "x64-linux"
 elif sys.platform == "win32":
     VCPKG_TRIPLET = "x64-windows-static-md"
 else:

@@ -141,11 +141,9 @@ class CodeGenerator:
         return self._cpp_filename
 
     def generate_header_code(self):
-        include_guard = "_IN_CSP_AUTOGEN_" + self._module_name.replace(".", "_").upper()
         out = f"""
 {_GEN_COMMAND}
-#ifndef {include_guard}
-#define {include_guard}
+#pragma once
 
 """
         out += self._generate_headers()
@@ -162,7 +160,7 @@ namespace {self._namespace}
         for struct_type in self._struct_types:
             out += self._generate_struct_class(struct_type)
 
-        out += "\n}\n#endif"
+        out += "\n}"
         return out
 
     def _generate_headers(self):

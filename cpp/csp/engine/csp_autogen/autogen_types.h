@@ -3,8 +3,7 @@
 // DO NOT MODIFY DIRECTLY
 // command: python csp/build/csp_autogen.py -m csp.impl.types.autogen_types -d cpp/csp/engine/csp_autogen -o autogen_types --omit_asserts
 
-#ifndef _IN_CSP_AUTOGEN_CSP_IMPL_TYPES_AUTOGEN_TYPES
-#define _IN_CSP_AUTOGEN_CSP_IMPL_TYPES_AUTOGEN_TYPES
+#pragma once
 
 #include <csp/core/Exception.h>
 #include <csp/core/Platform.h>
@@ -253,4 +252,3 @@ private:
 };
 
 }
-#endif

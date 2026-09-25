@@ -31,6 +31,8 @@ class TestPregeneratedTypes:
             generated_header = Path(td) / "autogen_types.h"
             generated_cpp = Path(td) / "autogen_types.cpp"
 
+            assert "#pragma once" in generated_header.read_text()
+
             # Path is different, so skip the lines
             # that show the command
             assert pregenerated_header.read_text().split("\n")[4:] == generated_header.read_text().split("\n")[4:]

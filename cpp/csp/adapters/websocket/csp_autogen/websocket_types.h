@@ -3,8 +3,7 @@
 // DO NOT MODIFY DIRECTLY
 // command: python csp/build/csp_autogen.py -m csp.adapters.websocket_types -d cpp/csp/adapters/websocket/csp_autogen/ -o websocket_types --omit_asserts
 
-#ifndef _IN_CSP_AUTOGEN_CSP_ADAPTERS_WEBSOCKET_TYPES
-#define _IN_CSP_AUTOGEN_CSP_ADAPTERS_WEBSOCKET_TYPES
+#pragma once
 
 #include <csp/core/Exception.h>
 #include <csp/core/Platform.h>
@@ -227,4 +226,3 @@ private:
 };
 
 }
-#endif

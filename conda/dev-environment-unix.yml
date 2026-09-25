@@ -4,6 +4,7 @@ channels:
   - nodefaults
 dependencies:
  - astor
+ - avrocpp
  - bison
  - brotli
  - bump-my-version

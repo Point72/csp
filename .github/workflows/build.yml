@@ -195,7 +195,7 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
-            - ubuntu-24.04-arm # https://github.com/actions/partner-runner-images/blob/main/images/arm-ubuntu-24-image.md
+            - ubuntu-24.04-arm # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Arm64-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:

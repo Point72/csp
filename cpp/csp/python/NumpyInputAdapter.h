@@ -250,13 +250,13 @@ void NumpyInputAdapter<int64_t>::setValue( int64_t & value, void * data )
     {
         case NPY_BYTELTR:
         {
-            const char * const val = (const char *) data;
+            const int8_t * const val = (const int8_t *) data;
             value = static_cast<int64_t>(*val);
             break;
         }
         case NPY_UBYTELTR:
         {
-            const unsigned char * const val = (const unsigned char *) data;
+            const uint8_t * const val = (const uint8_t *) data;
             value = static_cast<int64_t>(*val);
             break;
         }

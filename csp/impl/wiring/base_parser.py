@@ -271,11 +271,11 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
             break
 
         if i < len(body):
-            _, res = self._consume_special_block(
+            next_i, res = self._consume_special_block(
                 body, i, "__outputs__", self._parse_output_def, allow_with_block=False, allow_flat_call=True
             )
             if res:
-                outputs_call = body[i].value
+                outputs_call = body[next_i - 1].value
 
         if outputs_call is not None:
             body.pop(i)
@@ -518,6 +518,11 @@ class BaseParser(ast.NodeTransformer, metaclass=ABCMeta):
         if len(body) <= index:
             return index, None
         node = body[index]
+        while isinstance(node, ast.AnnAssign) and node.value is None:
+            index += 1
+            if len(body) <= index:
+                return index, None
+            node = body[index]
         if self._is_special_with_block(node, name):
             if not allow_with_block:
                 raise CspParseError(f"{name} can not be used in a with statement")

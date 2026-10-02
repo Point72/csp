@@ -357,6 +357,14 @@ class TestParsing(unittest.TestCase):
             def foo(x: ts[int]) -> Outputs(x=ts[bool]):
                 __return__(x[1], 7)
 
+        with self.assertRaisesRegex(CspParseError, "csp.output does not support \\* unpacking"):
+
+            @csp.node
+            def foo(x: ts[int]):
+                __outputs__(z=ts[bool])
+                args = (7,)
+                csp.output(*args)
+
         with self.assertRaisesRegex(CspParseError, "unrecognized output 'x'"):
 
             @csp.node

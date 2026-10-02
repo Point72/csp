@@ -1,10 +1,9 @@
 import os
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import csp
-from csp import ts
-from csp.adapters.csv import CSVReader, YYYYMMDD_TIME_formatter
+from csp.adapters.csv import CsvAdapterManager
 
 
 class PriceQuantity(csp.Struct):
@@ -23,23 +22,30 @@ class PriceQuantity2(csp.Struct):
 class TestCSVReader(unittest.TestCase):
     def setUp(self):
         self._filename = os.path.join(os.path.dirname(__file__), "csv_test_data.csv")
-        self._time_formatter = YYYYMMDD_TIME_formatter("TIME")
 
     def test_basic(self):
         def graph():
-            reader = CSVReader(self._filename, self._time_formatter, symbol_column="SYMBOL", delimiter="|")
+            reader = CsvAdapterManager(
+                self._filename,
+                time_column="TIME",
+                symbol_column="SYMBOL",
+                delimiter="|",
+                time_format="YYYYMMDD hh:mm:ss",
+            )
 
             # Struct
-            aapl = reader.subscribe("AAPL", PriceQuantity)
-            ibm = reader.subscribe("IBM", PriceQuantity)
+            aapl = reader.subscribe(PriceQuantity, symbol="AAPL")
+            ibm = reader.subscribe(PriceQuantity, symbol="IBM")
 
             # Struct with fieldMapping
             aapl2 = reader.subscribe(
-                "AAPL", PriceQuantity2, field_map={"PRICE": "price", "SIZE": "quantity", "SIDE": "side"}
+                PriceQuantity2,
+                symbol="AAPL",
+                field_map={"PRICE": "price", "SIZE": "quantity", "SIDE": "side"},
             )
 
             # specific field
-            aapl_price = reader.subscribe("AAPL", float, field_map="PRICE")
+            aapl_price = reader.subscribe(float, symbol="AAPL", field_map="PRICE")
 
             # all data
             all = reader.subscribe_all(PriceQuantity)
@@ -51,6 +57,7 @@ class TestCSVReader(unittest.TestCase):
             csp.add_graph_output("all", all)
 
         result = csp.run(graph, starttime=datetime(2020, 3, 3, 9, 30))
+
         self.assertEqual(len(result["aapl"]), 4)
         self.assertTrue(all(v[1].SYMBOL == "AAPL" for v in result["aapl"]))
 
@@ -72,21 +79,23 @@ class TestCSVReader(unittest.TestCase):
             [
                 PriceQuantity2(price=500.0, quantity=100, side="BUY"),
                 PriceQuantity2(price=400.0, quantity=100, side="BUY"),
-                PriceQuantity2(
-                    price=300.0,
-                    quantity=200,
-                    side="SELL",
-                ),
+                PriceQuantity2(price=300.0, quantity=200, side="SELL"),
                 PriceQuantity2(price=200.0, quantity=400, side="BUY"),
             ],
         )
 
-        self.assertEqual([v[1] for v in result["aapl_price"]], [500.0, 400.0, 300.0, 200.0])
+        self.assertEqual(
+            [v[1] for v in result["aapl_price"]],
+            [500.0, 400.0, 300.0, 200.0],
+        )
+
         self.assertEqual(len(result["all"]), 7)
 
     def test_starttime(self):
-        reader = CSVReader(self._filename, self._time_formatter, symbol_column="SYMBOL", delimiter="|")
-        aapl = reader.subscribe("AAPL", float, "PRICE")
+        reader = CsvAdapterManager(
+            self._filename, time_column="TIME", symbol_column="SYMBOL", delimiter="|", time_format="YYYYMMDD hh:mm:ss"
+        )
+        aapl = reader.subscribe(float, symbol="AAPL", field_map="PRICE")
 
         # Exact hit
         res = csp.run(aapl, starttime=datetime(2020, 3, 3, 9, 30, 4))[0]

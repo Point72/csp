@@ -195,6 +195,7 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
+            - ubuntu-24.04-arm # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Arm64-Readme.md
             - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
@@ -221,6 +222,19 @@ jobs:
 
             - is-full-run: false
               os: windows-2022
+              cibuildwheel: "cp312"
+
+            # avoid unnecessary use of arm resources
+            - is-full-run: false
+              os: ubuntu-24.04-arm
+              cibuildwheel: "cp310"
+
+            - is-full-run: false
+              os: ubuntu-24.04-arm
+              cibuildwheel: "cp311"
+
+            - is-full-run: false
+              os: ubuntu-24.04-arm
               cibuildwheel: "cp312"
 
             # avoid unnecessary use of mac resources
@@ -412,6 +426,7 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04
+            - ubuntu-24.04-arm
             - macos-14
             - windows-2022
           python-version:
@@ -438,6 +453,19 @@ jobs:
 
             - is-full-run: false
               os: windows-2022
+              python-version: "3.12"
+
+            # avoid unnecessary use of arm resources
+            - is-full-run: false
+              os: ubuntu-24.04-arm
+              python-version: "3.10"
+
+            - is-full-run: false
+              os: ubuntu-24.04-arm
+              python-version: "3.11"
+
+            - is-full-run: false
+              os: ubuntu-24.04-arm
               python-version: "3.12"
 
             # avoid unnecessary use of mac resources

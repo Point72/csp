@@ -819,6 +819,7 @@ private:
     ~Struct()
     {
         meta() -> destroy( this );
+        hidden() -> ~HiddenData();
     }
 
     void incref() { ++hidden() -> refcount; }

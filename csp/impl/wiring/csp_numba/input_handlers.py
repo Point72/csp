@@ -2,15 +2,20 @@
 
 import inspect
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import Any, Optional
 
-from numba_cfunc_compiler.function_analyzer import InputTypeHandler
-from numba_cfunc_compiler.models import ParameterInfo
+from numba_cfunc_compiler.core.analysis import InputTypeHandler, ParameterInfo
+
+
+class CspInputCategory(Enum):
+    SIGNAL = auto()
+    SIGNAL_SET = auto()
 
 
 @dataclass(frozen=True)
 class CspInputMetadata:
-    category: str
+    category: CspInputCategory
 
 
 class CspInputHandler(InputTypeHandler):
@@ -24,6 +29,6 @@ class CspInputHandler(InputTypeHandler):
 
 
 def register():
-    from numba_cfunc_compiler.function_analyzer import FunctionAnalyzer
+    from numba_cfunc_compiler.core.analysis import FunctionAnalyzer
 
     FunctionAnalyzer.register_input_handler(CspInputHandler())

@@ -1,32 +1,24 @@
 import inspect
+from enum import IntEnum
 from typing import Callable, Optional, get_args, get_origin
 
-from numba_cfunc_compiler.compilation_context import CompilationContext
-from numba_cfunc_compiler.defaults import register_types as register_default_types
-from numba_cfunc_compiler.defaults.source_categories import (
-    ConstantCategory,
-    LifecycleCategory,
-    OutputCategory,
-    StateCategory,
-)
-from numba_cfunc_compiler.numba_config import NumbaDict, NumbaList
-from numba_cfunc_compiler.numba_core import create_compiled_func
-from numba_cfunc_compiler.source_registry import SourceRegistry
+from numba_cfunc_compiler.api import NumbaDict, NumbaList
+from numba_cfunc_compiler.core.compile import create_compiled_func
+from numba_cfunc_compiler.core.context import CompilationContext
+from numba_cfunc_compiler.core.defaults import register_all
+from numba_cfunc_compiler.core.postprocess import CompilationOptions
 
 from csp.impl.__cspimpl import _cspimpl
 from csp.impl.wiring.csp_numba.csp_node_transformer import CspNodeTransformer
-from csp.impl.wiring.csp_numba.enum_support import register as register_enum_support
-from csp.impl.wiring.csp_numba.input_handlers import CspInputMetadata, register as register_input_handlers
+from csp.impl.wiring.csp_numba.enum_support import register as register_enum_support, register_family
+from csp.impl.wiring.csp_numba.input_handlers import (
+    CspInputCategory,
+    CspInputMetadata,
+    register as register_input_handlers,
+)
 from csp.impl.wiring.csp_numba.output_handlers import register as register_output_handlers
-from csp.impl.wiring.csp_numba.signal_set_support import (
-    register_ast_handlers as register_signal_set_ast_handlers,
-)
-from csp.impl.wiring.csp_numba.signal_support import SignalCategory
-from csp.impl.wiring.csp_numba.struct_support import (
-    register as register_struct_support,
-    struct_enum_store,
-    struct_enum_value,
-)
+from csp.impl.wiring.csp_numba.signal_support import register as register_signals
+from csp.impl.wiring.csp_numba.struct_support import register as register_struct_support
 from csp.impl.wiring.node import NodeDef, NodeDefMeta
 from csp.impl.wiring.node_parser import NodeDefinitionParser
 
@@ -45,20 +37,12 @@ def _get_csp_context() -> CompilationContext:
     if _csp_context is None:
         ctx = CompilationContext()
         with ctx:
-            register_default_types()
-
-            SourceRegistry.register(SignalCategory())
-            SourceRegistry.register(ConstantCategory())
-            SourceRegistry.register(OutputCategory())
-            SourceRegistry.register(StateCategory())
-            SourceRegistry.register(LifecycleCategory())
-
+            register_all()
+            register_signals()
             register_input_handlers()
             register_output_handlers()
             register_enum_support()
             register_struct_support()
-
-            register_signal_set_ast_handlers()
         _csp_context = ctx
     return _csp_context
 
@@ -176,9 +160,6 @@ def numba_node(
         if globals:
             transformed_globals.update(globals)
 
-        transformed_globals["struct_enum_value"] = struct_enum_value
-        transformed_globals["struct_enum_store"] = struct_enum_store
-
         def get_edge_type(edge) -> type:
             return edge.tstype.typ
 
@@ -192,7 +173,9 @@ def numba_node(
             parameters=[
                 param.replace(
                     annotation=CspInputMetadata(
-                        category="signal_set" if definition.signature.input(param.name).kind.is_basket() else "signal"
+                        category=CspInputCategory.SIGNAL_SET
+                        if definition.signature.input(param.name).kind.is_basket()
+                        else CspInputCategory.SIGNAL
                     )
                 )
                 if definition.signature.input(param.name).kind.is_any_ts()
@@ -203,6 +186,9 @@ def numba_node(
 
         def compile_call(*args, **kwargs):
             with _get_csp_context():
+                for value in transformed_globals.values():
+                    if isinstance(value, type) and issubclass(value, IntEnum):
+                        register_family(value)
                 return create_compiled_func(
                     transformed_ast,
                     *args,
@@ -213,6 +199,7 @@ def numba_node(
                     call_globals=transformed_globals,
                     start_body=transformed.start_body,
                     stop_body=transformed.stop_body,
+                    options=CompilationOptions(return_status=True),
                     **kwargs,
                 )
 

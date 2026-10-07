@@ -9,9 +9,8 @@ Provides:
 import ast
 from typing import Any, Optional, get_args, get_origin
 
-from numba_cfunc_compiler.defaults import is_supported_type
-from numba_cfunc_compiler.function_analyzer import OutputTypeHandler
-from numba_cfunc_compiler.models import OutputAnalysis
+from numba_cfunc_compiler.core.analysis import OutputAnalysis, OutputTypeHandler
+from numba_cfunc_compiler.types.factory import HostTypeFactory
 
 from csp.impl.struct import Struct as CspStruct
 from csp.impl.types.tstype import TsType
@@ -20,8 +19,10 @@ from csp.impl.types.tstype import TsType
 def validate_output_type(t: Any, context: str) -> None:
     if isinstance(t, type) and issubclass(t, CspStruct) and t is not CspStruct:
         raise TypeError(f"Unsupported type '{t}' for {context}")
-    if not is_supported_type(t):
-        raise TypeError(f"Unsupported type '{t}' for {context}")
+    try:
+        HostTypeFactory.resolve(t)
+    except TypeError as exc:
+        raise TypeError(f"Unsupported type '{t}' for {context}") from exc
 
 
 def _extract_ts_inner_type(ann: Any) -> Optional[type]:
@@ -44,7 +45,7 @@ class SingleTsOutputHandler(OutputTypeHandler):
 
         validate_output_type(output_type, "output[0]")
 
-        return OutputAnalysis(output_types=[output_type], named_outputs=None)
+        return OutputAnalysis(outputs={None: output_type})
 
 
 class CspOutputsHandler(OutputTypeHandler):
@@ -78,11 +79,11 @@ class CspOutputsHandler(OutputTypeHandler):
         if not named_outputs:
             return None
 
-        return OutputAnalysis(output_types=list(named_outputs.values()), named_outputs=named_outputs)
+        return OutputAnalysis(outputs=named_outputs)
 
 
 def register():
-    from numba_cfunc_compiler.function_analyzer import FunctionAnalyzer
+    from numba_cfunc_compiler.core.analysis import FunctionAnalyzer
 
     FunctionAnalyzer.register_output_handler(SingleTsOutputHandler())
     FunctionAnalyzer.register_output_handler(CspOutputsHandler())

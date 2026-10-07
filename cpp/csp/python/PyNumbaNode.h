@@ -25,7 +25,7 @@ constexpr ValidType LIFECYCLE_STOP = 2;
  * The compiled function signature matches the source categories registered
  * by CSP (Constant, Output, State, Lifecycle, Signal):
  *
- *   void(*)( void **              outputs,
+ *   int8_t(*)( void **            outputs,
  *            ValidType *          outputs_ticked,
  *            void **              state_variables,
  *            ValidType            lifecycle_phase,
@@ -36,7 +36,7 @@ constexpr ValidType LIFECYCLE_STOP = 2;
 class PyNumbaNode final : public csp::Node
 {
 public:
-    using CompiledFuncT = void(*)(
+    using CompiledFuncT = int8_t(*)(
         void **              outputs,
         ValidType *          outputs_ticked,
         void **              state_variables,
@@ -84,6 +84,7 @@ private:
     void initStateArrays( PyObjectPtr stateVariables, PyObjectPtr nrtStateIndices, 
                          PyObjectPtr structStateIndices, PyObjectPtr structStateSizes );
     void clearOutputTicked();
+    void invokeCompiled( ValidType phase );
 
     // The compiled Numba function
     CompiledFuncT m_compiledFunc = nullptr;

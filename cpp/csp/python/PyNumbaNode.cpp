@@ -22,41 +22,6 @@
 namespace csp::python
 {
 
-extern "C" CSPIMPL_EXPORT int64_t csp_numba_struct_enum_field_value( const void * struct_ptr, int64_t field_offset )
-{
-    // Struct metadata only gives us a byte offset here. Enum fields are native
-    // CspEnum objects in memory, so numba reads must go through value().
-    const char * bytes = static_cast<const char *>( struct_ptr );
-    const auto * enumField = reinterpret_cast<const CspEnum *>( bytes + field_offset );
-    return enumField -> value();
-}
-
-extern "C" CSPIMPL_EXPORT void csp_numba_struct_enum_field_set(
-    void * struct_ptr,
-    int64_t field_offset,
-    int64_t value,
-    const void * struct_type
-)
-{
-    // An unset enum field does not contain enum metadata. Resolve the declared
-    // field type through the owning struct type and use the field setter so its
-    // set bit is updated as well.
-    const auto * pyStructMeta = static_cast<const PyStructMeta *>( struct_type );
-    const auto & fields = pyStructMeta -> structMeta -> fields();
-    auto fieldIt = std::find_if( fields.begin(), fields.end(), [field_offset]( const auto & field )
-    {
-        return field -> offset() == static_cast<size_t>( field_offset );
-    } );
-    CSP_ASSERT( fieldIt != fields.end() );
-    CSP_ASSERT( ( *fieldIt ) -> type() -> type() == CspType::Type::ENUM );
-
-    const auto * enumType = static_cast<const CspEnumType *>( ( *fieldIt ) -> type().get() );
-    ( *fieldIt ) -> setValue<CspEnum>(
-        static_cast<Struct *>( struct_ptr ),
-        enumType -> meta() -> create( value )
-    );
-}
-
 namespace
 {
 constexpr size_t OUTPUT_VALUE_SLOT_BYTES = sizeof( int64_t );
@@ -286,30 +251,29 @@ void PyNumbaNode::initStateArrays( PyObjectPtr stateVariables, PyObjectPtr nrtSt
     }
 }
 
-void PyNumbaNode::start()
+void PyNumbaNode::invokeCompiled( ValidType phase )
 {
-    m_compiledFunc(
+    const int8_t status = m_compiledFunc(
         m_outputArgs,
         m_outputTicked,
         m_stateArgs,
-        LIFECYCLE_START,
+        phase,
         m_inputArgs,
         m_inputTicked,
         m_inputValid
     );
+    if( status != 1 )
+        CSP_THROW( RuntimeException, "Compiled Numba callback failed" );
+}
+
+void PyNumbaNode::start()
+{
+    invokeCompiled( LIFECYCLE_START );
 }
 
 void PyNumbaNode::stop()
 {
-    m_compiledFunc(
-        m_outputArgs,
-        m_outputTicked,
-        m_stateArgs,
-        LIFECYCLE_STOP,
-        m_inputArgs,
-        m_inputTicked,
-        m_inputValid
-    );
+    invokeCompiled( LIFECYCLE_STOP );
 }
 
 const char * PyNumbaNode::name() const
@@ -359,15 +323,7 @@ void PyNumbaNode::executeImpl()
     clearOutputTicked();
 
     // Call the compiled Numba function
-    m_compiledFunc(
-        m_outputArgs,
-        m_outputTicked,
-        m_stateArgs,
-        LIFECYCLE_EXECUTE,
-        m_inputArgs,
-        m_inputTicked,
-        m_inputValid
-    );
+    invokeCompiled( LIFECYCLE_EXECUTE );
 
     const DateTime currentTime = now();
 

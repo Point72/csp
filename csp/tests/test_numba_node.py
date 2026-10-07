@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from enum import IntEnum
 
-from numba_cfunc_compiler.numba_config import NumbaDict, NumbaList, create_new_dict, create_new_list
+from numba_cfunc_compiler.api import NumbaDict, NumbaList, create_new_dict, create_new_list
 
 import csp
 from csp import ts
@@ -487,8 +487,8 @@ class TestContainerTypes(unittest.TestCase):
             total = 0.0
             count = 0
             for i in range(len(xs)):
-                if xs[i].ticked():
-                    total = total + xs[i]
+                if xs.at(i).ticked():
+                    total = total + xs.at(i)
                     count = count + 1
 
             if count > 0:
@@ -713,9 +713,9 @@ class TestFeatures(unittest.TestCase):
             ticked_count = 0
             ticked_sum = 0
             for i in range(len(xs)):
-                if xs[i].ticked():
+                if xs.at(i).ticked():
                     ticked_count = ticked_count + 1
-                    ticked_sum = ticked_sum + xs[i]
+                    ticked_sum = ticked_sum + xs.at(i)
             csp.output(ticked_count=ticked_count)
             csp.output(ticked_sum=ticked_sum)
 
@@ -741,9 +741,9 @@ class TestFeatures(unittest.TestCase):
             ticked_count = 0
             ticked_sum = 0
             for i in range(len(xs)):
-                if xs[i].ticked():
+                if xs.at(i).ticked():
                     ticked_count = ticked_count + 1
-                    ticked_sum = ticked_sum + xs[i]
+                    ticked_sum = ticked_sum + xs.at(i)
             csp.output(ticked_count=ticked_count)
             csp.output(ticked_sum=ticked_sum)
 
@@ -766,9 +766,9 @@ class TestFeatures(unittest.TestCase):
             ticked_sum = 0.0
             valid_sum = 0.0
             for key in prices.tickedkeys():
-                ticked_sum = ticked_sum + prices[key]
+                ticked_sum = ticked_sum + prices.at(key)
             for key in prices.validkeys():
-                valid_sum = valid_sum + prices[key]
+                valid_sum = valid_sum + prices.at(key)
             csp.output(ticked_sum=ticked_sum)
             csp.output(valid_sum=valid_sum)
 
@@ -793,9 +793,9 @@ class TestFeatures(unittest.TestCase):
             ticked_sum = 0.0
             valid_sum = 0.0
             for key in prices.tickedkeys():
-                ticked_sum = ticked_sum + prices[key]
+                ticked_sum = ticked_sum + prices.at(key)
             for key in prices.validkeys():
-                valid_sum = valid_sum + prices[key]
+                valid_sum = valid_sum + prices.at(key)
             csp.output(ticked_sum=ticked_sum)
             csp.output(valid_sum=valid_sum)
 
@@ -817,9 +817,9 @@ class TestFeatures(unittest.TestCase):
             ticked_sum = 0.0
             valid_sum = 0.0
             for key in prices.tickedkeys():
-                ticked_sum = ticked_sum + prices[key]
+                ticked_sum = ticked_sum + prices.at(key)
             for key in prices.validkeys():
-                valid_sum = valid_sum + prices[key]
+                valid_sum = valid_sum + prices.at(key)
             csp.output(ticked_sum=ticked_sum)
             csp.output(valid_sum=valid_sum)
 
@@ -839,8 +839,10 @@ class TestFeatures(unittest.TestCase):
         @numba_node
         def weighted_sum(prices: dict[int, ts[float]]) -> ts[float]:
             total = 0.0
-            for key in prices.validkeys():
-                total = total + key * prices[key]
+            if prices[10].valid():
+                total = total + 10 * prices[10]
+            if prices[20].valid():
+                total = total + 20 * prices[20]
             return total
 
         @csp.graph
@@ -890,7 +892,7 @@ class TestFeatures(unittest.TestCase):
             total = 0
             for i in xs.keys():
                 for j in xs.keys():
-                    total = total + xs[i] * xs[j]
+                    total = total + xs.at(i) * xs.at(j)
             return total
 
         @csp.graph
@@ -1010,7 +1012,7 @@ class TestFeatures(unittest.TestCase):
 
             total = 0.0
             for key in prices.validkeys():
-                total = total + prices[key]
+                total = total + prices.at(key)
 
             if s_has_prev == 0:
                 s_prev = total
@@ -1072,6 +1074,57 @@ class TestFeatures(unittest.TestCase):
 
 
 class TestStructSupport(unittest.TestCase):
+    def test_invalid_struct_input_fails_callback(self):
+        class Point(csp.Struct):
+            x: int
+
+        @numba_node
+        def read_x(trigger: ts[int], value: ts[Point]) -> ts[int]:
+            return trigger + value.x
+
+        @csp.graph
+        def g():
+            value = csp.curve(Point, [(timedelta(seconds=1), Point(x=2))])
+            csp.add_graph_output("result", read_x(csp.const(1), value))
+
+        with self.assertRaisesRegex(RuntimeError, "Compiled Numba callback failed"):
+            csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=2))
+
+    def test_unset_primitive_field_fails_callback(self):
+        class Point(csp.Struct):
+            x: int
+
+        @numba_node
+        def read_x(value: ts[Point]) -> ts[int]:
+            return value.x
+
+        @csp.graph
+        def g():
+            csp.add_graph_output("result", read_x(csp.const(Point())))
+
+        with self.assertRaisesRegex(RuntimeError, "Compiled Numba callback failed"):
+            csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=1))
+
+    def test_unset_enum_field_fails_callback(self):
+        class Direction(IntEnum):
+            UP = 1
+
+        class Velocity(csp.Struct):
+            direction: Direction
+
+        @numba_node
+        def read_direction(value: ts[Velocity]) -> ts[int]:
+            if value.direction == Direction.UP:
+                return 1
+            return 0
+
+        @csp.graph
+        def g():
+            csp.add_graph_output("result", read_direction(csp.const(Velocity())))
+
+        with self.assertRaisesRegex(RuntimeError, "Compiled Numba callback failed"):
+            csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=1))
+
     def test_assign_unset_struct_enum_field(self):
         class Direction(IntEnum):
             UP = 1
@@ -1096,6 +1149,36 @@ class TestStructSupport(unittest.TestCase):
 
         results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=1))
         self.assertEqual([value for _, value in results["result"]], [7])
+
+    def test_struct_enum_input_uses_declared_family(self):
+        class Direction(csp.Enum):
+            DOWN = -1
+            UP = 7
+
+        class Velocity(csp.Struct):
+            direction: Direction
+
+        @numba_node
+        def direction_code(value: ts[Velocity]) -> ts[int]:
+            if value.direction == Direction.DOWN:
+                return -1
+            if value.direction == Direction.UP:
+                return 7
+            return 0
+
+        @csp.graph
+        def g():
+            values = csp.curve(
+                Velocity,
+                [
+                    (timedelta(seconds=0), Velocity(direction=Direction.DOWN)),
+                    (timedelta(seconds=1), Velocity(direction=Direction.UP)),
+                ],
+            )
+            csp.add_graph_output("result", direction_code(values))
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=2))
+        self.assertEqual([value for _, value in results["result"]], [-1, 7])
 
     def test_invalid_struct_output(self):
         class Point(csp.Struct):
@@ -1235,8 +1318,8 @@ class TestStructSupport(unittest.TestCase):
         def sum_x_from_basket(points: list[ts[Point]]) -> ts[float]:
             total = 0.0
             for i in range(len(points)):
-                if points[i].ticked():
-                    total = total + points[i].x
+                if points.at(i).ticked():
+                    total = total + points.at(i).x
             return total
 
         @csp.graph

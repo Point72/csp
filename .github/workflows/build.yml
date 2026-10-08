@@ -601,7 +601,6 @@ jobs:
           env:
             CSP_TEST_SKIP_EXAMPLES: "1"
 
-
     ####################################################
     #..................................................#
     #..|########|..|########|..../####\....|########|..#
@@ -713,7 +712,75 @@ jobs:
     ###########################################################################################################
     #  Test Service Adapters                                                                                  #
     ###########################################################################################################
-    # Coming soon!
+    test_adapters:
+      needs:
+        - initialize
+        - build
+
+      permissions:
+        contents: read
+
+      timeout-minutes: 30
+
+      strategy:
+        matrix:
+          os:
+            - ubuntu-24.04
+          python-version:
+            - 3.11
+          adapter:
+            - kafka
+
+      runs-on: ${{ matrix.os }}
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          with:
+              submodules: recursive
+              persist-credentials: false
+
+        - name: Set up Python ${{ matrix.python-version }}
+          uses: ./.github/actions/setup-python
+          with:
+            version: '${{ matrix.python-version }}'
+            cibuildwheel: false
+
+        - name: Install python dependencies
+          run: make requirements
+
+        - name: Install test dependencies
+          shell: bash
+          run: sudo apt-get update && sudo apt-get install -y graphviz
+
+        # Download artifact
+        - name: Download wheel
+          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+          with:
+            name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
+
+        - name: Install wheel
+          run: |
+            python -m pip install -U *manylinux*.whl
+            python -m pip install -U --no-deps *manylinux*.whl --target .
+
+        # Services declare healthchecks, so --wait blocks until the broker actually accepts connections
+        - name: Spin up adapter service
+          run: make dockerup ADAPTER=${{ matrix.adapter }} DOCKERARGS="--wait --wait-timeout 180"
+
+        # Run tests
+        - name: Setup test flags
+          shell: bash
+          env:
+            ADAPTER: ${{ matrix.adapter }}
+          run: echo "CSP_TEST_${ADAPTER^^}=1" >> "$GITHUB_ENV"
+
+        - name: Python Test Steps
+          run: make test-py TEST_ARGS="-k ${{ matrix.adapter }}"
+
+        - name: Spin down adapter service
+          run: make dockerdown ADAPTER=${{ matrix.adapter }}
+          if: ${{ always() }}
 
     ############################################################################################
     #..........................................................................................#
@@ -728,7 +795,6 @@ jobs:
     ############################################################################################
     # Upload Release Artifacts                                                                 #
     ############################################################################################
-
     # only publish artifacts on tags, but otherwise this always runs
     # Note this whole workflow only triggers on release tags (e.g. "v0.1.0")
     publish_release_artifacts:
@@ -740,6 +806,7 @@ jobs:
         - test
         - test_sdist
         - test_dependencies
+        - test_adapters
 
       if: startsWith(github.ref, 'refs/tags/v')
       runs-on: ubuntu-24.04

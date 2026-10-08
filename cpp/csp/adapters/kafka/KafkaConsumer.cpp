@@ -196,6 +196,8 @@ void KafkaConsumer::poll()
         {
             std::unique_ptr<RdKafka::Message> msg( m_consumer -> consume( m_mgr -> pollTimeoutMs() ) );
 
+            m_mgr -> checkBrokersDown();
+
             if( msg -> err() == RdKafka::ERR__TIMED_OUT )
                 continue;
 
@@ -208,8 +210,20 @@ void KafkaConsumer::poll()
                 continue;
             }
 
+            //Only reported when the broker will not auto-create the topic. Waiting for a topic
+            //that will never appear looks identical to an idle subscription, so surface it.
+            if( msg -> err() == RdKafka::ERR_UNKNOWN_TOPIC_OR_PART ) [[unlikely]]
+            {
+                m_mgr -> forceShutdown( RdKafka::err2str( msg -> err() ) + " error: " + msg -> errstr() );
+                continue;
+            }
+
             if( msg -> err() == RdKafka::ERR_NO_ERROR && msg -> len() )
+            {
+                //Proof the brokers came back, whatever was reported down before
+                m_mgr -> onBrokerActivity();
                 m_mgr -> onMessage( msg.get() );
+            }
             //Not sure why, but it looks like we repeatedly get EOF callbacks even after the original one
             //may want to look into this.  Not an issue in practice, but seems like unnecessary overhead
             else if( msg -> err() == RdKafka::ERR__PARTITION_EOF )

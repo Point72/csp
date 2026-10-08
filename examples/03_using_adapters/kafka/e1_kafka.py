@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 import csp
 from csp import ts
 from csp.adapters.kafka import (
+    BytesMessageProtoMapper,
     DateTimeType,
     JSONTextMessageMapper,
     KafkaAdapterManager,
-    ProtoMessageMapper,
     RawTextMessageMapper,
 )
 from csp.utils.datetime import utc_now
@@ -142,7 +142,7 @@ def proto_graph():
         "px": "price",
     }
 
-    msg_mapper = ProtoMessageMapper(
+    msg_mapper = BytesMessageProtoMapper(
         proto_directory="/tmp", proto_filename="fxspotstream.proto", proto_message="Snapshot"
     )
 
@@ -157,7 +157,7 @@ def proto_graph_multiple_subscribers():
 
     topic = "test2"
 
-    msg_mapper = ProtoMessageMapper(
+    msg_mapper = BytesMessageProtoMapper(
         proto_directory="/tmp", proto_filename="fxspotstream.proto", proto_message="Snapshot"
     )
 

@@ -14,13 +14,6 @@ PushPullInputAdapter::PushPullInputAdapter( Engine *engine, CspTypePtr &type, Pu
 
 PushPullInputAdapter::~PushPullInputAdapter()
 {
-    //free up any unused events
-    PushPullEvent * event = nextPullEvent();
-    while( event )
-    {
-        delete event;
-        event = nextPullEvent();
-    }
 }
 
 void PushPullInputAdapter::start( DateTime start, DateTime end )
@@ -33,9 +26,14 @@ void PushPullInputAdapter::start( DateTime start, DateTime end )
 void PushPullInputAdapter::stop()
 {
     rootEngine() -> cancelCallback( m_timerHandle );
-    //shouldnt need to lock at this point
-    auto * replayCompleteEvent = new PushPullEvent( this, DateTime::NONE() );
-    rootEngine() -> pushPullEventQueue().push( replayCompleteEvent );
+
+    //free up any unused events
+    PushPullEvent * event = nextPullEvent();
+    while( event )
+    {
+        delete event;
+        event = nextPullEvent();
+    }
 }
 
 void PushPullInputAdapter::scheduleNextPullEvent( PushPullEvent * nextEvent )

@@ -28,7 +28,7 @@ A single connection can subscribe and/or publish to multiple topics.
 ```python
 KafkaAdapterManager(
     broker,
-    start_offset: typing.Union[KafkaStartOffset,timedelta,datetime] = None,
+    start_offset: KafkaStartOffset | timedelta | datetime = None,
     group_id: str = None,
     group_id_prefix: str = '',
     max_threads=100,
@@ -96,7 +96,7 @@ KafkaAdapterManager.subscribe(
   msg_mapper: MsgMapper,
   topic: str,
   key=None,
-  field_map: typing.Union[dict,str] = None,
+  field_map: dict | str = None,
   meta_field_map: dict = None,
   push_mode: csp.PushMode = csp.PushMode.LAST_VALUE,
   adjust_out_of_order_time: bool = False,
@@ -108,7 +108,7 @@ KafkaAdapterManager.subscribe(
 - **`ts_type`**: the timeseries type you want to get the data on. This can be a `csp.Struct` or basic timeseries type
 - **`msg_mapper`**: the `MsgMapper` object discussed above
 - **`topic`**: the topic to subscribe to
-- **`key`**: The key to subscribe to. If `None`, then this will subscribe to all messages on the topic. Note that in this "wildcard" mode, all messages will tick as "live" as replay in engine time cannot be supported
+- **`key`**: The key to subscribe to. If `None` or `""`, then this will subscribe to all messages on the topic. Note that in this "wildcard" mode, all messages will tick as "live" as replay in engine time cannot be supported
 - **`field_map`**: dictionary of `{message_field: struct_field}` to define how the subscribed message gets mapped onto the struct
 - **`meta_field_map`**: to extract meta information from the kafka message, provide a meta_field_map dictionary of meta field info → struct field name to place it into.
   The following meta fields are currently supported:
@@ -129,15 +129,17 @@ Similarly, you can publish on topics using the following method:
 KafkaAdapterManager.publish(
   msg_mapper: MsgMapper,
   topic: str,
-  key: str,
+  key: str | list[str],
   x: ts['T'],
-  field_map: typing.Union[dict,str] = None
+  field_map: dict | str = None
 ):
 ```
 
 - **`msg_mapper`**: same as above
 - **`topic`**: same as above
-- **`key`**: key to publish to
+- **`key`**: a string specifying a fixed key to publish to, or a non-empty list of strings specifying a field path in the struct being published.
+  For a list, the key is resolved at runtime from the final field's value, which must be a string.
+  For example, `["symbol"]` uses the struct's `symbol` field, and `["metadata", "symbol"]` uses its nested `metadata.symbol` field.
 - **`x`**: the timeseries to publish
 - **`field_map`**: dictionary of {struct_field: message_field} to define how the struct gets mapped onto the published message.
   Note this dictionary is the opposite of the field_map in subscribe()

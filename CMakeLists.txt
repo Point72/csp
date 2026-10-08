@@ -2,7 +2,7 @@
 # Project Configuration #
 #########################
 cmake_minimum_required(VERSION 3.20.0)
-project(csp VERSION "0.18.0")
+project(csp VERSION "0.19.1")
 set(CMAKE_CXX_STANDARD 20)
 
 ###################################################################################################################################################
@@ -251,7 +251,6 @@ message("\n${Green}CMake Search Path: ${CMAKE_MODULE_PATH}${ColorReset}")
 # Helpers #
 ###########
 find_package(csp_autogen REQUIRED)
-
 
 ###################################################################################################################################################
 # Dependencies #

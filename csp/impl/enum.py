@@ -1,76 +1,44 @@
-import builtins
-import enum
-import inspect
-import types
+import sys
 import typing
+from enum import EnumMeta, IntEnum, auto
 
-from csp.impl.__csptypesimpl import _csptypesimpl
+_ = EnumMeta
 
 
-class EnumMeta(_csptypesimpl.PyCspEnumMeta):
-    def __new__(cls, name, bases, dct):
-        metadata = {}
-        last_value = -1
+class Enum(IntEnum):
+    auto = staticmethod(auto)
 
-        # Disallow subclassing an enum
-        EnumMeta._check_for_existing_members(bases)
-
-        for k, v in dct.items():
-            # Allow methods and properties and hidden methods
-            if (
-                (k[0] == "_" and k[-1] == "_")
-                or v is enum.auto
-                or isinstance(v, (types.FunctionType, builtins.property, builtins.classmethod, builtins.staticmethod))
-            ):
-                continue
-
-            if isinstance(v, enum.auto):
-                v = last_value + 1
-
-            if not isinstance(v, int):
-                raise TypeError(f"csp.Enum expected int enum value, got {type(v).__name__} for field {k}")
-
-            metadata[k] = v
-            last_value = v
-
-        dct["__metadata__"] = metadata
-        return super().__new__(cls, name, bases, dct)
-
-    def __iter__(self):
-        for k, v in self.__metadata__.items():
-            yield self(k)
-
-    @property
-    def __members__(self):
-        # For compatibility with python Enum
-        return types.MappingProxyType(self.__metadata__)
+    @classmethod
+    def _missing_(cls, value):
+        # Allow construction by name, ie MyEnum("FOO") as well as MyEnum(1)
+        if isinstance(value, str):
+            try:
+                return cls._member_map_[value]
+            except KeyError:
+                pass
+        return None
 
     @staticmethod
-    def _check_for_existing_members(bases):
-        for base in bases:
-            if isinstance(base, _csptypesimpl.PyCspEnumMeta) and base.__members__:
-                raise TypeError("Cannot extend csp.Enum %r: inheriting from an Enum is prohibited" % base.__name__)
-
-
-class Enum(_csptypesimpl.PyCspEnum, metaclass=EnumMeta):
-    auto = enum.auto
-
-    def __reduce__(self):
-        return type(self), (self.value,)
-
-    def __repr__(self):
-        return f"<{type(self).__name__}.{self.name}: {self.value}>"
+    def _generate_next_value_(name, start, count, last_values):
+        """keep old csp.Enum behavior of auto starting at 0"""
+        return last_values[-1] + 1 if last_values else 0
 
     def __str__(self):
         return f"{type(self).__name__}.{self.name}"
+
+    __hash__ = int.__hash__
+
+    def __eq__(self, other):
+        return type(self) is type(other) and self.value == other.value
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     @classmethod
     def _validate(cls, v) -> "Enum":
         if isinstance(v, cls):
             return v
-        elif isinstance(v, str):
-            return cls[v]
-        elif isinstance(v, int):
+        elif isinstance(v, (str, int)):
             return cls(v)
         raise ValueError(f"Cannot convert value to enum: {v}")
 
@@ -86,7 +54,7 @@ class Enum(_csptypesimpl.PyCspEnum, metaclass=EnumMeta):
         field_schema.update(
             type="string",
             title=cls.__name__,
-            description=cls.__doc__ or "An enumeration of {}".format(cls.__name__),
+            description="An enumeration of {}".format(cls.__name__),
             enum=list(cls.__members__.keys()),
         )
         return field_schema
@@ -114,14 +82,10 @@ def DynamicEnum(name: str, values: typing.Union[dict, list], start=0, module_nam
     :param values: either a dictionary of key : values or a list of enum names
     :param start: when providing a list of values, will start enumerating from start
     """
-
     if isinstance(values, list):
         values = {k: v + start for v, k in enumerate(values)}
-    else:
-        values = values.copy()
 
     if module_name is None:
-        module_name = inspect.currentframe().f_back.f_globals["__name__"]
-    values["__module__"] = module_name
+        module_name = sys._getframe(1).f_globals["__name__"]
 
-    return EnumMeta(name, (Enum,), values)
+    return Enum(name, values, module=module_name)

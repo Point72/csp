@@ -155,19 +155,12 @@ public:
 private:
     using nbit_type = uint8_t;
 
-#ifndef WIN32
-#define CLZ_CONSTEXPR constexpr
-#else
-#define CLZ_CONSTEXPR 
-#endif
-
     template<typename value_type, 
         std::enable_if_t<std::is_unsigned<value_type>::value, bool> = true>
     static constexpr nbit_type nbits() { return sizeof( value_type ) * 8; }
 
     template<typename U, std::enable_if_t<std::is_unsigned<U>::value, bool> = true>
-    static CLZ_CONSTEXPR nbit_type log2( U n )           { return nbits<uint32_t>() - clz(static_cast<uint32_t>( n )) - 1; } //upcast to 32 bit to avoid truncation for log2
-    static CLZ_CONSTEXPR nbit_type log2(uint64_t n)      { return nbits<uint64_t>() - clz(n) - 1; }
+    static constexpr nbit_type log2( U n )           { return nbits<U>() - clz( n ) - 1; }
 
     static constexpr node_type mask( nbit_type bitIndex )  { return ( node_type )1 << bitIndex; }
 
@@ -182,7 +175,7 @@ private:
     }
 
     static constexpr nbit_type _bits               = nbits<NodeT>();
-    static inline CLZ_CONSTEXPR nbit_type _logBits = log2( _bits );
+    static inline constexpr nbit_type _logBits = log2( _bits );
 
     node_type * m_nodes;
     index_type  m_size;

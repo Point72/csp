@@ -3,6 +3,7 @@
 
 #include <csp/core/Platform.h>
 #include <csp/engine/CspType.h>
+#include <csp/python/PyObjectPtr.h>
 #include <unordered_map>
 #include <Python.h>
 
@@ -17,9 +18,17 @@ public:
     CspTypePtr & typeFromPyType( PyObject * );
     void removeCachedType( PyTypeObject * );
 
+    bool isCspEnumPyType( PyTypeObject * pyType );
+
 private:
     using Cache = std::unordered_map<PyTypeObject *, CspTypePtr>;
+
+    std::shared_ptr<CspEnumMeta> createCspEnumMetaFromIntEnum( PyTypeObjectPtr pyIntEnumType );
+
+    CspTypeFactory();
     Cache m_cache;
+
+    PyTypeObject * m_intEnumPyType;
 };
 
 }

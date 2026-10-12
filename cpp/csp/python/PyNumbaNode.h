@@ -3,10 +3,12 @@
 
 #include <csp/core/Time.h>
 #include <csp/engine/Node.h>
+#include <csp/engine/Struct.h>
 #include <csp/python/PyObjectPtr.h>
 #include <Python.h>
 #include <cstdint>
-#include <unordered_set>
+#include <memory>
+#include <vector>
 
 namespace csp::python
 {
@@ -16,10 +18,13 @@ class PyEngine;
 // Type used for ticked/valid flags - must match int8_t used in Numba generated code
 using ValidType = int8_t;
 
-// Lifecycle phase constants - must match values in numba_config.py
-constexpr ValidType LIFECYCLE_EXECUTE = 0;  
-constexpr ValidType LIFECYCLE_START = 1;    
-constexpr ValidType LIFECYCLE_STOP = 2;     
+// Values must match numba_cfunc_compiler.core.names.
+enum class LifecyclePhase : ValidType
+{
+    Execute = 0,
+    Start = 1,
+    Stop = 2,
+};
 
 /**
  * The compiled function signature matches the source categories registered
@@ -49,17 +54,10 @@ public:
     PyNumbaNode(
         csp::Engine * engine,
         CompiledFuncT compiledFunc,
-        PyObjectPtr inputs,
-        PyObjectPtr outputs,
         PyObjectPtr stateVariables,
-        PyObjectPtr nrtStateIndices,
-        PyObjectPtr structStateIndices,
-        PyObjectPtr structStateSizes,
         csp::NodeDef def,
         PyObject * dataReference
     );
-
-    ~PyNumbaNode();
 
     void executeImpl() override;
     void start() override;
@@ -72,40 +70,31 @@ public:
         PyObject * inputs,
         PyObject * outputs,
         PyObject * stateVariables,
-        PyObject * nrtStateIndices,
-        PyObject * structStateIndices,
-        PyObject * structStateSizes,
         PyObject * dataReference
     );
 
 private:
-    void initInputArrays( PyObjectPtr inputs );
-    void initOutputArrays( PyObjectPtr outputs );
-    void initStateArrays( PyObjectPtr stateVariables, PyObjectPtr nrtStateIndices, 
-                         PyObjectPtr structStateIndices, PyObjectPtr structStateSizes );
-    void clearOutputTicked();
-    void invokeCompiled( ValidType phase );
+    void initStateArrays( PyObjectPtr stateVariables );
+    void invokeCompiled( LifecyclePhase phase );
 
     // The compiled Numba function
     CompiledFuncT m_compiledFunc = nullptr;
 
     // Active input arrays
-    const void ** m_inputArgs = nullptr;
-    ValidType *   m_inputValid = nullptr;
-    ValidType *   m_inputTicked = nullptr;
-    int64_t *     m_inputEnumStorage = nullptr;  // Storage for enum values (int64)
-    size_t        m_inputCount = 0;
+    std::vector<const void *> m_inputArgs;
+    std::vector<ValidType> m_inputValid;
+    std::vector<ValidType> m_inputTicked;
+    std::vector<int64_t> m_inputEnumStorage;  // Stable int64 values passed to Numba
 
     // Output arrays
-    void **     m_outputArgs = nullptr;
-    ValidType * m_outputTicked = nullptr;
-    void **     m_outputValueSlots = nullptr;  // One fixed-size by-value slot per output
-    size_t      m_outputCount = 0;
+    std::vector<void *> m_outputArgs;
+    std::vector<ValidType> m_outputTicked;
+    std::vector<std::unique_ptr<char[]>> m_outputValueSlots;  // Primitive output storage
+    std::vector<StructPtr> m_outputStructValues;  // Fresh native storage for each callback
 
     // State arrays
-    void ** m_stateArgs = nullptr;
-    size_t m_stateCount = 0;
-    std::unordered_set<size_t> m_containerStateIndices;
+    std::vector<void *> m_stateArgs;
+    std::vector<std::unique_ptr<char[]>> m_ownedStateBuffers;
 
     // Keep Python objects alive
     PyObjectPtr m_dataReference;

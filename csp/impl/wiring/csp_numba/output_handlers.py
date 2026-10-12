@@ -12,13 +12,10 @@ from typing import Any, Optional, get_args, get_origin
 from numba_cfunc_compiler.core.analysis import OutputAnalysis, OutputTypeHandler
 from numba_cfunc_compiler.types.factory import HostTypeFactory
 
-from csp.impl.struct import Struct as CspStruct
 from csp.impl.types.tstype import TsType
 
 
 def validate_output_type(t: Any, context: str) -> None:
-    if isinstance(t, type) and issubclass(t, CspStruct) and t is not CspStruct:
-        raise TypeError(f"Unsupported type '{t}' for {context}")
     try:
         HostTypeFactory.resolve(t)
     except TypeError as exc:

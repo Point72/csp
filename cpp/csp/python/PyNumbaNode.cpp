@@ -1,4 +1,3 @@
-#include <csp/engine/InputId.h>
 #include <csp/engine/Node.h>
 #include <csp/engine/CspEnum.h>
 #include <csp/engine/PartialSwitchCspType.h>
@@ -13,10 +12,7 @@
 #include <csp/python/PyStruct.h>
 
 #include <algorithm>
-#include <unordered_set>
-#include <unordered_map>
 #include <cstring>
-#include <iostream>
 #include <type_traits>
 
 namespace csp::python
@@ -26,7 +22,7 @@ namespace
 {
 constexpr size_t OUTPUT_VALUE_SLOT_BYTES = sizeof( int64_t );
 
-using NumbaInputTypeSwitch = PartialSwitchCspType<
+using NumbaTypeSwitch = PartialSwitchCspType<
     CspType::Type::BOOL,
     CspType::Type::INT64,
     CspType::Type::DOUBLE,
@@ -35,232 +31,98 @@ using NumbaInputTypeSwitch = PartialSwitchCspType<
     CspType::Type::ENUM,
     CspType::Type::STRUCT
 >;
-
-using NumbaOutputTypeSwitch = PartialSwitchCspType<
-    CspType::Type::BOOL,
-    CspType::Type::INT64,
-    CspType::Type::DOUBLE,
-    CspType::Type::DATETIME,
-    CspType::Type::TIMEDELTA,
-    CspType::Type::ENUM
->;
 }
 
 PyNumbaNode::PyNumbaNode(
     csp::Engine * engine,
     CompiledFuncT compiledFunc,
-    PyObjectPtr inputs,
-    PyObjectPtr outputs,
     PyObjectPtr stateVariables,
-    PyObjectPtr nrtStateIndices,
-    PyObjectPtr structStateIndices,
-    PyObjectPtr structStateSizes,
     NodeDef def,
     PyObject * dataReference
 ) : csp::Node( def, engine ),
     m_compiledFunc( compiledFunc ),
+    m_inputArgs( def.numInputs, nullptr ),
+    m_inputValid( def.numInputs, 0 ),
+    m_inputTicked( def.numInputs, 0 ),
+    m_inputEnumStorage( def.numInputs ),
+    m_outputArgs( def.numOutputs, nullptr ),
+    m_outputTicked( def.numOutputs, 0 ),
+    m_outputValueSlots( def.numOutputs ),
+    m_outputStructValues( def.numOutputs ),
     m_dataReference( PyObjectPtr::incref( dataReference ) )
 {
-    initInputArrays( inputs );
-    initOutputArrays( outputs );
-    initStateArrays( stateVariables, nrtStateIndices, structStateIndices, structStateSizes );
-}
-
-PyNumbaNode::~PyNumbaNode()
-{
-    delete[] m_inputArgs;
-    delete[] m_inputValid;
-    delete[] m_inputTicked;
-    delete[] m_inputEnumStorage;
-    delete[] m_outputArgs;
-    delete[] m_outputTicked;
-    
-    for( size_t i = 0; i < m_stateCount; ++i )
+    for( size_t i = 0; i < m_outputArgs.size(); ++i )
     {
-        if( m_stateArgs[ i ] != nullptr &&
-            m_containerStateIndices.find( i ) == m_containerStateIndices.end() )
-            delete[] static_cast<char *>( m_stateArgs[ i ] );
-    }
-    delete[] m_stateArgs;
-    
-    // Clean up output value slots
-    for( size_t i = 0; i < m_outputCount; ++i )
-        delete[] static_cast<char *>( m_outputValueSlots[ i ] );
-    delete[] m_outputValueSlots;
-}
-
-void PyNumbaNode::initInputArrays( PyObjectPtr inputs )
-{
-    m_inputCount = numInputs();
-    if( m_inputCount == 0 )
-    {
-        m_inputArgs = nullptr;
-        m_inputValid = nullptr;
-        m_inputTicked = nullptr;
-        m_inputEnumStorage = nullptr;
-        return;
-    }
-
-    m_inputArgs = new const void *[ m_inputCount ];
-    m_inputValid = new ValidType[ m_inputCount ];
-    m_inputTicked = new ValidType[ m_inputCount ];
-    m_inputEnumStorage = new int64_t[ m_inputCount ];
-
-    for( size_t i = 0; i < m_inputCount; ++i )
-    {
-        m_inputArgs[ i ] = nullptr;
-        m_inputValid[ i ] = 0;
-        m_inputTicked[ i ] = 0;
-        m_inputEnumStorage[ i ] = 0;
-    }
-}
-
-void PyNumbaNode::initOutputArrays( PyObjectPtr outputs )
-{
-    m_outputCount = numOutputs();
-    if( m_outputCount == 0 )
-    {
-        m_outputArgs = nullptr;
-        m_outputTicked = nullptr;
-        m_outputValueSlots = nullptr;
-        return;
-    }
-
-    m_outputArgs = new void *[ m_outputCount ];
-    m_outputTicked = new ValidType[ m_outputCount ];
-    m_outputValueSlots = new void *[ m_outputCount ];
-
-    for( size_t i = 0; i < m_outputCount; ++i )
-    {
-        m_outputTicked[ i ] = 0;
         // Numba writes primitive-compatible outputs by value into these fixed-size slots.
-        m_outputValueSlots[ i ] = new char[ OUTPUT_VALUE_SLOT_BYTES ];
-        std::memset( m_outputValueSlots[ i ], 0, OUTPUT_VALUE_SLOT_BYTES );
-        m_outputArgs[ i ] = m_outputValueSlots[ i ];
+        m_outputValueSlots[ i ] = std::make_unique<char[]>( OUTPUT_VALUE_SLOT_BYTES );
+        m_outputArgs[ i ] = m_outputValueSlots[ i ].get();
     }
+    initStateArrays( stateVariables );
 }
 
-void PyNumbaNode::initStateArrays( PyObjectPtr stateVariables, PyObjectPtr nrtStateIndices,
-                                   PyObjectPtr structStateIndices, PyObjectPtr structStateSizes )
+void PyNumbaNode::initStateArrays( PyObjectPtr stateVariables )
 {
     if( !stateVariables.ptr() || stateVariables.ptr() == Py_None || !PyTuple_Check( stateVariables.ptr() ) )
-    {
-        m_stateCount = 0;
-        m_stateArgs = nullptr;
         return;
-    }
 
-    m_stateCount = PyTuple_Size( stateVariables.ptr() );
-    if( m_stateCount == 0 )
+    const size_t stateCount = PyTuple_Size( stateVariables.ptr() );
+
+    // Keep only buffers allocated here; the compiled callback owns container pointers.
+    auto allocateStateBuffer = [this]( size_t size )
     {
-        m_stateArgs = nullptr;
-        return;
-    }
-
-    m_stateArgs = new void *[ m_stateCount ];
-
-    // Parse NRT state indices
-    std::unordered_set<size_t> nrtSet;
-    if( nrtStateIndices.ptr() && PyTuple_Check( nrtStateIndices.ptr() ) )
-    {
-        Py_ssize_t nrtCount = PyTuple_Size( nrtStateIndices.ptr() );
-        for( Py_ssize_t i = 0; i < nrtCount; ++i )
-        {
-            PyObject * idx = PyTuple_GET_ITEM( nrtStateIndices.ptr(), i );
-            if( PyLong_Check( idx ) )
-            {
-                size_t idxVal = static_cast<size_t>( PyLong_AsLongLong( idx ) );
-                nrtSet.insert( idxVal );
-                m_containerStateIndices.insert( idxVal );
-            }
-        }
-    }
-
-    // Parse struct state indices and sizes
-    std::unordered_map<size_t, size_t> structSizeMap;
-    if( structStateIndices.ptr() && PyTuple_Check( structStateIndices.ptr() ) &&
-        structStateSizes.ptr() && PyTuple_Check( structStateSizes.ptr() ) )
-    {
-        Py_ssize_t structCount = PyTuple_Size( structStateIndices.ptr() );
-        Py_ssize_t sizeCount = PyTuple_Size( structStateSizes.ptr() );
-        if( structCount == sizeCount )
-        {
-            for( Py_ssize_t i = 0; i < structCount; ++i )
-            {
-                PyObject * idx = PyTuple_GET_ITEM( structStateIndices.ptr(), i );
-                PyObject * size = PyTuple_GET_ITEM( structStateSizes.ptr(), i );
-                if( PyLong_Check( idx ) && PyLong_Check( size ) )
-                {
-                    size_t idxVal = static_cast<size_t>( PyLong_AsLongLong( idx ) );
-                    size_t sizeVal = static_cast<size_t>( PyLong_AsLongLong( size ) );
-                    structSizeMap[ idxVal ] = sizeVal;
-                }
-            }
-        }
-    }
+        m_ownedStateBuffers.emplace_back( new char[ size ]() );
+        return m_ownedStateBuffers.back().get();
+    };
 
     // Initialize state slots
-    for( size_t i = 0; i < m_stateCount; ++i )
+    for( size_t i = 0; i < stateCount; ++i )
     {
         PyObject * stateVal = PyTuple_GET_ITEM( stateVariables.ptr(), i );
+        void * stateArg = nullptr;
         
-        if( nrtSet.find( i ) != nrtSet.end() )
+        if( PyObject_TypeCheck( stateVal, &PyStruct::PyType ) )
         {
-            m_stateArgs[ i ] = nullptr;
-        }
-        else if( structSizeMap.find( i ) != structSizeMap.end() )
-        {
-            size_t structSize = structSizeMap[ i ];
-            char * buf = new char[ structSize ];
-            std::memset( buf, 0, structSize );
-            
-            if( PyObject_IsInstance( stateVal, ( PyObject * ) &PyStruct::PyType ) )
-            {
-                PyStruct * pyStruct = reinterpret_cast<PyStruct *>( stateVal );
-                const void * srcData = pyStruct -> struct_.get();
-                std::memcpy( buf, srcData, structSize );
-            }
-            
-            m_stateArgs[ i ] = buf;
+            auto * pyStruct = reinterpret_cast<PyStruct *>( stateVal );
+            size_t structSize = pyStruct -> structMeta() -> size();
+            char * buf = allocateStateBuffer( structSize );
+            std::memcpy( buf, pyStruct -> struct_.get(), structSize );
+            stateArg = buf;
         }
         else if( PyBool_Check( stateVal ) )
         {
-            char * buf = new char[ 1 ];
-            *reinterpret_cast<int8_t *>( buf ) = ( stateVal == Py_True ) ? 1 : 0;
-            m_stateArgs[ i ] = buf;
+            char * buf = allocateStateBuffer( 1 );
+            *buf = stateVal == Py_True;
+            stateArg = buf;
         }
         else if( PyLong_Check( stateVal ) )
         {
             // CSP enums are IntEnum instances, so their Numba representation
             // is initialized through the same int64 path as Python integers.
             int64_t stateValue = fromPython<int64_t>( stateVal );
-            char * buf = new char[ 8 ];
+            char * buf = allocateStateBuffer( sizeof( int64_t ) );
             *reinterpret_cast<int64_t *>( buf ) = stateValue;
-            m_stateArgs[ i ] = buf;
+            stateArg = buf;
         }
         else if( PyFloat_Check( stateVal ) )
         {
-            char * buf = new char[ 8 ];
+            char * buf = allocateStateBuffer( sizeof( double ) );
             *reinterpret_cast<double *>( buf ) = PyFloat_AsDouble( stateVal );
-            m_stateArgs[ i ] = buf;
+            stateArg = buf;
         }
-        else
-        {
-            m_stateArgs[ i ] = nullptr;
-        }
+        m_stateArgs.push_back( stateArg );
     }
 }
 
-void PyNumbaNode::invokeCompiled( ValidType phase )
+void PyNumbaNode::invokeCompiled( LifecyclePhase phase )
 {
     const int8_t status = m_compiledFunc(
-        m_outputArgs,
-        m_outputTicked,
-        m_stateArgs,
-        phase,
-        m_inputArgs,
-        m_inputTicked,
-        m_inputValid
+        m_outputArgs.data(),
+        m_outputTicked.data(),
+        m_stateArgs.data(),
+        static_cast<ValidType>( phase ),
+        m_inputArgs.data(),
+        m_inputTicked.data(),
+        m_inputValid.data()
     );
     if( status != 1 )
         CSP_THROW( RuntimeException, "Compiled Numba callback failed" );
@@ -268,12 +130,12 @@ void PyNumbaNode::invokeCompiled( ValidType phase )
 
 void PyNumbaNode::start()
 {
-    invokeCompiled( LIFECYCLE_START );
+    invokeCompiled( LifecyclePhase::Start );
 }
 
 void PyNumbaNode::stop()
 {
-    invokeCompiled( LIFECYCLE_STOP );
+    invokeCompiled( LifecyclePhase::Stop );
 }
 
 const char * PyNumbaNode::name() const
@@ -285,26 +147,26 @@ void PyNumbaNode::executeImpl()
 {
     const uint64_t currentCycleCount = rootEngine() -> cycleCount();
 
-    // Update input pointers and flags
-    for( size_t i = 0; i < m_inputCount; ++i )
+    // Refresh pointers: buffered values can move, and struct targets can change on each tick.
+    for( size_t i = 0; i < m_inputArgs.size(); ++i )
     {
         const TimeSeriesProvider * ts = tsinput( i );
         if( ts )
         {
             bool valid = ts -> valid();
-            bool ticked = ts -> lastCycleCount() == currentCycleCount;
-            m_inputValid[ i ] = valid ? 1 : 0;
-            m_inputTicked[ i ] = ticked ? 1 : 0;
+            m_inputValid[ i ] = valid;
+            m_inputTicked[ i ] = ts -> lastCycleCount() == currentCycleCount;
             
             if( valid )
             {
                 const CspType * cspType = ts -> type();
                 CSP_ASSERT( cspType != nullptr );
-                NumbaInputTypeSwitch::invoke( cspType, [this, ts, i]( auto tag )
+                NumbaTypeSwitch::invoke( cspType, [this, ts, i]( auto tag )
                 {
                     using CType = typename decltype( tag )::type;
                     if constexpr( std::is_same_v<CType, CspEnum> )
                     {
+                        // CSP stores an enum pointer; Numba needs an int64 value that stays alive through the callback.
                         m_inputEnumStorage[ i ] = ts -> lastValueTyped<CspEnum>().value();
                         m_inputArgs[ i ] = &m_inputEnumStorage[ i ];
                     }
@@ -320,15 +182,25 @@ void PyNumbaNode::executeImpl()
     }
 
     // Clear output ticked flags before calling compiled function
-    clearOutputTicked();
+    std::fill( m_outputTicked.begin(), m_outputTicked.end(), static_cast<ValidType>( 0 ) );
+
+    for( size_t i = 0; i < m_outputArgs.size(); ++i )
+    {
+        const CspType * type = tsoutput( i ) -> type();
+        if( type -> type() == CspType::Type::STRUCT )
+        {
+            m_outputStructValues[ i ] = static_cast<const CspStructType *>( type ) -> meta() -> create();
+            m_outputArgs[ i ] = m_outputStructValues[ i ].get();
+        }
+    }
 
     // Call the compiled Numba function
-    invokeCompiled( LIFECYCLE_EXECUTE );
+    invokeCompiled( LifecyclePhase::Execute );
 
     const DateTime currentTime = now();
 
     // Process output ticks
-    for( size_t i = 0; i < m_outputCount; ++i )
+    for( size_t i = 0; i < m_outputArgs.size(); ++i )
     {
         if( m_outputTicked[ i ] )
         {
@@ -337,49 +209,43 @@ void PyNumbaNode::executeImpl()
             {
                 const CspType * cspType = ts -> type();
                 CSP_ASSERT( cspType != nullptr );
-                NumbaOutputTypeSwitch::invoke( cspType, [this, ts, cspType, i, currentCycleCount, currentTime]( auto tag )
+                NumbaTypeSwitch::invoke( cspType, [this, ts, cspType, i, currentCycleCount, currentTime]( auto tag )
                 {
                     using CType = typename decltype( tag )::type;
                     if constexpr( std::is_same_v<CType, DateTime> )
                     {
                         ts -> outputTickTyped<DateTime>(
                             currentCycleCount, currentTime,
-                            DateTime::fromNanoseconds( *static_cast<int64_t *>( m_outputValueSlots[ i ] ) )
+                            DateTime::fromNanoseconds( *static_cast<int64_t *>( m_outputArgs[ i ] ) )
                         );
                     }
                     else if constexpr( std::is_same_v<CType, TimeDelta> )
                     {
                         ts -> outputTickTyped<TimeDelta>(
                             currentCycleCount, currentTime,
-                            TimeDelta::fromNanoseconds( *static_cast<int64_t *>( m_outputValueSlots[ i ] ) )
+                            TimeDelta::fromNanoseconds( *static_cast<int64_t *>( m_outputArgs[ i ] ) )
                         );
                     }
                     else if constexpr( std::is_same_v<CType, CspEnum> )
                     {
                         auto enumType = static_cast<const CspEnumType *>( cspType );
-                        int64_t enumValue = *static_cast<int64_t *>( m_outputValueSlots[ i ] );
+                        int64_t enumValue = *static_cast<int64_t *>( m_outputArgs[ i ] );
                         ts -> outputTickTyped<CspEnum>(
                             currentCycleCount, currentTime,
                             enumType -> meta() -> create( enumValue )
                         );
                     }
+                    else if constexpr( std::is_same_v<CType, StructPtr> )
+                        ts -> outputTickTyped<StructPtr>( currentCycleCount, currentTime, m_outputStructValues[ i ] );
                     else
                         ts -> outputTickTyped<CType>(
                             currentCycleCount, currentTime,
-                            *static_cast<CType *>( m_outputValueSlots[ i ] )
+                            *static_cast<CType *>( m_outputArgs[ i ] )
                         );
                 } );
             }
         }
     }
-
-    // Clear input ticked flags for next cycle
-    std::fill_n( m_inputTicked, m_inputCount, static_cast<ValidType>( 0 ) );
-}
-
-void PyNumbaNode::clearOutputTicked()
-{
-    std::fill_n( m_outputTicked, m_outputCount, static_cast<ValidType>( 0 ) );
 }
 
 PyNumbaNode * PyNumbaNode::create(
@@ -388,9 +254,6 @@ PyNumbaNode * PyNumbaNode::create(
     PyObject * inputs,
     PyObject * outputs,
     PyObject * stateVariables,
-    PyObject * nrtStateIndices,
-    PyObject * structStateIndices,
-    PyObject * structStateSizes,
     PyObject * dataReference
 )
 {
@@ -412,20 +275,9 @@ PyNumbaNode * PyNumbaNode::create(
     if( outputs && PyTuple_Check( outputs ) )
         numOutputs = PyTuple_Size( outputs );
 
-    if( size_t( numInputs ) > InputId::maxBasketElements() )
-        CSP_THROW( ValueError, "number of inputs exceeds limit of " << InputId::maxBasketElements() );
-
-    if( size_t( numOutputs ) > OutputId::maxBasketElements() )
-        CSP_THROW( ValueError, "number of outputs exceeds limit of " << OutputId::maxBasketElements() );
-
     return pyengine -> engine() -> createOwnedObject<PyNumbaNode>(
         funcPtr,
-        PyObjectPtr::incref( inputs ),
-        PyObjectPtr::incref( outputs ),
         PyObjectPtr::incref( stateVariables ),
-        PyObjectPtr::incref( nrtStateIndices ),
-        PyObjectPtr::incref( structStateIndices ),
-        PyObjectPtr::incref( structStateSizes ),
         csp::NodeDef( numInputs, numOutputs ),
         dataReference
     );
@@ -441,20 +293,14 @@ static PyObject * PyNumbaNode_create( PyObject * module, PyObject * args )
     PyObject * inputs;
     PyObject * outputs;
     PyObject * stateVariables;
-    PyObject * nrtStateIndices;
-    PyObject * structStateIndices;
-    PyObject * structStateSizes;
     PyObject * dataReference;
 
-    if( !PyArg_ParseTuple( args, "O!OOOOOOOO",
+    if( !PyArg_ParseTuple( args, "O!OOOOO",
                           &PyEngine::PyType, &engine,
                           &compiledFuncPtr,
                           &inputs,
                           &outputs,
                           &stateVariables,
-                          &nrtStateIndices,
-                          &structStateIndices,
-                          &structStateSizes,
                           &dataReference ) )
         CSP_THROW( PythonPassthrough, "" );
     
@@ -465,9 +311,6 @@ static PyObject * PyNumbaNode_create( PyObject * module, PyObject * args )
         inputs,
         outputs,
         stateVariables,
-        nrtStateIndices,
-        structStateIndices,
-        structStateSizes,
         dataReference
     );
     return PyNodeWrapper::create( node );

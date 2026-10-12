@@ -1,30 +1,16 @@
 import ast
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, List, Optional, Union
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, List, Union
 
 if TYPE_CHECKING:
     from csp.impl.wiring.node_parser import ParsedNodeDefinition
 
 
 @dataclass
-class StateVariable:
-    """Represents a state variable with its name and inferred/declared type."""
-
-    name: str
-    type_annotation: Optional[ast.AST] = None
-    initial_value: Optional[ast.AST] = None
-
-
-@dataclass
 class TransformedNode:
-    name: str
-    state_variables: List[StateVariable]
-    transformed_body: List[ast.AST]
-    original_ast: ast.FunctionDef
-    transformed_source: str = ""
-    start_body: List[ast.AST] = field(default_factory=list)  # Code from with csp.start():
-    stop_body: List[ast.AST] = field(default_factory=list)  # Code from with csp.stop():
-    transformed_ast: Optional[ast.FunctionDef] = None
+    transformed_ast: ast.FunctionDef
+    start_body: List[ast.AST]
+    stop_body: List[ast.AST]
 
 
 class CspNodeTransformer(ast.NodeTransformer):
@@ -42,9 +28,6 @@ class CspNodeTransformer(ast.NodeTransformer):
     """
 
     def __init__(self):
-        self.state_variables: List[StateVariable] = []
-        self.start_body: List[ast.AST] = []
-        self.stop_body: List[ast.AST] = []
         self.csp_call_transformers = {
             "ticked": lambda node: self._transform_signal_check(
                 node=node,
@@ -158,10 +141,9 @@ class CspNodeTransformer(ast.NodeTransformer):
 
         return node
 
+    @staticmethod
     def _create_state_assignment(
-        self,
         *,
-        name: str,
         target: ast.expr,
         type_annotation: ast.AST,
         value: ast.AST,
@@ -169,7 +151,6 @@ class CspNodeTransformer(ast.NodeTransformer):
     ) -> ast.AnnAssign:
         """Create a state assignment with State[type] annotation."""
         state_type = ast.Subscript(value=ast.Name(id="State", ctx=ast.Load()), slice=type_annotation, ctx=ast.Load())
-        self.state_variables.append(StateVariable(name=name, type_annotation=type_annotation, initial_value=value))
         return ast.AnnAssign(target=target, annotation=state_type, value=value, simple=simple)
 
     def _transform_state_statements(self, statements) -> List[ast.AST]:
@@ -178,36 +159,37 @@ class CspNodeTransformer(ast.NodeTransformer):
         for stmt in statements:
             if isinstance(stmt, ast.AnnAssign):
                 # Already annotated: y: float = 1.0
-                name = stmt.target.id if isinstance(stmt.target, ast.Name) else None
-                if name:
-                    transformed.append(
-                        self._create_state_assignment(
-                            name=name,
-                            target=stmt.target,
-                            type_annotation=stmt.annotation,
-                            value=stmt.value,
-                            simple=stmt.simple,
-                        )
+                if not isinstance(stmt.target, ast.Name):
+                    raise TypeError("numba_node state declarations require a simple variable name")
+                transformed.append(
+                    self._create_state_assignment(
+                        target=stmt.target,
+                        type_annotation=stmt.annotation,
+                        value=stmt.value,
+                        simple=stmt.simple,
                     )
+                )
 
             elif isinstance(stmt, ast.Assign):
                 # Unannotated: x = 0, need to infer type
                 for target in stmt.targets:
-                    if isinstance(target, ast.Name):
-                        name = target.id
-                        inferred_type = self._infer_type(name, stmt.value)
-                        transformed.append(
-                            self._create_state_assignment(
-                                name=name,
-                                target=target,
-                                type_annotation=inferred_type,
-                                value=stmt.value,
-                                simple=1,
-                            )
+                    if not isinstance(target, ast.Name):
+                        raise TypeError("numba_node state assignments require a simple variable name")
+                    inferred_type = self._infer_type(target.id, stmt.value)
+                    transformed.append(
+                        self._create_state_assignment(
+                            target=target,
+                            type_annotation=inferred_type,
+                            value=stmt.value,
+                            simple=1,
                         )
+                    )
 
             elif isinstance(stmt, ast.Expr):
-                transformed.append(self.visit(stmt))
+                transformed.extend(self._flatten_transformed_statements((stmt,)))
+
+            elif not isinstance(stmt, ast.Pass):
+                raise TypeError(f"numba_node state blocks do not support {type(stmt).__name__} statements")
 
         return transformed
 
@@ -221,12 +203,12 @@ class CspNodeTransformer(ast.NodeTransformer):
                 flattened.append(transformed_stmt)
         return flattened
 
-    def _reset(self):
-        self.state_variables = []
-        self.start_body = []
-        self.stop_body = []
-
-    def _build_transformed_node(self, func_def: ast.FunctionDef, transformed_body: List[ast.AST]) -> TransformedNode:
+    def transform_csp_node(self, definition: "ParsedNodeDefinition") -> TransformedNode:
+        start_body = self._flatten_transformed_statements(definition.blocks.start)
+        stop_body = self._flatten_transformed_statements(definition.blocks.stop)
+        transformed_body = self._transform_state_statements(definition.blocks.state)
+        transformed_body.extend(self._flatten_transformed_statements(definition.blocks.body))
+        func_def = definition.funcdef
         new_func_def = ast.FunctionDef(
             name=func_def.name,
             args=func_def.args,  # Keep original args with ts[type] annotations
@@ -236,23 +218,4 @@ class CspNodeTransformer(ast.NodeTransformer):
         )
 
         ast.fix_missing_locations(new_func_def)
-        transformed_source = ast.unparse(new_func_def)
-
-        return TransformedNode(
-            name=func_def.name,
-            state_variables=self.state_variables,
-            transformed_body=transformed_body,
-            original_ast=func_def,
-            transformed_ast=new_func_def,
-            transformed_source=transformed_source,
-            start_body=self.start_body,
-            stop_body=self.stop_body,
-        )
-
-    def transform_csp_node(self, definition: "ParsedNodeDefinition") -> TransformedNode:
-        self._reset()
-        self.start_body = self._flatten_transformed_statements(definition.blocks.start)
-        self.stop_body = self._flatten_transformed_statements(definition.blocks.stop)
-        transformed_body = self._transform_state_statements(definition.blocks.state)
-        transformed_body.extend(self._flatten_transformed_statements(definition.blocks.body))
-        return self._build_transformed_node(definition.funcdef, transformed_body)
+        return TransformedNode(new_func_def, start_body, stop_body)

@@ -3,7 +3,6 @@
 import ast
 
 from numba_cfunc_compiler.types.base import HostType
-from numba_cfunc_compiler.types.binding import StatePlan
 from numba_cfunc_compiler.types.factory import HostTypeFactory
 
 from csp.impl.struct import Struct as CspStruct
@@ -20,16 +19,6 @@ class CspStructHostType(HostType):
 
     def is_opaque_pointer(self):
         return True
-
-    def state_plan(self, variable):
-        plan = super().state_plan(variable)
-        return StatePlan(
-            before=plan.before,
-            metadata={
-                "struct_state_indices": (variable.array_idx,),
-                "struct_state_sizes": (self.value._metadata_info()["size"],),
-            },
-        )
 
     @classmethod
     def try_parse_state(cls, node, var_name, globalns):

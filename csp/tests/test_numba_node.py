@@ -1180,7 +1180,7 @@ class TestStructSupport(unittest.TestCase):
         results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=2))
         self.assertEqual([value for _, value in results["result"]], [-1, 7])
 
-    def test_invalid_struct_output(self):
+    def test_struct_output_from_state_has_independent_ticks(self):
         class Point(csp.Struct):
             x: float
             y: float
@@ -1195,11 +1195,69 @@ class TestStructSupport(unittest.TestCase):
 
         @csp.graph
         def g():
-            result = emit_struct(csp.const(1.0))
+            values = csp.curve(float, [(timedelta(seconds=i), float(i + 1)) for i in range(3)])
+            result = emit_struct(values)
             csp.add_graph_output("result", result)
 
-        with self.assertRaisesRegex(TypeError, r"Unsupported type '.*Point.*' for output\[0\]"):
-            csp.build_graph(g)
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=3))
+        self.assertEqual([(value.x, value.y) for _, value in results["result"]], [(2.0, 2.0), (4.0, 2.0), (7.0, 2.0)])
+
+    def test_struct_input_to_named_output(self):
+        class Point(csp.Struct):
+            x: float
+            y: float
+
+        @numba_node
+        def forward(value: ts[Point]) -> csp.Outputs(point=ts[Point], x=ts[float]):
+            csp.output(point=value)
+            csp.output(x=value.x)
+
+        @csp.graph
+        def g():
+            values = csp.curve(
+                Point,
+                [
+                    (timedelta(seconds=0), Point(x=1.0, y=2.0)),
+                    (timedelta(seconds=1), Point(x=3.0, y=4.0)),
+                ],
+            )
+            result = forward(values)
+            csp.add_graph_output("point", result.point)
+            csp.add_graph_output("x", result.x)
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=2))
+        self.assertEqual([(value.x, value.y) for _, value in results["point"]], [(1.0, 2.0), (3.0, 4.0)])
+        self.assertEqual([value for _, value in results["x"]], [1.0, 3.0])
+
+    def test_struct_output_preserves_enum_field(self):
+        class Direction(csp.Enum):
+            UP = 1
+            DOWN = 2
+
+        class Velocity(csp.Struct):
+            direction: Direction
+            speed: float
+
+        @numba_node
+        def forward(value: ts[Velocity]) -> ts[Velocity]:
+            return value
+
+        @csp.graph
+        def g():
+            values = csp.curve(
+                Velocity,
+                [
+                    (timedelta(seconds=0), Velocity(direction=Direction.UP, speed=1.0)),
+                    (timedelta(seconds=1), Velocity(direction=Direction.DOWN, speed=2.0)),
+                ],
+            )
+            csp.add_graph_output("result", forward(values))
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=2))
+        self.assertEqual(
+            [(value.direction, value.speed) for _, value in results["result"]],
+            [(Direction.UP, 1.0), (Direction.DOWN, 2.0)],
+        )
 
     def test_invalid_struct_var(self):
         class NonNativePoint(csp.Struct):

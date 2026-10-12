@@ -98,9 +98,6 @@ class NumbaNodeDef(NodeDef):
             ordered_inputs,
             self._output_types,
             self._compilation.state_values,
-            self._compilation.nrt_state_indices,
-            self._compilation.struct_state_indices,
-            self._compilation.struct_state_sizes,
             compiled_func,
         )
 
@@ -217,8 +214,6 @@ def numba_node(
                 "__wrapped__": func,
                 "__module__": func.__module__,
                 "__doc__": func.__doc__,
-                "_numba_transformed": transformed,
-                "_numba_transformed_ast": transformed_ast,
             },
         )
         return nodetype

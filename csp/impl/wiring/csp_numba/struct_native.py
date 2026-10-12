@@ -17,7 +17,6 @@ from numba.extending import (
     models,
     register_model,
 )
-from numba_cfunc_compiler.types.builtin.struct.native import StructPtrType
 from numba_cfunc_compiler.types.native.ffi import declare_symbol
 from numba_cfunc_compiler.types.native.state import StatePayload
 from numba_cfunc_compiler.types.policy import ValueSemantics
@@ -121,7 +120,7 @@ def _fields(py_type, metadata):
     return tuple(fields)
 
 
-class CspStructViewType(StructPtrType):
+class CspStructViewType(types.Type):
     """Nominal pointer to a CSP-owned native struct."""
 
     def __init__(self, py_type, metadata):
@@ -131,9 +130,7 @@ class CspStructViewType(StructPtrType):
         self.alignment = max((ctypes.alignment(ctypes.c_void_p), *(item["alignment"] for item in metadata["fields"])))
         self.schema_key = ("csp-struct-view-v1", id(py_type), self.host_size, tuple(field.key for field in self.fields))
         fingerprint = hashlib.sha256(repr(self.schema_key).encode()).hexdigest()[:16]
-        # The compiler copies StructPtrType outputs by value. CSP supplies its own
-        # field accessors, so this view has a CSP layout rather than StructLayout.
-        types.Type.__init__(self, f"CspStructView[{py_type.__module__}.{py_type.__qualname__}:{fingerprint}]")
+        super().__init__(f"CspStructView[{py_type.__module__}.{py_type.__qualname__}:{fingerprint}]")
 
     @property
     def key(self):
@@ -200,6 +197,7 @@ def csp_struct_payload(py_type):
         bind_function=csp_struct_view(py_type),
         store_factory=lambda name: _reject_replacement(py_type, name),
         mutable=True,
+        copy_output_bytes=True,
     )
 
 

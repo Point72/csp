@@ -93,22 +93,23 @@ class CspNodeTransformer(ast.NodeTransformer):
 
     def _transform_output(self, node: ast.Call) -> List[ast.AST]:
         """Transform csp.output(...) calls into set_output(...) helper calls."""
+        if node.args:
+            if node.keywords or len(node.args) > 2:
+                raise ValueError("csp.output accepts one value, (name, value), or named output values")
+            if len(node.args) == 2:
+                if not isinstance(node.args[0], ast.Name):
+                    raise TypeError("csp.output(name, value) requires a declared output name")
+                outputs = ((node.args[0].id, node.args[1]),)
+            else:
+                outputs = (("output_0", node.args[0]),)
+        else:
+            outputs = ((kw.arg, kw.value) for kw in node.keywords)
+
         statements = []
-
-        # Handle keyword arguments: csp.output(a=x, b=y)
-        for kw in node.keywords:
+        for name, value in outputs:
             set_output_call = ast.Call(
                 func=ast.Name(id="set_output", ctx=ast.Load()),
-                args=[ast.Constant(value=kw.arg), self.visit(kw.value)],
-                keywords=[],
-            )
-            statements.append(ast.Expr(value=set_output_call))
-
-        # Handle positional arguments for unnamed outputs: csp.output(x)
-        for i, arg in enumerate(node.args):
-            set_output_call = ast.Call(
-                func=ast.Name(id="set_output", ctx=ast.Load()),
-                args=[ast.Constant(value=f"output_{i}"), self.visit(arg)],
+                args=[ast.Constant(value=name), self.visit(value)],
                 keywords=[],
             )
             statements.append(ast.Expr(value=set_output_call))

@@ -946,6 +946,22 @@ class TestFeatures(unittest.TestCase):
         self.assertEqual([v for _, v in results["doubled"]], [6])
         self.assertEqual([v for _, v in results["squared"]], [9])
 
+    def test_positional_named_outputs(self):
+        @numba_node
+        def multi_out(x: ts[int]) -> csp.Outputs(doubled=ts[int], squared=ts[int]):
+            csp.output(doubled, x * 2)
+            return csp.output(squared, x * x)
+
+        @csp.graph
+        def g():
+            outputs = multi_out(csp.const(3))
+            csp.add_graph_output("doubled", outputs.doubled)
+            csp.add_graph_output("squared", outputs.squared)
+
+        results = csp.run(g, starttime=datetime(2024, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual([v for _, v in results["doubled"]], [6])
+        self.assertEqual([v for _, v in results["squared"]], [9])
+
     def test_return_multiple_outputs(self):
         @numba_node
         def multi_out(x: ts[int]) -> csp.Outputs(doubled=ts[int], squared=ts[int]):

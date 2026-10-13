@@ -296,35 +296,35 @@ jobs:
           run: make dist-check
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.10
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp310' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.11
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp311' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.12
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp312' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.13
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp313' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.14
             path: dist/*.whl
@@ -385,7 +385,7 @@ jobs:
           run: make dist-check
 
         - name: Upload SDist
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
               name: csp-sdist
               path: dist/*.tar.gz

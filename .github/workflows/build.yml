@@ -471,7 +471,7 @@ jobs:
           run: make requirements
 
         - name: Download wheel
-          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+          uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -582,7 +582,7 @@ jobs:
         - name: Install requirements
           run: sudo make dependencies-debian
 
-        - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
           with:
             name: csp-sdist
             path: dist/
@@ -666,7 +666,7 @@ jobs:
           run: sudo apt-get install graphviz
 
         - name: Download wheel
-          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+          uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -746,7 +746,7 @@ jobs:
 
       steps:
         - name: Download wheels and sdist
-          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+          uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
           with:
             name:
             merge-multiple: true

@@ -18,7 +18,10 @@ target_link_libraries(test_partial_switch_csp_type csp_engine GTest::gtest GTest
 add_executable(test_window_buffer test_window_buffer.cpp)
 target_link_libraries(test_window_buffer csp_engine GTest::gtest GTest::gtest_main)
 
-install(TARGETS test_tick_buffer test_time_series test_partial_switch_csp_type test_dictionary test_window_buffer
+add_executable(test_struct test_struct.cpp)
+target_link_libraries(test_struct csp_engine GTest::gtest GTest::gtest_main)
+
+install(TARGETS test_tick_buffer test_time_series test_partial_switch_csp_type test_dictionary test_window_buffer test_struct
         RUNTIME DESTINATION tests/bin/
         LIBRARY DESTINATION tests/lib/
         ARCHIVE DESTINATION tests/lib/)

@@ -68,6 +68,7 @@ add_library(cspimpl SHARED
         PyInputProxy.cpp
         PyNode.cpp
         PyNodeWrapper.cpp
+        NumbaStructFFI.cpp
         PyNumbaNode.cpp
         PyNumpyAdapter.cpp
         PyOutputAdapter.cpp

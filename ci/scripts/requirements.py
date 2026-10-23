@@ -1,12 +1,15 @@
 #!/bin/env python
 import os
 
+
 def deps():
     import toml
+
     c = toml.load("pyproject.toml")
     requires = c["build-system"]["requires"]
     develop = c["project"]["optional-dependencies"]["develop"]
     return requires + develop
+
 
 def main():
     ret = os.system("python -m pip install --prefer-binary toml")

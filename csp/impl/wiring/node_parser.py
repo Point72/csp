@@ -2,6 +2,7 @@ import ast
 import copy
 import inspect
 import textwrap
+from dataclasses import dataclass
 from warnings import warn
 
 from csp.impl import builtin_functions
@@ -68,33 +69,26 @@ class _SingleProxyFuncArgResolver(object):
         )
 
 
-class NodeParser(BaseParser):
-    _CSP_NOW_FUNC = "_csp_now"
-    _CSP_ENGINE_START_TIME_FUNC = "_engine_start_time"
-    _CSP_ENGINE_END_TIME_FUNC = "_engine_end_time"
-    _CSP_ENGINE_STATS_FUNC = "_csp_engine_stats"
+@dataclass(frozen=True)
+class ParsedNodeBlocks:
+    state: tuple[ast.stmt, ...]
+    start: tuple[ast.stmt, ...]
+    stop: tuple[ast.stmt, ...]
+    body: tuple[ast.stmt, ...]
 
-    _CSP_STOP_ENGINE_FUNC = "_csp_stop_engine"
-    _CSP_IN_REALTIME_FUNC = "_csp_in_realtime"
-    _LOCAL_METHODS = {
-        _CSP_NOW_FUNC: _cspimpl._csp_now,
-        _CSP_ENGINE_START_TIME_FUNC: _cspimpl._csp_engine_start_time,
-        _CSP_ENGINE_END_TIME_FUNC: _cspimpl._csp_engine_end_time,
-        _CSP_STOP_ENGINE_FUNC: _cspimpl._csp_stop_engine,
-        _CSP_ENGINE_STATS_FUNC: _cspimpl._csp_engine_stats,
-        _CSP_IN_REALTIME_FUNC: _cspimpl._csp_in_realtime,
-    }
 
+@dataclass(frozen=True)
+class ParsedNodeDefinition:
+    funcdef: ast.FunctionDef
+    signature: Signature
+    blocks: ParsedNodeBlocks
+
+
+class NodeDefinitionParser(BaseParser):
     _SPECIAL_BLOCKS_METH = {"alarms", "state", "start", "stop", "outputs"}
     _SPECIAL_BLOCKS_DEPR = {f"__{method}__" for method in _SPECIAL_BLOCKS_METH}
     _SPECIAL_BLOCKS_PYTHONIC = {f"{method}" for method in _SPECIAL_BLOCKS_METH if method != "outputs"}
     _SPECIAL_BLOCKS = _SPECIAL_BLOCKS_DEPR.union(_SPECIAL_BLOCKS_PYTHONIC)
-
-    # These match up with const names defined in PyNode.cpp
-    _NODE_P_VARNAME = "node_p"
-    _INPUT_VAR_VARNAME = "input_var"
-    _INPUT_PROXY_VARNAME = "input_proxy"
-    _OUTPUT_PROXY_VARNAME = "output_proxy"
 
     def __init__(self, name, raw_func, func_frame, debug_print=False):
         super().__init__(
@@ -106,13 +100,8 @@ class NodeParser(BaseParser):
         self._stateblock = []
         self._startblock = []
         self._stopblock = []
+        self._definition = None
         self._func_globals_modified.update(builtin_functions.CSP_BUILTIN_CONTEXT_DICT)
-        self._func_globals_modified.update(self._LOCAL_METHODS)
-        self._gen = None
-
-        # To catch returning from within a for or while loop, which wouldnt work as it seems
-        self._inner_loop_count = 0
-        self._returned_outputs = set()
 
     @_pythonic_depr_warning
     def _parse_alarms(self, node):
@@ -232,6 +221,124 @@ class NodeParser(BaseParser):
 
     def _extract_outputs_from_return_annotation(self, returns, *args, **kwargs):
         return super()._extract_outputs_from_return_annotation(returns=returns, enforce_shape=True)
+
+    def _parse_special_blocks(self, body):
+        # skip doc string
+        for index, node in enumerate(body):
+            if not isinstance(node, ast.Expr) or not (
+                isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+            ):
+                break
+
+        last_special_block = None
+
+        def consume_block(*args, **kwargs):
+            cur_index, cur_block_name = self._consume_special_block(*args, **kwargs)
+            if cur_block_name:
+                return cur_index, cur_block_name
+            return cur_index, last_special_block
+
+        # Ensure blocks are processed in proper order i.e. start before stop
+        index, last_special_block = consume_block(
+            body, index, "alarms", self._parse_alarms, allow_with_block=True, allow_flat_call=False
+        )
+        index, last_special_block = consume_block(
+            body, index, "__alarms__", self._parse_alarms, allow_with_block=True, allow_flat_call=True
+        )
+
+        index, last_special_block = consume_block(
+            body, index, "state", self._parse_state, allow_with_block=True, allow_flat_call=False
+        )
+        index, last_special_block = consume_block(
+            body, index, "__state__", self._parse_state, allow_with_block=True, allow_flat_call=True
+        )
+
+        index, last_special_block = consume_block(
+            body, index, "start", self._parse_start, allow_with_block=True, allow_flat_call=False
+        )
+        index, last_special_block = consume_block(
+            body, index, "__start__", self._parse_start, allow_with_block=True, allow_flat_call=False
+        )
+
+        index, last_special_block = consume_block(
+            body, index, "stop", self._parse_stop, allow_with_block=True, allow_flat_call=False
+        )
+        index, last_special_block = consume_block(
+            body, index, "__stop__", self._parse_stop, allow_with_block=True, allow_flat_call=False
+        )
+
+        if index < len(body):
+            first_body_elem = body[index]
+            if self._is_special_with_or_call(first_body_elem, self._SPECIAL_BLOCKS):
+                for special_block_name in self._SPECIAL_BLOCKS:
+                    if self._is_special_with_or_call(first_body_elem, special_block_name):
+                        # For sure we must have previous block, it's a matter of out of order. Otherwise we can't get there
+                        raise CspParseError(
+                            f"{special_block_name} must be declared before {last_special_block}",
+                            lineno=first_body_elem.lineno,
+                            file=self._func_filename,
+                        )
+                # We should never get here
+                raise AssertionError("Special block error wasn't handled correctly")
+        return index
+
+    def _is_ts_args_removed_from_signature(self):
+        return True
+
+    def _parse_impl(self):
+        self._inputs, input_defaults, self._outputs = self.parse_func_signature(self._funcdef)
+        body_index = self._parse_special_blocks(self._funcdef.body)
+        self._signature = Signature(
+            self._name,
+            self._inputs,
+            self._outputs + self._special_outputs,
+            input_defaults,
+            special_outputs=self._special_outputs,
+        )
+        self._definition = ParsedNodeDefinition(
+            funcdef=self._funcdef,
+            signature=self._signature,
+            blocks=ParsedNodeBlocks(
+                state=tuple(self._stateblock),
+                start=tuple(self._startblock),
+                stop=tuple(self._stopblock),
+                body=tuple(self._funcdef.body[body_index:]),
+            ),
+        )
+
+    @property
+    def definition(self):
+        return self._definition
+
+
+class NodeParser(NodeDefinitionParser):
+    # These match up with const names defined in PyNode.cpp
+    _NODE_P_VARNAME = "node_p"
+    _INPUT_VAR_VARNAME = "input_var"
+    _INPUT_PROXY_VARNAME = "input_proxy"
+    _OUTPUT_PROXY_VARNAME = "output_proxy"
+
+    _CSP_NOW_FUNC = "_csp_now"
+    _CSP_ENGINE_START_TIME_FUNC = "_engine_start_time"
+    _CSP_ENGINE_END_TIME_FUNC = "_engine_end_time"
+    _CSP_ENGINE_STATS_FUNC = "_csp_engine_stats"
+    _CSP_STOP_ENGINE_FUNC = "_csp_stop_engine"
+    _CSP_IN_REALTIME_FUNC = "_csp_in_realtime"
+    _LOCAL_METHODS = {
+        _CSP_NOW_FUNC: _cspimpl._csp_now,
+        _CSP_ENGINE_START_TIME_FUNC: _cspimpl._csp_engine_start_time,
+        _CSP_ENGINE_END_TIME_FUNC: _cspimpl._csp_engine_end_time,
+        _CSP_STOP_ENGINE_FUNC: _cspimpl._csp_stop_engine,
+        _CSP_ENGINE_STATS_FUNC: _cspimpl._csp_engine_stats,
+        _CSP_IN_REALTIME_FUNC: _cspimpl._csp_in_realtime,
+    }
+
+    def __init__(self, name, raw_func, func_frame, debug_print=False):
+        super().__init__(name=name, raw_func=raw_func, func_frame=func_frame, debug_print=debug_print)
+        self._func_globals_modified.update(self._LOCAL_METHODS)
+        self._gen = None
+        self._inner_loop_count = 0
+        self._returned_outputs = set()
 
     def _node_proxy_expr(self, ctx=ast.Load()):
         return ast.Name(id="#node_p", ctx=ctx)
@@ -684,66 +791,6 @@ class NodeParser(BaseParser):
             if output.name not in self._returned_outputs:
                 raise CspParseError(f"output '{output.name}' is never returned")
 
-    def _parse_special_blocks(self, body):
-        # skip doc string
-        for index, node in enumerate(body):
-            if not isinstance(node, ast.Expr) or not (
-                isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
-            ):
-                break
-
-        last_special_block = None
-
-        def consume_block(*args, **kwargs):
-            cur_index, cur_block_name = self._consume_special_block(*args, **kwargs)
-            if cur_block_name:
-                return cur_index, cur_block_name
-            return cur_index, last_special_block
-
-        # Ensure blocks are processed in proper order i.e. start before stop
-        index, last_special_block = consume_block(
-            body, index, "alarms", self._parse_alarms, allow_with_block=True, allow_flat_call=False
-        )
-        index, last_special_block = consume_block(
-            body, index, "__alarms__", self._parse_alarms, allow_with_block=True, allow_flat_call=True
-        )
-
-        index, last_special_block = consume_block(
-            body, index, "state", self._parse_state, allow_with_block=True, allow_flat_call=False
-        )
-        index, last_special_block = consume_block(
-            body, index, "__state__", self._parse_state, allow_with_block=True, allow_flat_call=True
-        )
-
-        index, last_special_block = consume_block(
-            body, index, "start", self._parse_start, allow_with_block=True, allow_flat_call=False
-        )
-        index, last_special_block = consume_block(
-            body, index, "__start__", self._parse_start, allow_with_block=True, allow_flat_call=False
-        )
-
-        index, last_special_block = consume_block(
-            body, index, "stop", self._parse_stop, allow_with_block=True, allow_flat_call=False
-        )
-        index, last_special_block = consume_block(
-            body, index, "__stop__", self._parse_stop, allow_with_block=True, allow_flat_call=False
-        )
-
-        if index < len(body):
-            first_body_elem = body[index]
-            if self._is_special_with_or_call(first_body_elem, self._SPECIAL_BLOCKS):
-                for special_block_name in self._SPECIAL_BLOCKS:
-                    if self._is_special_with_or_call(first_body_elem, special_block_name):
-                        # For sure we must have previous block, it's a matter of out of order. Otherwise we can't get there
-                        raise CspParseError(
-                            f"{special_block_name} must be declared before {last_special_block}",
-                            lineno=first_body_elem.lineno,
-                            file=self._func_filename,
-                        )
-                # We should never get here
-                raise AssertionError("Special block error wasn't handled correctly")
-        return index
-
     @classmethod
     def _create_ast_args(
         cls, posonlyargs=[], args=[], kwonlyargs=[], defaults=[], vararg=None, kwarg=None, kw_defaults=[]
@@ -758,19 +805,8 @@ class NodeParser(BaseParser):
             kw_defaults=kw_defaults,
         )
 
-    def _is_ts_args_removed_from_signature(self):
-        return True
-
     def _parse_impl(self):
-        self._inputs, input_defaults, self._outputs = self.parse_func_signature(self._funcdef)
-        idx = self._parse_special_blocks(self._funcdef.body)
-        self._signature = Signature(
-            self._name,
-            self._inputs,
-            self._outputs + self._special_outputs,
-            input_defaults,
-            special_outputs=self._special_outputs,
-        )
+        super()._parse_impl()
         # Up front initialize timeseries inputs as local vars.  Regular TS need two vars, the proxy and
         # the python value instance. Baskets will only need the proxy.  We also provide a noderef for node
         # specific methods.  Values are assigned to tuple( name, index ) which is replaced in PyNode.cpp init
@@ -820,8 +856,8 @@ class NodeParser(BaseParser):
         # innerbody is the while loop.  Start off with a yield, will get called when something ticks
         innerbody = [ast.Expr(value=ast.Yield(value=None))]
 
-        for x in range(idx, len(self._funcdef.body)):
-            func_body_transformed = self.visit(self._funcdef.body[x])
+        for body_node in self._definition.blocks.body:
+            func_body_transformed = self.visit(body_node)
             if isinstance(func_body_transformed, list):
                 innerbody.extend(func_body_transformed)
             else:

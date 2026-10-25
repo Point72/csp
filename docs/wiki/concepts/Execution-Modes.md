@@ -13,6 +13,7 @@ Since engines can run in both simulated and realtime mode, users should **always
 - [Table of Contents](#table-of-contents)
 - [Simulation Mode](#simulation-mode)
 - [Realtime Mode](#realtime-mode)
+  - [Replaying History Before Going Realtime](#replaying-history-before-going-realtime)
 - [csp.PushMode](#csppushmode)
 - [Handling Duplicate Timestamps](#handling-duplicate-timestamps)
 - [Realtime Group Event Synchronization](#realtime-group-event-synchronization)
@@ -37,6 +38,42 @@ All time based inputs such as `csp.timer` and alarms will switch to executing in
 
 As always, `csp.now()` should still be used in `csp.node` code, even when running in realtime mode.
 `csp.now()` will be the time assigned to the current engine cycle.
+
+### Replaying History Before Going Realtime
+
+Passing a `starttime` in the past together with `realtime=True` is a common way to **warm up** a graph (rolling stats, historical buffers, accumulated `csp.Struct` state, etc) with recent history before the engine starts reacting to live data.
+
+When `csp.run` is invoked this way, the engine first works through the window from `starttime` up to wallclock "now" (as of when `csp.run` was called) in simulation mode, same as a normal historical run, driven off of historical input adapters and any `csp.timer`/alarms scheduled in that window. Since simulation mode runs at full speed rather than being paced out over wallclock time, this replay of history completes effectively instantaneously, regardless of how long a window it covers. Once the engine's simulated clock catches up to that wallclock "now", it seamlessly switches into realtime mode, and everything from then on (timers, alarms, realtime adapters) proceeds at actual wallclock pace.
+
+The example below counts ticks of a 1-second `csp.timer` and prints both the engine time and the wallclock time observed at each tick, using a `starttime` 5 seconds in the past:
+
+```python
+import csp
+from datetime import datetime, timedelta
+
+@csp.node
+def show(x: csp.ts[int]):
+    if csp.ticked(x):
+        print(f"engine_now={csp.now()}  wallclock_now={datetime.utcnow()}")
+
+@csp.graph
+def g():
+    show(csp.count(csp.timer(timedelta(seconds=1), True)))
+
+csp.run(g, starttime=datetime.utcnow() - timedelta(seconds=5), endtime=timedelta(seconds=8), realtime=True)
+```
+
+```raw
+engine_now=2024-01-01 00:00:01.000000  wallclock_now=2024-01-01 00:00:05.002481
+engine_now=2024-01-01 00:00:02.000000  wallclock_now=2024-01-01 00:00:05.002483
+engine_now=2024-01-01 00:00:03.000000  wallclock_now=2024-01-01 00:00:05.002485
+engine_now=2024-01-01 00:00:04.000000  wallclock_now=2024-01-01 00:00:05.002486
+engine_now=2024-01-01 00:00:05.000000  wallclock_now=2024-01-01 00:00:05.002487
+engine_now=2024-01-01 00:00:06.000000  wallclock_now=2024-01-01 00:00:06.003480
+engine_now=2024-01-01 00:00:07.000000  wallclock_now=2024-01-01 00:00:07.002912
+```
+
+Note how the first five ticks (the replay of the past 5 seconds) all land at essentially the same `wallclock_now`, while the ticks after the engine catches up to "now" are spaced out at the true 1-second wallclock interval, confirming the switch into realtime mode.
 
 ## csp.PushMode
 

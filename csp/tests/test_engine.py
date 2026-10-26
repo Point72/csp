@@ -332,6 +332,71 @@ class TestEngine(unittest.TestCase):
         result = csp.run(count, x, starttime=datetime(2020, 2, 7, 9), endtime=timedelta(seconds=10))[0]
         self.assertEqual([v[1] for v in result], list(x * 2 for x in range(1, 11)))
 
+    def test_csp_output_dict_unpack(self):
+        @csp.node
+        def foo(x: ts[bool]) -> csp.Outputs(a=ts[int], b=ts[int]):
+            if csp.ticked(x):
+                values = {"a": 1, "b": 2}
+                csp.output(**values)
+
+        result = csp.run(foo, csp.const(True), starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual(result["a"][0][1], 1)
+        self.assertEqual(result["b"][0][1], 2)
+
+    def test_csp_output_dict_unpack_mixed(self):
+        @csp.node
+        def foo(x: ts[bool]) -> csp.Outputs(a=ts[int], b=ts[int]):
+            if csp.ticked(x):
+                csp.output(a=1, **{"b": 2})
+
+        result = csp.run(foo, csp.const(True), starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual(result["a"][0][1], 1)
+        self.assertEqual(result["b"][0][1], 2)
+
+    def test_csp_output_dict_unpack_multiple(self):
+        @csp.node
+        def foo(x: ts[bool]) -> csp.Outputs(a=ts[int], b=ts[int]):
+            if csp.ticked(x):
+                csp.output(**{"a": 1}, **{"b": 2})
+
+        result = csp.run(foo, csp.const(True), starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual(result["a"][0][1], 1)
+        self.assertEqual(result["b"][0][1], 2)
+
+    def test_csp_output_dict_unpack_unknown_key(self):
+        @csp.node
+        def foo(x: ts[bool]) -> csp.Outputs(a=ts[int]):
+            if csp.ticked(x):
+                csp.output(**{"bogus": 1})
+
+        with self.assertRaisesRegex(KeyError, "'bogus'"):
+            csp.run(foo, csp.const(True), starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+
+    def test_csp_output_dict_unpack_non_dict(self):
+        @csp.node
+        def foo(x: ts[bool]) -> csp.Outputs(a=ts[int], b=ts[int]):
+            if csp.ticked(x):
+                values = [1, 2]  # not dict-like
+                csp.output(**values)
+
+        with self.assertRaisesRegex(TypeError, "argument after \\*\\* must be a dict"):
+            csp.run(foo, csp.const(True), starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+
+    def test_csp_output_dict_unpack_basket(self):
+        @csp.node
+        def foo(x: ts[bool]) -> csp.Outputs(
+            a=ts[int],
+            b=csp.OutputBasket(Dict[str, ts[int]], shape=["k1", "k2"]),
+        ):
+            if csp.ticked(x):
+                values = {"a": 1, "b": {"k1": 10, "k2": 20}}
+                csp.output(**values)
+
+        result = csp.run(foo, csp.const(True), starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))
+        self.assertEqual(result["a"][0][1], 1)
+        self.assertEqual(result["b[k1]"][0][1], 10)
+        self.assertEqual(result["b[k2]"][0][1], 20)
+
     def test_single_csp_numpy_output(self):
         @csp.node
         def count(x: ts[int]) -> ts[int]:

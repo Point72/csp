@@ -1,8 +1,7 @@
-from datetime import timedelta
+from datetime import timedelta, timezone
 from typing import Union
 
 import numpy as np
-import pytz
 
 from csp import null_ts
 from csp.impl.__cspimpl import _cspimpl
@@ -23,7 +22,7 @@ class Curve(PullInputAdapter):
         if isinstance(self._data[0][0], timedelta):
             self._data = [(start_time + offset, value) for offset, value in self._data]
         elif self._data[0][0].tzinfo is not None:
-            self._data = [(time.astimezone(pytz.UTC).replace(tzinfo=None), value) for time, value in self._data]
+            self._data = [(time.astimezone(timezone.utc).replace(tzinfo=None), value) for time, value in self._data]
 
         while self._index < len(self._data) and self._data[self._index][0] < start_time:
             self._index += 1

@@ -30,10 +30,10 @@ dependencies = [
     "psutil",
     "pyarrow>=15,<24",
     "pydantic>=2",
-    "pytz",
     "ruamel.yaml",
     "sqlalchemy",
     "typing-extensions",
+    "tzdata",
 ]
 
 classifiers = [

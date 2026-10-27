@@ -11,7 +11,7 @@ def time_converter(column, format_string, tz=None):
         v = row[column]
         dt = datetime.strptime(v, format_string)
         if tz is not None:
-            dt = tz.localize(dt)
+            dt = tz.localize(dt) if hasattr(tz, "localize") else dt.replace(tzinfo=tz)
         return dt
 
     return convert

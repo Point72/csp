@@ -1,9 +1,8 @@
 import copy
-from datetime import timedelta
+from datetime import timedelta, timezone
 from typing import Union
 
 import numpy as np
-import pytz
 
 from csp import null_ts
 from csp.impl.__cspimpl import _cspimpl
@@ -27,7 +26,7 @@ class Curve(PullInputAdapter):
                 self._data[idx] = (start_time + data[0], data[1])
         elif self._data[0][0].tzinfo is not None:
             for idx, data in enumerate(self._data):
-                self._data[idx] = (data[0].astimezone(pytz.UTC).replace(tzinfo=None), data[1])
+                self._data[idx] = (data[0].astimezone(timezone.utc).replace(tzinfo=None), data[1])
 
         while self._index < len(self._data) and self._data[self._index][0] < start_time:
             self._index += 1

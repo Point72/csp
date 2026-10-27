@@ -3,11 +3,11 @@ import json
 import pickle
 import sys
 import unittest
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
+from zoneinfo import ZoneInfo
 
 import numpy as np
-import pytz
 from pydantic import TypeAdapter, ValidationError
 from pydantic_core import PydanticSerializationError
 from typing_extensions import Annotated
@@ -1773,18 +1773,18 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
         dt = datetime(2024, 3, 8)
-        dt_utc = datetime(2024, 3, 8, tzinfo=pytz.utc)
+        dt_utc = datetime(2024, 3, 8, tzinfo=timezone.utc)
         test_struct = MyStruct(i=456, dt=dt)
         result_dict = json.loads(test_struct.to_json())
         self.assertEqual(datetime.fromisoformat(result_dict["dt"]), dt_utc)
 
-        dt = datetime.now(tz=pytz.utc)
+        dt = datetime.now(tz=timezone.utc)
         test_struct = MyStruct(i=456, dt=dt)
         result_dict = json.loads(test_struct.to_json())
         self.assertEqual(datetime.fromisoformat(result_dict["dt"]), dt)
 
-        dt = datetime.now(tz=pytz.timezone("America/New_York"))
-        dt_utc = dt.astimezone(pytz.utc)
+        dt = datetime.now(tz=ZoneInfo("America/New_York"))
+        dt_utc = dt.astimezone(timezone.utc)
         test_struct = MyStruct(i=456, dt=dt)
         result_dict = json.loads(test_struct.to_json())
         self.assertEqual(datetime.fromisoformat(result_dict["dt"]), dt_utc)
@@ -1838,7 +1838,7 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "l_b": l_b}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
-        dt = datetime.now(tz=pytz.timezone("Europe/London"))
+        dt = datetime.now(tz=ZoneInfo("Europe/London"))
         l_dt = [dt, dt]
         test_struct = MyStruct(i=456, l_dt=l_dt)
         result_dict = json.loads(test_struct.to_json())
@@ -1859,7 +1859,7 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "l_any": l_i}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
-        dt = datetime.now(tz=pytz.timezone("Europe/London"))
+        dt = datetime.now(tz=ZoneInfo("Europe/London"))
         l_dt = [dt, dt]
         test_struct = MyStruct(i=456, l_any=l_dt)
         result_dict = json.loads(test_struct.to_json())
@@ -1911,7 +1911,7 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "d_f": d_f_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
-        dt = datetime.now(tz=pytz.utc)
+        dt = datetime.now(tz=timezone.utc)
         d_dt = {"d1": dt, "d2": dt}
         test_struct = MyStruct(i=456, d_dt=d_dt)
         result_dict = json.loads(test_struct.to_json())
@@ -1934,7 +1934,7 @@ class TestCspStruct(unittest.TestCase):
         result_dict = {"i": 456, "d_any": d_f_res}
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
-        dt = datetime.now(tz=pytz.utc)
+        dt = datetime.now(tz=timezone.utc)
         d_dt = {"d1": dt, "d2": dt}
         test_struct = MyStruct(i=456, d_any=d_dt)
         result_dict = json.loads(test_struct.to_json())
@@ -1990,19 +1990,19 @@ class TestCspStruct(unittest.TestCase):
         self.assertEqual(json.loads(test_struct.to_json()), result_dict)
 
         # Datetime as key
-        dt = datetime.now(tz=pytz.utc)
+        dt = datetime.now(tz=timezone.utc)
         d_datetime = {dt: "datetime"}
         test_struct = MyStruct(i=456, d_any=d_datetime)
         result_dict = json.loads(test_struct.to_json())
         self.assertEqual({datetime.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
 
-        dt = datetime.now(tz=pytz.utc)
+        dt = datetime.now(tz=timezone.utc)
         d_datetime = {dt.date(): "date"}
         test_struct = MyStruct(i=456, d_any=d_datetime)
         result_dict = json.loads(test_struct.to_json())
         self.assertEqual({date.fromisoformat(k): v for k, v in result_dict["d_any"].items()}, d_datetime)
 
-        dt = datetime.now(tz=pytz.utc)
+        dt = datetime.now(tz=timezone.utc)
         d_datetime = {dt.time(): "time"}
         test_struct = MyStruct(i=456, d_any=d_datetime)
         result_dict = json.loads(test_struct.to_json())
@@ -2166,7 +2166,7 @@ class TestCspStruct(unittest.TestCase):
         mss1 = MySubStruct(d_s_msss={"msss1": msss1}, l_ncsp=[ncsp1, ncsp2], py_l_ncsp=[ncsp2, ncsp3])
         mss2 = MySubStruct(d_s_msss={"msss2": msss2}, l_ncsp=[ncsp2], py_l_ncsp=[ncsp3])
 
-        dt = datetime.now(tz=pytz.utc)
+        dt = datetime.now(tz=timezone.utc)
         ms = MyStruct(
             i=123456789,
             s="NewMyStruct",
@@ -3944,7 +3944,7 @@ class TestCspStruct(unittest.TestCase):
             f=2.718,
             s="custom",
             b=False,
-            dt=datetime(2024, 1, 1, tzinfo=pytz.UTC),
+            dt=datetime(2024, 1, 1, tzinfo=timezone.utc),
             l=[4, 5, 6],
             d={"x": 9.9, "y": 8.8},
             e=MyEnum.OPTION2,

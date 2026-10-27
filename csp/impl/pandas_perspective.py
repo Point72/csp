@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import pandas as pd
-import pytz
 from pandas.compat import set_function_name
 
 import csp
@@ -66,7 +65,7 @@ def _apply_updates(
                     row[index_col] = idx
                 if s_has_time_col:
                     if localize:
-                        row[time_col] = pytz.utc.localize(csp.now())
+                        row[time_col] = csp.now().replace(tzinfo=timezone.utc)
                     else:
                         row[time_col] = csp.now()
                     if _PERSPECTIVE_3:
@@ -75,7 +74,7 @@ def _apply_updates(
                 row = new_rows[idx]
 
             if localize and col in s_datetime_cols and value.tzinfo is None:
-                row[col] = pytz.utc.localize(value)
+                row[col] = value.replace(tzinfo=timezone.utc)
             else:
                 row[col] = value
 

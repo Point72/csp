@@ -191,7 +191,7 @@ ParquetReader(
     :param symbol_column: An optional parameter that specifies the name of the symbol column if the file if there is any
     :param time_column: A mandatory specification of the time column name in the parquet files. This column will be used to inject the row values
       from parquet at the given timestamps.
-    :param tz: The pytz timezone of the timestamp column, should only be provided if the time_column in parquet file doesn't have tz info.
+    :param tz: The timezone (e.g. zoneinfo.ZoneInfo) of the timestamp column, should only be provided if the time_column in parquet file doesn't have tz info.
 """
 ```
 

@@ -43,7 +43,7 @@ dependencies:
  - python-build
  - python-graphviz
  - python-rapidjson
- - pytz
+ - python-tzdata
  - rapidjson
  - requests
  - ruamel.yaml

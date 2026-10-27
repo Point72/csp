@@ -7,20 +7,19 @@ Arrow IPC, dict baskets, numpy arrays, batch sizes, compression, metadata, etc.
 import os
 import tempfile
 import unittest
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
 import numpy
 import pandas
 import pyarrow
 import pyarrow.ipc
 import pyarrow.parquet
-import pytz
 
 import csp
 from csp.adapters.output_adapters.parquet import ParquetOutputConfig
 from csp.adapters.parquet import ParquetReader, ParquetWriter
 
-START = datetime(2022, 1, 1, tzinfo=pytz.utc)
+START = datetime(2022, 1, 1, tzinfo=timezone.utc)
 
 
 def _read_ipc(path):
@@ -72,7 +71,7 @@ class TestOutputScalarTypes(unittest.TestCase):
         self.assertEqual(df["value"].tolist(), ["hello", "world", "", "with spaces", "unicode: 日本語"])
 
     def test_datetime(self):
-        dts = [datetime(2022, 1, i + 1, tzinfo=pytz.utc) for i in range(5)]
+        dts = [datetime(2022, 1, i + 1, tzinfo=timezone.utc) for i in range(5)]
         df = self._write_and_read_scalar(datetime, dts)
         for i, dt in enumerate(dts):
             self.assertEqual(df["value"].iloc[i].to_pydatetime(), dt)
@@ -1568,7 +1567,7 @@ class TestOutputEdgeCases(unittest.TestCase):
             f=3.14,
             b=True,
             s="hello",
-            dt=datetime(2022, 6, 15, 12, 0, tzinfo=pytz.utc),
+            dt=datetime(2022, 6, 15, 12, 0, tzinfo=timezone.utc),
             td=timedelta(seconds=123),
             d=date(2022, 6, 15),
             t=time(12, 30, 45),

@@ -9,13 +9,12 @@ import time
 import traceback
 import typing
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, List
 
 import numpy as np
 import psutil
 import pytest
-from pytz import UTC
 
 import csp
 from csp import PushMode, ts
@@ -438,7 +437,7 @@ class TestEngine(unittest.TestCase):
 
     def test_csp_in_realtime__realtime(self):
         def utc_now() -> datetime:
-            return datetime.now(UTC)
+            return datetime.now(timezone.utc)
 
         @csp.node
         def is_in_realtime(x: ts[bool]) -> ts[bool]:
@@ -462,7 +461,7 @@ class TestEngine(unittest.TestCase):
     @pytest.mark.skipif(not os.environ.get("CSP_ENGINE_FLAKY_TESTS"), reason="potentially flaky test")
     def test_csp_in_realtime(self):
         def utc_now() -> datetime:
-            return datetime.now(UTC)
+            return datetime.now(timezone.utc)
 
         @csp.node
         def is_in_realtime(x: ts[bool]) -> ts[bool]:
@@ -1544,9 +1543,7 @@ class TestEngine(unittest.TestCase):
         )
 
     def test_start_realtime_in_future(self):
-        import pytz
-
-        t = datetime.now(pytz.UTC) + timedelta(seconds=1)
+        t = datetime.now(timezone.utc) + timedelta(seconds=1)
         res = csp.run(csp.const(123), starttime=t, endtime=t, realtime=True)[0][0]
         self.assertEqual(res[1], 123)
 

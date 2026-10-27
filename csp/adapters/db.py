@@ -10,7 +10,6 @@ except ImportError:
 
 from importlib.metadata import PackageNotFoundError, version as get_package_version
 
-import pytz
 from packaging import version
 
 from csp import PushMode, ts
@@ -74,7 +73,7 @@ class TimestampAccessor(TimeAccessor):
         :param tz: timezone if the db timestamp doesn't have timezone
         """
         self._time_column = time_column
-        if isinstance(tz, pytz.BaseTzInfo):
+        if getattr(tz, "zone", None):
             tz = zoneinfo.ZoneInfo(tz.zone)
 
         self._tz = tz
@@ -122,7 +121,7 @@ class DateTimeAccessor(TimeAccessor):
         self._date_column = date_column
         self._time_column = time_column
 
-        if isinstance(tz, pytz.BaseTzInfo):
+        if getattr(tz, "zone", None):
             tz = zoneinfo.ZoneInfo(tz.zone)
         self._tz = tz
         self._db_has_tz = None

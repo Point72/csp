@@ -455,23 +455,28 @@ class TsArray(_NumPyBackedExtensionArrayMixin):
         ----------
         name : str
             Name of the function, supported values are:
-            { any, all, min, max, sum, mean, median, prod,
+            { count, any, all, min, max, sum, mean, median, prod,
             std, var, sem, kurt, skew }.
         skipna : bool, default True
             If True, skip NaN values (both missing Edges and nan's inside of Edges)
         keepdims : bool, default False
-            If True, return a TsArray with shape (1,) instead of a scalar, keeping the dimensions.
+            If True, return an array with shape (1,) instead of a scalar, keeping the dimensions.
+            Count returns a NumPy array; other reductions return a TsArray.
             Used by DataFrame reductions. Required argument as of pandas 3.0: https://github.com/pandas-dev/pandas/pull/52788.
         **kwargs
             Additional keyword arguments passed to the reduction function.
             Currently, `ddof` is the only supported kwarg.
         Returns
         -------
-        scalar or TsArray
+        scalar, TsArray, or ndarray
         Raises
         ------
         TypeError : subclass does not define reductions
         """
+        if name == "count":
+            result = (~self.isna()).sum()
+            return np.array([result]) if keepdims else result
+
         import pandas.core.nanops as nanops
 
         functions = {
@@ -516,6 +521,24 @@ class TsArray(_NumPyBackedExtensionArrayMixin):
             return TsArray([result], dtype=result_dtype)
 
         return result
+
+    @classmethod
+    def _create_arithmetic_method(cls, op):
+        method = super()._create_arithmetic_method(op)
+        if op.__name__ not in ("truediv", "rtruediv"):
+            return method
+
+        def _binop(self, other):
+            result = method(self, other)
+            if result is not NotImplemented and len(self) == 0 and self.dtype.subtype in (int, float):
+                # Pandas 3 casts to the input dtype, so float edges from integer
+                # division fall back to object. Earlier versions infer ts[float].
+                if self.dtype.subtype is int and hasattr(self, "_cast_pointwise_result"):
+                    return np.empty(0, dtype=object)
+                return cls([], dtype=TsDtype(float))
+            return result
+
+        return _binop
 
     @classmethod
     def _create_comparison_method(cls, op):

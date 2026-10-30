@@ -621,6 +621,10 @@ class TestTypeChecking(unittest.TestCase):
         @csp.node
         def accepts_float(x: Dict[str, ts[float]], y: List[ts[float]]) -> ts[float]:
             if csp.ticked(x, y):
+                self.assertIs(type(x["a"]), float)
+                self.assertIs(type(x["b"]), float)
+                self.assertIs(type(y[0]), float)
+                self.assertIs(type(y[1]), float)
                 return x["a"] + x["b"] + x["c"] + y[0] + y[1] + y[2]
 
         def graph():

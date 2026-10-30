@@ -195,7 +195,10 @@ class Signature:
                         if declared_type.__args__[0].typ is float:
                             from csp.baselib import cast_int_to_float
 
-                            resolved_input[j] = cast_int_to_float(resolved_input[j])
+                            # Copy once before casting a basket that may alias the caller's input.
+                            if resolved_ts_inputs[i] is resolved_input:
+                                resolved_ts_inputs[i] = resolved_input.copy()
+                            resolved_ts_inputs[i][j] = cast_int_to_float(edge)
             elif isinstance(resolved_input, dict):
                 declared_type = GenericValuesResolver.resolve_generic_values(input.typ, tvars)
                 for k, edge in resolved_input.items():
@@ -203,7 +206,9 @@ class Signature:
                         if declared_type.__args__[1].typ is float:
                             from csp.baselib import cast_int_to_float
 
-                            resolved_input[k] = cast_int_to_float(resolved_input[k])
+                            if resolved_ts_inputs[i] is resolved_input:
+                                resolved_ts_inputs[i] = resolved_input.copy()
+                            resolved_ts_inputs[i][k] = cast_int_to_float(edge)
 
         return tuple(type_resolver.ts_inputs), tuple(type_resolver.scalar_inputs), type_resolver.tvars
 

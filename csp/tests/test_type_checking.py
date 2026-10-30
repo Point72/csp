@@ -601,6 +601,44 @@ class TestTypeChecking(unittest.TestCase):
 
         build_graph(graph)
 
+    def test_graph_basket_cast_preserves_inputs(self):
+        @csp.graph
+        def accepts_float(x: Dict[str, ts[float]], y: List[ts[float]]) -> ts[bool]:
+            return csp.const(True)
+
+        def graph():
+            edge = csp.const(1)
+            x, y = {"a": edge}, [edge]
+            accepts_float(x, y)
+            self.assertIs(x["a"], edge)
+            self.assertIs(y[0], edge)
+            csp.cast_int_to_float(x["a"])
+            csp.cast_int_to_float(y[0])
+
+        build_graph(graph)
+
+    def test_node_basket_cast_preserves_inputs(self):
+        @csp.node
+        def accepts_float(x: Dict[str, ts[float]], y: List[ts[float]]) -> ts[float]:
+            if csp.ticked(x, y):
+                return x["a"] + x["b"] + x["c"] + y[0] + y[1] + y[2]
+
+        def graph():
+            integer, other_integer, floating = csp.const(1), csp.const(2), csp.const(2.5)
+            x, y = {"a": integer, "b": other_integer, "c": floating}, [integer, other_integer, floating]
+            result = accepts_float(x, y)
+            self.assertIs(x["a"], integer)
+            self.assertIs(x["b"], other_integer)
+            self.assertIs(x["c"], floating)
+            self.assertIs(y[0], integer)
+            self.assertIs(y[1], other_integer)
+            self.assertIs(y[2], floating)
+            return result
+
+        result = csp.run(graph, starttime=datetime(2020, 1, 1), endtime=timedelta())
+        self.assertEqual(result[0][0][1], 11.0)
+        self.assertIs(type(result[0][0][1]), float)
+
     def test_basket_type_check_bug(self):
         # Tests a bug that wasn't covered in the initial implementation. The code below was crashing on _ForwardRef before the fix
         @csp.node

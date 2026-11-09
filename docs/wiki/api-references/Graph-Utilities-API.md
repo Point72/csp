@@ -5,6 +5,7 @@ The main utility functions of CSP are documented here. These functions enable us
 - [Table of Contents](#table-of-contents)
 - [`csp.run`](#csprun)
 - [`csp.run_on_thread`](#csprun_on_thread)
+- [`csp.is_configured_realtime`](#cspis_configured_realtime)
 - [`csp.show_graph`](#cspshow_graph)
 
 ## `csp.run`
@@ -72,6 +73,45 @@ Returns a runner object, which has the following methods:
     def stop_engine(self):
         """request engine to stop ( async )"""
 ```
+
+## `csp.is_configured_realtime`
+
+```python
+csp.is_configured_realtime()
+```
+
+Returns whether the current graph is configured to run in realtime mode. During graph construction, it reads the `realtime` argument passed to `csp.run`, `csp.run_on_thread`, or `csp.build_graph`; the default is `False`.
+
+Use this function while building a graph to choose the appropriate input adapters, for example a historical data source for simulation and a live data source for realtime runs. It takes no arguments and raises `RuntimeError` if called outside a graph run/build context.
+
+This is a graph-building helper, not a node-body builtin. To check the engine's **current execution phase** inside a node, use `csp.in_realtime()` instead. A graph configured with `realtime=True` can start in the past and replay historical events before catching up to wall-clock time. During that replay, `csp.is_configured_realtime()` is `True` when building the graph, but `csp.in_realtime()` is `False` in the running node. See [Execution Modes](Execution-Modes).
+
+The following self-contained example uses constants as stand-ins for historical and live input adapters. No external data source or service is required:
+
+```python
+from datetime import datetime, timedelta
+
+import csp
+
+
+def graph():
+    if csp.is_configured_realtime():
+        return csp.const("live")
+    return csp.const("historical")
+
+
+start = datetime(2024, 1, 1)
+for realtime, expected in ((False, "historical"), (True, "live")):
+    result = csp.run(
+        graph,
+        starttime=start,
+        endtime=timedelta(0),
+        realtime=realtime,
+    )
+    assert result[0] == [(start, expected)]
+```
+
+Both runs finish at the historical start time. The second still selects `"live"` because selection depends on the configured mode, not on whether the engine has caught up to the present.
 
 ## `csp.show_graph`
 

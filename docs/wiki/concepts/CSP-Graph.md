@@ -3,6 +3,7 @@
 - [Table of Contents](#table-of-contents)
 - [Anatomy of a `csp.graph`](#anatomy-of-a-cspgraph)
 - [Graph Propagation and Single-dispatch](#graph-propagation-and-single-dispatch)
+- [Graph Memoization](#graph-memoization)
 - [Graph Pruning](#graph-pruning)
 - [Collecting Graph Outputs](#collecting-graph-outputs)
 
@@ -48,6 +49,62 @@ For example, consider the graph below:
 ![359407953](https://github.com/Point72/csp/assets/3105306/d9416353-6755-4e37-8467-01da516499cf)
 
 Individuals nodes are executed in *rank order* where the rank of a node is defined as the longest path between the node and an input adapter. The "mid" node is at rank 1, while "spread" is at rank 2 and "quote" is rank 3. Therefore, if "bid" ticks on a given engine cycle then "mid" will be executed before "spread" and "quote". Note that the order of node execution *within* a rank is undefined, and users should never rely on the execution order of nodes at the same rank.
+
+## Graph Memoization
+
+By default, `@csp.node` and `@csp.graph` memoize their calls during graph construction. Repeating the same cacheable call with the same inputs and scalar arguments in the active wiring context can reuse an existing node or subgraph instead of creating another instance. A plain Python function used to build a graph is not automatically memoized, although the nodes it calls may be.
+
+This is **graph-building memoization**, not caching a node's value on each tick. Consumers of a shared node use the same node instance, including its state, alarms and buffers. Do not assume that repeating a call creates an independent stateful computation.
+
+### Controlling Sharing
+
+- Use `@csp.node(memoize=False)` when each call to that node must create an independent instance, for example an independent random source. See [More with CSP](More-with-CSP) for a random-process example.
+- Use `@csp.graph(memoize=False)` to execute the graph function again for each call. This does **not** recursively disable memoization of the nodes or subgraphs called inside it; they retain their own settings and may still be shared.
+- Use `with csp.memoize(False):` around the graph-building calls whose ordinary memoization should be disabled. The previous setting is restored when leaving the block. Explicit `force_memoize=True` definitions are an exception and remain memoized; this option is normally unnecessary.
+
+The following self-contained example checks the wiring identities and runs both counters. They receive the same input and therefore produce the same values, but `independent` has its own state:
+
+```python
+from datetime import datetime, timedelta
+
+import csp
+
+
+@csp.node
+def running_count(x: csp.ts[int]) -> csp.ts[int]:
+    with csp.state():
+        count = 0
+    if csp.ticked(x):
+        count += 1
+        return count
+
+
+@csp.graph
+def example() -> csp.Outputs(shared=csp.ts[int], independent=csp.ts[int]):
+    x = csp.const(1)
+    left = running_count(x)
+    right = running_count(x)
+    assert left is right
+
+    with csp.memoize(False):
+        independent = running_count(x)
+    assert independent is not left
+    assert running_count(x) is left
+
+    return csp.output(shared=left, independent=independent)
+
+
+start = datetime(2024, 1, 1)
+result = csp.run(example, starttime=start, endtime=timedelta(0))
+assert result["shared"] == [(start, 1)]
+assert result["independent"] == [(start, 1)]
+```
+
+### Cache Scope and Factory Functions
+
+The cache belongs to the active wiring context, not a persistent on-disk result store. Ordinary separately built `csp.run` calls create fresh contexts and node state; explicit global or nested wiring contexts require their own lifetime considerations. Reusing a graph structure does not mean that a completed engine run's time-series history is reused as its next result.
+
+For ordinary Python factory functions used while building a graph, `@csp.csp_memoized` can reuse their return objects in that context. Cached objects are shared, not copied. Keep such factories free of hidden dependencies on changing globals or external state, and avoid mutating shared return objects. Unsupported unhashable arguments can cause a warning and an uncached call, so do not assume that every Python object can be used as a cache key.
 
 ## Graph Pruning
 

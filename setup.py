@@ -38,7 +38,7 @@ elif sys.platform == "win32":
 else:
     VCPKG_TRIPLET = None
 
-VCPKG_SHA = "9c5c2a0ab75aff5bcd08142525f6ff7f6f7ddeee"
+VCPKG_SHA = "56bb2411609227288b70117ead2c47585ba07713"
 
 # This will be used for e.g. the sdist
 if CSP_USE_VCPKG:

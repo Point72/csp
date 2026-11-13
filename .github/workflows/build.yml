@@ -195,7 +195,7 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
-            - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+            - macos-15 # https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
             - "3.11"
@@ -225,15 +225,15 @@ jobs:
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               cibuildwheel: "cp310"
 
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               cibuildwheel: "cp311"
 
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               cibuildwheel: "cp312"
 
       runs-on: ${{ matrix.os }}
@@ -257,7 +257,7 @@ jobs:
           uses: ./.github/actions/setup-dependencies
           with:
             cibuildwheel: '${{ matrix.cibuildwheel }}'
-          if: ${{ runner.os != 'Linux' }}
+          if: ${{ runner.os == 'Windows' }}
 
         ########
         # Linux
@@ -276,7 +276,7 @@ jobs:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
             CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: arm64
-          if: ${{ matrix.os == 'macos-14' }}
+          if: ${{ matrix.os == 'macos-15' }}
 
         ##########
         # Windows
@@ -412,7 +412,7 @@ jobs:
         matrix:
           os:
             - ubuntu-24.04
-            - macos-14
+            - macos-15
             - windows-2022
           python-version:
             - "3.10"
@@ -442,15 +442,15 @@ jobs:
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               python-version: "3.10"
 
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               python-version: "3.11"
 
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               python-version: "3.12"
 
       runs-on: ${{ matrix.os }}

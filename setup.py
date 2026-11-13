@@ -6,6 +6,7 @@ import subprocess
 import sys
 from shutil import which
 
+from setuptools import find_namespace_packages
 from skbuild import setup
 
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
@@ -150,7 +151,14 @@ print(f"CMake Args: {cmake_args}")
 setup(
     name="csp",
     version="0.19.1",
-    packages=["csp"],
+    # Namespace discovery, because some subpackages (e.g. csp.build) have no __init__.py
+    packages=find_namespace_packages(include=["csp", "csp.*"]),
+    # MANIFEST.in pulls in cpp/, CMakeLists.txt, etc. for the sdist. With include_package_data,
+    # scikit-build would also install every such file outside a package as a data file at the
+    # root of the user's environment (https://github.com/Point72/csp/issues/526), so list the
+    # package's non-Python files explicitly instead.
+    include_package_data=False,
+    package_data={"csp": ["tests/adapters/*.arrow", "tests/adapters/*.csv", "tests/adapters/*.parquet"]},
     cmake_install_dir="csp",
     cmake_args=cmake_args,
     # cmake_with_sdist=True,

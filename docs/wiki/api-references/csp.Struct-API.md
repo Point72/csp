@@ -139,13 +139,14 @@ print(f"Using FastList field: value {s.a}, type {type(s.a)}, is Python list: {is
 - **`update_from(self, rhs)`**: copy only the set fields from the `rhs` into this instance
 - **`update(self, **kwargs)`**: in this instance, set the provided fields with the provided values
 - **`fromts(self, trigger=None, /, **kwargs)`**: similar to `collectts` above, `fromts` will create a ticking Struct timeseries from the valid values of all the provided inputs whenever any of them tick. `trigger` is an optional position-only argument which is used as a trigger timeseries for when to convert inputs into a struct tick. By default any input tick will generate a new struct of valid inputs
-- **`from_dict(self, dict)`**: convert a regular python dict to an instance of the struct
+- **`from_dict(self, dict, use_pydantic=False)`**: convert a regular python dict to an instance of the struct. If `use_pydantic=True`, the dict is validated with pydantic (see [Pydantic integration](#pydantic-integration))
 - **`metadata(self)`**: returns the struct's metadata as a dictionary of key : type pairs
 - **`to_dict(self, callback=None, preserve_enums=False)`**: convert struct instance to a python dictionary, if callback is not None it is invoked for any values encountered when processing the struct that are not basic Python types, datetime types, tuples, lists, sets, dicts, csp.Structs, or csp.Enums. If preserve_enums=True, then enums are not converted to strings in the output dictionary.
 - **`postprocess_to_dict(cls, obj)`**: if this method is defined on a `csp.Struct` class, the `to_dict` method will invoke this method on the dict obtained after processing the struct of this class to allow for further customization.
 - **`to_dict_depr(self)`**: convert struct instance to a python dictionary. \[DEPRECATED\]: This is a python only and slower implementation of to_dict which will be removed.
 - **`to_json(self, callback=lambda x: x)`**: convert struct instance to a json string, callback is invoked for any values encountered when processing the struct that are not basic Python types, datetime types, tuples, lists, dicts, csp.Structs, or csp.Enums. The callback should convert the unhandled type to a combination of the known types.
 - **`all_fields_set(self)`**: returns `True` if all the fields on the struct are set. Note that this will not recursively check sub-struct fields
+- **`type_adapter(cls)`**: returns a cached `pydantic.TypeAdapter` for the struct type (see [Pydantic integration](#pydantic-integration))
 
 ## Note on inheritance
 
@@ -189,3 +190,81 @@ By default, CSP Struct objects allow any field to be unset. This means that acce
    MyStruct(y="hello") # bad: required fields x and z are not set
    MyStruct(x=None, z=None) # bad: cannot set field x to None as its not optional
    ```
+
+## Pydantic integration
+
+`csp.Struct` and `csp.Enum` types work with [pydantic](https://docs.pydantic.dev/) v2. They can be used as field types in a pydantic `BaseModel`, or validated and serialized with a `pydantic.TypeAdapter`. `type_adapter()` returns a cached `TypeAdapter` for a struct type, and `from_dict(d, use_pydantic=True)` is the same as `type_adapter().validate_python(d)`.
+
+```python
+from datetime import datetime
+from typing import List
+
+from pydantic import BaseModel
+
+import csp
+
+
+class Side(csp.Enum):
+    BUY = 1
+    SELL = 2
+
+
+class Order(csp.Struct):
+    symbol: str
+    price: float
+    qty: int = 0
+    side: Side = Side.BUY
+    tags: List[str]
+
+
+class Fill(BaseModel):
+    order: Order
+    time: datetime
+
+>>> order = Order.type_adapter().validate_python({"symbol": "AAPL", "price": "101.5", "side": "SELL"})
+>>> order
+Order( symbol=AAPL, price=101.5, qty=0, side=<Side.SELL: 2> )
+>>> Order.type_adapter().dump_json(order)
+b'{"symbol":"AAPL","price":101.5,"qty":0,"side":"SELL"}'
+>>> Fill.model_validate({"order": {"symbol": "AAPL", "price": 101.5}, "time": "2024-01-02T10:00:00"})
+Fill(order=Order( symbol=AAPL, price=101.5, qty=0, side=<Side.BUY: 1> ), time=datetime.datetime(2024, 1, 2, 10, 0))
+```
+
+### Structs
+
+- Each field is validated against its annotation with pydantic's rules, so `"101.5"` is accepted for a `float` field. Invalid values and unknown fields raise a `pydantic.ValidationError`.
+- Fields that are not provided are left unset, as with the struct constructor. On a strict struct (`strict=True`), fields without a default are required.
+- Fields whose names start with an underscore are ignored by pydantic, as it does for private attributes on a `BaseModel`. They are not validated by pydantic, but are still passed to the struct, which applies its own type check. They are left out when serializing with pydantic.
+- If pydantic can't generate a schema for a field's type, for example an arbitrary Python class, the value is passed to the struct without pydantic validation.
+- Serializing with pydantic (`dump_python`, `dump_json`, `BaseModel.model_dump`, ...) leaves out unset fields.
+
+Serializing with pydantic differs from `to_dict` and `to_json`:
+
+- `dump_python` keeps `csp.Enum` values as enum members, while `to_dict` converts them to their names unless `preserve_enums=True`.
+- Serializers attached with `typing.Annotated`, such as pydantic's `PlainSerializer`, are only used by pydantic.
+- Some types are written differently in JSON. For example, for a `timedelta` of 90 seconds, `to_json` writes `"+90.000000"` and pydantic writes `"PT1M30S"`.
+
+### Enums
+
+A `csp.Enum` field accepts an enum member, a member name (`"SELL"`) or a value (`2`). In JSON it is serialized as the member name, and its JSON schema is a string enum of the member names.
+
+### NumPy arrays
+
+The `csp.typing.Numpy1DArray[T]` and `csp.typing.NumpyNDArray[T]` annotations accept any value that `numpy.asarray(value, dtype=T)` accepts, such as a list, and convert it to an array of dtype `T`. `Numpy1DArray` also requires the array to be one-dimensional. Both are serialized as (nested) lists.
+
+```python
+from pydantic import BaseModel
+
+from csp.typing import Numpy1DArray, NumpyNDArray
+
+
+class Prices(BaseModel):
+    last: Numpy1DArray[float]
+    grid: NumpyNDArray[float]
+
+>>> prices = Prices(last=[1, 2, 3], grid=[[1, 2], [3, 4]])
+>>> prices.last
+array([1., 2., 3.])
+>>> prices.model_dump_json()
+'{"last":[1.0,2.0,3.0],"grid":[[1.0,2.0],[3.0,4.0]]}'
+```

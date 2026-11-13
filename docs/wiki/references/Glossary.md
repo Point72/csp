@@ -63,7 +63,8 @@ The current time of the engine can be accessed at any time within a `csp.node` b
 
 ### Alarm
 
-<!--TODO -->
+A time series that a node declares in its `csp.alarms()` block and schedules itself with `csp.schedule_alarm`, to tick at a later time.
+Alarms are used for timers, delays and timeouts inside a node. See [Alarms](CSP-Node#alarms).
 
 ### Adapter
 

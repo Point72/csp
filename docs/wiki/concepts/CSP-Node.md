@@ -2,6 +2,7 @@
 
 - [Table of Contents](#table-of-contents)
 - [Anatomy of a `csp.node`](#anatomy-of-a-cspnode)
+- [Alarms](#alarms)
 - [Basket inputs](#basket-inputs)
 - [Node Outputs](#node-outputs)
 - [Basket Outputs](#basket-outputs)
@@ -102,6 +103,48 @@ Valid means that an input has had at least one tick and so it has a "current val
 25\) This demonstrates how an alarm can be treated like any other input.
 
 27\) We tick our running "sum" as an output here every second.
+
+## Alarms
+
+A node only executes when one of its inputs ticks. Alarms let a node schedule its own future ticks, for timers, delays, timeouts, or work that should run periodically.
+An alarm is a time series that belongs to the node: each instance of the node gets its own alarms, and only that node can schedule them.
+
+Alarms are declared in the `csp.alarms()` context with `csp.alarm(typ)`, where `typ` is the type of the alarm's values.
+Once declared, an alarm behaves like any other input: `csp.ticked(alarm)` is true when it ticks, its name gives its current value, and `csp.valid` and `csp.num_ticks` work as for inputs.
+
+Alarms are scheduled with three functions, which can be called in the node body or in the `csp.start()` block:
+
+- **`csp.schedule_alarm(alarm, time, value)`**: schedule the alarm to tick with `value`.
+  `time` is either a `timedelta` from the current engine time or a `datetime`.
+  It returns a handle for the scheduled tick.
+  An alarm can have any number of ticks scheduled. Ticks scheduled for the same time are processed in consecutive engine cycles at that time, in the order they were scheduled, so `timedelta()` schedules a tick in the next engine cycle at the current time.
+  Scheduling a tick in the past raises a `ValueError`.
+- **`csp.reschedule_alarm(alarm, handle, time)`**: move a scheduled tick to a new time, keeping its value.
+  It returns a new handle, and the old handle can no longer be used.
+  Raises a `ValueError` if the tick has already happened or was cancelled.
+- **`csp.cancel_alarm(alarm, handle)`**: cancel a scheduled tick.
+  Does nothing if the tick has already happened or was cancelled.
+
+For example, this node reports when its input has not ticked for `timeout`. Every tick of `x` cancels the pending timeout and schedules a new one:
+
+```python
+@csp.node
+def stale(x: ts[float], timeout: timedelta) -> ts[bool]:
+    with csp.alarms():
+        a_timeout = csp.alarm(bool)
+
+    with csp.state():
+        s_handle = None
+
+    if csp.ticked(x):
+        if s_handle is not None:
+            csp.cancel_alarm(a_timeout, s_handle)  # does nothing if the alarm already ticked
+        s_handle = csp.schedule_alarm(a_timeout, timeout, True)
+    elif csp.ticked(a_timeout):
+        return True
+```
+
+With `timeout=timedelta(seconds=5)` and `x` ticking at 1, 2, 3 and 10 seconds, `stale` ticks `True` at 8 and 15 seconds.
 
 ## Basket inputs
 

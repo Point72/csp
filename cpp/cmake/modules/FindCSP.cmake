@@ -36,35 +36,39 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/csp/__init__.py")
   set(__csp_base_path "${CMAKE_SOURCE_DIR}/csp")
   set(__csp_include_path "${CMAKE_SOURCE_DIR}/cpp")
   set(__csp_lib_path "${CMAKE_SOURCE_DIR}/")
-  set(__csp_base_path "${CMAKE_SOURCE_DIR}/csp")
-  set(__csp_base_path "${CMAKE_SOURCE_DIR}/csp")
   set(__csp_version "0.0.0")
 else()
   set(CSP_IN_SOURCE_BUILD OFF)
-  # Find out the base path by interrogating the installed csp
   find_package(Python ${CSP_PYTHON_VERSION} EXACT REQUIRED COMPONENTS Interpreter)
-  execute_process(
-    COMMAND "${Python_EXECUTABLE}" -c
-            "from __future__ import print_function;import os.path;import csp;print(os.path.dirname(csp.__file__), end='')"
-    OUTPUT_VARIABLE __csp_base_path)
 
-  # Find out the include path
-  execute_process(
-    COMMAND "${Python_EXECUTABLE}" -c
-            "from __future__ import print_function;import csp;print(csp.get_include_path(), end='')"
-    OUTPUT_VARIABLE __csp_include_path)
+  # find_package(CSP) is invoked once per csp_autogen() call (see Findcsp_autogen.cmake),
+  # and MODULE-mode find scripts re-run their whole body every time. The find_* calls below
+  # are cache variables so they no-op after the first run, but execute_process is not cached.
+  # Query all the csp paths/version in a single python subprocess and cache the results so the
+  # python interpreter is only spawned once for the entire configure step.
+  if(NOT DEFINED __csp_base_path)
+    execute_process(
+      COMMAND "${Python_EXECUTABLE}" -c
+              "import os.path;import csp;print('\\n'.join([os.path.dirname(csp.__file__), csp.get_include_path(), csp.get_lib_path(), csp.__version__]))"
+      OUTPUT_VARIABLE __csp_query_output
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      RESULT_VARIABLE __csp_query_result)
 
-  # Find out the lib path
-  execute_process(
-    COMMAND "${Python_EXECUTABLE}" -c
-              "from __future__ import print_function;import csp;print(csp.get_lib_path(), end='')"
-    OUTPUT_VARIABLE __csp_lib_path)
+    if(NOT __csp_query_result EQUAL 0)
+      message(FATAL_ERROR "Failed to query csp package paths via ${Python_EXECUTABLE}")
+    endif()
 
-  # And the version
-  execute_process(
-    COMMAND "${Python_EXECUTABLE}" -c
-            "from __future__ import print_function;import csp;print(csp.__version__, end='')"
-    OUTPUT_VARIABLE __csp_version)
+    string(REPLACE "\n" ";" __csp_query_list "${__csp_query_output}")
+    list(GET __csp_query_list 0 __csp_base_path)
+    list(GET __csp_query_list 1 __csp_include_path)
+    list(GET __csp_query_list 2 __csp_lib_path)
+    list(GET __csp_query_list 3 __csp_version)
+
+    set(__csp_base_path    "${__csp_base_path}"    CACHE INTERNAL "csp package base path")
+    set(__csp_include_path "${__csp_include_path}" CACHE INTERNAL "csp include path")
+    set(__csp_lib_path     "${__csp_lib_path}"     CACHE INTERNAL "csp lib path")
+    set(__csp_version      "${__csp_version}"      CACHE INTERNAL "csp version")
+  endif()
 endif()
 
 # Now look for files

@@ -32,7 +32,6 @@
     },
     "lz4",
     "openssl",
-    "parquet",
     "rapidjson",
     "thrift",
     "utf8proc"
@@ -40,8 +39,8 @@
   "overrides": [
     {
       "name": "arrow",
-      "version": "21.0.0"
+      "version": "23.0.1"
     }
   ],
-  "builtin-baseline": "b94ade01f19e4436d8c8a16a5c52e8c802ef67dd"
+  "builtin-baseline": "56bb2411609227288b70117ead2c47585ba07713"
 }

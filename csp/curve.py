@@ -1,4 +1,3 @@
-import copy
 from datetime import timedelta
 from typing import Union
 
@@ -22,12 +21,9 @@ class Curve(PullInputAdapter):
 
     def start(self, start_time, end_time):
         if isinstance(self._data[0][0], timedelta):
-            self._data = copy.copy(self._data)
-            for idx, data in enumerate(self._data):
-                self._data[idx] = (start_time + data[0], data[1])
+            self._data = [(start_time + offset, value) for offset, value in self._data]
         elif self._data[0][0].tzinfo is not None:
-            for idx, data in enumerate(self._data):
-                self._data[idx] = (data[0].astimezone(pytz.UTC).replace(tzinfo=None), data[1])
+            self._data = [(time.astimezone(pytz.UTC).replace(tzinfo=None), value) for time, value in self._data]
 
         while self._index < len(self._data) and self._data[self._index][0] < start_time:
             self._index += 1

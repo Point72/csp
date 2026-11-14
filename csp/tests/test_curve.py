@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy
 
@@ -24,6 +24,18 @@ class TestCspCurve(unittest.TestCase):
         self.assertEqual(len(res), 10)
         self.assertEqual([v[0] for v in res], [datetime(2020, 1, 1) + timedelta(i) for i in range(10)])
         self.assertEqual([v[1] for v in res], list(range(10)))
+
+    def test_timezone_aware_curve_does_not_mutate_input(self):
+        local_time = datetime(2020, 1, 1, 3, tzinfo=timezone(timedelta(hours=3)))
+        data = [(local_time, 42)]
+
+        def g():
+            return csp.curve(typ=int, data=data)
+
+        for _ in range(2):
+            result = csp.run(g, starttime=datetime(2020, 1, 1), endtime=timedelta(seconds=1))[0]
+            self.assertEqual(result, [(datetime(2020, 1, 1), 42)])
+            self.assertEqual(data, [(local_time, 42)])
 
     def test_numpy(self):
         def g():

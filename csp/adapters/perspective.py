@@ -1,5 +1,6 @@
 import threading
 from datetime import timedelta
+from enum import IntEnum
 from typing import Dict, Optional, Union
 
 from perspective import Table as Table_, View as View_
@@ -235,7 +236,7 @@ class PerspectiveAdapter(DelayedNodeWrapperDef):
 
         for table_name, table in self._tables.items():
             schema = {
-                k: v.tstype.typ if not issubclass(v.tstype.typ, csp.Enum) else str for k, v in table.columns.items()
+                k: v.tstype.typ if not issubclass(v.tstype.typ, IntEnum) else str for k, v in table.columns.items()
             }
             if _PERSPECTIVE_3:
                 psp_type_map = perspective_type_map()

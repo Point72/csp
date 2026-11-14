@@ -1,6 +1,7 @@
 import io
 import typing
 from copy import deepcopy
+from enum import IntEnum
 
 import ruamel.yaml
 from deprecated import deprecated
@@ -224,7 +225,7 @@ class Struct(_csptypesimpl.PyStruct, metaclass=StructMeta):
             isinstance(obj, (list, tuple, set)) or type(obj).__name__ == "FastList"
         ):  # hack for FastList that is not a list
             return type(obj)(cls._obj_to_python(v) for v in obj)
-        elif isinstance(obj, csp.Enum):
+        elif isinstance(obj, IntEnum):  # any IntEnum is a native csp enum, not only csp.Enum
             return obj.name  # handled in _obj_from_python
         else:
             return obj

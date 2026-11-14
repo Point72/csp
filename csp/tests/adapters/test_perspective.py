@@ -1,5 +1,6 @@
 import unittest
 from datetime import date, datetime, timedelta
+from enum import IntEnum
 
 import csp
 from csp.utils.datetime import utc_now
@@ -14,19 +15,30 @@ except ImportError:
     HAS_PERSPECTIVE = False
 
 
+class MyIntEnum(IntEnum):
+    A = 1
+    B = 2
+
+
 class MyStruct(csp.Struct):
     my_str: str
     my_float: float
     my_bool: bool
     my_date: date
     my_datetime: datetime
+    my_enum: MyIntEnum
 
 
 def my_graph(output={}):
     adapter = PerspectiveAdapter(8000)
     table = adapter.create_table("Test")
     data = MyStruct(
-        my_str="foo", my_float=1.0, my_bool=False, my_date=date(2020, 1, 1), my_datetime=datetime(2020, 1, 1)
+        my_str="foo",
+        my_float=1.0,
+        my_bool=False,
+        my_date=date(2020, 1, 1),
+        my_datetime=datetime(2020, 1, 1),
+        my_enum=MyIntEnum.B,
     )
     table.publish(csp.unroll(csp.const([data, data])))
     output["table"] = table

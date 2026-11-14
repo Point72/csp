@@ -196,7 +196,7 @@ jobs:
           os:
             - ubuntu-24.04 # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
             - ubuntu-24.04-arm # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Arm64-Readme.md
-            - macos-14 # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+            - macos-15 # https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
             - windows-2022 # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
           python-version:
             - "3.11"
@@ -239,15 +239,15 @@ jobs:
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               cibuildwheel: "cp310"
 
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               cibuildwheel: "cp311"
 
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               cibuildwheel: "cp312"
 
       runs-on: ${{ matrix.os }}
@@ -271,7 +271,7 @@ jobs:
           uses: ./.github/actions/setup-dependencies
           with:
             cibuildwheel: '${{ matrix.cibuildwheel }}'
-          if: ${{ runner.os != 'Linux' }}
+          if: ${{ runner.os == 'Windows' }}
 
         ########
         # Linux
@@ -290,7 +290,7 @@ jobs:
             CIBW_BUILD: "${{ matrix.cibuildwheel }}-macos*"
             CIBW_ENVIRONMENT_MACOS: CCACHE_DIR="/Users/runner/work/csp/csp/.ccache" VCPKG_DEFAULT_BINARY_CACHE="${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" VCPKG_DOWNLOADS="${{ env.VCPKG_DOWNLOADS }}"
             CIBW_ARCHS_MACOS: arm64
-          if: ${{ matrix.os == 'macos-14' }}
+          if: ${{ matrix.os == 'macos-15' }}
 
         ##########
         # Windows
@@ -310,35 +310,35 @@ jobs:
           run: make dist-check
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.10
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp310' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.11
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp311' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.12
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp312' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.13
             path: dist/*.whl
           if: ${{ matrix.cibuildwheel == 'cp313' }}
 
         - name: Upload Wheel
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-3.14
             path: dist/*.whl
@@ -399,7 +399,7 @@ jobs:
           run: make dist-check
 
         - name: Upload SDist
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
           with:
               name: csp-sdist
               path: dist/*.tar.gz
@@ -427,7 +427,7 @@ jobs:
           os:
             - ubuntu-24.04
             - ubuntu-24.04-arm
-            - macos-14
+            - macos-15
             - windows-2022
           python-version:
             - "3.10"
@@ -470,15 +470,15 @@ jobs:
 
             # avoid unnecessary use of mac resources
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               python-version: "3.10"
 
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               python-version: "3.11"
 
             - is-full-run: false
-              os: macos-14
+              os: macos-15
               python-version: "3.12"
 
       runs-on: ${{ matrix.os }}
@@ -499,7 +499,7 @@ jobs:
           run: make requirements
 
         - name: Download wheel
-          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+          uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -610,7 +610,7 @@ jobs:
         - name: Install requirements
           run: sudo make dependencies-debian
 
-        - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
           with:
             name: csp-sdist
             path: dist/
@@ -694,7 +694,7 @@ jobs:
           run: sudo apt-get install graphviz
 
         - name: Download wheel
-          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+          uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
           with:
             name: csp-dist-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}
 
@@ -774,7 +774,7 @@ jobs:
 
       steps:
         - name: Download wheels and sdist
-          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+          uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
           with:
             name:
             merge-multiple: true
@@ -784,7 +784,7 @@ jobs:
           run: ls -R ./dist
 
         - name: Publish to github releases
-          uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+          uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
           with:
             draft: true
             generate_release_notes: true

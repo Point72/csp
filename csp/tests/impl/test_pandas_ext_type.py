@@ -489,6 +489,17 @@ class TestArithmeticOps(base.BaseArithmeticOpsTests):
         """This is supposed to be overridden when things work. See https://github.com/pandas-dev/pandas/pull/39386"""
         pass
 
+    @pytest.mark.parametrize("subtype", [int, float])
+    @pytest.mark.parametrize("op_name", ["__truediv__", "__rtruediv__"])
+    def test_true_division_dtype(self, subtype, op_name):
+        data = TsArray([csp.const(subtype(1)), csp.const(subtype(2))], dtype=TsDtype(subtype))
+        divisor = csp.const(subtype(2))
+        result = getattr(data, op_name)(divisor)
+        empty_result = getattr(data[:0], op_name)(divisor)
+
+        assert empty_result.dtype == result.dtype
+        assert len(empty_result) == 0
+
 
 class TestComparisonOps(base.BaseComparisonOpsTests):
     # The pandas test is incorrectly written in old versions, but fixed with this pull request:
@@ -567,6 +578,21 @@ def check_reduce(self, s, op_name, skipna=None):
 
 
 class TestReduce(base.BaseReduceTests):
+    @pytest.mark.parametrize("values, expected", [([], 0), ([None, None], 0), ([1, 2], 2), ([1, None], 1)])
+    @pytest.mark.parametrize("skipna", [True, False])
+    @pytest.mark.parametrize("keepdims", [True, False])
+    def test_count_reduction(self, values, expected, skipna, keepdims):
+        data = TsArray([csp.const(value) if value is not None else np.nan for value in values], dtype=TsDtype(int))
+        result = data._reduce("count", skipna=skipna, keepdims=keepdims)
+
+        if keepdims:
+            np.testing.assert_array_equal(result, np.array([expected], dtype=np.int64))
+            assert result.dtype == np.dtype(np.int64)
+        else:
+            assert isinstance(result, (int, np.integer))
+            assert result == expected
+        assert pd.Series(data).count() == expected
+
     def _supports_reduction(self, series, op_name):
         return True  # we support all reduce operations
 

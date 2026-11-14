@@ -1555,6 +1555,24 @@ class TestCspStruct(unittest.TestCase):
         }
         self.assertEqual(test_struct.to_dict(), result_dict)
 
+    def test_to_dict_depr_int_enum(self):
+        class MyCspEnum(csp.Enum):
+            A = 1
+            B = 2
+
+        class MyIntEnum(enum.IntEnum):
+            C = 3
+            D = 4
+
+        class MyStruct(csp.Struct):
+            a: MyCspEnum
+            b: MyIntEnum
+            c: List[MyIntEnum]
+
+        test_struct = MyStruct(a=MyCspEnum.B, b=MyIntEnum.C, c=[MyIntEnum.D])
+        self.assertEqual(test_struct.to_dict_depr(), {"a": "B", "b": "C", "c": ["D"]})
+        self.assertEqual(test_struct.to_dict_depr(), test_struct.to_dict())
+
     def test_to_dict_preserve_enums(self):
         class MyEnum(csp.Enum):
             A = 1

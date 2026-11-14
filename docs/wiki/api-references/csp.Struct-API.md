@@ -139,13 +139,14 @@ print(f"Using FastList field: value {s.a}, type {type(s.a)}, is Python list: {is
 - **`update_from(self, rhs)`**: copy only the set fields from the `rhs` into this instance
 - **`update(self, **kwargs)`**: in this instance, set the provided fields with the provided values
 - **`fromts(self, trigger=None, /, **kwargs)`**: similar to `collectts` above, `fromts` will create a ticking Struct timeseries from the valid values of all the provided inputs whenever any of them tick. `trigger` is an optional position-only argument which is used as a trigger timeseries for when to convert inputs into a struct tick. By default any input tick will generate a new struct of valid inputs
-- **`from_dict(self, dict)`**: convert a regular python dict to an instance of the struct
+- **`from_dict(cls, json, use_pydantic=False)`**: convert a dictionary to a struct. With `use_pydantic=True`, validate it using pydantic (see [Pydantic integration](#pydantic-integration))
 - **`metadata(self)`**: returns the struct's metadata as a dictionary of key : type pairs
 - **`to_dict(self, callback=None, preserve_enums=False)`**: convert struct instance to a python dictionary, if callback is not None it is invoked for any values encountered when processing the struct that are not basic Python types, datetime types, tuples, lists, sets, dicts, csp.Structs, or csp.Enums. If preserve_enums=True, then enums are not converted to strings in the output dictionary.
 - **`postprocess_to_dict(cls, obj)`**: if this method is defined on a `csp.Struct` class, the `to_dict` method will invoke this method on the dict obtained after processing the struct of this class to allow for further customization.
 - **`to_dict_depr(self)`**: convert struct instance to a python dictionary. \[DEPRECATED\]: This is a python only and slower implementation of to_dict which will be removed.
 - **`to_json(self, callback=lambda x: x)`**: convert struct instance to a json string, callback is invoked for any values encountered when processing the struct that are not basic Python types, datetime types, tuples, lists, dicts, csp.Structs, or csp.Enums. The callback should convert the unhandled type to a combination of the known types.
 - **`all_fields_set(self)`**: returns `True` if all the fields on the struct are set. Note that this will not recursively check sub-struct fields
+- **`type_adapter(cls)`**: return a cached `pydantic.TypeAdapter` for the struct type
 
 ## Note on inheritance
 
@@ -189,3 +190,81 @@ By default, CSP Struct objects allow any field to be unset. This means that acce
    MyStruct(y="hello") # bad: required fields x and z are not set
    MyStruct(x=None, z=None) # bad: cannot set field x to None as its not optional
    ```
+
+## Pydantic integration
+
+`csp.Struct` and `csp.Enum` support [pydantic](https://docs.pydantic.dev/) v2 as `BaseModel` fields or through a `TypeAdapter`. `Struct.type_adapter()` returns a cached adapter; `Struct.from_dict(data, use_pydantic=True)` calls its `validate_python` method.
+
+```python
+from datetime import datetime
+
+from pydantic import BaseModel
+
+import csp
+
+
+class Side(csp.Enum):
+    BUY = 1
+    SELL = 2
+
+
+class Order(csp.Struct):
+    symbol: str
+    price: float
+    qty: int = 0
+    side: Side = Side.BUY
+    tags: list[str]
+
+
+class Fill(BaseModel):
+    order: Order
+    time: datetime
+
+
+order = Order.type_adapter().validate_python({"symbol": "AAPL", "price": "101.5", "side": "SELL"})
+assert order.price == 101.5
+assert order.side is Side.SELL
+assert not hasattr(order, "tags")
+assert Order.type_adapter().dump_json(order) == b'{"symbol":"AAPL","price":101.5,"qty":0,"side":"SELL"}'
+
+fill = Fill.model_validate({"order": {"symbol": "AAPL", "price": 101.5}, "time": "2024-01-02T10:00:00"})
+assert isinstance(fill.order, Order)
+assert fill.time == datetime(2024, 1, 2, 10)
+```
+
+### Struct validation and serialization
+
+- Fields use pydantic's validation and coercion rules. Schema validation failures and unknown fields raise `pydantic.ValidationError`; CSP's constructor also checks field types.
+- Missing fields retain their defaults or remain unset. With `strict=True`, fields without defaults are required. Existing struct instances are returned without revalidation.
+- Fields starting with `_` bypass pydantic validation but still pass through CSP's constructor checks. Pydantic serialization omits them and unset fields.
+- Field types without a pydantic schema fall back to less specific validation, with CSP's constructor checks still applied.
+
+Pydantic serialization differs from `to_dict` and `to_json`:
+
+- `dump_python` preserves `csp.Enum` members; `to_dict` converts them to names unless `preserve_enums=True`.
+- Serializers attached through `typing.Annotated`, such as pydantic's `PlainSerializer`, apply only to pydantic serialization.
+- JSON formats can differ: a 90-second `timedelta` is `"+90.000000"` in `to_json` and `"PT1M30S"` in pydantic.
+
+### Enums
+
+A `csp.Enum` field accepts an enum member, a member name (`"SELL"`) or a value (`2`). JSON serialization uses the member name; the JSON schema lists member names as a string enum.
+
+### NumPy arrays
+
+`csp.typing.Numpy1DArray[T]` and `NumpyNDArray[T]` validate by converting inputs with `numpy.asarray(value, dtype=T)`. `Numpy1DArray` also requires one dimension. Serialization uses the array's `tolist()` method.
+
+```python
+from pydantic import BaseModel
+
+from csp.typing import Numpy1DArray, NumpyNDArray
+
+
+class Prices(BaseModel):
+    last: Numpy1DArray[float]
+    grid: NumpyNDArray[float]
+
+
+prices = Prices(last=[1, 2, 3], grid=[[1, 2], [3, 4]])
+assert prices.last.tolist() == [1.0, 2.0, 3.0]
+assert prices.model_dump_json() == '{"last":[1.0,2.0,3.0],"grid":[[1.0,2.0],[3.0,4.0]]}'
+```

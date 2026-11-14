@@ -7,6 +7,7 @@ import unittest
 import warnings
 from datetime import datetime, time, timedelta
 from typing import Callable, Dict, List, Optional, Union
+from zoneinfo import ZoneInfo
 
 import numpy as np
 
@@ -675,9 +676,7 @@ class TestTypeChecking(unittest.TestCase):
         csp.run(main, starttime=utc_now(), endtime=timedelta())
 
     def test_time_tzinfo(self):
-        import pytz
-
-        timetz = time(1, 2, 3, tzinfo=pytz.timezone("EST"))
+        timetz = time(1, 2, 3, tzinfo=ZoneInfo("EST"))
         with self.assertRaisesRegex(TypeError, "csp time type does not support timezones"):
             # Now that Time is a native type it no longer supports ticking with tzinfo
             csp.run(csp.const, timetz, starttime=utc_now(), endtime=timedelta())

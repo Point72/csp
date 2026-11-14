@@ -2,14 +2,13 @@ import math
 import os
 import tempfile
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy
 import pandas
 import polars
 import pyarrow
 import pyarrow.parquet
-import pytz
 
 import csp
 from csp.adapters.output_adapters.parquet import ParquetOutputConfig
@@ -55,14 +54,14 @@ class TestParquet(unittest.TestCase):
         def graph():
             if arrow:
                 reader = ParquetReader(
-                    filename, symbol_column="SYMBOL", time_column="TIME", binary_arrow=arrow, tz=pytz.utc
+                    filename, symbol_column="SYMBOL", time_column="TIME", binary_arrow=arrow, tz=timezone.utc
                 )
                 reader_all = ParquetReader(
-                    filename, symbol_column="SYMBOL", time_column="TIME", binary_arrow=arrow, tz=pytz.utc
+                    filename, symbol_column="SYMBOL", time_column="TIME", binary_arrow=arrow, tz=timezone.utc
                 )
             else:
-                reader = ParquetReader(filename, symbol_column="SYMBOL", time_column="TIME", tz=pytz.utc)
-                reader_all = ParquetReader(filename, symbol_column="SYMBOL", time_column="TIME", tz=pytz.utc)
+                reader = ParquetReader(filename, symbol_column="SYMBOL", time_column="TIME", tz=timezone.utc)
+                reader_all = ParquetReader(filename, symbol_column="SYMBOL", time_column="TIME", tz=timezone.utc)
 
             # Struct
             aapl = reader.subscribe("AAPL", PriceQuantity)
@@ -201,7 +200,7 @@ class TestParquet(unittest.TestCase):
                     writer.publish("x", x)
                     writer.publish("y", y)
 
-                start_time = datetime(2020, 3, 3, 9, 30, tzinfo=pytz.utc)
+                start_time = datetime(2020, 3, 3, 9, 30, tzinfo=timezone.utc)
                 csp.run(graph, starttime=start_time)
                 df = pandas.read_parquet(filename)
                 expected_columns = {}
@@ -235,7 +234,7 @@ class TestParquet(unittest.TestCase):
                 writer.publish("x", x)
                 writer.publish("y", y)
 
-            start_time = datetime(2020, 3, 3, 9, 30, tzinfo=pytz.utc)
+            start_time = datetime(2020, 3, 3, 9, 30, tzinfo=timezone.utc)
             csp.run(graph, starttime=start_time)
 
             df = pyarrow.RecordBatchStreamReader(pyarrow.memory_map(filename)).read_pandas()
@@ -791,7 +790,7 @@ class TestParquet(unittest.TestCase):
             df.to_parquet(temp_file.name)
 
             def reader_g():
-                reader = ParquetReader(temp_file.name, time_column="t", tz=pytz.utc)
+                reader = ParquetReader(temp_file.name, time_column="t", tz=timezone.utc)
                 return reader.subscribe_all(csp.typing.Numpy1DArray[str], "v")
 
             # Null strings in list arrays are read as empty strings (no NaN equivalent for strings)
@@ -808,7 +807,7 @@ class TestParquet(unittest.TestCase):
             df.to_parquet(temp_file.name)
 
             def reader_g():
-                reader = ParquetReader(temp_file.name, time_column="t", tz=pytz.utc)
+                reader = ParquetReader(temp_file.name, time_column="t", tz=timezone.utc)
                 return reader.subscribe_all(csp.typing.Numpy1DArray[float], "v")
 
             res = csp.run(reader_g, starttime=datetime(2022, 1, 1), endtime=timedelta(seconds=10))
@@ -1170,7 +1169,7 @@ class TestParquet(unittest.TestCase):
             )
             writer.publish("int_vals", data)
 
-        start = datetime(2020, 1, 1, tzinfo=pytz.utc)
+        start = datetime(2020, 1, 1, tzinfo=timezone.utc)
 
         with tempfile.NamedTemporaryFile(suffix=".parquet") as output:
             output.file.close()

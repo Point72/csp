@@ -1,6 +1,5 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
-import pytz
 from packaging import version
 
 try:
@@ -43,10 +42,10 @@ def perspective_type_map():
 def datetime_to_perspective(dt: datetime) -> int:
     """Convert a python datetime to an integer number of milliseconds for perspective >= 3"""
     if dt.tzinfo is None:
-        dt = pytz.utc.localize(dt)
+        dt = dt.replace(tzinfo=timezone.utc)
     return int(dt.timestamp() * 1000)
 
 
 def date_to_perspective(d: date) -> int:
     """Convert a python date to an integer number of milliseconds for perspective >= 3"""
-    return int(datetime(year=d.year, month=d.month, day=d.day, tzinfo=pytz.UTC).timestamp() * 1000)
+    return int(datetime(year=d.year, month=d.month, day=d.day, tzinfo=timezone.utc).timestamp() * 1000)

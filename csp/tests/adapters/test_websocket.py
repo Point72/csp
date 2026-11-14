@@ -1,10 +1,9 @@
 import os
 import threading
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
-import pytz
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
@@ -54,7 +53,7 @@ class TestWebsocket(unittest.TestCase):
             csp.add_graph_output("recv", recv)
             csp.stop_engine(recv)
 
-        msgs = csp.run(g, starttime=datetime.now(pytz.UTC), realtime=True)
+        msgs = csp.run(g, starttime=datetime.now(timezone.utc), realtime=True)
         assert msgs["recv"][0][1] == "Hello, World!"
 
     def test_send_recv_json(self):
@@ -77,7 +76,7 @@ class TestWebsocket(unittest.TestCase):
             csp.add_graph_output("recv", recv)
             csp.stop_engine(recv)
 
-        msgs = csp.run(g, starttime=datetime.now(pytz.UTC), realtime=True)
+        msgs = csp.run(g, starttime=datetime.now(timezone.utc), realtime=True)
         obj = msgs["recv"][0][1]
         assert isinstance(obj, MsgStruct)
         assert obj.a == 1234
@@ -117,7 +116,7 @@ class TestWebsocket(unittest.TestCase):
             csp.stop_engine(stop_on_all_or_timeout(recv, n))
 
         n = 100
-        msgs = csp.run(g, n, starttime=datetime.now(pytz.UTC), realtime=True)
+        msgs = csp.run(g, n, starttime=datetime.now(timezone.utc), realtime=True)
         assert len(msgs["recv"]) == n
         assert msgs["recv"][0][1] != msgs["recv"][-1][1]
 
@@ -128,7 +127,7 @@ class TestWebsocket(unittest.TestCase):
             assert ws._properties["port"] == "443"
             csp.stop_engine(ws.status())
 
-        csp.run(g, starttime=datetime.now(pytz.UTC), realtime=True)
+        csp.run(g, starttime=datetime.now(timezone.utc), realtime=True)
 
     def test_send_recv_burst_json(self):
         class MsgStruct(csp.Struct):
@@ -155,7 +154,7 @@ class TestWebsocket(unittest.TestCase):
             csp.add_graph_output("recv", recv)
             csp.stop_engine(recv)
 
-        msgs = csp.run(g, starttime=datetime.now(pytz.UTC), realtime=True)
+        msgs = csp.run(g, starttime=datetime.now(timezone.utc), realtime=True)
         obj = msgs["recv"][0][1]
         assert isinstance(obj, list)
         innerObj = obj[0]

@@ -172,7 +172,7 @@ manylinux-x86_64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
 before-all ="""
-make dependencies-mac
+make dependencies-mac &&
 export ACLOCAL_PATH="$(brew --prefix autoconf-archive)/share/aclocal:$(printenv ACLOCAL_PATH)"
 """
 archs = "arm64"

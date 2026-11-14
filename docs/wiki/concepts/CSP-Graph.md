@@ -3,6 +3,7 @@
 - [Table of Contents](#table-of-contents)
 - [Anatomy of a `csp.graph`](#anatomy-of-a-cspgraph)
 - [Graph Propagation and Single-dispatch](#graph-propagation-and-single-dispatch)
+- [Graph Memoization](#graph-memoization)
 - [Graph Pruning](#graph-pruning)
 - [Collecting Graph Outputs](#collecting-graph-outputs)
 
@@ -48,6 +49,56 @@ For example, consider the graph below:
 ![359407953](https://github.com/Point72/csp/assets/3105306/d9416353-6755-4e37-8467-01da516499cf)
 
 Individuals nodes are executed in *rank order* where the rank of a node is defined as the longest path between the node and an input adapter. The "mid" node is at rank 1, while "spread" is at rank 2 and "quote" is rank 3. Therefore, if "bid" ticks on a given engine cycle then "mid" will be executed before "spread" and "quote". Note that the order of node execution *within* a rank is undefined, and users should never rely on the execution order of nodes at the same rank.
+
+## Graph Memoization
+
+By default, repeated calls to a `@csp.node` or `@csp.graph` with the same inputs and scalar arguments reuse the same node or subgraph during graph construction. Consumers share its state, alarms and buffers. This caches graph objects, not the values computed on each tick. Plain Python functions are not automatically memoized, although the nodes they call may be.
+
+- `@csp.node(memoize=False)` creates an independent node for each call, for example an independent random source (see [More with CSP](More-with-CSP)).
+- `@csp.graph(memoize=False)` reruns the graph function for each call. Nodes and subgraphs called inside it retain their own memoization settings and may still be shared.
+- `with csp.memoize(False):` disables memoization for calls within the block, except definitions with `force_memoize=True`. The previous setting is restored on exit.
+
+In this example, `left` and `right` share a counter, while `independent` has its own state:
+
+```python
+from datetime import datetime, timedelta
+
+import csp
+
+
+@csp.node
+def running_count(x: csp.ts[int]) -> csp.ts[int]:
+    with csp.state():
+        count = 0
+    if csp.ticked(x):
+        count += 1
+        return count
+
+
+@csp.graph
+def example() -> csp.Outputs(shared=csp.ts[int], independent=csp.ts[int]):
+    x = csp.const(1)
+    left = running_count(x)
+    right = running_count(x)
+    assert left is right
+
+    with csp.memoize(False):
+        independent = running_count(x)
+    assert independent is not left
+    assert running_count(x) is left
+
+    return csp.output(shared=left, independent=independent)
+
+
+start = datetime(2024, 1, 1)
+result = csp.run(example, starttime=start, endtime=timedelta(0))
+assert result["shared"] == [(start, 1)]
+assert result["independent"] == [(start, 1)]
+```
+
+The cache belongs to the wiring context. Separate `csp.run` calls normally build fresh contexts and node state; nested or global contexts can share cached graph objects. Reusing a built graph starts a new engine run, not a continuation of its previous state or history.
+
+`@csp.csp_memoized` also caches return objects from Python factory functions during graph construction. These objects are shared, not copied, so factories should not depend on changing external state or mutate shared results. Arguments that cannot form a cache key cause a warning and an uncached call; `force_memoize=True` raises instead.
 
 ## Graph Pruning
 

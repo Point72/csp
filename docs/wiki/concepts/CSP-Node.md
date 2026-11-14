@@ -2,6 +2,7 @@
 
 - [Table of Contents](#table-of-contents)
 - [Anatomy of a `csp.node`](#anatomy-of-a-cspnode)
+- [Alarms](#alarms)
 - [Basket inputs](#basket-inputs)
 - [Node Outputs](#node-outputs)
 - [Basket Outputs](#basket-outputs)
@@ -102,6 +103,42 @@ Valid means that an input has had at least one tick and so it has a "current val
 25\) This demonstrates how an alarm can be treated like any other input.
 
 27\) We tick our running "sum" as an output here every second.
+
+## Alarms
+
+Alarms let a node schedule ticks for timers, delays and timeouts. Each node instance owns its alarms, declared with `csp.alarm(typ)` inside `with csp.alarms():`. An alarm behaves like an input: `csp.ticked`, `csp.valid` and `csp.num_ticks` apply, and its name gives its current value.
+
+These functions can be called in the node body or a `csp.start()` block:
+
+- **`csp.schedule_alarm(alarm, time, value)`** schedules a tick and returns its handle. `time` is a `timedelta` from engine time or an absolute `datetime`; scheduling in the past raises `ValueError`. An alarm can have multiple pending ticks. Ticks at the same time run in separate engine cycles, in scheduling order. `timedelta(0)` schedules a tick at the current engine time.
+- **`csp.reschedule_alarm(alarm, handle, time)`** moves a pending tick without changing its value. It returns a new handle and invalidates the old one. Rescheduling a fired or cancelled tick raises `ValueError`.
+- **`csp.cancel_alarm(alarm, handle)`** cancels a pending tick. Cancelling a fired or cancelled tick does nothing.
+
+This node reports when `x` has not ticked for `timeout`. Each input tick replaces the pending timeout:
+
+```python
+from datetime import timedelta
+
+import csp
+
+
+@csp.node
+def stale(x: csp.ts[float], timeout: timedelta) -> csp.ts[bool]:
+    with csp.alarms():
+        a_timeout = csp.alarm(bool)
+
+    with csp.state():
+        s_handle = None
+
+    if csp.ticked(x):
+        if s_handle is not None:
+            csp.cancel_alarm(a_timeout, s_handle)
+        s_handle = csp.schedule_alarm(a_timeout, timeout, True)
+    elif csp.ticked(a_timeout):
+        return True
+```
+
+With a five-second timeout and input ticks at 1, 2, 3 and 10 seconds, `stale` emits `True` at 8 and 15 seconds. It starts waiting after the first input tick; if input and timeout tick in the same cycle, the input takes precedence.
 
 ## Basket inputs
 

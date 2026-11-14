@@ -21,7 +21,7 @@ class TestBuild(unittest.TestCase):
             patch.object(
                 subprocess,
                 "check_output",
-                return_value=b"9c5c2a0ab75aff5bcd08142525f6ff7f6f7ddeee\n",
+                return_value=b"56bb2411609227288b70117ead2c47585ba07713\n",
             ),
         ):
             runpy.run_path(setup_path, run_name="csp_setup_test")

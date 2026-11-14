@@ -208,11 +208,13 @@ class Signature:
         return tuple(type_resolver.ts_inputs), tuple(type_resolver.scalar_inputs), type_resolver.tvars
 
     def _parse_inputs_pydantic(self, forced_tvars, *args, allow_none_ts=False, **kwargs):
+        if len(args) > self.num_args():
+            raise TypeError("%s takes %d arguments but given %d" % (self._name, self.num_args(), len(args)))
+
         new_kwargs = {}
         for k, v in kwargs.items():
             new_kwargs[f"{INPUT_PREFIX}{k}"] = v
         # Replacement of flat_args
-        # TODO: What if too many args passed in?
         for arg, inp in zip(args, self._inputs[self._num_alarms :]):
             if inp.name in kwargs:
                 raise TypeError('%s got multiple value for argument "%s"' % (self._name, inp.name))

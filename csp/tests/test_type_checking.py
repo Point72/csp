@@ -31,6 +31,114 @@ class TestTypeChecking(unittest.TestCase):
     class Dummy3:
         pass
 
+    @unittest.skipUnless(USE_PYDANTIC, "Pydantic input validation")
+    def test_excess_positional_arguments(self):
+        @csp.node
+        def value(x: ts[int], offset: int = 1) -> ts[int]:
+            if csp.ticked(x):
+                return x + offset
+
+        @csp.node
+        def source():
+            pass
+
+        for node, given, expected in ((value, 3, 2), (source, 1, 0)):
+            with self.subTest(node=node.__name__):
+
+                def graph():
+                    args = (csp.const(1), 2, 3) if node is value else (1,)
+                    return node(*args)
+
+                with self.assertRaisesRegex(TypeError, f"{node.__name__} takes {expected} arguments but given {given}"):
+                    build_graph(graph)
+
+    @unittest.skipUnless(USE_PYDANTIC, "Pydantic input validation")
+    def test_excess_positional_arguments_with_alarm(self):
+        @csp.node
+        def value(x: ts[int], offset: int = 1) -> ts[int]:
+            with csp.alarms():
+                alarm = csp.alarm(int)
+            if csp.ticked(x):
+                return x + offset
+
+        def graph():
+            return value(csp.const(1), 2, 3)
+
+        with self.assertRaisesRegex(TypeError, "value takes 2 arguments but given 3"):
+            build_graph(graph)
+
+    def test_positional_arguments_with_defaults_and_keywords(self):
+        @csp.node
+        def value(x: ts[int], offset: int = 1) -> ts[int]:
+            with csp.alarms():
+                alarm = csp.alarm(int)
+            if csp.ticked(x):
+                return x + offset
+
+        def graph():
+            x = csp.const(1)
+            return {
+                "default": value(x),
+                "positional": value(x, 2),
+                "mixed": value(x, offset=3),
+                "keyword": value(x=x, offset=4),
+            }
+
+        result = csp.run(graph, starttime=datetime(2020, 1, 1), endtime=timedelta())
+        self.assertEqual(
+            {key: ticks[0][1] for key, ticks in result.items()},
+            {"default": 2, "positional": 3, "mixed": 4, "keyword": 5},
+        )
+
+    def test_excess_positional_ts_arguments(self):
+        @csp.node
+        def node(x: ts[int]) -> ts[int]:
+            if csp.ticked(x):
+                return x
+
+        @csp.graph
+        def graph(x: ts[int]) -> ts[int]:
+            return x
+
+        for func in (node, graph):
+            with self.subTest(func=func.__name__):
+
+                def build():
+                    return func(csp.const(1), csp.const(2))
+
+                with self.assertRaisesRegex(TypeError, f"{func.__name__} takes 1 arguments but given 2"):
+                    build_graph(build)
+
+    def test_excess_positional_arguments_with_only_alarms(self):
+        @csp.node
+        def source():
+            with csp.alarms():
+                alarm = csp.alarm(int)
+                other_alarm = csp.alarm(str)
+
+        def graph():
+            source(1)
+
+        with self.assertRaisesRegex(TypeError, "source takes 0 arguments but given 1"):
+            build_graph(graph)
+
+    def test_invalid_keyword_arguments_with_defaults(self):
+        @csp.node
+        def value(x: ts[int], offset: int = 1) -> ts[int]:
+            with csp.alarms():
+                alarm = csp.alarm(int)
+            if csp.ticked(x):
+                return x + offset
+
+        for kwargs in ({"x": None}, {"unknown": 2}):
+            with self.subTest(kwargs=kwargs):
+
+                def graph():
+                    return value(csp.const(1), **kwargs)
+
+                with self.assertRaises(TypeError):
+                    build_graph(graph)
+
     def test_graph_build_type_checking(self):
         @csp.node
         def typed_ts(x: ts[int]):

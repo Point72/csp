@@ -6,6 +6,7 @@ import subprocess
 import sys
 from shutil import which
 
+from setuptools import find_namespace_packages
 from skbuild import setup
 
 CSP_USE_VCPKG = os.environ.get("CSP_USE_VCPKG", "1").lower() in ("1", "on")
@@ -38,7 +39,7 @@ elif sys.platform == "win32":
 else:
     VCPKG_TRIPLET = None
 
-VCPKG_SHA = "9c5c2a0ab75aff5bcd08142525f6ff7f6f7ddeee"
+VCPKG_SHA = "56bb2411609227288b70117ead2c47585ba07713"
 
 # This will be used for e.g. the sdist
 if CSP_USE_VCPKG:
@@ -150,7 +151,11 @@ print(f"CMake Args: {cmake_args}")
 setup(
     name="csp",
     version="0.19.1",
-    packages=["csp"],
+    # Include build helpers without __init__.py.
+    packages=find_namespace_packages(include=["csp", "csp.*"]),
+    # Keep source files in the sdist, not the environment root.
+    include_package_data=False,
+    package_data={"csp.tests.adapters": ["*_test_data.*"]},
     cmake_install_dir="csp",
     cmake_args=cmake_args,
     # cmake_with_sdist=True,

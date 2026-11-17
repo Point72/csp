@@ -29,11 +29,7 @@ class NodeDefMeta(type):
             python_kwargs["_cppimpl"] = None
             self.python = NodeDefMeta(self.__name__, self.__bases__, python_kwargs)
 
-    def _instantiate_impl(self, __forced_tvars, name, args, kwargs):
-        ## Parse inputs
-        inputs, scalars, tvars = self._signature.parse_inputs(__forced_tvars, *args, **kwargs)
-        nodedef = super().__call__(inputs, scalars, tvars, self._impl, self._pre_create_hook)
-
+    def _finalize_nodedef(self, nodedef, inputs, scalars, tvars, name):
         basket_shape_eval_inputs = list(scalars)
         for input in inputs:
             if isinstance(input, list) or isinstance(input, dict):
@@ -43,6 +39,12 @@ class NodeDefMeta(type):
         nodedef.outputs = output_types
         nodedef.__name__ = name if name else self.__name__
         return outputs
+
+    def _instantiate_impl(self, __forced_tvars, name, args, kwargs):
+        ## Parse inputs
+        inputs, scalars, tvars = self._signature.parse_inputs(__forced_tvars, *args, **kwargs)
+        nodedef = super().__call__(inputs, scalars, tvars, self._impl, self._pre_create_hook)
+        return self._finalize_nodedef(nodedef, inputs, scalars, tvars, name)
 
     def _instantiate(self, __forced_tvars, name=None, *args, **kwargs):
         return self._instantiate_func(__forced_tvars, name=name, args=args, kwargs=kwargs)
@@ -146,6 +148,10 @@ class NodeDef:
 
             ts_idx += 1
 
+    def _create_outputs(self, node):
+        for idx, output_type in enumerate(self._output_types):
+            node.create_output(idx, output_type)
+
     def _create(self, engine, memo):
         if self._pre_create_hook:
             self._pre_create_hook(engine, memo)
@@ -178,8 +184,7 @@ class NodeDef:
             gen = self._impl(*self._scalars)
             node = _cspimpl.PyNode(engine, inputs, self._output_types, gen)
 
-        for idx, output_type in enumerate(self._output_types):
-            node.create_output(idx, output_type)
+        self._create_outputs(node)
 
         for idx, alarm in enumerate(alarms):
             node.create_alarm(idx, ContainerTypeNormalizer.normalized_type_to_actual_python_type(alarm.typ.typ))

@@ -1,8 +1,8 @@
 import os
 import unittest
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
 
-import pytz
 import sqlalchemy as db
 
 import csp
@@ -63,7 +63,7 @@ class TestDBReader(unittest.TestCase):
         engine = self._prepopulate_in_mem_engine()
         for time_accessor in (
             EngineStartTimeAccessor(),
-            TimestampAccessor(time_column="TIME", tz=pytz.timezone("US/Eastern")),
+            TimestampAccessor(time_column="TIME", tz=ZoneInfo("US/Eastern")),
         ):
 
             def graph():
@@ -225,7 +225,7 @@ class TestDBReader(unittest.TestCase):
         execute_with_commit(engine, query, values_list)
 
         def graph():
-            time_accessor = DateTimeAccessor(date_column="DATE", time_column="TIME", tz=pytz.timezone("US/Eastern"))
+            time_accessor = DateTimeAccessor(date_column="DATE", time_column="TIME", tz=ZoneInfo("US/Eastern"))
             reader = DBReader.create_from_connection(
                 connection=engine,
                 table_name="test",
@@ -256,7 +256,7 @@ class TestDBReader(unittest.TestCase):
             csp.add_graph_output("all", all)
 
         # NYC
-        result = csp.run(graph, starttime=pytz.timezone("US/Eastern").localize(datetime(2020, 3, 3, 9, 30)))
+        result = csp.run(graph, starttime=datetime(2020, 3, 3, 9, 30, tzinfo=ZoneInfo("US/Eastern")))
 
         self.assertEqual(len(result["aapl"]), 4)
         self.assertTrue(all(v[1].SYMBOL == "AAPL" for v in result["aapl"]))
@@ -338,7 +338,7 @@ class TestDBReader(unittest.TestCase):
         metadata.create_all(engine)
 
         def graph():
-            time_accessor = TimestampAccessor(time_column="TIME", tz=pytz.timezone("US/Eastern"))
+            time_accessor = TimestampAccessor(time_column="TIME", tz=ZoneInfo("US/Eastern"))
             query = "select * from test1 inner join test2 on test2.TIME=test1.TIME"
             reader = DBReader.create_from_connection(
                 connection=engine, query=query, time_accessor=time_accessor, symbol_column="SYMBOL"
@@ -366,7 +366,7 @@ class TestDBReader(unittest.TestCase):
             csp.add_graph_output("all", all)
 
         # NYC
-        starttime = pytz.timezone("US/Eastern").localize(datetime(2020, 3, 3, 9, 30))
+        starttime = datetime(2020, 3, 3, 9, 30, tzinfo=ZoneInfo("US/Eastern"))
         result = csp.run(graph, starttime=starttime)
 
         # result = csp.run(graph, starttime=datetime(2020, 3, 3, 9, 30))
@@ -429,7 +429,7 @@ class TestDBReader(unittest.TestCase):
         execute_with_commit(engine, query, values_list)
 
         def graph():
-            time_accessor = DateTimeAccessor(date_column="DATE", time_column="TIME", tz=pytz.timezone("US/Eastern"))
+            time_accessor = DateTimeAccessor(date_column="DATE", time_column="TIME", tz=ZoneInfo("US/Eastern"))
             reader = DBReader.create_from_connection(
                 connection=engine, table_name="test", time_accessor=time_accessor, symbol_column="SYMBOL"
             )
@@ -439,7 +439,7 @@ class TestDBReader(unittest.TestCase):
             csp.add_graph_output("aapl_price", aapl_price)
 
         # NYC
-        tz = pytz.timezone("US/Eastern")
+        tz = ZoneInfo("US/Eastern")
         periods = [
             (datetime(2020, 3, 3), datetime(2020, 3, 4)),
             (datetime(2020, 3, 3), datetime(2020, 3, 5)),
@@ -448,9 +448,9 @@ class TestDBReader(unittest.TestCase):
             (datetime(2020, 3, 4, 13), datetime(2020, 3, 4, 14)),
         ]
         for starttime, endtime in periods:
-            result = csp.run(graph, starttime=tz.localize(starttime), endtime=tz.localize(endtime))
+            result = csp.run(graph, starttime=starttime.replace(tzinfo=tz), endtime=endtime.replace(tzinfo=tz))
             target = [
-                (tz.localize(v[0]).astimezone(pytz.UTC).replace(tzinfo=None), v[1])
+                (v[0].replace(tzinfo=tz).astimezone(timezone.utc).replace(tzinfo=None), v[1])
                 for v in values
                 if v[0] >= starttime and v[0] <= endtime
             ]

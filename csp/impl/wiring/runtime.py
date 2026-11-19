@@ -1,9 +1,7 @@
 import threading
 import time
 from collections import deque
-from datetime import datetime, timedelta
-
-import pytz
+from datetime import datetime, timedelta, timezone
 
 from csp.impl.__cspimpl import _cspimpl
 from csp.impl.error_handling import ExceptionContext
@@ -19,15 +17,15 @@ MAX_END_TIME = datetime(2261, 12, 31, 23, 59, 50, 999999)
 def _normalize_run_times(starttime, endtime, realtime):
     if starttime is None:
         if realtime:
-            starttime = datetime.now(pytz.UTC).replace(tzinfo=None)
+            starttime = datetime.now(timezone.utc).replace(tzinfo=None)
         else:
             raise RuntimeError("starttime argument is required")
     if endtime is None:
         raise RuntimeError("endtime argument is required")
     if starttime.tzinfo is not None:
-        starttime = starttime.astimezone(pytz.UTC).replace(tzinfo=None)
+        starttime = starttime.astimezone(timezone.utc).replace(tzinfo=None)
     if isinstance(endtime, datetime) and endtime.tzinfo is not None:
-        endtime = endtime.astimezone(pytz.UTC).replace(tzinfo=None)
+        endtime = endtime.astimezone(timezone.utc).replace(tzinfo=None)
     if isinstance(endtime, timedelta):
         endtime = starttime + endtime
     return starttime, endtime
@@ -202,7 +200,7 @@ def run(
             mem_cache.clear(clear_user_objects=False)
 
             # Ensure we dont start running realtime engines before starttime if its in the future
-            now = datetime.now(pytz.UTC).replace(tzinfo=None)
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             if starttime > now and realtime:
                 time.sleep((starttime - now).total_seconds())
 

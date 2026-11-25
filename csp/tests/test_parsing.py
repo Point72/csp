@@ -2265,6 +2265,35 @@ class TestParsing(unittest.TestCase):
         # reset the opt-in settings now that the test is done
         csp.impl.warnings.set_deprecation_warning(original_setting)
 
+    def test_bare_annotations_before_special_blocks(self):
+        # type annotations are allowed before the special blocks
+
+        @csp.node
+        def n(x: ts[int]):
+            x: int
+            with csp.alarms():
+                a = csp.alarm(int)
+            with csp.start():
+                csp.schedule_alarm(a, timedelta(seconds=1), 1)
+
+        @csp.node
+        def n2(x: ts[int]):
+            x: int
+            y: float
+            with csp.alarms():
+                a = csp.alarm(int)
+            x: int
+            with csp.start():
+                s = None
+
+        with self.assertRaisesRegex(CspParseError, "Invalid usage of start"):
+
+            @csp.node
+            def n3(x: ts[int]):
+                y: int = 5
+                with csp.start():
+                    s = None
+
 
 if __name__ == "__main__":
     unittest.main()

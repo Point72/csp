@@ -8,6 +8,7 @@
 #include <csp/engine/PushInputAdapter.h>
 #include <librdkafka/rdkafkacpp.h>
 #include <atomic>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -75,6 +76,11 @@ public:
 
     void forceShutdown( const std::string & err );
 
+    void onBrokersDown( const std::string & err );
+    void checkBrokersDown();
+    bool brokersDown() const { return m_brokersDownSince.load( std::memory_order_relaxed ) != 0; }
+    void onBrokerActivity() { m_brokersDownSince.store( 0, std::memory_order_relaxed ); }
+
     void markConsumerReplayDone( KafkaConsumer * consumer, const std::string & topic );
     void onMessage( RdKafka::Message * msg ) const;
     
@@ -131,6 +137,12 @@ private:
     std::unique_ptr<std::thread>               m_producerPollThread;
     std::atomic<bool>                          m_producerPollThreadActive;
     std::atomic<bool>                          m_unrecoverableError;
+
+    //Nanoseconds since the brokers were first reported down, 0 while they are believed up
+    std::atomic<int64_t>                       m_brokersDownSince;
+    int64_t                                    m_brokersDownTolerance;
+    std::mutex                                 m_brokersDownLock;
+    std::string                                m_brokersDownError;
 
     std::unique_ptr<RdKafka::Conf>             m_consumerConf;
     std::unique_ptr<RdKafka::Conf>             m_producerConf;

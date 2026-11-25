@@ -17,8 +17,16 @@ class InputAdapter;
     
 struct NodeDef
 {
-    NodeDef( INOUT_ID_TYPE numIn, INOUT_ID_TYPE numOut ) : numInputs( numIn ), numOutputs( numOut )
-    {}
+    NodeDef( size_t numIn, size_t numOut )
+    {
+        if( numIn > InputId::maxId() )
+            CSP_THROW( ValueError, "number of inputs exceeds limit of " << InputId::maxId() );
+        if( numOut > OutputId::maxId() )
+            CSP_THROW( ValueError, "number of outputs exceeds limit of " << OutputId::maxId() );
+
+        numInputs = static_cast<INOUT_ID_TYPE>( numIn );
+        numOutputs = static_cast<INOUT_ID_TYPE>( numOut );
+    }
     
     INOUT_ID_TYPE numInputs;
     INOUT_ID_TYPE numOutputs;

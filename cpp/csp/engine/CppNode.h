@@ -92,7 +92,7 @@ protected:
         if( nodedef.outputs.size() > OutputId::maxOutputs() )
             CSP_THROW( ValueError, "number of outputs exceeds limit of " << OutputId::maxOutputs() << " on node " << name() );
 
-        return csp::NodeDef{ INOUT_ID_TYPE( nodedef.inputs.size() ), INOUT_ID_TYPE( nodedef.outputs.size() ) };
+        return csp::NodeDef{ nodedef.inputs.size(), nodedef.outputs.size() };
     }
 
     void validateNodeDef() const

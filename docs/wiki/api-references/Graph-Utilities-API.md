@@ -5,6 +5,7 @@ The main utility functions of CSP are documented here. These functions enable us
 - [Table of Contents](#table-of-contents)
 - [`csp.run`](#csprun)
 - [`csp.run_on_thread`](#csprun_on_thread)
+- [`csp.is_configured_realtime`](#cspis_configured_realtime)
 - [`csp.show_graph`](#cspshow_graph)
 
 ## `csp.run`
@@ -72,6 +73,38 @@ Returns a runner object, which has the following methods:
     def stop_engine(self):
         """request engine to stop ( async )"""
 ```
+
+## `csp.is_configured_realtime`
+
+```python
+csp.is_configured_realtime()
+```
+
+Returns the `realtime` flag passed to `csp.run`, `csp.run_on_thread`, or `csp.build_graph` (default `False`). Takes no arguments and raises `RuntimeError` outside a graph run/build context.
+
+During graph construction, this flag can select historical or live input adapters. It does not report the engine's current phase: a realtime-configured run can replay history first. Inside a node, `csp.in_realtime()` reports that phase. See [Execution Modes](Execution-Modes#replay-before-going-realtime).
+
+This example uses constants in place of adapters:
+
+```python
+from datetime import datetime, timedelta
+
+import csp
+
+
+def graph():
+    if csp.is_configured_realtime():
+        return csp.const("live")
+    return csp.const("historical")
+
+
+start = datetime(2024, 1, 1)
+for realtime, expected in ((False, "historical"), (True, "live")):
+    result = csp.run(graph, starttime=start, endtime=timedelta(0), realtime=realtime)
+    assert result[0] == [(start, expected)]
+```
+
+Both runs end at the historical start time. The second selects `"live"` because its configured mode is realtime, even though no realtime processing occurs.
 
 ## `csp.show_graph`
 

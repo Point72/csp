@@ -13,6 +13,7 @@ Since engines can run in both simulated and realtime mode, users should **always
 - [Table of Contents](#table-of-contents)
 - [Simulation Mode](#simulation-mode)
 - [Realtime Mode](#realtime-mode)
+  - [Replay Before Going Realtime](#replay-before-going-realtime)
 - [csp.PushMode](#csppushmode)
 - [Handling Duplicate Timestamps](#handling-duplicate-timestamps)
 - [Realtime Group Event Synchronization](#realtime-group-event-synchronization)
@@ -37,6 +38,39 @@ All time based inputs such as `csp.timer` and alarms will switch to executing in
 
 As always, `csp.now()` should still be used in `csp.node` code, even when running in realtime mode.
 `csp.now()` will be the time assigned to the current engine cycle.
+
+### Replay Before Going Realtime
+
+Set `starttime` in the past and `endtime` in the future to replay history and continue in realtime:
+
+```python
+from datetime import datetime, timedelta, timezone
+
+import csp
+
+
+@csp.node
+def show_times(tick: csp.ts[bool]):
+    if csp.ticked(tick):
+        print(f"engine={csp.now()} wallclock={datetime.now(timezone.utc)} realtime={csp.in_realtime()}")
+
+
+def replay_to_realtime():
+    show_times(csp.timer(timedelta(seconds=1)))
+
+
+now = datetime.now(timezone.utc)
+csp.run(
+    replay_to_realtime,
+    starttime=now - timedelta(seconds=5),
+    endtime=now + timedelta(seconds=3),
+    realtime=True,
+)
+```
+
+The historical ticks print in quick succession; live ticks follow at one-second intervals. `csp.in_realtime()` reports the current phase inside a node. Use [`csp.is_configured_realtime()`](Graph-Utilities-API#cspis_configured_realtime) during graph construction to check the run's configured mode instead.
+
+Historical adapters must supply data for the replay interval; realtime adapters do not provide history automatically. An absolute future `endtime` allows time for live processing. A `timedelta` end time is measured from `starttime`, so it must cover both replay and live processing.
 
 ## csp.PushMode
 

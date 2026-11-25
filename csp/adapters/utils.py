@@ -29,6 +29,19 @@ class JSONTextMessageMapper(MsgMapper):
         self.properties["datetime_type"] = datetime_type.name
 
 
+class AvroMessageMapper(MsgMapper):
+    def __init__(self, avro_schema: str, datetime_type=DateTimeType.UINT64_NANOS):
+        """
+        Create an Avro message mapper for Kafka publishing.
+
+        :param avro_schema: JSON string representation of the Avro schema
+        :param datetime_type: How to serialize datetime values (default: UINT64_NANOS)
+        """
+        super().__init__("BYTES_MSG", "AVRO")
+        self.properties["avro_schema"] = avro_schema
+        self.properties["datetime_type"] = datetime_type.name
+
+
 class RawTextMessageMapper(MsgMapper):
     def __init__(self):
         super().__init__("TEXT_MSG", "RAW_BYTES")

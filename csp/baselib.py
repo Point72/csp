@@ -4,11 +4,10 @@ import logging
 import math
 import queue
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, List, Optional, TypeVar, Union
 
 import numpy as np
-import pytz
 
 import csp
 from csp.impl.__cspimpl import _cspimpl
@@ -186,7 +185,7 @@ def _print_ts(tag: str, x: ts["T"]):
     if csp.ticked(x):
         t = csp.now()
         if s_log_tz is not None:
-            t = pytz.UTC.localize(t).astimezone(s_log_tz)
+            t = t.replace(tzinfo=timezone.utc).astimezone(s_log_tz)
         builtins.print("%s %s:%s" % (t, tag, x))
 
 
@@ -266,7 +265,7 @@ def _log_ts(
     if csp.ticked(x):
         t = csp.now()
         if s_log_tz is not None:
-            t = pytz.UTC.localize(t).astimezone(s_log_tz)
+            t = t.replace(tzinfo=timezone.utc).astimezone(s_log_tz)
 
         if use_thread:
             s_queue.put((s_logger, level, tag, t, x))

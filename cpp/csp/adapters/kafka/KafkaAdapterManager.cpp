@@ -118,6 +118,10 @@ KafkaAdapterManager::~KafkaAdapterManager()
         m_producerPollThreadActive = false;
         m_producerPollThread -> join();
     }
+
+    // Destroy consumers / producer before the callbacks they use, since teardown can invoke them
+    m_consumerVector.clear();
+    m_producer.reset();
 }
 
 void KafkaAdapterManager::setConfProperties( RdKafka::Conf * conf, const Dictionary & properties )

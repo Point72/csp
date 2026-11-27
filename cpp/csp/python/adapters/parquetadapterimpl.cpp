@@ -22,6 +22,7 @@
 #include <csp/python/adapters/ArrowNumpyListWriter.h>
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
+#include <arrow/config.h>
 #include <arrow/io/file.h>
 #include <arrow/util/future.h>
 #include <arrow/util/thread_pool.h>
@@ -420,6 +421,14 @@ private:
         arrowProps.set_use_threads( true );
         arrowProps.set_pre_buffer( true );
 
+#if ARROW_VERSION_MAJOR >= 23
+        auto readerResult = ::parquet::arrow::FileReader::Make(
+            ::arrow::default_memory_pool(), std::move( parquetReader ), arrowProps );
+        if( !readerResult.ok() )
+            CSP_THROW( csp::ValueError, "Failed to create Arrow FileReader for " << path << ": " << readerResult.status().ToString() );
+
+        return std::move( readerResult ).ValueUnsafe();
+#else
         std::unique_ptr<::parquet::arrow::FileReader> fileReader;
         auto status = ::parquet::arrow::FileReader::Make(
             ::arrow::default_memory_pool(), std::move( parquetReader ), arrowProps, &fileReader );
@@ -427,6 +436,7 @@ private:
             CSP_THROW( csp::ValueError, "Failed to create Arrow FileReader for " << path << ": " << status.ToString() );
 
         return fileReader;
+#endif
     }
 
     // Compute the projected Arrow schema from parquet file metadata alone (no I/O).
